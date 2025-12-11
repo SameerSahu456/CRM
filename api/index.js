@@ -136,7 +136,7 @@ function handleCRUD(collection, req, res, id) {
   return res.status(405).json({ error: 'Method not allowed' });
 }
 
-module.exports = (req, res) => {
+export default function handler(req, res) {
   // CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
@@ -248,4 +248,4 @@ module.exports = (req, res) => {
   }
 
   return res.status(404).json({ error: 'Endpoint not found' });
-};
+}
