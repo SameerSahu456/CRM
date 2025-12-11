@@ -1,13 +1,76 @@
-// Consolidated API handler for Vercel Hobby plan (12 function limit)
-const data = require('./data');
+// Consolidated API handler for Vercel Hobby plan
+
+// Mock data (inlined)
+const mockLeads = [
+  { id: '1', firstName: 'Alice', lastName: 'Freeman', company: 'Quantum Solutions', email: 'alice@quantum.io', status: 'New', source: 'Website', score: 85, owner: 'Sarah Jenkins' },
+  { id: '2', firstName: 'Bob', lastName: 'Smith', company: 'Design Co.', email: 'bob@design.co', status: 'Contacted', source: 'Referral', score: 62, owner: 'Michael Chen' },
+  { id: '3', firstName: 'Charlie', lastName: 'Davis', company: 'FinTech Plus', email: 'c.davis@fintech.com', status: 'Qualified', source: 'LinkedIn', score: 92, owner: 'Sarah Jenkins' },
+  { id: '4', firstName: 'Diana', lastName: 'Prince', company: 'Amazone Corp', email: 'diana@amazone.com', status: 'Lost', source: 'Trade Show', score: 24, owner: 'Michael Chen' },
+  { id: '5', firstName: 'Evan', lastName: 'Wright', company: 'Wright Logic', email: 'evan@wright.net', status: 'New', source: 'Website', score: 78, owner: 'Sarah Jenkins' },
+  { id: '6', firstName: 'Fiona', lastName: 'Garcia', company: 'Health First', email: 'fiona@healthfirst.org', status: 'Contacted', source: 'Cold Call', score: 71, owner: 'Michael Chen' },
+  { id: '7', firstName: 'George', lastName: 'Martinez', company: 'EduTech Inc', email: 'george@edutech.com', status: 'Qualified', source: 'Referral', score: 88, owner: 'Sarah Jenkins' },
+  { id: '8', firstName: 'Hannah', lastName: 'Lee', company: 'Green Energy Co', email: 'hannah@greenenergy.com', status: 'Proposal', source: 'Email Campaign', score: 55, owner: 'Michael Chen' },
+];
+const mockContacts = [
+  { id: '1', firstName: 'John', lastName: 'Anderson', email: 'john.anderson@techflow.io', jobTitle: 'CEO', accountName: 'TechFlow Inc.', type: 'Customer', status: 'Active', owner: 'Sarah Jenkins' },
+  { id: '2', firstName: 'Maria', lastName: 'Santos', email: 'maria.santos@techflow.io', jobTitle: 'VP of Sales', accountName: 'TechFlow Inc.', type: 'Customer', status: 'Active', owner: 'Sarah Jenkins' },
+  { id: '3', firstName: 'Robert', lastName: 'Johnson', email: 'robert@globaldynamics.com', jobTitle: 'COO', accountName: 'Global Dynamics', type: 'Customer', status: 'Active', owner: 'Michael Chen' },
+  { id: '4', firstName: 'Jennifer', lastName: 'Williams', email: 'jennifer@securenet.io', jobTitle: 'CTO', accountName: 'SecureNet', type: 'Prospect', status: 'Active', owner: 'Sarah Jenkins' },
+  { id: '5', firstName: 'James', lastName: 'Brown', email: 'james@alphawave.net', jobTitle: 'Founder', accountName: 'Alpha Wave', type: 'Customer', status: 'Active', owner: 'Michael Chen' },
+  { id: '6', firstName: 'Lisa', lastName: 'Taylor', email: 'lisa@nextgen.tech', jobTitle: 'VP of Engineering', accountName: 'NextGen Systems', type: 'Customer', status: 'Active', owner: 'Sarah Jenkins' },
+  { id: '7', firstName: 'David', lastName: 'Miller', email: 'david.miller@innovate.io', jobTitle: 'Product Director', accountName: 'Innovate Labs', type: 'Prospect', status: 'Active', owner: 'Michael Chen' },
+  { id: '8', firstName: 'Sarah', lastName: 'Davis', email: 'sarah.davis@cloudpeak.com', jobTitle: 'Director of IT', accountName: 'CloudPeak', type: 'Customer', status: 'Inactive', owner: 'Sarah Jenkins' },
+];
+const mockAccounts = [
+  { id: '1', name: 'TechFlow Inc.', industry: 'Software', revenue: 5000000, employees: 120, location: 'San Francisco, CA', healthScore: 92, type: 'Customer', status: 'Active', owner: 'Sarah Jenkins' },
+  { id: '2', name: 'Global Dynamics', industry: 'Manufacturing', revenue: 12000000, employees: 450, location: 'Chicago, IL', healthScore: 78, type: 'Customer', status: 'Active', owner: 'Michael Chen' },
+  { id: '3', name: 'SecureNet', industry: 'Cybersecurity', revenue: 2500000, employees: 50, location: 'Austin, TX', healthScore: 88, type: 'Prospect', status: 'Active', owner: 'Sarah Jenkins' },
+  { id: '4', name: 'Alpha Wave', industry: 'Consulting', revenue: 800000, employees: 15, location: 'New York, NY', healthScore: 65, type: 'Customer', status: 'Active', owner: 'Michael Chen' },
+  { id: '5', name: 'NextGen Systems', industry: 'Hardware', revenue: 7500000, employees: 200, location: 'Boston, MA', healthScore: 95, type: 'Customer', status: 'Active', owner: 'Sarah Jenkins' },
+  { id: '6', name: 'Innovate Labs', industry: 'Research', revenue: 3200000, employees: 80, location: 'Seattle, WA', healthScore: 71, type: 'Prospect', status: 'Active', owner: 'Michael Chen' },
+  { id: '7', name: 'CloudPeak', industry: 'Cloud Services', revenue: 9000000, employees: 300, location: 'Denver, CO', healthScore: 45, type: 'Customer', status: 'Churned', owner: 'Sarah Jenkins' },
+  { id: '8', name: 'DataVault', industry: 'Data Storage', revenue: 4500000, employees: 95, location: 'Portland, OR', healthScore: 82, type: 'Customer', status: 'Active', owner: 'Michael Chen' },
+];
+const mockDeals = [
+  { id: '1', title: 'Enterprise License', company: 'TechFlow Inc.', value: 45000, stage: 'Qualification', probability: 20, owner: 'Sarah Jenkins', closingDate: 'Dec 24, 2024', type: 'New Business' },
+  { id: '2', title: 'Q4 Marketing Audit', company: 'Global Dynamics', value: 12000, stage: 'Qualification', probability: 30, owner: 'Michael Chen', closingDate: 'Dec 28, 2024', type: 'New Business' },
+  { id: '3', title: 'Security Suite Upgrade', company: 'SecureNet', value: 85000, stage: 'Proposal', probability: 60, owner: 'Sarah Jenkins', closingDate: 'Jan 15, 2025', type: 'Existing Business' },
+  { id: '4', title: 'Consulting Retainer', company: 'Alpha Wave', value: 24000, stage: 'Negotiation', probability: 85, owner: 'Michael Chen', closingDate: 'Dec 30, 2024', type: 'Renewal' },
+  { id: '5', title: 'Cloud Migration Project', company: 'NextGen Systems', value: 120000, stage: 'Closed Won', probability: 100, owner: 'Sarah Jenkins', closingDate: 'Dec 12, 2024', type: 'New Business' },
+  { id: '6', title: 'Annual Support Contract', company: 'DataVault', value: 36000, stage: 'Discovery', probability: 40, owner: 'Michael Chen', closingDate: 'Jan 20, 2025', type: 'Renewal' },
+  { id: '7', title: 'Platform Integration', company: 'Innovate Labs', value: 65000, stage: 'Proposal', probability: 55, owner: 'Sarah Jenkins', closingDate: 'Feb 01, 2025', type: 'New Business' },
+  { id: '8', title: 'Data Analytics Package', company: 'TechFlow Inc.', value: 28000, stage: 'Negotiation', probability: 75, owner: 'Sarah Jenkins', closingDate: 'Dec 20, 2024', type: 'Existing Business' },
+  { id: '9', title: 'Training Program', company: 'Global Dynamics', value: 8500, stage: 'Closed Won', probability: 100, owner: 'Michael Chen', closingDate: 'Dec 05, 2024', type: 'Existing Business' },
+  { id: '10', title: 'Expansion Deal', company: 'CloudPeak', value: 55000, stage: 'Closed Lost', probability: 0, owner: 'Sarah Jenkins', closingDate: 'Nov 30, 2024', type: 'Existing Business' },
+];
+const mockTasks = [
+  { id: '1', title: 'Follow up with TechFlow on proposal', type: 'Follow-up', status: 'Not Started', priority: 'High', dueDate: '2024-12-12', assignedTo: 'Sarah Jenkins' },
+  { id: '2', title: 'Send contract to Alpha Wave', type: 'Email', status: 'In Progress', priority: 'Urgent', dueDate: '2024-12-10', assignedTo: 'Michael Chen' },
+  { id: '3', title: 'Schedule demo with SecureNet', type: 'Demo', status: 'Not Started', priority: 'Normal', dueDate: '2024-12-15', assignedTo: 'Sarah Jenkins' },
+  { id: '4', title: 'Review Q4 pipeline report', type: 'Task', status: 'Completed', priority: 'Normal', dueDate: '2024-12-05', assignedTo: 'Sarah Jenkins' },
+  { id: '5', title: 'Call with new lead', type: 'Call', status: 'Not Started', priority: 'High', dueDate: '2024-12-11', assignedTo: 'Sarah Jenkins' },
+  { id: '6', title: 'Prepare quarterly business review', type: 'Task', status: 'In Progress', priority: 'High', dueDate: '2024-12-18', assignedTo: 'Michael Chen' },
+  { id: '7', title: 'Update CRM with new contact info', type: 'Task', status: 'Not Started', priority: 'Low', dueDate: '2024-12-20', assignedTo: 'Michael Chen' },
+  { id: '8', title: 'Send holiday greetings', type: 'Email', status: 'Not Started', priority: 'Normal', dueDate: '2024-12-22', assignedTo: 'Sarah Jenkins' },
+];
+const mockCalendarEvents = [
+  { id: '1', title: 'TechFlow Enterprise Demo', type: 'Demo', start: '2024-12-11T10:00:00', end: '2024-12-11T11:30:00', location: 'Zoom', owner: 'Sarah Jenkins', color: '#4f46e5' },
+  { id: '2', title: 'Alpha Wave Contract Review', type: 'Meeting', start: '2024-12-12T14:00:00', end: '2024-12-12T15:00:00', location: 'Conference Room A', owner: 'Michael Chen', color: '#059669' },
+  { id: '3', title: 'Team Standup', type: 'Meeting', start: '2024-12-10T09:00:00', end: '2024-12-10T09:30:00', location: 'Main Office', owner: 'Sarah Jenkins', color: '#7c3aed' },
+  { id: '4', title: 'Q4 Pipeline Review', type: 'Meeting', start: '2024-12-13T15:00:00', end: '2024-12-13T16:30:00', location: 'Board Room', owner: 'Sarah Jenkins', color: '#dc2626' },
+  { id: '5', title: 'SecureNet Discovery Call', type: 'Call', start: '2024-12-15T11:00:00', end: '2024-12-15T11:45:00', owner: 'Sarah Jenkins', color: '#0891b2' },
+  { id: '6', title: 'Sales Training Workshop', type: 'Webinar', start: '2024-12-16T13:00:00', end: '2024-12-16T16:00:00', location: 'Training Room', owner: 'Sarah Jenkins', color: '#ea580c' },
+  { id: '7', title: 'Holiday Office Party', type: 'Meeting', start: '2024-12-20T17:00:00', end: '2024-12-20T20:00:00', location: 'Main Lobby', owner: 'Sarah Jenkins', color: '#059669' },
+  { id: '8', title: 'Year-End Review Meeting', type: 'Meeting', start: '2024-12-27T10:00:00', end: '2024-12-27T12:00:00', location: 'Board Room', owner: 'Sarah Jenkins', color: '#4f46e5' },
+];
 
 // In-memory data stores
-let leads = [...data.mockLeads];
-let contacts = [...data.mockContacts];
-let accounts = [...data.mockAccounts];
-let deals = [...data.mockDeals];
-let tasks = [...data.mockTasks];
-let events = [...data.mockCalendarEvents];
+let leads = [...mockLeads];
+let contacts = [...mockContacts];
+let accounts = [...mockAccounts];
+let deals = [...mockDeals];
+let tasks = [...mockTasks];
+let events = [...mockCalendarEvents];
 
 const tickets = [
   { id: '1', ticketNumber: 'TKT-001', subject: 'Login issues', status: 'Open', priority: 'High', type: 'Bug', contactName: 'John Anderson', accountName: 'TechFlow Inc.', assignedTo: 'David Kim', createdAt: '2024-12-08' },
