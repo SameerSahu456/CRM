@@ -1,10 +1,10 @@
-const data = require('./data');
+const data = require('../data');
 
-let leads = [...data.mockLeads];
+let tasks = [...data.mockTasks];
 
 module.exports = (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
   if (req.method === 'OPTIONS') {
@@ -12,13 +12,13 @@ module.exports = (req, res) => {
   }
 
   if (req.method === 'GET') {
-    return res.status(200).json(leads);
+    return res.status(200).json(tasks);
   }
 
   if (req.method === 'POST') {
-    const newLead = { id: `lead-${Date.now()}`, ...req.body, createdAt: new Date().toISOString() };
-    leads.push(newLead);
-    return res.status(201).json(newLead);
+    const newTask = { id: `task-${Date.now()}`, ...req.body, createdAt: new Date().toISOString() };
+    tasks.push(newTask);
+    return res.status(201).json(newTask);
   }
 
   res.status(405).json({ error: 'Method not allowed' });
