@@ -6,6 +6,114 @@ import { calendarEventsApi } from '../services/api';
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
+// Mock calendar events for offline/development mode
+const MOCK_CALENDAR_EVENTS: CalendarEvent[] = [
+  {
+    id: 'event-1',
+    title: 'Demo Call with Acme Corp',
+    description: 'Product demonstration for enterprise features',
+    type: 'Meeting',
+    start: '2024-12-19T10:00:00Z',
+    end: '2024-12-19T11:30:00Z',
+    allDay: false,
+    location: 'Zoom',
+    meetingLink: 'https://zoom.us/j/123456789',
+    owner: 'Sarah Jenkins',
+    color: '#4F46E5',
+    relatedTo: { type: 'Deal', id: 'deal-1', name: 'Enterprise Software License' },
+    attendees: [
+      { id: 'att-1', name: 'Jennifer Thompson', email: 'j.thompson@acmecorp.com', status: 'Accepted', type: 'Required' },
+      { id: 'att-2', name: 'Sarah Jenkins', email: 'sarah.jenkins@comprint.com', status: 'Accepted', type: 'Required' },
+    ],
+  },
+  {
+    id: 'event-2',
+    title: 'TechStart Proposal Review',
+    description: 'Internal review of proposal before sending',
+    type: 'Meeting',
+    start: '2024-12-19T14:00:00Z',
+    end: '2024-12-19T15:00:00Z',
+    allDay: false,
+    location: 'Conference Room A',
+    meetingLink: '',
+    owner: 'Michael Chen',
+    color: '#10B981',
+    relatedTo: { type: 'Deal', id: 'deal-2', name: 'CRM Implementation' },
+    attendees: [
+      { id: 'att-3', name: 'Michael Chen', email: 'michael.chen@comprint.com', status: 'Accepted', type: 'Required' },
+      { id: 'att-4', name: 'Emily Rodriguez', email: 'emily.rodriguez@comprint.com', status: 'Accepted', type: 'Required' },
+    ],
+  },
+  {
+    id: 'event-3',
+    title: 'Q4 Sales Review',
+    description: 'Quarterly sales performance review',
+    type: 'Meeting',
+    start: '2024-12-20T09:00:00Z',
+    end: '2024-12-20T10:30:00Z',
+    allDay: false,
+    location: 'Main Conference Room',
+    meetingLink: '',
+    owner: 'Sarah Jenkins',
+    color: '#F59E0B',
+    relatedTo: null,
+    attendees: [
+      { id: 'att-5', name: 'Sarah Jenkins', email: 'sarah.jenkins@comprint.com', status: 'Accepted', type: 'Required' },
+      { id: 'att-6', name: 'Michael Chen', email: 'michael.chen@comprint.com', status: 'Accepted', type: 'Required' },
+      { id: 'att-7', name: 'Emily Rodriguez', email: 'emily.rodriguez@comprint.com', status: 'Pending', type: 'Optional' },
+    ],
+  },
+  {
+    id: 'event-4',
+    title: 'HealthFirst Partnership Call',
+    description: 'Initial partnership discussion',
+    type: 'Call',
+    start: '2024-12-20T15:00:00Z',
+    end: '2024-12-20T16:00:00Z',
+    allDay: false,
+    location: 'Phone',
+    meetingLink: '',
+    owner: 'Michael Chen',
+    color: '#8B5CF6',
+    relatedTo: { type: 'Deal', id: 'deal-5', name: 'Healthcare Partnership' },
+    attendees: [
+      { id: 'att-8', name: 'Lisa Wang', email: 'lisa.wang@healthfirstmed.com', status: 'Accepted', type: 'Required' },
+    ],
+  },
+  {
+    id: 'event-5',
+    title: 'Team Building Event',
+    description: 'End of year team celebration',
+    type: 'Meeting',
+    start: '2024-12-23T00:00:00Z',
+    end: '2024-12-23T23:59:59Z',
+    allDay: true,
+    location: 'Office',
+    meetingLink: '',
+    owner: 'Sarah Jenkins',
+    color: '#EC4899',
+    relatedTo: null,
+    attendees: [],
+  },
+  {
+    id: 'event-6',
+    title: 'PrintMaster Site Visit',
+    description: 'Visit PrintMaster facility for requirements gathering',
+    type: 'Meeting',
+    start: '2024-12-18T11:00:00Z',
+    end: '2024-12-18T13:00:00Z',
+    allDay: false,
+    location: 'PrintMaster Office, Delhi',
+    meetingLink: '',
+    owner: 'Emily Rodriguez',
+    color: '#06B6D4',
+    relatedTo: { type: 'Account', id: 'acc-4', name: 'PrintMaster Solutions' },
+    attendees: [
+      { id: 'att-9', name: 'Mark Anderson', email: 'mark.a@printmaster.in', status: 'Accepted', type: 'Required' },
+    ],
+  },
+];
+
 export const CalendarView: React.FC = () => {
   const [currentDate, setCurrentDate] = useState(new Date(2024, 11, 10)); // December 2024
   const [view, setView] = useState<'month' | 'week' | 'day'>('month');
@@ -19,8 +127,19 @@ export const CalendarView: React.FC = () => {
     const fetchEvents = async () => {
       try {
         setLoading(true);
-        const data = await calendarEventsApi.getAll();
-        setEvents(data as CalendarEvent[]);
+        let fetchedData: CalendarEvent[];
+
+        try {
+          const data = await calendarEventsApi.getAll();
+          fetchedData = data as CalendarEvent[];
+        } catch {
+          // API unavailable, use mock data
+          console.log('API unavailable, using mock calendar event data');
+          fetchedData = MOCK_CALENDAR_EVENTS;
+        }
+
+        setEvents(fetchedData);
+        setError(null);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to fetch calendar events');
       } finally {
@@ -99,73 +218,76 @@ export const CalendarView: React.FC = () => {
   }
 
   return (
-    <div className="p-8">
+    <div className="p-4 lg:p-8">
       <div className="bg-white rounded-2xl shadow-soft border border-slate-200 overflow-hidden">
         {/* Header */}
-        <div className="p-6 border-b border-slate-100 flex justify-between items-center">
-          <div className="flex items-center gap-4">
-            <h2 className="text-2xl font-bold text-slate-900 font-display">
-              {MONTHS[month]} {year}
-            </h2>
-            <div className="flex items-center gap-1">
-              <button onClick={prevMonth} className="p-2 hover:bg-slate-100 rounded-lg text-slate-600">
-                <ChevronLeft size={20} />
-              </button>
-              <button onClick={nextMonth} className="p-2 hover:bg-slate-100 rounded-lg text-slate-600">
-                <ChevronRight size={20} />
-              </button>
-            </div>
-            <button
-              onClick={goToToday}
-              className="px-3 py-1.5 text-sm font-medium text-brand-600 hover:bg-brand-50 rounded-lg transition-colors"
-            >
-              Today
-            </button>
-          </div>
-
-          <div className="flex items-center gap-4">
-            <div className="flex bg-slate-100 rounded-lg p-1">
-              {(['month', 'week', 'day'] as const).map((v) => (
-                <button
-                  key={v}
-                  onClick={() => setView(v)}
-                  className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors capitalize ${
-                    view === v ? 'bg-white text-brand-600 shadow-sm' : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                >
-                  {v}
+        <div className="p-4 lg:p-6 border-b border-slate-100">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div className="flex items-center gap-2 lg:gap-4">
+              <h2 className="text-lg lg:text-2xl font-bold text-slate-900 font-display">
+                {MONTHS[month]} {year}
+              </h2>
+              <div className="flex items-center gap-1">
+                <button onClick={prevMonth} className="p-1.5 lg:p-2 hover:bg-slate-100 rounded-lg text-slate-600">
+                  <ChevronLeft size={20} />
                 </button>
-              ))}
+                <button onClick={nextMonth} className="p-1.5 lg:p-2 hover:bg-slate-100 rounded-lg text-slate-600">
+                  <ChevronRight size={20} />
+                </button>
+              </div>
+              <button
+                onClick={goToToday}
+                className="hidden sm:block px-3 py-1.5 text-sm font-medium text-brand-600 hover:bg-brand-50 rounded-lg transition-colors"
+              >
+                Today
+              </button>
             </div>
-            <button
-              onClick={() => setShowAddModal(true)}
-              className="flex items-center gap-2 bg-brand-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-brand-700 transition-colors shadow-glow"
-            >
-              <Plus size={16} /> New Event
-            </button>
+
+            <div className="flex items-center gap-2 lg:gap-4 w-full sm:w-auto">
+              <div className="hidden sm:flex bg-slate-100 rounded-lg p-1">
+                {(['month', 'week', 'day'] as const).map((v) => (
+                  <button
+                    key={v}
+                    onClick={() => setView(v)}
+                    className={`px-3 lg:px-4 py-1.5 rounded-md text-sm font-medium transition-colors capitalize ${
+                      view === v ? 'bg-white text-brand-600 shadow-sm' : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    {v}
+                  </button>
+                ))}
+              </div>
+              <button
+                onClick={() => setShowAddModal(true)}
+                className="flex items-center justify-center gap-2 bg-brand-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-brand-700 transition-colors shadow-glow flex-1 sm:flex-none"
+              >
+                <Plus size={16} /> New Event
+              </button>
+            </div>
           </div>
         </div>
 
         {/* Calendar Grid */}
-        <div className="p-4">
+        <div className="p-2 lg:p-4 overflow-x-auto">
           {/* Day Headers */}
-          <div className="grid grid-cols-7 gap-px bg-slate-200">
+          <div className="grid grid-cols-7 gap-px bg-slate-200 min-w-[600px]">
             {DAYS.map((day) => (
-              <div key={day} className="bg-slate-50 py-3 text-center text-xs font-bold text-slate-500 uppercase tracking-wider">
-                {day}
+              <div key={day} className="bg-slate-50 py-2 lg:py-3 text-center text-xs font-bold text-slate-500 uppercase tracking-wider">
+                <span className="hidden sm:inline">{day}</span>
+                <span className="sm:hidden">{day.charAt(0)}</span>
               </div>
             ))}
           </div>
 
           {/* Calendar Days */}
-          <div className="grid grid-cols-7 gap-px bg-slate-200 mt-px">
+          <div className="grid grid-cols-7 gap-px bg-slate-200 mt-px min-w-[600px]">
             {calendarDays.map((dayObj, index) => {
               const dayEvents = dayObj.isCurrentMonth ? getEventsForDate(dayObj.day) : [];
 
               return (
                 <div
                   key={index}
-                  className={`bg-white min-h-[120px] p-2 ${!dayObj.isCurrentMonth ? 'bg-slate-50' : ''}`}
+                  className={`bg-white min-h-[80px] lg:min-h-[120px] p-1 lg:p-2 ${!dayObj.isCurrentMonth ? 'bg-slate-50' : ''}`}
                 >
                   <div className={`text-sm font-medium mb-1 w-7 h-7 flex items-center justify-center rounded-full ${
                     isToday(dayObj.date)
@@ -205,14 +327,14 @@ export const CalendarView: React.FC = () => {
         </div>
 
         {/* Upcoming Events Sidebar */}
-        <div className="p-6 border-t border-slate-100 bg-slate-50">
-          <h3 className="text-sm font-bold text-slate-900 mb-4">Upcoming Events</h3>
-          <div className="space-y-3">
+        <div className="p-4 lg:p-6 border-t border-slate-100 bg-slate-50">
+          <h3 className="text-sm font-bold text-slate-900 mb-3 lg:mb-4">Upcoming Events</h3>
+          <div className="space-y-2 lg:space-y-3">
             {events.slice(0, 5).map((event) => (
               <div
                 key={event.id}
                 onClick={() => setSelectedEvent(event)}
-                className="flex items-start gap-3 p-3 bg-white rounded-lg border border-slate-200 hover:border-brand-300 cursor-pointer transition-colors"
+                className="flex items-start gap-2 lg:gap-3 p-2 lg:p-3 bg-white rounded-lg border border-slate-200 hover:border-brand-300 cursor-pointer transition-colors"
               >
                 <div
                   className="w-3 h-3 rounded-full mt-1.5 flex-shrink-0"
@@ -241,8 +363,8 @@ export const CalendarView: React.FC = () => {
 
       {/* Event Detail Modal */}
       {selectedEvent && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setSelectedEvent(null)}>
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md" onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setSelectedEvent(null)}>
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div
               className="h-2 rounded-t-2xl"
               style={{ backgroundColor: selectedEvent.color }}
@@ -333,8 +455,8 @@ export const CalendarView: React.FC = () => {
 
       {/* Add Event Modal */}
       {showAddModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowAddModal(false)}>
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg" onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowAddModal(false)}>
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div className="p-6 border-b border-slate-100 flex justify-between items-center">
               <h2 className="text-xl font-bold text-slate-900">New Event</h2>
               <button onClick={() => setShowAddModal(false)} className="p-2 hover:bg-slate-100 rounded-lg text-slate-400">

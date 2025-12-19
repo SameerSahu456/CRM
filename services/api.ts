@@ -1,8 +1,6 @@
-// API Service for Zenith CRM
-// In production (Vercel), use relative /api path
-// In development, use localhost:3001
-const isDev = import.meta.env.DEV;
-const API_BASE_URL = isDev ? 'http://localhost:3001/api' : '/api';
+// API Service for Comprint CRM
+// Use relative /api path - Vite will proxy to localhost:3002 in dev
+const API_BASE_URL = '/api';
 
 // Generic fetch wrapper with error handling
 async function fetchApi<T>(endpoint: string, options?: RequestInit): Promise<T> {
@@ -449,4 +447,248 @@ export const reportsApi = {
     emails: number;
     meetings: number;
   }>>('/reports/sales-activity'),
+};
+
+// Profile type
+export interface Profile {
+  id: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  avatar: string;
+  role: string;
+  status: string;
+  phone: string;
+  department: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+// Role type
+export interface Role {
+  id: string;
+  name: string;
+  description: string;
+  permissions: string[];
+  color: string;
+  createdAt?: string;
+}
+
+// Profiles API
+export const profilesApi = {
+  getAll: () => fetchApi<Profile[]>('/profiles'),
+
+  getById: (id: string) => fetchApi<Profile>(`/profiles/${id}`),
+
+  create: (profile: Omit<Profile, 'createdAt' | 'updatedAt'>) => fetchApi<Profile>('/profiles', {
+    method: 'POST',
+    body: JSON.stringify(profile),
+  }),
+
+  update: (id: string, profile: Partial<Profile>) => fetchApi<Profile>(`/profiles/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(profile),
+  }),
+
+  delete: (id: string) => fetchApi(`/profiles/${id}`, {
+    method: 'DELETE',
+  }),
+};
+
+// Roles API
+export const rolesApi = {
+  getAll: () => fetchApi<Role[]>('/roles'),
+
+  getById: (id: string) => fetchApi<Role>(`/roles/${id}`),
+
+  create: (role: Omit<Role, 'id' | 'createdAt'>) => fetchApi<Role>('/roles', {
+    method: 'POST',
+    body: JSON.stringify(role),
+  }),
+
+  update: (id: string, role: Partial<Role>) => fetchApi<Role>(`/roles/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(role),
+  }),
+
+  delete: (id: string) => fetchApi(`/roles/${id}`, {
+    method: 'DELETE',
+  }),
+};
+
+// Lead Notes API
+export const leadNotesApi = {
+  getByLeadId: (leadId: string) => fetchApi<Array<{
+    id: string;
+    leadId: string;
+    content: string;
+    createdBy: string;
+    createdAt: string;
+    updatedAt?: string;
+  }>>(`/leads/${leadId}/notes`),
+
+  create: (leadId: string, note: { content: string; createdBy: string }) => fetchApi(`/leads/${leadId}/notes`, {
+    method: 'POST',
+    body: JSON.stringify(note),
+  }),
+
+  update: (leadId: string, noteId: string, note: { content: string }) => fetchApi(`/leads/${leadId}/notes/${noteId}`, {
+    method: 'PUT',
+    body: JSON.stringify(note),
+  }),
+
+  delete: (leadId: string, noteId: string) => fetchApi(`/leads/${leadId}/notes/${noteId}`, {
+    method: 'DELETE',
+  }),
+};
+
+// Lead Activities API (Timeline)
+export const leadActivitiesApi = {
+  getByLeadId: (leadId: string) => fetchApi<Array<{
+    id: string;
+    leadId: string;
+    activityType: string;
+    title: string;
+    description?: string;
+    scheduledAt?: string;
+    completedAt?: string;
+    durationMinutes?: number;
+    outcome?: string;
+    createdBy: string;
+    createdAt: string;
+  }>>(`/leads/${leadId}/activities`),
+
+  create: (leadId: string, activity: Record<string, unknown>) => fetchApi(`/leads/${leadId}/activities`, {
+    method: 'POST',
+    body: JSON.stringify(activity),
+  }),
+};
+
+// Lead Calls API
+export const leadCallsApi = {
+  getByLeadId: (leadId: string) => fetchApi<Array<{
+    id: string;
+    leadId: string;
+    callType: string;
+    subject: string;
+    callPurpose?: string;
+    scheduledAt?: string;
+    startTime?: string;
+    durationMinutes?: number;
+    callResult?: string;
+    description?: string;
+    createdBy: string;
+    createdAt: string;
+  }>>(`/leads/${leadId}/calls`),
+
+  scheduleCall: (leadId: string, call: {
+    subject: string;
+    callPurpose?: string;
+    scheduledAt: string;
+    description?: string;
+    createdBy: string;
+  }) => fetchApi(`/leads/${leadId}/calls/schedule`, {
+    method: 'POST',
+    body: JSON.stringify(call),
+  }),
+
+  logCall: (leadId: string, call: {
+    subject: string;
+    callPurpose?: string;
+    startTime: string;
+    durationMinutes?: number;
+    callResult?: string;
+    description?: string;
+    createdBy: string;
+  }) => fetchApi(`/leads/${leadId}/calls/log`, {
+    method: 'POST',
+    body: JSON.stringify(call),
+  }),
+
+  update: (leadId: string, callId: string, call: Record<string, unknown>) => fetchApi(`/leads/${leadId}/calls/${callId}`, {
+    method: 'PUT',
+    body: JSON.stringify(call),
+  }),
+
+  delete: (leadId: string, callId: string) => fetchApi(`/leads/${leadId}/calls/${callId}`, {
+    method: 'DELETE',
+  }),
+};
+
+// Lead Tasks API
+export const leadTasksApi = {
+  getByLeadId: (leadId: string) => fetchApi<Array<{
+    id: string;
+    leadId: string;
+    title: string;
+    description?: string;
+    status: string;
+    priority: string;
+    dueDate?: string;
+    dueTime?: string;
+    assignedTo?: string;
+    createdBy: string;
+    createdAt: string;
+    updatedAt?: string;
+    completedAt?: string;
+  }>>(`/leads/${leadId}/tasks`),
+
+  create: (leadId: string, task: {
+    title: string;
+    description?: string;
+    priority?: string;
+    dueDate?: string;
+    dueTime?: string;
+    assignedTo?: string;
+    createdBy: string;
+  }) => fetchApi(`/leads/${leadId}/tasks`, {
+    method: 'POST',
+    body: JSON.stringify(task),
+  }),
+
+  update: (leadId: string, taskId: string, task: Record<string, unknown>) => fetchApi(`/leads/${leadId}/tasks/${taskId}`, {
+    method: 'PUT',
+    body: JSON.stringify(task),
+  }),
+
+  delete: (leadId: string, taskId: string) => fetchApi(`/leads/${leadId}/tasks/${taskId}`, {
+    method: 'DELETE',
+  }),
+};
+
+// Email Templates API
+export const emailTemplatesApi = {
+  getAll: () => fetchApi<Array<{
+    id: string;
+    name: string;
+    subject: string;
+    body: string;
+    category?: string;
+    isActive: boolean;
+    createdBy?: string;
+    createdAt: string;
+    updatedAt?: string;
+  }>>('/email-templates'),
+
+  getById: (id: string) => fetchApi(`/email-templates/${id}`),
+
+  create: (template: {
+    name: string;
+    subject: string;
+    body: string;
+    category?: string;
+    createdBy?: string;
+  }) => fetchApi('/email-templates', {
+    method: 'POST',
+    body: JSON.stringify(template),
+  }),
+
+  update: (id: string, template: Record<string, unknown>) => fetchApi(`/email-templates/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(template),
+  }),
+
+  delete: (id: string) => fetchApi(`/email-templates/${id}`, {
+    method: 'DELETE',
+  }),
 };

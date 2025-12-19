@@ -32,6 +32,113 @@ const getTypeIcon = (type: string) => {
   }
 };
 
+// Get today's date in YYYY-MM-DD format
+const getTodayDate = () => new Date().toISOString().split('T')[0];
+const getTomorrowDate = () => {
+  const d = new Date();
+  d.setDate(d.getDate() + 1);
+  return d.toISOString().split('T')[0];
+};
+const getYesterdayDate = () => {
+  const d = new Date();
+  d.setDate(d.getDate() - 1);
+  return d.toISOString().split('T')[0];
+};
+
+// Mock task data for offline/development mode
+const MOCK_TASKS: Task[] = [
+  {
+    id: 'task-1',
+    title: 'Follow up with Acme Corp on proposal',
+    description: 'Send updated pricing and schedule call',
+    type: 'Call',
+    status: 'Not Started',
+    priority: 'High',
+    dueDate: getTodayDate(),
+    dueTime: '14:00',
+    assignedTo: 'Sarah Jenkins',
+    createdBy: 'Sarah Jenkins',
+    createdAt: '2024-12-17T09:00:00Z',
+    completedAt: '',
+    relatedTo: { type: 'Deal', id: 'deal-1', name: 'Enterprise Software License' },
+  },
+  {
+    id: 'task-2',
+    title: 'Prepare demo for TechStart',
+    description: 'Set up demo environment and prepare slides',
+    type: 'Demo',
+    status: 'In Progress',
+    priority: 'Urgent',
+    dueDate: getTodayDate(),
+    dueTime: '10:00',
+    assignedTo: 'Michael Chen',
+    createdBy: 'Michael Chen',
+    createdAt: '2024-12-16T14:00:00Z',
+    completedAt: '',
+    relatedTo: { type: 'Deal', id: 'deal-2', name: 'CRM Implementation' },
+  },
+  {
+    id: 'task-3',
+    title: 'Send onboarding documents to Global Industries',
+    description: 'Email welcome kit and setup instructions',
+    type: 'Email',
+    status: 'Completed',
+    priority: 'Normal',
+    dueDate: getYesterdayDate(),
+    dueTime: '16:00',
+    assignedTo: 'Emily Rodriguez',
+    createdBy: 'Sarah Jenkins',
+    createdAt: '2024-12-15T10:00:00Z',
+    completedAt: '2024-12-18T11:30:00Z',
+    relatedTo: { type: 'Account', id: 'acc-3', name: 'Global Industries Ltd' },
+  },
+  {
+    id: 'task-4',
+    title: 'Schedule discovery call with HealthFirst',
+    description: 'Coordinate with Lisa Wang for partnership discussion',
+    type: 'Meeting',
+    status: 'Not Started',
+    priority: 'High',
+    dueDate: getTomorrowDate(),
+    dueTime: '11:00',
+    assignedTo: 'Michael Chen',
+    createdBy: 'Michael Chen',
+    createdAt: '2024-12-18T08:00:00Z',
+    completedAt: '',
+    relatedTo: { type: 'Deal', id: 'deal-5', name: 'Healthcare Partnership' },
+  },
+  {
+    id: 'task-5',
+    title: 'Review PrintMaster contract terms',
+    description: 'Legal review of terms and conditions',
+    type: 'Task',
+    status: 'Not Started',
+    priority: 'Normal',
+    dueDate: getTomorrowDate(),
+    dueTime: '15:00',
+    assignedTo: 'Emily Rodriguez',
+    createdBy: 'Emily Rodriguez',
+    createdAt: '2024-12-18T09:00:00Z',
+    completedAt: '',
+    relatedTo: { type: 'Account', id: 'acc-4', name: 'PrintMaster Solutions' },
+  },
+  {
+    id: 'task-6',
+    title: 'Update CRM with new lead information',
+    description: 'Add notes from trade show contacts',
+    type: 'Task',
+    status: 'Deferred',
+    priority: 'Low',
+    dueDate: getYesterdayDate(),
+    dueTime: '17:00',
+    assignedTo: 'Sarah Jenkins',
+    createdBy: 'Sarah Jenkins',
+    createdAt: '2024-12-14T16:00:00Z',
+    completedAt: '',
+    relatedTo: null,
+  },
+];
+
 export const TasksView: React.FC = () => {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
@@ -44,8 +151,19 @@ export const TasksView: React.FC = () => {
     const fetchTasks = async () => {
       try {
         setLoading(true);
-        const data = await tasksApi.getAll();
-        setTasks(data as Task[]);
+        let fetchedData: Task[];
+
+        try {
+          const data = await tasksApi.getAll();
+          fetchedData = data as Task[];
+        } catch {
+          // API unavailable, use mock data
+          console.log('API unavailable, using mock task data');
+          fetchedData = MOCK_TASKS;
+        }
+
+        setTasks(fetchedData);
+        setError(null);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to fetch tasks');
       } finally {
@@ -138,50 +256,50 @@ export const TasksView: React.FC = () => {
   }
 
   return (
-    <div className="p-8">
+    <div className="p-4 lg:p-8">
       {/* Stats Cards */}
-      <div className="grid grid-cols-4 gap-6 mb-8">
-        <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-soft">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-6 mb-6 lg:mb-8">
+        <div className="bg-white p-4 lg:p-6 rounded-xl border border-slate-200 shadow-soft">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-slate-500 font-medium">Total Tasks</p>
-              <p className="text-2xl font-bold text-slate-900 mt-1">{stats.total}</p>
+              <p className="text-xs lg:text-sm text-slate-500 font-medium">Total Tasks</p>
+              <p className="text-xl lg:text-2xl font-bold text-slate-900 mt-1">{stats.total}</p>
             </div>
-            <div className="w-12 h-12 rounded-xl bg-brand-50 flex items-center justify-center text-brand-600">
-              <CheckCircle2 size={24} />
+            <div className="w-10 h-10 lg:w-12 lg:h-12 rounded-xl bg-brand-50 flex items-center justify-center text-brand-600">
+              <CheckCircle2 className="w-5 h-5 lg:w-6 lg:h-6" />
             </div>
           </div>
         </div>
-        <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-soft">
+        <div className="bg-white p-4 lg:p-6 rounded-xl border border-slate-200 shadow-soft">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-slate-500 font-medium">Due Today</p>
-              <p className="text-2xl font-bold text-blue-600 mt-1">{stats.today}</p>
+              <p className="text-xs lg:text-sm text-slate-500 font-medium">Due Today</p>
+              <p className="text-xl lg:text-2xl font-bold text-blue-600 mt-1">{stats.today}</p>
             </div>
-            <div className="w-12 h-12 rounded-xl bg-blue-50 flex items-center justify-center text-blue-600">
-              <Calendar size={24} />
+            <div className="w-10 h-10 lg:w-12 lg:h-12 rounded-xl bg-blue-50 flex items-center justify-center text-blue-600">
+              <Calendar className="w-5 h-5 lg:w-6 lg:h-6" />
             </div>
           </div>
         </div>
-        <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-soft">
+        <div className="bg-white p-4 lg:p-6 rounded-xl border border-slate-200 shadow-soft">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-slate-500 font-medium">Overdue</p>
-              <p className="text-2xl font-bold text-red-600 mt-1">{stats.overdue}</p>
+              <p className="text-xs lg:text-sm text-slate-500 font-medium">Overdue</p>
+              <p className="text-xl lg:text-2xl font-bold text-red-600 mt-1">{stats.overdue}</p>
             </div>
-            <div className="w-12 h-12 rounded-xl bg-red-50 flex items-center justify-center text-red-600">
-              <AlertCircle size={24} />
+            <div className="w-10 h-10 lg:w-12 lg:h-12 rounded-xl bg-red-50 flex items-center justify-center text-red-600">
+              <AlertCircle className="w-5 h-5 lg:w-6 lg:h-6" />
             </div>
           </div>
         </div>
-        <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-soft">
+        <div className="bg-white p-4 lg:p-6 rounded-xl border border-slate-200 shadow-soft">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-slate-500 font-medium">Completed</p>
-              <p className="text-2xl font-bold text-green-600 mt-1">{stats.completed}</p>
+              <p className="text-xs lg:text-sm text-slate-500 font-medium">Completed</p>
+              <p className="text-xl lg:text-2xl font-bold text-green-600 mt-1">{stats.completed}</p>
             </div>
-            <div className="w-12 h-12 rounded-xl bg-green-50 flex items-center justify-center text-green-600">
-              <CheckCircle2 size={24} />
+            <div className="w-10 h-10 lg:w-12 lg:h-12 rounded-xl bg-green-50 flex items-center justify-center text-green-600">
+              <CheckCircle2 className="w-5 h-5 lg:w-6 lg:h-6" />
             </div>
           </div>
         </div>
@@ -190,13 +308,14 @@ export const TasksView: React.FC = () => {
       {/* Main Content */}
       <div className="bg-white rounded-2xl shadow-soft border border-slate-200 overflow-hidden">
         {/* Header */}
-        <div className="p-6 border-b border-slate-100 flex justify-between items-center">
-          <div className="flex items-center gap-4">
-            <h3 className="text-xl font-display font-bold text-slate-900">Tasks</h3>
-            <div className="flex bg-slate-100 rounded-lg p-1">
-              {(['all', 'today', 'upcoming', 'overdue', 'completed'] as const).map((filter) => (
-                <button
-                  key={filter}
+        <div className="p-4 lg:p-6 border-b border-slate-100">
+          <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center gap-4">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3 lg:gap-4">
+              <h3 className="text-lg lg:text-xl font-display font-bold text-slate-900">Tasks</h3>
+              <div className="flex bg-slate-100 rounded-lg p-1 overflow-x-auto">
+                {(['all', 'today', 'upcoming', 'overdue', 'completed'] as const).map((filter) => (
+                  <button
+                    key={filter}
                   onClick={() => setActiveFilter(filter)}
                   className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors capitalize ${
                     activeFilter === filter
@@ -219,6 +338,7 @@ export const TasksView: React.FC = () => {
             >
               <Plus size={16} /> Add Task
             </button>
+          </div>
           </div>
         </div>
 
@@ -288,8 +408,8 @@ export const TasksView: React.FC = () => {
 
       {/* Add Task Modal */}
       {showAddModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowAddModal(false)}>
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg" onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowAddModal(false)}>
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div className="p-6 border-b border-slate-100 flex justify-between items-center">
               <h2 className="text-xl font-bold text-slate-900">New Task</h2>
               <button onClick={() => setShowAddModal(false)} className="p-2 hover:bg-slate-100 rounded-lg text-slate-400">

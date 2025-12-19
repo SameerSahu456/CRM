@@ -11,7 +11,7 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 
 // Initialize database
-const db = new Database(join(__dirname, 'zenith.db'));
+const db = new Database(join(__dirname, 'comprint.db'));
 
 // Middleware
 app.use(cors());
@@ -1099,5 +1099,5 @@ function formatEmail(email) {
 
 // Start server
 app.listen(PORT, () => {
-  console.log(`Zenith CRM API Server running on http://localhost:${PORT}`);
+  console.log(`Comprint CRM API Server running on http://localhost:${PORT}`);
 });

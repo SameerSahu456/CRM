@@ -1,10 +1,14 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Search, Bell, HelpCircle, X, CheckCircle2, Users, Briefcase, Mail, Calendar, AlertCircle, Clock, CheckCheck, Settings, ExternalLink, Loader2 } from 'lucide-react';
+import { Search, Bell, HelpCircle, X, CheckCircle2, Users, Briefcase, Mail, Calendar, AlertCircle, Clock, CheckCheck, Settings, ExternalLink, Loader2, Sun, Moon, Menu, LogOut, User, ChevronDown } from 'lucide-react';
 import { notificationsApi } from '../services/api';
 import { Notification } from '../types';
+import { useTheme } from '../contexts/ThemeContext';
+import { useAuth } from '../contexts/AuthContext';
+import { useNavigation } from '../contexts/NavigationContext';
 
 interface HeaderProps {
   title: string;
+  onMenuClick?: () => void;
 }
 
 const getNotificationIcon = (type: string) => {
@@ -34,14 +38,19 @@ const formatTime = (dateStr: string) => {
   return date.toLocaleDateString();
 };
 
-export const Header: React.FC<HeaderProps> = ({ title }) => {
+export const Header: React.FC<HeaderProps> = ({ title, onMenuClick }) => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
+  const [showUserMenu, setShowUserMenu] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const notificationRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLDivElement>(null);
+  const userMenuRef = useRef<HTMLDivElement>(null);
+  const { theme, toggleTheme } = useTheme();
+  const { user, signOut } = useAuth();
+  const { setActiveTab } = useNavigation();
 
   const unreadCount = notifications.filter(n => !n.read).length;
 
@@ -67,6 +76,9 @@ export const Header: React.FC<HeaderProps> = ({ title }) => {
       }
       if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
         setShowSearch(false);
+      }
+      if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
+        setShowUserMenu(false);
       }
     };
 
@@ -109,12 +121,31 @@ export const Header: React.FC<HeaderProps> = ({ title }) => {
   ].filter(r => r.name.toLowerCase().includes(searchQuery.toLowerCase())) : [];
 
   return (
-    <header className="h-20 bg-white/80 backdrop-blur-md border-b border-slate-200 sticky top-0 z-30 px-8 flex items-center justify-between transition-all duration-300">
-      <h1 className="text-2xl font-display font-bold text-slate-900 tracking-tight">{title}</h1>
+    <header className={`h-16 lg:h-20 backdrop-blur-md border-b sticky top-0 z-30 px-4 lg:px-8 flex items-center justify-between transition-all duration-300 ${
+      theme === 'dark'
+        ? 'bg-black/90 border-zinc-900'
+        : 'bg-white/80 border-slate-200'
+    }`}>
+      <div className="flex items-center gap-3">
+        {/* Mobile menu button */}
+        <button
+          onClick={onMenuClick}
+          className={`lg:hidden p-2 rounded-lg ${
+            theme === 'dark'
+              ? 'text-zinc-400 hover:bg-zinc-900 hover:text-zinc-100'
+              : 'text-slate-500 hover:bg-slate-100 hover:text-slate-700'
+          }`}
+        >
+          <Menu size={24} />
+        </button>
+        <h1 className={`text-lg lg:text-2xl font-display font-bold tracking-tight ${
+          theme === 'dark' ? 'text-slate-100' : 'text-slate-900'
+        }`}>{title}</h1>
+      </div>
 
-      <div className="flex items-center gap-6">
-        {/* Global Search */}
-        <div className="relative" ref={searchRef}>
+      <div className="flex items-center gap-3 lg:gap-6">
+        {/* Global Search - hidden on mobile */}
+        <div className="relative hidden md:block" ref={searchRef}>
           <div className="relative group">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-brand-500 transition-colors" size={18} />
             <input
@@ -123,7 +154,11 @@ export const Header: React.FC<HeaderProps> = ({ title }) => {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               onFocus={() => setShowSearch(true)}
-              className="pl-10 pr-4 py-2 w-80 bg-slate-50 border border-transparent focus:bg-white focus:border-brand-200 focus:ring-4 focus:ring-brand-50 rounded-lg text-sm text-slate-700 placeholder-slate-400 outline-none transition-all duration-200"
+              className={`pl-10 pr-4 py-2 w-48 lg:w-80 border border-transparent rounded-lg text-sm placeholder-slate-400 outline-none transition-all duration-200 ${
+                theme === 'dark'
+                  ? 'bg-zinc-900 text-zinc-100 focus:bg-zinc-800 focus:border-brand-500 focus:ring-4 focus:ring-brand-500/20'
+                  : 'bg-slate-50 text-slate-700 focus:bg-white focus:border-brand-200 focus:ring-4 focus:ring-brand-50'
+              }`}
             />
             {searchQuery && (
               <button
@@ -169,8 +204,21 @@ export const Header: React.FC<HeaderProps> = ({ title }) => {
         </div>
 
         {/* Actions */}
-        <div className="flex items-center gap-3 border-l border-slate-200 pl-6">
-          <button className="p-2 text-slate-400 hover:text-brand-600 hover:bg-brand-50 rounded-full transition-all">
+        <div className={`flex items-center gap-2 lg:gap-3 border-l pl-3 lg:pl-6 ${theme === 'dark' ? 'border-zinc-800' : 'border-slate-200'}`}>
+          {/* Theme Toggle */}
+          <button
+            onClick={toggleTheme}
+            className={`p-2 rounded-full transition-all ${
+              theme === 'dark'
+                ? 'text-yellow-400 hover:text-yellow-300 hover:bg-zinc-900'
+                : 'text-slate-400 hover:text-brand-600 hover:bg-brand-50'
+            }`}
+            title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+          >
+            {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
+          </button>
+
+          <button className="hidden lg:block p-2 text-slate-400 hover:text-brand-600 hover:bg-brand-50 rounded-full transition-all">
             <HelpCircle size={20} />
           </button>
 
@@ -192,7 +240,7 @@ export const Header: React.FC<HeaderProps> = ({ title }) => {
 
             {/* Notifications Dropdown */}
             {showNotifications && (
-              <div className="absolute top-full right-0 mt-2 w-96 bg-white rounded-xl shadow-xl border border-slate-200 overflow-hidden z-50">
+              <div className="absolute top-full right-0 mt-2 w-[calc(100vw-2rem)] sm:w-96 max-w-[calc(100vw-2rem)] bg-white rounded-xl shadow-xl border border-slate-200 overflow-hidden z-50">
                 {/* Header */}
                 <div className="p-4 border-b border-slate-100 flex items-center justify-between">
                   <div>
@@ -277,6 +325,156 @@ export const Header: React.FC<HeaderProps> = ({ title }) => {
               </div>
             )}
           </div>
+
+          {/* User Profile Dropdown */}
+          {user && (
+            <div className="relative" ref={userMenuRef}>
+              <button
+                onClick={() => setShowUserMenu(!showUserMenu)}
+                className={`flex items-center gap-2 p-1.5 rounded-lg transition-all ${
+                  showUserMenu
+                    ? theme === 'dark'
+                      ? 'bg-zinc-900'
+                      : 'bg-slate-100'
+                    : theme === 'dark'
+                      ? 'hover:bg-zinc-900'
+                      : 'hover:bg-slate-100'
+                }`}
+              >
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
+                  theme === 'dark'
+                    ? 'bg-brand-600 text-white'
+                    : 'bg-brand-100 text-brand-700'
+                }`}>
+                  {user.avatar ? (
+                    <img src={user.avatar} alt={user.firstName} className="w-full h-full rounded-full object-cover" />
+                  ) : (
+                    `${user.firstName?.[0] || ''}${user.lastName?.[0] || ''}`
+                  )}
+                </div>
+                <div className="hidden lg:block text-left">
+                  <p className={`text-sm font-medium leading-tight ${
+                    theme === 'dark' ? 'text-zinc-200' : 'text-slate-700'
+                  }`}>
+                    {user.firstName} {user.lastName}
+                  </p>
+                  <p className={`text-xs ${
+                    theme === 'dark' ? 'text-zinc-400' : 'text-slate-500'
+                  }`}>
+                    {user.role}
+                  </p>
+                </div>
+                <ChevronDown size={16} className={`hidden lg:block ${
+                  theme === 'dark' ? 'text-zinc-400' : 'text-slate-500'
+                }`} />
+              </button>
+
+              {/* User Menu Dropdown */}
+              {showUserMenu && (
+                <div className={`absolute top-full right-0 mt-2 w-64 rounded-xl shadow-xl border overflow-hidden z-50 ${
+                  theme === 'dark'
+                    ? 'bg-zinc-950 border-zinc-900'
+                    : 'bg-white border-slate-200'
+                }`}>
+                  {/* User Info */}
+                  <div className={`p-4 border-b ${
+                    theme === 'dark' ? 'border-zinc-900' : 'border-slate-100'
+                  }`}>
+                    <div className="flex items-center gap-3">
+                      <div className={`w-12 h-12 rounded-full flex items-center justify-center text-lg font-medium ${
+                        theme === 'dark'
+                          ? 'bg-brand-600 text-white'
+                          : 'bg-brand-100 text-brand-700'
+                      }`}>
+                        {user.avatar ? (
+                          <img src={user.avatar} alt={user.firstName} className="w-full h-full rounded-full object-cover" />
+                        ) : (
+                          `${user.firstName?.[0] || ''}${user.lastName?.[0] || ''}`
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className={`font-semibold truncate ${
+                          theme === 'dark' ? 'text-white' : 'text-slate-900'
+                        }`}>
+                          {user.firstName} {user.lastName}
+                        </p>
+                        <p className={`text-sm truncate ${
+                          theme === 'dark' ? 'text-zinc-400' : 'text-slate-500'
+                        }`}>
+                          {user.email}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="mt-3">
+                      <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${
+                        user.role === 'Admin'
+                          ? 'bg-purple-100 text-purple-700'
+                          : user.role === 'Sales Manager'
+                            ? 'bg-blue-100 text-blue-700'
+                            : user.role === 'Sales Rep'
+                              ? 'bg-green-100 text-green-700'
+                              : 'bg-slate-100 text-slate-700'
+                      }`}>
+                        {user.role}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Menu Items */}
+                  <div className="py-2">
+                    <button
+                      onClick={() => {
+                        setShowUserMenu(false);
+                        setActiveTab('settings');
+                      }}
+                      className={`w-full flex items-center gap-3 px-4 py-2.5 text-sm transition-colors ${
+                        theme === 'dark'
+                          ? 'text-zinc-300 hover:bg-zinc-900'
+                          : 'text-slate-700 hover:bg-slate-50'
+                      }`}
+                    >
+                      <User size={18} />
+                      My Profile
+                    </button>
+                    <button
+                      onClick={() => {
+                        setShowUserMenu(false);
+                        setActiveTab('settings');
+                      }}
+                      className={`w-full flex items-center gap-3 px-4 py-2.5 text-sm transition-colors ${
+                        theme === 'dark'
+                          ? 'text-zinc-300 hover:bg-zinc-900'
+                          : 'text-slate-700 hover:bg-slate-50'
+                      }`}
+                    >
+                      <Settings size={18} />
+                      Settings
+                    </button>
+                  </div>
+
+                  {/* Sign Out */}
+                  <div className={`py-2 border-t ${
+                    theme === 'dark' ? 'border-zinc-900' : 'border-slate-100'
+                  }`}>
+                    <button
+                      onClick={() => {
+                        setShowUserMenu(false);
+                        signOut();
+                      }}
+                      className={`w-full flex items-center gap-3 px-4 py-2.5 text-sm transition-colors ${
+                        theme === 'dark'
+                          ? 'text-red-400 hover:bg-zinc-900'
+                          : 'text-red-600 hover:bg-red-50'
+                      }`}
+                    >
+                      <LogOut size={18} />
+                      Sign Out
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </header>

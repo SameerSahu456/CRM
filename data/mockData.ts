@@ -2,11 +2,11 @@ import { Lead, Contact, Account, Deal, Task, CalendarEvent, Campaign, Ticket, Em
 
 // Users
 export const mockUsers: User[] = [
-  { id: '1', firstName: 'Sarah', lastName: 'Jenkins', email: 'sarah.jenkins@zenith.com', avatar: 'https://randomuser.me/api/portraits/women/1.jpg', role: 'Sales Manager', department: 'Sales', isActive: true, createdAt: '2024-01-15' },
-  { id: '2', firstName: 'Michael', lastName: 'Chen', email: 'michael.chen@zenith.com', avatar: 'https://randomuser.me/api/portraits/men/2.jpg', role: 'Sales Rep', department: 'Sales', isActive: true, createdAt: '2024-02-01' },
-  { id: '3', firstName: 'Emily', lastName: 'Rodriguez', email: 'emily.rodriguez@zenith.com', avatar: 'https://randomuser.me/api/portraits/women/3.jpg', role: 'Marketing', department: 'Marketing', isActive: true, createdAt: '2024-01-20' },
-  { id: '4', firstName: 'David', lastName: 'Kim', email: 'david.kim@zenith.com', avatar: 'https://randomuser.me/api/portraits/men/4.jpg', role: 'Support', department: 'Customer Success', isActive: true, createdAt: '2024-03-10' },
-  { id: '5', firstName: 'Alex', lastName: 'Thompson', email: 'alex.thompson@zenith.com', avatar: 'https://randomuser.me/api/portraits/men/5.jpg', role: 'Admin', department: 'IT', isActive: true, createdAt: '2024-01-01' },
+  { id: '1', firstName: 'Sarah', lastName: 'Jenkins', email: 'sarah.jenkins@comprint.com', avatar: 'https://randomuser.me/api/portraits/women/1.jpg', role: 'Sales Manager', department: 'Sales', isActive: true, createdAt: '2024-01-15' },
+  { id: '2', firstName: 'Michael', lastName: 'Chen', email: 'michael.chen@comprint.com', avatar: 'https://randomuser.me/api/portraits/men/2.jpg', role: 'Sales Rep', department: 'Sales', isActive: true, createdAt: '2024-02-01' },
+  { id: '3', firstName: 'Emily', lastName: 'Rodriguez', email: 'emily.rodriguez@comprint.com', avatar: 'https://randomuser.me/api/portraits/women/3.jpg', role: 'Marketing', department: 'Marketing', isActive: true, createdAt: '2024-01-20' },
+  { id: '4', firstName: 'David', lastName: 'Kim', email: 'david.kim@comprint.com', avatar: 'https://randomuser.me/api/portraits/men/4.jpg', role: 'Support', department: 'Customer Success', isActive: true, createdAt: '2024-03-10' },
+  { id: '5', firstName: 'Alex', lastName: 'Thompson', email: 'alex.thompson@comprint.com', avatar: 'https://randomuser.me/api/portraits/men/5.jpg', role: 'Admin', department: 'IT', isActive: true, createdAt: '2024-01-01' },
 ];
 
 // Leads
@@ -105,11 +105,11 @@ export const mockTickets: Ticket[] = [
 
 // Emails (Sent/Scheduled)
 export const mockEmails: Email[] = [
-  { id: '1', subject: 'Follow-up: TechFlow Enterprise Demo', body: 'Hi John, Thank you for attending the demo...', from: 'sarah.jenkins@zenith.com', to: ['john.anderson@techflow.io'], status: 'Sent', sentAt: '2024-12-08T15:30:00', relatedTo: { type: 'Deal', id: '1', name: 'Enterprise License' }, trackOpens: true, trackClicks: true, openedAt: '2024-12-08T16:45:00' },
-  { id: '2', subject: 'Proposal: Security Suite Upgrade', body: 'Dear Jennifer, Please find attached our proposal...', from: 'sarah.jenkins@zenith.com', to: ['jennifer@securenet.io'], status: 'Sent', sentAt: '2024-12-07T10:00:00', relatedTo: { type: 'Deal', id: '3', name: 'Security Suite Upgrade' }, trackOpens: true },
-  { id: '3', subject: 'Contract for Review - Alpha Wave', body: 'Hi James, Attached is the contract for your review...', from: 'michael.chen@zenith.com', to: ['james@alphawave.net'], status: 'Scheduled', scheduledAt: '2024-12-10T09:00:00', relatedTo: { type: 'Deal', id: '4', name: 'Consulting Retainer' } },
-  { id: '4', subject: 'Welcome to Zenith CRM!', body: 'Welcome aboard! We are excited to have you...', from: 'support@zenith.com', to: ['new.customer@example.com'], status: 'Sent', sentAt: '2024-12-06T08:00:00' },
-  { id: '5', subject: 'Q4 Newsletter', body: 'Check out what is new this quarter...', from: 'marketing@zenith.com', to: ['all-customers@zenith.com'], status: 'Sent', sentAt: '2024-12-01T10:00:00', relatedTo: { type: 'Campaign', id: '1', name: 'Q4 Product Launch' } },
+  { id: '1', subject: 'Follow-up: TechFlow Enterprise Demo', body: 'Hi John, Thank you for attending the demo...', from: 'sarah.jenkins@comprint.com', to: ['john.anderson@techflow.io'], status: 'Sent', sentAt: '2024-12-08T15:30:00', relatedTo: { type: 'Deal', id: '1', name: 'Enterprise License' }, trackOpens: true, trackClicks: true, openedAt: '2024-12-08T16:45:00' },
+  { id: '2', subject: 'Proposal: Security Suite Upgrade', body: 'Dear Jennifer, Please find attached our proposal...', from: 'sarah.jenkins@comprint.com', to: ['jennifer@securenet.io'], status: 'Sent', sentAt: '2024-12-07T10:00:00', relatedTo: { type: 'Deal', id: '3', name: 'Security Suite Upgrade' }, trackOpens: true },
+  { id: '3', subject: 'Contract for Review - Alpha Wave', body: 'Hi James, Attached is the contract for your review...', from: 'michael.chen@comprint.com', to: ['james@alphawave.net'], status: 'Scheduled', scheduledAt: '2024-12-10T09:00:00', relatedTo: { type: 'Deal', id: '4', name: 'Consulting Retainer' } },
+  { id: '4', subject: 'Welcome to Comprint CRM!', body: 'Welcome aboard! We are excited to have you...', from: 'support@comprint.com', to: ['new.customer@example.com'], status: 'Sent', sentAt: '2024-12-06T08:00:00' },
+  { id: '5', subject: 'Q4 Newsletter', body: 'Check out what is new this quarter...', from: 'marketing@comprint.com', to: ['all-customers@comprint.com'], status: 'Sent', sentAt: '2024-12-01T10:00:00', relatedTo: { type: 'Campaign', id: '1', name: 'Q4 Product Launch' } },
 ];
 
 // Notifications

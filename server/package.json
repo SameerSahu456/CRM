@@ -1,7 +1,7 @@
 {
-  "name": "zenith-crm-server",
+  "name": "comprint-crm-server",
   "version": "1.0.0",
-  "description": "Backend API server for Zenith CRM",
+  "description": "Backend API server for Comprint CRM",
   "main": "index.js",
   "type": "module",
   "scripts": {

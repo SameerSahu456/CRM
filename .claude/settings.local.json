@@ -17,7 +17,8 @@
       "Bash(npx vercel:*)",
       "Bash(node -c:*)",
       "Bash(node:*)",
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "Bash(vercel alias set:*)"
     ]
   }
 }

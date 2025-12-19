@@ -83,78 +83,78 @@ export const ReportsView: React.FC = () => {
   }
 
   return (
-    <div className="p-8">
+    <div className="p-4 lg:p-8">
       {/* Header */}
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 lg:mb-8">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 font-display">Reports & Analytics</h1>
-          <p className="text-slate-500 mt-1">Generate insights from your CRM data</p>
+          <h1 className="text-xl lg:text-2xl font-bold text-slate-900 font-display">Reports & Analytics</h1>
+          <p className="text-slate-500 mt-1 text-sm lg:text-base">Generate insights from your CRM data</p>
         </div>
-        <div className="flex gap-3">
-          <button className="flex items-center gap-2 px-4 py-2 border border-slate-200 rounded-lg text-sm text-slate-600 hover:bg-slate-50">
+        <div className="flex gap-2 lg:gap-3">
+          <button className="hidden sm:flex items-center gap-2 px-3 lg:px-4 py-2 border border-slate-200 rounded-lg text-sm text-slate-600 hover:bg-slate-50">
             <Clock size={16} /> Schedule
           </button>
-          <button className="flex items-center gap-2 bg-brand-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-brand-700 shadow-glow">
+          <button className="flex items-center justify-center gap-2 bg-brand-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-brand-700 shadow-glow flex-1 sm:flex-none">
             <Plus size={16} /> New Report
           </button>
         </div>
       </div>
 
       {/* Quick Stats */}
-      <div className="grid grid-cols-4 gap-6 mb-8">
-        <div className="bg-gradient-to-br from-brand-600 to-brand-800 p-6 rounded-xl text-white">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-6 mb-6 lg:mb-8">
+        <div className="bg-gradient-to-br from-brand-600 to-brand-800 p-4 lg:p-6 rounded-xl text-white">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-brand-200 text-sm">Total Revenue</p>
-              <p className="text-3xl font-bold mt-1">$2.4M</p>
+              <p className="text-brand-200 text-xs lg:text-sm">Total Revenue</p>
+              <p className="text-xl lg:text-3xl font-bold mt-1">$2.4M</p>
               <p className="text-brand-200 text-xs mt-2 flex items-center gap-1">
                 <TrendingUp size={12} /> +12.5% vs last month
               </p>
             </div>
-            <DollarSign size={40} className="text-brand-300 opacity-50" />
+            <DollarSign size={32} className="text-brand-300 opacity-50 hidden sm:block lg:w-10 lg:h-10" />
           </div>
         </div>
-        <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-soft">
+        <div className="bg-white p-4 lg:p-6 rounded-xl border border-slate-200 shadow-soft">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-slate-500 text-sm">Active Deals</p>
-              <p className="text-3xl font-bold text-slate-900 mt-1">47</p>
+              <p className="text-slate-500 text-xs lg:text-sm">Active Deals</p>
+              <p className="text-xl lg:text-3xl font-bold text-slate-900 mt-1">47</p>
               <p className="text-green-600 text-xs mt-2">+8 this week</p>
             </div>
-            <div className="w-12 h-12 rounded-xl bg-green-50 flex items-center justify-center text-green-600">
-              <Target size={24} />
+            <div className="w-10 h-10 lg:w-12 lg:h-12 rounded-xl bg-green-50 flex items-center justify-center text-green-600">
+              <Target className="w-5 h-5 lg:w-6 lg:h-6" />
             </div>
           </div>
         </div>
-        <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-soft">
+        <div className="bg-white p-4 lg:p-6 rounded-xl border border-slate-200 shadow-soft">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-slate-500 text-sm">New Leads</p>
-              <p className="text-3xl font-bold text-slate-900 mt-1">156</p>
+              <p className="text-slate-500 text-xs lg:text-sm">New Leads</p>
+              <p className="text-xl lg:text-3xl font-bold text-slate-900 mt-1">156</p>
               <p className="text-green-600 text-xs mt-2">+15.3% growth</p>
             </div>
-            <div className="w-12 h-12 rounded-xl bg-blue-50 flex items-center justify-center text-blue-600">
-              <Users size={24} />
+            <div className="w-10 h-10 lg:w-12 lg:h-12 rounded-xl bg-blue-50 flex items-center justify-center text-blue-600">
+              <Users className="w-5 h-5 lg:w-6 lg:h-6" />
             </div>
           </div>
         </div>
-        <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-soft">
+        <div className="bg-white p-4 lg:p-6 rounded-xl border border-slate-200 shadow-soft">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-slate-500 text-sm">Win Rate</p>
-              <p className="text-3xl font-bold text-slate-900 mt-1">34%</p>
+              <p className="text-slate-500 text-xs lg:text-sm">Win Rate</p>
+              <p className="text-xl lg:text-3xl font-bold text-slate-900 mt-1">34%</p>
               <p className="text-green-600 text-xs mt-2">+4.2% improvement</p>
             </div>
-            <div className="w-12 h-12 rounded-xl bg-purple-50 flex items-center justify-center text-purple-600">
-              <TrendingUp size={24} />
+            <div className="w-10 h-10 lg:w-12 lg:h-12 rounded-xl bg-purple-50 flex items-center justify-center text-purple-600">
+              <TrendingUp className="w-5 h-5 lg:w-6 lg:h-6" />
             </div>
           </div>
         </div>
       </div>
 
-      <div className="flex gap-6">
+      <div className="flex flex-col md:flex-row gap-4 md:gap-6">
         {/* Reports List */}
-        <div className="w-80 flex-shrink-0">
+        <div className="w-full md:w-72 lg:w-80 flex-shrink-0">
           <div className="bg-white rounded-2xl shadow-soft border border-slate-200 overflow-hidden">
             <div className="p-4 border-b border-slate-100">
               <div className="relative">
@@ -230,24 +230,24 @@ export const ReportsView: React.FC = () => {
           {selectedReport === '2' ? (
             <>
               {/* Report Header */}
-              <div className="p-6 border-b border-slate-100 flex items-center justify-between">
+              <div className="p-4 md:p-6 border-b border-slate-100 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                 <div>
-                  <h2 className="text-xl font-bold text-slate-900">Monthly Revenue Analysis</h2>
-                  <p className="text-sm text-slate-500 mt-1">Revenue performance vs targets for 2024</p>
+                  <h2 className="text-lg md:text-xl font-bold text-slate-900">Monthly Revenue Analysis</h2>
+                  <p className="text-xs md:text-sm text-slate-500 mt-1">Revenue performance vs targets for 2024</p>
                 </div>
-                <div className="flex gap-3">
-                  <button className="flex items-center gap-2 px-4 py-2 border border-slate-200 rounded-lg text-sm text-slate-600 hover:bg-slate-50">
+                <div className="flex gap-2 md:gap-3 w-full sm:w-auto">
+                  <button className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-3 md:px-4 py-2 border border-slate-200 rounded-lg text-xs md:text-sm text-slate-600 hover:bg-slate-50">
                     <Download size={16} /> Export
                   </button>
-                  <button className="flex items-center gap-2 bg-brand-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-brand-700">
-                    <Play size={16} /> Run Report
+                  <button className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-brand-600 text-white px-3 md:px-4 py-2 rounded-lg text-xs md:text-sm font-medium hover:bg-brand-700">
+                    <Play size={16} /> Run
                   </button>
                 </div>
               </div>
 
               {/* Chart */}
-              <div className="p-6">
-                <div className="h-80">
+              <div className="p-4 md:p-6">
+                <div className="h-64 md:h-80">
                   <ResponsiveContainer width="100%" height="100%">
                     <AreaChart data={revenueByMonth}>
                       <defs>
@@ -270,41 +270,41 @@ export const ReportsView: React.FC = () => {
                 </div>
 
                 {/* Summary Stats */}
-                <div className="grid grid-cols-4 gap-4 mt-6 pt-6 border-t border-slate-100">
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-6 pt-6 border-t border-slate-100">
                   <div className="text-center">
-                    <p className="text-2xl font-bold text-slate-900">$3.16M</p>
-                    <p className="text-sm text-slate-500">Total Revenue</p>
+                    <p className="text-lg lg:text-2xl font-bold text-slate-900">$3.16M</p>
+                    <p className="text-xs lg:text-sm text-slate-500">Total Revenue</p>
                   </div>
                   <div className="text-center">
-                    <p className="text-2xl font-bold text-green-600">+18.2%</p>
-                    <p className="text-sm text-slate-500">YoY Growth</p>
+                    <p className="text-lg lg:text-2xl font-bold text-green-600">+18.2%</p>
+                    <p className="text-xs lg:text-sm text-slate-500">YoY Growth</p>
                   </div>
                   <div className="text-center">
-                    <p className="text-2xl font-bold text-slate-900">$263K</p>
-                    <p className="text-sm text-slate-500">Avg Monthly</p>
+                    <p className="text-lg lg:text-2xl font-bold text-slate-900">$263K</p>
+                    <p className="text-xs lg:text-sm text-slate-500">Avg Monthly</p>
                   </div>
                   <div className="text-center">
-                    <p className="text-2xl font-bold text-blue-600">94%</p>
-                    <p className="text-sm text-slate-500">Target Achievement</p>
+                    <p className="text-lg lg:text-2xl font-bold text-blue-600">94%</p>
+                    <p className="text-xs lg:text-sm text-slate-500">Target Achievement</p>
                   </div>
                 </div>
               </div>
             </>
           ) : selectedReport === '3' ? (
             <>
-              <div className="p-6 border-b border-slate-100 flex items-center justify-between">
+              <div className="p-4 md:p-6 border-b border-slate-100 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                 <div>
-                  <h2 className="text-xl font-bold text-slate-900">Lead Source Performance</h2>
-                  <p className="text-sm text-slate-500 mt-1">Distribution of leads by acquisition source</p>
+                  <h2 className="text-lg md:text-xl font-bold text-slate-900">Lead Source Performance</h2>
+                  <p className="text-xs md:text-sm text-slate-500 mt-1">Distribution of leads by acquisition source</p>
                 </div>
-                <div className="flex gap-3">
-                  <button className="flex items-center gap-2 px-4 py-2 border border-slate-200 rounded-lg text-sm text-slate-600 hover:bg-slate-50">
+                <div className="flex gap-2 md:gap-3">
+                  <button className="flex items-center gap-2 px-3 md:px-4 py-2 border border-slate-200 rounded-lg text-xs md:text-sm text-slate-600 hover:bg-slate-50">
                     <Download size={16} /> Export
                   </button>
                 </div>
               </div>
-              <div className="p-6">
-                <div className="h-80">
+              <div className="p-4 md:p-6">
+                <div className="h-64 md:h-80">
                   <ResponsiveContainer width="100%" height="100%">
                     <RePieChart>
                       <Pie
@@ -329,19 +329,19 @@ export const ReportsView: React.FC = () => {
             </>
           ) : selectedReport === '4' ? (
             <>
-              <div className="p-6 border-b border-slate-100 flex items-center justify-between">
+              <div className="p-4 md:p-6 border-b border-slate-100 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                 <div>
-                  <h2 className="text-xl font-bold text-slate-900">Sales Activity Summary</h2>
-                  <p className="text-sm text-slate-500 mt-1">Weekly activity breakdown by type</p>
+                  <h2 className="text-lg md:text-xl font-bold text-slate-900">Sales Activity Summary</h2>
+                  <p className="text-xs md:text-sm text-slate-500 mt-1">Weekly activity breakdown by type</p>
                 </div>
-                <div className="flex gap-3">
-                  <button className="flex items-center gap-2 px-4 py-2 border border-slate-200 rounded-lg text-sm text-slate-600 hover:bg-slate-50">
+                <div className="flex gap-2 md:gap-3">
+                  <button className="flex items-center gap-2 px-3 md:px-4 py-2 border border-slate-200 rounded-lg text-xs md:text-sm text-slate-600 hover:bg-slate-50">
                     <Download size={16} /> Export
                   </button>
                 </div>
               </div>
-              <div className="p-6">
-                <div className="h-80">
+              <div className="p-4 md:p-6">
+                <div className="h-64 md:h-80">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={salesActivity}>
                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />

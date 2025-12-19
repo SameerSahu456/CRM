@@ -1,18 +1,21 @@
-import React, { useState } from 'react';
-import { User, Building2, Bell, Shield, Palette, Database, Users, CreditCard, Plug, Globe, Mail, Key, Smartphone, ChevronRight, Save, Upload, Check, Loader2, X, Plus, Trash2, Edit2 } from 'lucide-react';
-import { mockUsers } from '../data/mockData';
+import React, { useState, useEffect, useMemo } from 'react';
+import { User, Building2, Bell, Shield, Palette, Database, Users, CreditCard, Plug, Globe, Mail, Key, Smartphone, ChevronRight, ChevronLeft, Save, Upload, Check, Loader2, X, Plus, Trash2, Edit2, Download, FileSpreadsheet, FileText, AlertTriangle, UserCog } from 'lucide-react';
+import { profilesApi, rolesApi, Profile, Role as ApiRole } from '../services/api';
+import { useAuth } from '../contexts/AuthContext';
 
-type SettingsTab = 'profile' | 'company' | 'users' | 'notifications' | 'security' | 'integrations' | 'billing' | 'customization';
+type SettingsTab = 'profile' | 'company' | 'users' | 'roles' | 'notifications' | 'security' | 'integrations' | 'billing' | 'customization' | 'data';
 
 const settingsTabs: { id: SettingsTab; label: string; icon: React.ElementType }[] = [
   { id: 'profile', label: 'Profile', icon: User },
   { id: 'company', label: 'Company', icon: Building2 },
-  { id: 'users', label: 'Users & Teams', icon: Users },
+  { id: 'users', label: 'Users', icon: Users },
+  { id: 'roles', label: 'Roles', icon: UserCog },
   { id: 'notifications', label: 'Notifications', icon: Bell },
   { id: 'security', label: 'Security', icon: Shield },
   { id: 'integrations', label: 'Integrations', icon: Plug },
   { id: 'billing', label: 'Billing', icon: CreditCard },
   { id: 'customization', label: 'Customization', icon: Palette },
+  { id: 'data', label: 'Data', icon: Database },
 ];
 
 const initialIntegrations = [
@@ -24,6 +27,7 @@ const initialIntegrations = [
   { id: '6', name: 'Mailchimp', description: 'Email marketing automation', icon: '🐵', connected: false },
 ];
 
+// Use Profile from API as User type, with additional fields for compatibility
 interface User {
   id: string;
   firstName: string;
@@ -31,16 +35,101 @@ interface User {
   email: string;
   role: string;
   avatar: string;
-  isActive: boolean;
+  status: string;
+  phone?: string;
+  department?: string;
+  isActive?: boolean;
 }
 
+interface Role {
+  id: string;
+  name: string;
+  description: string;
+  permissions: string[];
+  color: string;
+}
+
+const defaultPermissions = [
+  'view_dashboard',
+  'view_leads',
+  'create_leads',
+  'edit_leads',
+  'delete_leads',
+  'view_deals',
+  'create_deals',
+  'edit_deals',
+  'delete_deals',
+  'view_contacts',
+  'create_contacts',
+  'edit_contacts',
+  'delete_contacts',
+  'view_accounts',
+  'create_accounts',
+  'edit_accounts',
+  'delete_accounts',
+  'view_reports',
+  'export_data',
+  'manage_users',
+  'manage_settings',
+];
+
+const permissionGroups = {
+  'Dashboard': ['view_dashboard'],
+  'Leads': ['view_leads', 'create_leads', 'edit_leads', 'delete_leads'],
+  'Deals': ['view_deals', 'create_deals', 'edit_deals', 'delete_deals'],
+  'Contacts': ['view_contacts', 'create_contacts', 'edit_contacts', 'delete_contacts'],
+  'Accounts': ['view_accounts', 'create_accounts', 'edit_accounts', 'delete_accounts'],
+  'Reports & Data': ['view_reports', 'export_data'],
+  'Administration': ['manage_users', 'manage_settings'],
+};
+
+const defaultRoles: Role[] = [
+  {
+    id: 'role-1',
+    name: 'Admin',
+    description: 'Full access to all features and settings',
+    permissions: [...defaultPermissions],
+    color: 'purple',
+  },
+  {
+    id: 'role-2',
+    name: 'Sales Manager',
+    description: 'Manage sales team and view reports',
+    permissions: ['view_dashboard', 'view_leads', 'create_leads', 'edit_leads', 'delete_leads', 'view_deals', 'create_deals', 'edit_deals', 'delete_deals', 'view_contacts', 'create_contacts', 'edit_contacts', 'delete_contacts', 'view_accounts', 'create_accounts', 'edit_accounts', 'delete_accounts', 'view_reports', 'export_data', 'manage_users'],
+    color: 'blue',
+  },
+  {
+    id: 'role-3',
+    name: 'Sales Rep',
+    description: 'Standard sales team member access',
+    permissions: ['view_dashboard', 'view_leads', 'create_leads', 'edit_leads', 'view_deals', 'create_deals', 'edit_deals', 'view_contacts', 'create_contacts', 'edit_contacts', 'view_accounts', 'create_accounts', 'edit_accounts'],
+    color: 'green',
+  },
+  {
+    id: 'role-4',
+    name: 'Marketing',
+    description: 'Access to leads and reporting',
+    permissions: ['view_dashboard', 'view_leads', 'create_leads', 'edit_leads', 'view_contacts', 'view_accounts', 'view_reports'],
+    color: 'orange',
+  },
+  {
+    id: 'role-5',
+    name: 'Support',
+    description: 'View-only access with contact management',
+    permissions: ['view_dashboard', 'view_leads', 'view_deals', 'view_contacts', 'edit_contacts', 'view_accounts'],
+    color: 'teal',
+  },
+];
+
 export const SettingsView: React.FC = () => {
+  const { user: authUser, updateProfile: updateAuthProfile, isAdmin } = useAuth();
   const [activeTab, setActiveTab] = useState<SettingsTab>('profile');
   const [saving, setSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [inviting, setInviting] = useState(false);
-  const [users, setUsers] = useState<User[]>(mockUsers as User[]);
+  const [users, setUsers] = useState<User[]>([]);
+  const [loadingUsers, setLoadingUsers] = useState(true);
   const [newUser, setNewUser] = useState({
     firstName: '',
     lastName: '',
@@ -48,20 +137,159 @@ export const SettingsView: React.FC = () => {
     role: 'Sales Rep',
   });
 
-  // Profile State
+  // RBAC State
+  const [roles, setRoles] = useState<Role[]>(defaultRoles);
+  const [loadingRoles, setLoadingRoles] = useState(true);
+  const [showRoleModal, setShowRoleModal] = useState(false);
+  const [editingRole, setEditingRole] = useState<Role | null>(null);
+  const [newRole, setNewRole] = useState<Omit<Role, 'id'>>({
+    name: '',
+    description: '',
+    permissions: [],
+    color: 'blue',
+  });
+  const [showAssignRoleModal, setShowAssignRoleModal] = useState(false);
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+  const [showUserDetailModal, setShowUserDetailModal] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const [usersPerPage, setUsersPerPage] = useState(10);
+  const [userSearchQuery, setUserSearchQuery] = useState('');
+
+  // Profile State - initialized from auth user
   const [profile, setProfile] = useState({
-    firstName: 'Sarah',
-    lastName: 'Jenkins',
-    email: 'sarah.jenkins@zenith.com',
-    phone: '+1 555-0123',
-    role: 'Sales Manager',
+    firstName: authUser?.firstName || '',
+    lastName: authUser?.lastName || '',
+    email: authUser?.email || '',
+    phone: authUser?.phone || '',
+    role: authUser?.role || 'Sales Rep',
     timezone: 'America/New_York',
   });
 
+  // Profile Avatar State
+  const [profileAvatar, setProfileAvatar] = useState<string>(authUser?.avatar || '');
+
+  // Load users and roles from API
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        // Load profiles
+        setLoadingUsers(true);
+        const profilesData = await profilesApi.getAll();
+        const mappedUsers: User[] = profilesData.map(p => ({
+          id: p.id,
+          firstName: p.firstName,
+          lastName: p.lastName,
+          email: p.email,
+          role: p.role,
+          avatar: p.avatar,
+          status: p.status,
+          phone: p.phone,
+          department: p.department,
+        }));
+        setUsers(mappedUsers);
+      } catch (error) {
+        console.error('Failed to load profiles:', error);
+      } finally {
+        setLoadingUsers(false);
+      }
+
+      try {
+        // Load roles
+        setLoadingRoles(true);
+        const rolesData = await rolesApi.getAll();
+        if (rolesData && rolesData.length > 0) {
+          setRoles(rolesData);
+        }
+      } catch (error) {
+        console.error('Failed to load roles:', error);
+        // Keep default roles if API fails
+      } finally {
+        setLoadingRoles(false);
+      }
+    };
+
+    loadData();
+  }, []);
+
+  // Update profile state when auth user changes
+  useEffect(() => {
+    if (authUser) {
+      setProfile({
+        firstName: authUser.firstName || '',
+        lastName: authUser.lastName || '',
+        email: authUser.email || '',
+        phone: authUser.phone || '',
+        role: authUser.role || 'Sales Rep',
+        timezone: 'America/New_York',
+      });
+      setProfileAvatar(authUser.avatar || '');
+    }
+  }, [authUser]);
+
+  // Filtered and paginated users
+  const filteredUsers = useMemo(() => {
+    if (!userSearchQuery.trim()) return users;
+    const query = userSearchQuery.toLowerCase();
+    return users.filter(user =>
+      user.firstName.toLowerCase().includes(query) ||
+      user.lastName.toLowerCase().includes(query) ||
+      user.email.toLowerCase().includes(query) ||
+      user.role.toLowerCase().includes(query)
+    );
+  }, [users, userSearchQuery]);
+
+  const totalPages = Math.ceil(filteredUsers.length / usersPerPage);
+  const paginatedUsers = useMemo(() => {
+    const startIndex = (currentPage - 1) * usersPerPage;
+    return filteredUsers.slice(startIndex, startIndex + usersPerPage);
+  }, [filteredUsers, currentPage, usersPerPage]);
+
+  // Reset to first page when search changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [userSearchQuery]);
+
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+  // Handle image upload
+  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        alert('Please select an image file');
+        return;
+      }
+      // Validate file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        alert('Image size must be less than 5MB');
+        return;
+      }
+      // Create a preview URL and save to database
+      const reader = new FileReader();
+      reader.onloadend = async () => {
+        const avatarData = reader.result as string;
+        setProfileAvatar(avatarData);
+
+        // Save avatar to database immediately
+        try {
+          await updateAuthProfile({ avatar: avatarData });
+        } catch (error) {
+          console.error('Failed to save avatar:', error);
+          alert('Failed to save profile image. Please try again.');
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   // Company State
   const [company, setCompany] = useState({
-    name: 'Zenith Technologies',
-    website: 'https://zenith.com',
+    name: 'Comprint Technologies',
+    website: 'https://comprint.com',
     industry: 'Technology',
     size: '51-200 employees',
     address: '123 Tech Street, San Francisco, CA 94105',
@@ -100,11 +328,22 @@ export const SettingsView: React.FC = () => {
   // Save handler
   const handleSave = async () => {
     setSaving(true);
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 800));
-    setSaving(false);
-    setSaveSuccess(true);
-    setTimeout(() => setSaveSuccess(false), 3000);
+    try {
+      // Save profile data to database
+      await updateAuthProfile({
+        firstName: profile.firstName,
+        lastName: profile.lastName,
+        phone: profile.phone,
+        avatar: profileAvatar,
+      });
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 3000);
+    } catch (error) {
+      console.error('Failed to save profile:', error);
+      alert('Failed to save profile. Please try again.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   // Toggle integration
@@ -124,65 +363,253 @@ export const SettingsView: React.FC = () => {
     if (!newUser.firstName || !newUser.lastName || !newUser.email) return;
 
     setInviting(true);
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 800));
+    try {
+      // Create user in Supabase
+      const profileData = {
+        id: `user-${Date.now()}`,
+        firstName: newUser.firstName,
+        lastName: newUser.lastName,
+        email: newUser.email,
+        role: newUser.role,
+        avatar: `https://ui-avatars.com/api/?name=${newUser.firstName}+${newUser.lastName}&background=random`,
+        status: 'Active',
+        phone: '',
+        department: '',
+      };
 
-    const invitedUser: User = {
-      id: `user-${Date.now()}`,
-      firstName: newUser.firstName,
-      lastName: newUser.lastName,
-      email: newUser.email,
-      role: newUser.role,
-      avatar: `https://ui-avatars.com/api/?name=${newUser.firstName}+${newUser.lastName}&background=random`,
-      isActive: true,
-    };
+      const created = await profilesApi.create(profileData);
 
-    setUsers([...users, invitedUser]);
-    setInviting(false);
-    setShowInviteModal(false);
-    setNewUser({ firstName: '', lastName: '', email: '', role: 'Sales Rep' });
-  };
+      const invitedUser: User = {
+        id: created.id || profileData.id,
+        firstName: created.firstName || newUser.firstName,
+        lastName: created.lastName || newUser.lastName,
+        email: created.email || newUser.email,
+        role: created.role || newUser.role,
+        avatar: created.avatar || profileData.avatar,
+        status: created.status || 'Active',
+        isActive: true,
+      };
 
-  // Toggle user active status
-  const toggleUserStatus = (userId: string) => {
-    setUsers(users.map(u =>
-      u.id === userId ? { ...u, isActive: !u.isActive } : u
-    ));
-  };
-
-  // Remove user
-  const removeUser = (userId: string) => {
-    if (confirm('Are you sure you want to remove this user?')) {
-      setUsers(users.filter(u => u.id !== userId));
+      setUsers([...users, invitedUser]);
+      setShowInviteModal(false);
+      setNewUser({ firstName: '', lastName: '', email: '', role: 'Sales Rep' });
+    } catch (error) {
+      console.error('Failed to create user:', error);
+      alert('Failed to create user. Please try again.');
+    } finally {
+      setInviting(false);
     }
   };
 
+  // Toggle user active status
+  const toggleUserStatus = async (userId: string) => {
+    const user = users.find(u => u.id === userId);
+    if (!user) return;
+
+    const newStatus = user.isActive ? 'Inactive' : 'Active';
+    try {
+      await profilesApi.update(userId, { status: newStatus });
+      setUsers(users.map(u =>
+        u.id === userId ? { ...u, isActive: !u.isActive, status: newStatus } : u
+      ));
+    } catch (error) {
+      console.error('Failed to update user status:', error);
+    }
+  };
+
+  // Remove user
+  const removeUser = async (userId: string) => {
+    if (confirm('Are you sure you want to remove this user?')) {
+      try {
+        await profilesApi.delete(userId);
+        setUsers(users.filter(u => u.id !== userId));
+      } catch (error) {
+        console.error('Failed to remove user:', error);
+        alert('Failed to remove user. Please try again.');
+      }
+    }
+  };
+
+  // Role management handlers
+  const handleCreateRole = async () => {
+    if (!newRole.name) return;
+
+    try {
+      const roleData = {
+        id: `role-${Date.now()}`,
+        name: newRole.name,
+        description: newRole.description,
+        permissions: newRole.permissions,
+        color: newRole.color,
+      };
+
+      const created = await rolesApi.create(roleData);
+      const role: Role = {
+        id: created.id || roleData.id,
+        name: created.name || newRole.name,
+        description: created.description || newRole.description,
+        permissions: created.permissions || newRole.permissions,
+        color: created.color || newRole.color,
+      };
+      setRoles([...roles, role]);
+      setShowRoleModal(false);
+      setNewRole({ name: '', description: '', permissions: [], color: 'blue' });
+    } catch (error) {
+      console.error('Failed to create role:', error);
+      alert('Failed to create role. Please try again.');
+    }
+  };
+
+  const handleUpdateRole = async () => {
+    if (!editingRole || !newRole.name) return;
+
+    try {
+      await rolesApi.update(editingRole.id, newRole);
+      setRoles(roles.map(r =>
+        r.id === editingRole.id
+          ? { ...r, ...newRole }
+          : r
+      ));
+      setShowRoleModal(false);
+      setEditingRole(null);
+      setNewRole({ name: '', description: '', permissions: [], color: 'blue' });
+    } catch (error) {
+      console.error('Failed to update role:', error);
+      alert('Failed to update role. Please try again.');
+    }
+  };
+
+  const handleDeleteRole = async (roleId: string) => {
+    const role = roles.find(r => r.id === roleId);
+    if (!role) return;
+
+    // Check if any users have this role
+    const usersWithRole = users.filter(u => u.role === role.name);
+    if (usersWithRole.length > 0) {
+      alert(`Cannot delete this role. ${usersWithRole.length} user(s) are assigned to it.`);
+      return;
+    }
+
+    if (confirm(`Are you sure you want to delete the "${role.name}" role?`)) {
+      try {
+        await rolesApi.delete(roleId);
+        setRoles(roles.filter(r => r.id !== roleId));
+      } catch (error) {
+        console.error('Failed to delete role:', error);
+        alert('Failed to delete role. Please try again.');
+      }
+    }
+  };
+
+  const openEditRole = (role: Role) => {
+    setEditingRole(role);
+    setNewRole({
+      name: role.name,
+      description: role.description,
+      permissions: [...role.permissions],
+      color: role.color,
+    });
+    setShowRoleModal(true);
+  };
+
+  const openCreateRole = () => {
+    setEditingRole(null);
+    setNewRole({ name: '', description: '', permissions: [], color: 'blue' });
+    setShowRoleModal(true);
+  };
+
+  const togglePermission = (permission: string) => {
+    if (newRole.permissions.includes(permission)) {
+      setNewRole({ ...newRole, permissions: newRole.permissions.filter(p => p !== permission) });
+    } else {
+      setNewRole({ ...newRole, permissions: [...newRole.permissions, permission] });
+    }
+  };
+
+  const toggleAllGroupPermissions = (groupPermissions: string[]) => {
+    const allSelected = groupPermissions.every(p => newRole.permissions.includes(p));
+    if (allSelected) {
+      setNewRole({ ...newRole, permissions: newRole.permissions.filter(p => !groupPermissions.includes(p)) });
+    } else {
+      const newPermissions = [...new Set([...newRole.permissions, ...groupPermissions])];
+      setNewRole({ ...newRole, permissions: newPermissions });
+    }
+  };
+
+  const openAssignRole = (userId: string) => {
+    setSelectedUserId(userId);
+    setShowAssignRoleModal(true);
+  };
+
+  const handleAssignRole = (roleName: string) => {
+    if (!selectedUserId) return;
+    setUsers(users.map(u =>
+      u.id === selectedUserId ? { ...u, role: roleName } : u
+    ));
+    setShowAssignRoleModal(false);
+    setSelectedUserId(null);
+  };
+
+  const getRoleColor = (roleName: string): string => {
+    const role = roles.find(r => r.name === roleName);
+    if (!role) return 'slate';
+    return role.color;
+  };
+
+  const getRoleColorClasses = (color: string): string => {
+    const colorMap: Record<string, string> = {
+      purple: 'bg-purple-100 text-purple-700',
+      blue: 'bg-blue-100 text-blue-700',
+      green: 'bg-green-100 text-green-700',
+      orange: 'bg-orange-100 text-orange-700',
+      teal: 'bg-teal-100 text-teal-700',
+      red: 'bg-red-100 text-red-700',
+      pink: 'bg-pink-100 text-pink-700',
+      slate: 'bg-slate-100 text-slate-600',
+    };
+    return colorMap[color] || colorMap.slate;
+  };
+
+  const openUserDetail = (user: User) => {
+    setSelectedUser(user);
+    setShowUserDetailModal(true);
+  };
+
+  const getUserPermissions = (roleName: string): string[] => {
+    const role = roles.find(r => r.name === roleName);
+    return role ? role.permissions : [];
+  };
+
   return (
-    <div className="p-8">
+    <div className="p-4 lg:p-8">
       <div className="max-w-6xl mx-auto">
-        <div className="mb-8">
-          <h1 className="text-2xl font-bold text-slate-900 font-display">Settings</h1>
-          <p className="text-slate-500 mt-1">Manage your account and preferences</p>
+        <div className="mb-6 lg:mb-8">
+          <h1 className="text-xl lg:text-2xl font-bold text-slate-900 font-display">Settings</h1>
+          <p className="text-slate-500 mt-1 text-sm lg:text-base">Manage your account and preferences</p>
         </div>
 
-        <div className="flex gap-8">
+        <div className="flex flex-col md:flex-row gap-4 md:gap-6 lg:gap-8">
           {/* Sidebar Navigation */}
-          <div className="w-64 flex-shrink-0">
-            <nav className="bg-white rounded-xl border border-slate-200 shadow-soft overflow-hidden">
-              {settingsTabs.map((tab) => (
+          <div className="w-full md:w-56 lg:w-64 flex-shrink-0">
+            <nav className="bg-white rounded-xl border border-slate-200 shadow-soft overflow-hidden overflow-x-auto md:overflow-x-visible">
+              <div className="flex md:flex-col min-w-max md:min-w-0">
+              {settingsTabs
+                .filter(tab => (tab.id !== 'users' && tab.id !== 'roles') || isAdmin())
+                .map((tab) => (
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`w-full flex items-center gap-3 px-4 py-3 text-sm transition-colors ${
+                  className={`flex items-center gap-2 md:gap-3 px-3 md:px-4 py-2 md:py-3 text-xs md:text-sm transition-colors whitespace-nowrap md:w-full ${
                     activeTab === tab.id
-                      ? 'bg-brand-50 text-brand-600 font-medium border-l-4 border-brand-600'
-                      : 'text-slate-600 hover:bg-slate-50 border-l-4 border-transparent'
+                      ? 'bg-brand-50 text-brand-600 font-medium md:border-l-4 md:border-brand-600 border-b-2 md:border-b-0 border-brand-600'
+                      : 'text-slate-600 hover:bg-slate-50 md:border-l-4 md:border-transparent'
                   }`}
                 >
-                  <tab.icon size={18} />
-                  {tab.label}
+                  <tab.icon size={16} className="md:w-[18px] md:h-[18px]" />
+                  <span className="hidden sm:inline">{tab.label}</span>
                 </button>
               ))}
+              </div>
             </nav>
           </div>
 
@@ -191,30 +618,46 @@ export const SettingsView: React.FC = () => {
             <div className="bg-white rounded-2xl border border-slate-200 shadow-soft overflow-hidden">
               {/* Profile Settings */}
               {activeTab === 'profile' && (
-                <div className="p-6">
-                  <h2 className="text-lg font-bold text-slate-900 mb-6">Profile Settings</h2>
+                <div className="p-4 lg:p-6">
+                  <h2 className="text-base lg:text-lg font-bold text-slate-900 mb-4 lg:mb-6">Profile Settings</h2>
 
                   {/* Avatar Section */}
-                  <div className="flex items-center gap-6 mb-8 pb-8 border-b border-slate-100">
+                  <div className="flex flex-col sm:flex-row items-center gap-4 lg:gap-6 mb-6 lg:mb-8 pb-6 lg:pb-8 border-b border-slate-100">
                     <div className="relative">
                       <img
-                        src="https://randomuser.me/api/portraits/women/1.jpg"
+                        src={profileAvatar}
                         alt="Profile"
                         className="w-24 h-24 rounded-full object-cover border-4 border-white shadow-lg"
                       />
-                      <button className="absolute bottom-0 right-0 w-8 h-8 bg-brand-600 text-white rounded-full flex items-center justify-center shadow-lg hover:bg-brand-700">
+                      <button
+                        onClick={() => fileInputRef.current?.click()}
+                        className="absolute bottom-0 right-0 w-8 h-8 bg-brand-600 text-white rounded-full flex items-center justify-center shadow-lg hover:bg-brand-700"
+                      >
                         <Upload size={14} />
                       </button>
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/*"
+                        onChange={handleImageUpload}
+                        className="hidden"
+                      />
                     </div>
-                    <div>
+                    <div className="text-center sm:text-left">
                       <h3 className="font-bold text-slate-900">{profile.firstName} {profile.lastName}</h3>
-                      <p className="text-slate-500">{profile.role}</p>
-                      <button className="text-sm text-brand-600 hover:text-brand-700 mt-2">Change photo</button>
+                      <p className="text-slate-500 text-sm">{profile.role}</p>
+                      <button
+                        onClick={() => fileInputRef.current?.click()}
+                        className="text-sm text-brand-600 hover:text-brand-700 mt-2"
+                      >
+                        Change photo
+                      </button>
+                      <p className="text-xs text-slate-400 mt-1">JPG, PNG, GIF up to 5MB</p>
                     </div>
                   </div>
 
                   {/* Form */}
-                  <div className="grid grid-cols-2 gap-6">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 lg:gap-6">
                     <div>
                       <label className="block text-sm font-medium text-slate-700 mb-2">First Name</label>
                       <input
@@ -307,11 +750,11 @@ export const SettingsView: React.FC = () => {
 
               {/* Company Settings */}
               {activeTab === 'company' && (
-                <div className="p-6">
-                  <h2 className="text-lg font-bold text-slate-900 mb-6">Company Settings</h2>
+                <div className="p-4 lg:p-6">
+                  <h2 className="text-base lg:text-lg font-bold text-slate-900 mb-4 lg:mb-6">Company Settings</h2>
 
-                  <div className="space-y-6">
-                    <div className="grid grid-cols-2 gap-6">
+                  <div className="space-y-4 lg:space-y-6">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 lg:gap-6">
                       <div>
                         <label className="block text-sm font-medium text-slate-700 mb-2">Company Name</label>
                         <input
@@ -370,9 +813,9 @@ export const SettingsView: React.FC = () => {
                       />
                     </div>
 
-                    <div className="pt-6 border-t border-slate-100">
+                    <div className="pt-4 lg:pt-6 border-t border-slate-100">
                       <h3 className="text-sm font-bold text-slate-900 mb-4">Regional Settings</h3>
-                      <div className="grid grid-cols-3 gap-6">
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 lg:gap-6">
                         <div>
                           <label className="block text-sm font-medium text-slate-700 mb-2">Currency</label>
                           <select
@@ -439,11 +882,15 @@ export const SettingsView: React.FC = () => {
                 </div>
               )}
 
-              {/* Users & Teams */}
-              {activeTab === 'users' && (
-                <div className="p-6">
-                  <div className="flex items-center justify-between mb-6">
-                    <h2 className="text-lg font-bold text-slate-900">Users & Teams</h2>
+              {/* Users - Admin Only */}
+              {activeTab === 'users' && isAdmin() && (
+                <div className="p-4 lg:p-6">
+                  {/* Header with Search and Invite */}
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
+                    <div>
+                      <h2 className="text-base lg:text-lg font-bold text-slate-900">Team Members</h2>
+                      <p className="text-sm text-slate-500 mt-1">Manage your team and assign roles ({filteredUsers.length} users)</p>
+                    </div>
                     <button
                       onClick={() => setShowInviteModal(true)}
                       className="flex items-center gap-2 px-4 py-2 bg-brand-600 text-white rounded-lg text-sm font-medium hover:bg-brand-700"
@@ -452,51 +899,237 @@ export const SettingsView: React.FC = () => {
                     </button>
                   </div>
 
-                  <div className="space-y-4">
-                    {users.map((user) => (
-                      <div key={user.id} className="flex items-center justify-between p-4 bg-slate-50 rounded-xl group">
-                        <div className="flex items-center gap-4">
-                          <img
-                            src={user.avatar}
-                            alt={`${user.firstName} ${user.lastName}`}
-                            className="w-10 h-10 rounded-full object-cover"
-                          />
-                          <div>
-                            <h4 className="font-medium text-slate-900">{user.firstName} {user.lastName}</h4>
-                            <p className="text-sm text-slate-500">{user.email}</p>
+                  {/* Search and Per Page Controls */}
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-4">
+                    <div className="relative flex-1 max-w-md">
+                      <input
+                        type="text"
+                        placeholder="Search users by name, email, or role..."
+                        value={userSearchQuery}
+                        onChange={(e) => setUserSearchQuery(e.target.value)}
+                        className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500 text-sm"
+                      />
+                      <Users size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                      {userSearchQuery && (
+                        <button
+                          onClick={() => setUserSearchQuery('')}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                        >
+                          <X size={14} />
+                        </button>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-slate-500">Show:</span>
+                      <select
+                        value={usersPerPage}
+                        onChange={(e) => {
+                          setUsersPerPage(Number(e.target.value));
+                          setCurrentPage(1);
+                        }}
+                        className="px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+                      >
+                        <option value={5}>5</option>
+                        <option value={10}>10</option>
+                        <option value={25}>25</option>
+                        <option value={50}>50</option>
+                      </select>
+                      <span className="text-sm text-slate-500">per page</span>
+                    </div>
+                  </div>
+
+                  {/* Users List */}
+                  <div className="space-y-3 lg:space-y-4 mb-6">
+                    {loadingUsers ? (
+                      <div className="flex items-center justify-center py-12">
+                        <Loader2 size={24} className="animate-spin text-brand-600" />
+                        <span className="ml-2 text-slate-500">Loading users...</span>
+                      </div>
+                    ) : paginatedUsers.length === 0 ? (
+                      <div className="text-center py-12">
+                        <Users size={48} className="mx-auto text-slate-300 mb-4" />
+                        <p className="text-slate-500">
+                          {userSearchQuery ? 'No users match your search criteria' : 'No users found'}
+                        </p>
+                      </div>
+                    ) : (
+                      paginatedUsers.map((user) => (
+                        <div key={user.id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-3 lg:p-4 bg-slate-50 rounded-xl group gap-3 hover:bg-slate-100 transition-colors">
+                          <button
+                            onClick={() => openUserDetail(user)}
+                            className="flex items-center gap-3 lg:gap-4 text-left"
+                          >
+                            <img
+                              src={user.avatar || `https://ui-avatars.com/api/?name=${user.firstName}+${user.lastName}&background=random`}
+                              alt={`${user.firstName} ${user.lastName}`}
+                              className="w-8 h-8 lg:w-10 lg:h-10 rounded-full object-cover"
+                            />
+                            <div>
+                              <h4 className="font-medium text-slate-900 text-sm lg:text-base hover:text-brand-600">{user.firstName} {user.lastName}</h4>
+                              <p className="text-xs lg:text-sm text-slate-500">{user.email}</p>
+                            </div>
+                          </button>
+                          <div className="flex items-center gap-2 lg:gap-4 ml-11 sm:ml-0">
+                            <button
+                              onClick={(e) => { e.stopPropagation(); openAssignRole(user.id); }}
+                              className={`px-3 py-1 text-xs font-medium rounded-full cursor-pointer hover:opacity-80 ${getRoleColorClasses(getRoleColor(user.role))}`}
+                              title="Click to change role"
+                            >
+                              {user.role}
+                            </button>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); toggleUserStatus(user.id); }}
+                              className={`px-2 py-1 text-xs rounded cursor-pointer hover:opacity-80 ${user.status === 'Active' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}
+                            >
+                              {user.status === 'Active' ? 'Active' : 'Inactive'}
+                            </button>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); removeUser(user.id); }}
+                              className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"
+                            >
+                              <Trash2 size={16} />
+                            </button>
                           </div>
                         </div>
-                        <div className="flex items-center gap-4">
-                          <span className={`px-3 py-1 text-xs font-medium rounded-full ${
-                            user.role === 'Admin' ? 'bg-purple-100 text-purple-700' :
-                            user.role === 'Sales Manager' ? 'bg-blue-100 text-blue-700' :
-                            'bg-slate-100 text-slate-600'
-                          }`}>
-                            {user.role}
-                          </span>
-                          <button
-                            onClick={() => toggleUserStatus(user.id)}
-                            className={`px-2 py-1 text-xs rounded cursor-pointer hover:opacity-80 ${user.isActive ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}
-                          >
-                            {user.isActive ? 'Active' : 'Inactive'}
-                          </button>
-                          <button
-                            onClick={() => removeUser(user.id)}
-                            className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"
-                          >
-                            <Trash2 size={16} />
-                          </button>
-                        </div>
-                      </div>
-                    ))}
+                      ))
+                    )}
                   </div>
+
+                  {/* Pagination Controls */}
+                  {totalPages > 1 && (
+                    <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t border-slate-100">
+                      <div className="text-sm text-slate-500">
+                        Showing {((currentPage - 1) * usersPerPage) + 1} to {Math.min(currentPage * usersPerPage, filteredUsers.length)} of {filteredUsers.length} users
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => setCurrentPage(1)}
+                          disabled={currentPage === 1}
+                          className="p-2 border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                          title="First page"
+                        >
+                          <ChevronLeft size={16} />
+                          <ChevronLeft size={16} className="-ml-3" />
+                        </button>
+                        <button
+                          onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                          disabled={currentPage === 1}
+                          className="p-2 border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                          title="Previous page"
+                        >
+                          <ChevronLeft size={16} />
+                        </button>
+                        <div className="flex items-center gap-1">
+                          {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                            let pageNum;
+                            if (totalPages <= 5) {
+                              pageNum = i + 1;
+                            } else if (currentPage <= 3) {
+                              pageNum = i + 1;
+                            } else if (currentPage >= totalPages - 2) {
+                              pageNum = totalPages - 4 + i;
+                            } else {
+                              pageNum = currentPage - 2 + i;
+                            }
+                            return (
+                              <button
+                                key={pageNum}
+                                onClick={() => setCurrentPage(pageNum)}
+                                className={`w-8 h-8 rounded-lg text-sm font-medium transition-colors ${
+                                  currentPage === pageNum
+                                    ? 'bg-brand-600 text-white'
+                                    : 'border border-slate-200 text-slate-600 hover:bg-slate-50'
+                                }`}
+                              >
+                                {pageNum}
+                              </button>
+                            );
+                          })}
+                        </div>
+                        <button
+                          onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                          disabled={currentPage === totalPages}
+                          className="p-2 border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                          title="Next page"
+                        >
+                          <ChevronRight size={16} />
+                        </button>
+                        <button
+                          onClick={() => setCurrentPage(totalPages)}
+                          disabled={currentPage === totalPages}
+                          className="p-2 border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                          title="Last page"
+                        >
+                          <ChevronRight size={16} />
+                          <ChevronRight size={16} className="-ml-3" />
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Roles - Admin Only */}
+              {activeTab === 'roles' && isAdmin() && (
+                <div className="p-4 lg:p-6">
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
+                    <div>
+                      <h2 className="text-base lg:text-lg font-bold text-slate-900">Roles & Permissions</h2>
+                      <p className="text-sm text-slate-500 mt-1">Manage access roles and their permissions ({roles.length} roles)</p>
+                    </div>
+                    <button
+                      onClick={openCreateRole}
+                      className="flex items-center gap-2 px-4 py-2 bg-brand-600 text-white rounded-lg text-sm font-medium hover:bg-brand-700"
+                    >
+                      <Plus size={16} /> Add Role
+                    </button>
+                  </div>
+
+                  {loadingRoles ? (
+                    <div className="flex items-center justify-center py-12">
+                      <Loader2 size={24} className="animate-spin text-brand-600" />
+                      <span className="ml-2 text-slate-500">Loading roles...</span>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {roles.map((role) => (
+                        <div key={role.id} className="p-4 border border-slate-200 rounded-xl hover:border-brand-300 transition-colors group">
+                          <div className="flex items-start justify-between mb-2">
+                            <div className="flex items-center gap-2">
+                              <span className={`w-3 h-3 rounded-full ${getRoleColorClasses(role.color).replace('text-', 'bg-').split(' ')[0]}`}></span>
+                              <h4 className="font-medium text-slate-900">{role.name}</h4>
+                            </div>
+                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <button
+                                onClick={() => openEditRole(role)}
+                                className="p-1.5 text-slate-400 hover:text-brand-600 hover:bg-brand-50 rounded"
+                              >
+                                <Edit2 size={14} />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteRole(role.id)}
+                                className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded"
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            </div>
+                          </div>
+                          <p className="text-xs text-slate-500 mb-3">{role.description}</p>
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs text-slate-400">{role.permissions.length} permissions</span>
+                            <span className="text-xs text-slate-400">{users.filter(u => u.role === role.name).length} users</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
 
               {/* Notifications */}
               {activeTab === 'notifications' && (
-                <div className="p-6">
-                  <h2 className="text-lg font-bold text-slate-900 mb-6">Notification Preferences</h2>
+                <div className="p-4 lg:p-6">
+                  <h2 className="text-base lg:text-lg font-bold text-slate-900 mb-4 lg:mb-6">Notification Preferences</h2>
 
                   <div className="space-y-6">
                     {[
@@ -555,8 +1188,8 @@ export const SettingsView: React.FC = () => {
 
               {/* Security */}
               {activeTab === 'security' && (
-                <div className="p-6">
-                  <h2 className="text-lg font-bold text-slate-900 mb-6">Security Settings</h2>
+                <div className="p-4 lg:p-6">
+                  <h2 className="text-base lg:text-lg font-bold text-slate-900 mb-4 lg:mb-6">Security Settings</h2>
 
                   <div className="space-y-6">
                     <div className="p-4 bg-slate-50 rounded-xl">
@@ -607,10 +1240,10 @@ export const SettingsView: React.FC = () => {
 
               {/* Integrations */}
               {activeTab === 'integrations' && (
-                <div className="p-6">
-                  <h2 className="text-lg font-bold text-slate-900 mb-6">Integrations</h2>
+                <div className="p-4 lg:p-6">
+                  <h2 className="text-base lg:text-lg font-bold text-slate-900 mb-4 lg:mb-6">Integrations</h2>
 
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 lg:gap-4">
                     {integrations.map((integration) => (
                       <div key={integration.id} className="p-4 border border-slate-200 rounded-xl hover:border-brand-300 transition-colors">
                         <div className="flex items-start justify-between">
@@ -640,8 +1273,8 @@ export const SettingsView: React.FC = () => {
 
               {/* Billing */}
               {activeTab === 'billing' && (
-                <div className="p-6">
-                  <h2 className="text-lg font-bold text-slate-900 mb-6">Billing & Subscription</h2>
+                <div className="p-4 lg:p-6">
+                  <h2 className="text-base lg:text-lg font-bold text-slate-900 mb-4 lg:mb-6">Billing & Subscription</h2>
 
                   <div className="p-6 bg-gradient-to-br from-brand-600 to-brand-800 rounded-xl text-white mb-6">
                     <div className="flex items-center justify-between mb-4">
@@ -679,8 +1312,8 @@ export const SettingsView: React.FC = () => {
 
               {/* Customization */}
               {activeTab === 'customization' && (
-                <div className="p-6">
-                  <h2 className="text-lg font-bold text-slate-900 mb-6">Customization</h2>
+                <div className="p-4 lg:p-6">
+                  <h2 className="text-base lg:text-lg font-bold text-slate-900 mb-4 lg:mb-6">Customization</h2>
 
                   <div className="space-y-6">
                     <div>
@@ -785,6 +1418,115 @@ export const SettingsView: React.FC = () => {
                   </div>
                 </div>
               )}
+
+              {/* Data Management */}
+              {activeTab === 'data' && (
+                <div className="p-4 lg:p-6">
+                  <h2 className="text-base lg:text-lg font-bold text-slate-900 mb-4 lg:mb-6">Data Management</h2>
+
+                  {/* Import Section */}
+                  <div className="mb-8">
+                    <h3 className="text-sm font-bold text-slate-900 mb-4">Import Data</h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {[
+                        { name: 'Leads', description: 'Import leads from CSV', icon: Users },
+                        { name: 'Contacts', description: 'Import contacts from CSV', icon: User },
+                        { name: 'Accounts', description: 'Import accounts from CSV', icon: Building2 },
+                        { name: 'Deals', description: 'Import deals from CSV', icon: FileSpreadsheet },
+                      ].map((item) => (
+                        <div key={item.name} className="p-4 border border-dashed border-slate-300 rounded-xl hover:border-brand-400 hover:bg-brand-50/50 transition-all cursor-pointer group">
+                          <div className="flex items-center gap-3 mb-3">
+                            <div className="w-10 h-10 rounded-lg bg-slate-100 group-hover:bg-brand-100 flex items-center justify-center text-slate-600 group-hover:text-brand-600 transition-colors">
+                              <item.icon size={20} />
+                            </div>
+                            <div>
+                              <h4 className="font-medium text-slate-900">{item.name}</h4>
+                              <p className="text-xs text-slate-500">{item.description}</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center justify-center p-4 border border-slate-200 rounded-lg bg-slate-50 group-hover:bg-white">
+                            <div className="text-center">
+                              <Upload size={24} className="mx-auto text-slate-400 mb-2" />
+                              <p className="text-xs text-slate-500">Drop CSV file or click to browse</p>
+                            </div>
+                          </div>
+                          <a href="#" className="text-xs text-brand-600 hover:text-brand-700 mt-3 inline-flex items-center gap-1">
+                            <Download size={12} /> Download template
+                          </a>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Export Section */}
+                  <div className="mb-8 pt-6 border-t border-slate-100">
+                    <h3 className="text-sm font-bold text-slate-900 mb-4">Export Data</h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                      {[
+                        { name: 'Leads', count: '156 records', icon: Users },
+                        { name: 'Contacts', count: '423 records', icon: User },
+                        { name: 'Accounts', count: '89 records', icon: Building2 },
+                        { name: 'Deals', count: '67 records', icon: FileSpreadsheet },
+                      ].map((item) => (
+                        <button key={item.name} className="p-4 border border-slate-200 rounded-xl hover:border-brand-300 hover:bg-slate-50 transition-all text-left group">
+                          <div className="flex items-center justify-between mb-2">
+                            <item.icon size={20} className="text-slate-600" />
+                            <Download size={16} className="text-slate-400 group-hover:text-brand-600 transition-colors" />
+                          </div>
+                          <h4 className="font-medium text-slate-900">{item.name}</h4>
+                          <p className="text-xs text-slate-500">{item.count}</p>
+                        </button>
+                      ))}
+                    </div>
+                    <div className="mt-4 flex items-center gap-4">
+                      <button className="flex items-center gap-2 px-4 py-2 bg-brand-600 text-white rounded-lg text-sm font-medium hover:bg-brand-700">
+                        <Download size={16} /> Export All (CSV)
+                      </button>
+                      <button className="flex items-center gap-2 px-4 py-2 border border-slate-200 text-slate-600 rounded-lg text-sm font-medium hover:bg-slate-50">
+                        <FileText size={16} /> Export All (JSON)
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Data Backup Section */}
+                  <div className="pt-6 border-t border-slate-100">
+                    <h3 className="text-sm font-bold text-slate-900 mb-4">Data Backup</h3>
+                    <div className="p-4 bg-slate-50 rounded-xl">
+                      <div className="flex items-start gap-4">
+                        <div className="w-12 h-12 rounded-lg bg-green-100 flex items-center justify-center">
+                          <Check size={24} className="text-green-600" />
+                        </div>
+                        <div className="flex-1">
+                          <h4 className="font-medium text-slate-900">Automatic Backups Enabled</h4>
+                          <p className="text-sm text-slate-500 mt-1">Your data is automatically backed up daily. Last backup: Today at 3:00 AM</p>
+                          <div className="flex items-center gap-4 mt-4">
+                            <button className="text-sm text-brand-600 hover:text-brand-700 font-medium">Create Manual Backup</button>
+                            <button className="text-sm text-slate-600 hover:text-slate-700">View Backup History</button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Danger Zone */}
+                  <div className="mt-8 pt-6 border-t border-slate-100">
+                    <h3 className="text-sm font-bold text-red-600 mb-4 flex items-center gap-2">
+                      <AlertTriangle size={16} /> Danger Zone
+                    </h3>
+                    <div className="p-4 border border-red-200 rounded-xl bg-red-50/50">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h4 className="font-medium text-slate-900">Delete All Data</h4>
+                          <p className="text-sm text-slate-500">Permanently delete all CRM data. This action cannot be undone.</p>
+                        </div>
+                        <button className="px-4 py-2 border border-red-300 text-red-600 rounded-lg text-sm font-medium hover:bg-red-100">
+                          Delete All Data
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -792,8 +1534,8 @@ export const SettingsView: React.FC = () => {
 
       {/* Invite User Modal */}
       {showInviteModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowInviteModal(false)}>
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md" onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowInviteModal(false)}>
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div className="p-6 border-b border-slate-100 flex items-center justify-between">
               <div>
                 <h2 className="text-xl font-bold text-slate-900">Invite User</h2>
@@ -846,11 +1588,9 @@ export const SettingsView: React.FC = () => {
                   onChange={(e) => setNewUser({ ...newUser, role: e.target.value })}
                   className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500"
                 >
-                  <option value="Sales Rep">Sales Rep</option>
-                  <option value="Sales Manager">Sales Manager</option>
-                  <option value="Marketing">Marketing</option>
-                  <option value="Support">Support</option>
-                  <option value="Admin">Admin</option>
+                  {roles.map((role) => (
+                    <option key={role.id} value={role.name}>{role.name}</option>
+                  ))}
                 </select>
               </div>
             </div>
@@ -878,6 +1618,281 @@ export const SettingsView: React.FC = () => {
                   </>
                 )}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Role Modal - Create/Edit */}
+      {showRoleModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => { setShowRoleModal(false); setEditingRole(null); }}>
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="p-6 border-b border-slate-100 flex items-center justify-between">
+              <div>
+                <h2 className="text-xl font-bold text-slate-900">{editingRole ? 'Edit Role' : 'Create Role'}</h2>
+                <p className="text-sm text-slate-500 mt-1">{editingRole ? 'Modify role settings and permissions' : 'Define a new role with custom permissions'}</p>
+              </div>
+              <button onClick={() => { setShowRoleModal(false); setEditingRole(null); }} className="p-2 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-600">
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Role Name</label>
+                  <input
+                    type="text"
+                    value={newRole.name}
+                    onChange={(e) => setNewRole({ ...newRole, name: e.target.value })}
+                    placeholder="e.g., Account Manager"
+                    className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Color</label>
+                  <select
+                    value={newRole.color}
+                    onChange={(e) => setNewRole({ ...newRole, color: e.target.value })}
+                    className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500"
+                  >
+                    <option value="purple">Purple</option>
+                    <option value="blue">Blue</option>
+                    <option value="green">Green</option>
+                    <option value="orange">Orange</option>
+                    <option value="teal">Teal</option>
+                    <option value="red">Red</option>
+                    <option value="pink">Pink</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Description</label>
+                <input
+                  type="text"
+                  value={newRole.description}
+                  onChange={(e) => setNewRole({ ...newRole, description: e.target.value })}
+                  placeholder="Brief description of this role"
+                  className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold text-slate-900 mb-3">Permissions</label>
+                <div className="space-y-4">
+                  {Object.entries(permissionGroups).map(([group, permissions]) => (
+                    <div key={group} className="border border-slate-200 rounded-lg p-4">
+                      <div className="flex items-center justify-between mb-3">
+                        <h4 className="font-medium text-slate-800">{group}</h4>
+                        <button
+                          type="button"
+                          onClick={() => toggleAllGroupPermissions(permissions)}
+                          className="text-xs text-brand-600 hover:text-brand-700"
+                        >
+                          {permissions.every(p => newRole.permissions.includes(p)) ? 'Deselect all' : 'Select all'}
+                        </button>
+                      </div>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                        {permissions.map((permission) => (
+                          <label key={permission} className="flex items-center gap-2 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={newRole.permissions.includes(permission)}
+                              onChange={() => togglePermission(permission)}
+                              className="w-4 h-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+                            />
+                            <span className="text-sm text-slate-600 capitalize">
+                              {permission.replace(/_/g, ' ').replace('view ', '').replace('create ', 'Create ').replace('edit ', 'Edit ').replace('delete ', 'Delete ')}
+                            </span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="p-6 border-t border-slate-100 flex justify-between">
+              <span className="text-sm text-slate-500">{newRole.permissions.length} permissions selected</span>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => { setShowRoleModal(false); setEditingRole(null); }}
+                  className="px-4 py-2 border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={editingRole ? handleUpdateRole : handleCreateRole}
+                  disabled={!newRole.name}
+                  className="flex items-center gap-2 px-4 py-2 bg-brand-600 text-white rounded-lg font-medium hover:bg-brand-700 disabled:opacity-50"
+                >
+                  <Save size={16} /> {editingRole ? 'Update Role' : 'Create Role'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Assign Role Modal */}
+      {showAssignRoleModal && selectedUserId && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => { setShowAssignRoleModal(false); setSelectedUserId(null); }}>
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md" onClick={(e) => e.stopPropagation()}>
+            <div className="p-6 border-b border-slate-100 flex items-center justify-between">
+              <div>
+                <h2 className="text-xl font-bold text-slate-900">Assign Role</h2>
+                <p className="text-sm text-slate-500 mt-1">
+                  Select a role for {users.find(u => u.id === selectedUserId)?.firstName} {users.find(u => u.id === selectedUserId)?.lastName}
+                </p>
+              </div>
+              <button onClick={() => { setShowAssignRoleModal(false); setSelectedUserId(null); }} className="p-2 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-600">
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-2">
+              {roles.map((role) => {
+                const currentUserRole = users.find(u => u.id === selectedUserId)?.role;
+                const isSelected = currentUserRole === role.name;
+                return (
+                  <button
+                    key={role.id}
+                    onClick={() => handleAssignRole(role.name)}
+                    className={`w-full flex items-start gap-3 p-4 rounded-xl border transition-colors text-left ${
+                      isSelected
+                        ? 'border-brand-500 bg-brand-50'
+                        : 'border-slate-200 hover:border-brand-300 hover:bg-slate-50'
+                    }`}
+                  >
+                    <span className={`w-4 h-4 rounded-full mt-0.5 flex-shrink-0 ${getRoleColorClasses(role.color).replace('text-', 'bg-').split(' ')[0]}`}></span>
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between">
+                        <h4 className="font-medium text-slate-900">{role.name}</h4>
+                        {isSelected && <Check size={16} className="text-brand-600" />}
+                      </div>
+                      <p className="text-sm text-slate-500 mt-1">{role.description}</p>
+                      <p className="text-xs text-slate-400 mt-2">{role.permissions.length} permissions</p>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* User Detail Modal */}
+      {showUserDetailModal && selectedUser && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => { setShowUserDetailModal(false); setSelectedUser(null); }}>
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="p-6 border-b border-slate-100 flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <img
+                  src={selectedUser.avatar}
+                  alt={`${selectedUser.firstName} ${selectedUser.lastName}`}
+                  className="w-16 h-16 rounded-full object-cover border-4 border-white shadow-lg"
+                />
+                <div>
+                  <h2 className="text-xl font-bold text-slate-900">{selectedUser.firstName} {selectedUser.lastName}</h2>
+                  <p className="text-sm text-slate-500">{selectedUser.email}</p>
+                </div>
+              </div>
+              <button onClick={() => { setShowUserDetailModal(false); setSelectedUser(null); }} className="p-2 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-600">
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-6">
+              {/* User Info */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="p-4 bg-slate-50 rounded-xl">
+                  <p className="text-xs text-slate-500 mb-1">Role</p>
+                  <span className={`inline-block px-3 py-1 text-sm font-medium rounded-full ${getRoleColorClasses(getRoleColor(selectedUser.role))}`}>
+                    {selectedUser.role}
+                  </span>
+                </div>
+                <div className="p-4 bg-slate-50 rounded-xl">
+                  <p className="text-xs text-slate-500 mb-1">Status</p>
+                  <span className={`inline-block px-3 py-1 text-sm font-medium rounded-full ${selectedUser.isActive ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                    {selectedUser.isActive ? 'Active' : 'Inactive'}
+                  </span>
+                </div>
+              </div>
+
+              {/* User Details */}
+              <div>
+                <h3 className="text-sm font-bold text-slate-900 mb-3">Contact Information</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="p-3 border border-slate-200 rounded-lg">
+                    <p className="text-xs text-slate-500 mb-1">First Name</p>
+                    <p className="text-sm font-medium text-slate-800">{selectedUser.firstName}</p>
+                  </div>
+                  <div className="p-3 border border-slate-200 rounded-lg">
+                    <p className="text-xs text-slate-500 mb-1">Last Name</p>
+                    <p className="text-sm font-medium text-slate-800">{selectedUser.lastName}</p>
+                  </div>
+                  <div className="p-3 border border-slate-200 rounded-lg col-span-2">
+                    <p className="text-xs text-slate-500 mb-1">Email Address</p>
+                    <p className="text-sm font-medium text-slate-800">{selectedUser.email}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Permissions */}
+              <div>
+                <h3 className="text-sm font-bold text-slate-900 mb-3">Permissions ({getUserPermissions(selectedUser.role).length})</h3>
+                <div className="border border-slate-200 rounded-lg p-4">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    {getUserPermissions(selectedUser.role).map((permission) => (
+                      <div key={permission} className="flex items-center gap-2">
+                        <Check size={14} className="text-green-500" />
+                        <span className="text-sm text-slate-600 capitalize">
+                          {permission.replace(/_/g, ' ')}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                  {getUserPermissions(selectedUser.role).length === 0 && (
+                    <p className="text-sm text-slate-500 text-center py-4">No permissions assigned</p>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="p-6 border-t border-slate-100 flex justify-between">
+              <button
+                onClick={() => {
+                  setShowUserDetailModal(false);
+                  setSelectedUser(null);
+                  openAssignRole(selectedUser.id);
+                }}
+                className="px-4 py-2 border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50"
+              >
+                Change Role
+              </button>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => {
+                    toggleUserStatus(selectedUser.id);
+                    setSelectedUser({ ...selectedUser, isActive: !selectedUser.isActive });
+                  }}
+                  className={`px-4 py-2 rounded-lg font-medium ${
+                    selectedUser.isActive
+                      ? 'border border-red-200 text-red-600 hover:bg-red-50'
+                      : 'border border-green-200 text-green-600 hover:bg-green-50'
+                  }`}
+                >
+                  {selectedUser.isActive ? 'Deactivate' : 'Activate'}
+                </button>
+                <button
+                  onClick={() => { setShowUserDetailModal(false); setSelectedUser(null); }}
+                  className="px-4 py-2 bg-brand-600 text-white rounded-lg font-medium hover:bg-brand-700"
+                >
+                  Close
+                </button>
+              </div>
             </div>
           </div>
         </div>

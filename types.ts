@@ -27,13 +27,13 @@ export interface Lead {
   phoneAlternate?: string;
   campaignSource?: string;
   website?: string;
-  leadOwner: string;
+  leadOwner?: string;
   company: string;
   accountType?: 'Customer' | 'Prospect' | 'Partner' | 'Vendor' | 'Competitor' | 'Other';
   source: 'Website' | 'Referral' | 'LinkedIn' | 'Cold Call' | 'Trade Show' | 'Email Campaign' | 'Advertisement' | 'Social Media' | 'Partner' | 'Other';
   status: 'New' | 'Contacted' | 'Qualified' | 'Proposal' | 'Negotiation' | 'Converted' | 'Lost' | 'Not Contacted' | 'Attempted' | 'Junk';
   leadCategory?: 'Hot' | 'Warm' | 'Cold';
-  createdBy: string;
+  createdBy?: string;
   modifiedBy?: string;
   score: number;
   lastActive: string;
@@ -233,10 +233,14 @@ export interface Account {
   // Account Information
   name: string;
   phone?: string;
+  email?: string;
   website: string;
-  accountOwner: string;
+  accountOwner?: string;
   industry: string;
+  companyIndustry?: string;
   accountType?: 'Customer' | 'Prospect' | 'Partner' | 'Vendor' | 'Competitor' | 'Analyst' | 'Integrator' | 'Investor' | 'Press' | 'Reseller' | 'Other';
+  endcustomerAccountsCategory?: string;
+  paymentTerms?: 'Net 15' | 'Net 30' | 'Net 45' | 'Net 60' | 'Due on Receipt' | 'Advance Payment' | 'COD' | 'Other';
   rating?: 'Hot' | 'Warm' | 'Cold' | 'Acquired' | 'Active' | 'Market Failed' | 'Project Cancelled' | 'Shut Down';
   accountNumber?: string;
   accountSite?: string;
@@ -244,6 +248,18 @@ export interface Account {
   parentAccountId?: string;
   ticker?: string;
   ownership?: 'Public' | 'Private' | 'Subsidiary' | 'Partnership' | 'Government' | 'Other';
+  accountStatus?: 'Active' | 'Inactive' | 'On Hold' | 'Closed' | 'Suspended';
+  partner?: string;
+  leadCategory?: 'Hot' | 'Warm' | 'Cold';
+  newLeads?: number;
+
+  // Tax & Legal Info
+  panNo?: string;
+  gstinNo?: string;
+
+  // Products Info
+  productsWeSelling?: string;
+  productsTheySelling?: string;
 
   // Other Info
   territory?: string;
@@ -255,12 +271,18 @@ export interface Account {
   lockingPeriodEndDate?: string;
   sicCode?: string;
   noOfRetailCounters?: number;
+  references?: string;
+  bankStatement?: string;
+  documents?: string;
 
   // Contact Info
   contactName?: string;
   contactEmail?: string;
   contactMobile?: string;
   contactPhone?: string;
+  contactDesignation?: string;
+  contactOthers?: string;
+  otherDesignationName?: string;
   fax?: string;
 
   // Employees & Revenue
@@ -270,6 +292,7 @@ export interface Account {
 
   // Address Information
   location: string;
+  locateMap?: string;
   billingAddress?: {
     street?: string;
     city?: string;
@@ -311,15 +334,15 @@ export interface Deal {
 
   // Deal Information
   title: string;
-  dealName: string;
+  dealName?: string;
   accountId?: string;
   accountName?: string;
   contactId?: string;
   contactName?: string;
   typeOfOrder?: 'New' | 'Renewal' | 'Upgrade' | 'Downgrade' | 'Cross-sell' | 'Upsell';
   createdByRM?: string;
-  dealOwner: string;
-  amount: number;
+  dealOwner?: string;
+  amount?: number;
   value: number;
   closingDate: string;
   leadSource?: string;
@@ -402,8 +425,8 @@ export interface Deal {
   modifiedBy?: string;
   lostReason?: string;
   competitorName?: string;
-  forecast?: 'Pipeline' | 'Best Case' | 'Commit' | 'Omitted';
-  type?: 'New Business' | 'Existing Business' | 'Renewal';
+  forecast?: 'Pipeline' | 'Best Case' | 'Commit' | 'Omitted' | 'Closed' | 'Upside';
+  type?: 'New Business' | 'Existing Business' | 'Renewal' | 'Expansion' | 'Partnership';
 }
 
 export interface DealProduct {
@@ -551,11 +574,12 @@ export interface Email {
   to: string[];
   cc?: string[];
   bcc?: string[];
-  status: 'Draft' | 'Sent' | 'Scheduled' | 'Failed';
+  status: 'Draft' | 'Sent' | 'Scheduled' | 'Failed' | 'Received';
   sentAt?: string;
   scheduledAt?: string;
   openedAt?: string;
   clickedAt?: string;
+  createdAt?: string;
   relatedTo?: {
     type: 'Lead' | 'Contact' | 'Account' | 'Deal' | 'Ticket' | 'Campaign';
     id: string;
@@ -705,7 +729,7 @@ export interface User {
   department?: string;
   phone?: string;
   timezone?: string;
-  isActive: boolean;
+  isActive?: boolean;
   lastLogin?: string;
   createdAt: string;
   permissions?: Permission[];
@@ -843,4 +867,91 @@ export interface Product {
   isActive: boolean;
   taxable?: boolean;
   taxRate?: number;
+}
+
+// Lead-specific types for notes, activities, calls
+export interface LeadNote {
+  id: string;
+  leadId: string;
+  content: string;
+  createdBy: string;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export interface LeadActivity {
+  id: string;
+  leadId: string;
+  activityType: 'call_scheduled' | 'call_logged' | 'email_sent' | 'task_created' | 'status_changed' | 'note_added' | 'tag_added' | 'owner_changed' | 'converted';
+  title: string;
+  description?: string;
+  scheduledAt?: string;
+  completedAt?: string;
+  durationMinutes?: number;
+  outcome?: string;
+  createdBy: string;
+  createdAt: string;
+}
+
+export interface LeadCall {
+  id: string;
+  leadId: string;
+  callType: 'scheduled' | 'logged';
+  subject: string;
+  callPurpose?: string;
+  scheduledAt?: string;
+  startTime?: string;
+  durationMinutes?: number;
+  callResult?: string;
+  description?: string;
+  createdBy: string;
+  createdAt: string;
+}
+
+export interface LeadTask {
+  id: string;
+  leadId: string;
+  title: string;
+  description?: string;
+  status: 'Pending' | 'In Progress' | 'Completed' | 'Cancelled';
+  priority: 'Low' | 'Normal' | 'High' | 'Urgent';
+  dueDate?: string;
+  dueTime?: string;
+  assignedTo?: string;
+  createdBy: string;
+  createdAt: string;
+  updatedAt?: string;
+  completedAt?: string;
+}
+
+// Extended Lead with printing-specific fields
+export interface ExtendedLead extends Lead {
+  // Additional Lead Information
+  fax?: string;
+  noOfEmployees?: number;
+  annualRevenue?: number;
+  rating?: 'None' | 'Acquired' | 'Active' | 'Market Failed' | 'Project Cancelled' | 'Shut Down';
+  skypeId?: string;
+  secondaryEmail?: string;
+  twitter?: string;
+
+  // Order Info (Sample tracking)
+  sampleRequested?: boolean;
+  sampleReceived?: boolean;
+  sampleSent?: boolean;
+  sampleDetails?: string;
+
+  // Forms Info (Printing specific)
+  noOfPieces?: number;
+  gsm?: number;
+  size?: string;
+  paperType?: string;
+  finish?: string;
+
+  // Billing Address
+  billingStreet?: string;
+  billingCity?: string;
+  billingState?: string;
+  billingZipCode?: string;
+  billingCountry?: string;
 }

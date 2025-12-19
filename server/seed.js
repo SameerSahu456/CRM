@@ -5,7 +5,7 @@ import { dirname, join } from 'path';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-const db = new Database(join(__dirname, 'zenith.db'));
+const db = new Database(join(__dirname, 'comprint.db'));
 
 // Create tables
 db.exec(`
@@ -373,11 +373,11 @@ const insertUser = db.prepare(`
 `);
 
 const users = [
-  ['Sarah', 'Jenkins', 'sarah.jenkins@zenith.com', 'https://randomuser.me/api/portraits/women/1.jpg', 'Sales Manager', 'Sales', 1, '2024-01-15'],
-  ['Michael', 'Chen', 'michael.chen@zenith.com', 'https://randomuser.me/api/portraits/men/2.jpg', 'Sales Rep', 'Sales', 1, '2024-02-01'],
-  ['Emily', 'Rodriguez', 'emily.rodriguez@zenith.com', 'https://randomuser.me/api/portraits/women/3.jpg', 'Marketing', 'Marketing', 1, '2024-01-20'],
-  ['David', 'Kim', 'david.kim@zenith.com', 'https://randomuser.me/api/portraits/men/4.jpg', 'Support', 'Customer Success', 1, '2024-03-10'],
-  ['Alex', 'Thompson', 'alex.thompson@zenith.com', 'https://randomuser.me/api/portraits/men/5.jpg', 'Admin', 'IT', 1, '2024-01-01'],
+  ['Sarah', 'Jenkins', 'sarah.jenkins@comprint.com', 'https://randomuser.me/api/portraits/women/1.jpg', 'Sales Manager', 'Sales', 1, '2024-01-15'],
+  ['Michael', 'Chen', 'michael.chen@comprint.com', 'https://randomuser.me/api/portraits/men/2.jpg', 'Sales Rep', 'Sales', 1, '2024-02-01'],
+  ['Emily', 'Rodriguez', 'emily.rodriguez@comprint.com', 'https://randomuser.me/api/portraits/women/3.jpg', 'Marketing', 'Marketing', 1, '2024-01-20'],
+  ['David', 'Kim', 'david.kim@comprint.com', 'https://randomuser.me/api/portraits/men/4.jpg', 'Support', 'Customer Success', 1, '2024-03-10'],
+  ['Alex', 'Thompson', 'alex.thompson@comprint.com', 'https://randomuser.me/api/portraits/men/5.jpg', 'Admin', 'IT', 1, '2024-01-01'],
 ];
 
 for (const user of users) {
@@ -556,13 +556,13 @@ const insertCalendarEvent = db.prepare(`
 `);
 
 const calendarEvents = [
-  ['TechFlow Enterprise Demo', 'Product demonstration for TechFlow enterprise license', 'Demo', '2024-12-10T10:00:00', '2024-12-10T11:30:00', 0, 'Zoom Meeting', 'https://zoom.us/j/123456789', 'Sarah Jenkins', '#4f46e5', 'Deal', 1, 'Enterprise License', '[{"id":"1","name":"John Anderson","email":"john.anderson@techflow.io","status":"Accepted"},{"id":"2","name":"Sarah Jenkins","email":"sarah.jenkins@zenith.com","status":"Accepted"}]'],
+  ['TechFlow Enterprise Demo', 'Product demonstration for TechFlow enterprise license', 'Demo', '2024-12-10T10:00:00', '2024-12-10T11:30:00', 0, 'Zoom Meeting', 'https://zoom.us/j/123456789', 'Sarah Jenkins', '#4f46e5', 'Deal', 1, 'Enterprise License', '[{"id":"1","name":"John Anderson","email":"john.anderson@techflow.io","status":"Accepted"},{"id":"2","name":"Sarah Jenkins","email":"sarah.jenkins@comprint.com","status":"Accepted"}]'],
   ['Team Standup', 'Daily sales team standup', 'Meeting', '2024-12-10T09:00:00', '2024-12-10T09:15:00', 0, 'Conference Room A', null, 'Sarah Jenkins', '#059669', null, null, null, '[]'],
   ['SecureNet Follow-up Call', 'Follow up on security suite proposal', 'Call', '2024-12-11T14:00:00', '2024-12-11T14:30:00', 0, null, 'https://meet.google.com/abc-defg-hij', 'Sarah Jenkins', '#0891b2', 'Deal', 3, 'Security Suite Upgrade', '[{"id":"4","name":"Jennifer Williams","email":"jennifer@securenet.io","status":"Pending"}]'],
-  ['Q4 Pipeline Review', 'Quarterly pipeline review with management', 'Meeting', '2024-12-12T15:00:00', '2024-12-12T16:30:00', 0, 'Board Room', null, 'Sarah Jenkins', '#7c3aed', null, null, null, '[{"id":"1","name":"Sarah Jenkins","email":"sarah.jenkins@zenith.com","status":"Accepted"},{"id":"2","name":"Michael Chen","email":"michael.chen@zenith.com","status":"Accepted"}]'],
+  ['Q4 Pipeline Review', 'Quarterly pipeline review with management', 'Meeting', '2024-12-12T15:00:00', '2024-12-12T16:30:00', 0, 'Board Room', null, 'Sarah Jenkins', '#7c3aed', null, null, null, '[{"id":"1","name":"Sarah Jenkins","email":"sarah.jenkins@comprint.com","status":"Accepted"},{"id":"2","name":"Michael Chen","email":"michael.chen@comprint.com","status":"Accepted"}]'],
   ['Alpha Wave Contract Signing', 'Final contract signing for consulting retainer', 'Meeting', '2024-12-13T11:00:00', '2024-12-13T12:00:00', 0, 'Alpha Wave Office, NYC', null, 'Michael Chen', '#ea580c', 'Deal', 4, 'Consulting Retainer', '[{"id":"5","name":"James Brown","email":"james@alphawave.net","status":"Accepted"}]'],
   ['Holiday Party Planning', 'Team holiday party planning meeting', 'Meeting', '2024-12-16T16:00:00', '2024-12-16T17:00:00', 0, 'Lounge', null, 'Emily Rodriguez', '#dc2626', null, null, null, '[]'],
-  ['Webinar: Winter Series Kickoff', 'First webinar of Winter Series', 'Webinar', '2024-12-18T13:00:00', '2024-12-18T14:00:00', 0, 'Online', 'https://webinar.zenith.com/winter-series', 'Emily Rodriguez', '#7c3aed', 'Campaign', 2, 'Winter Webinar Series', '[]'],
+  ['Webinar: Winter Series Kickoff', 'First webinar of Winter Series', 'Webinar', '2024-12-18T13:00:00', '2024-12-18T14:00:00', 0, 'Online', 'https://webinar.comprint.com/winter-series', 'Emily Rodriguez', '#7c3aed', 'Campaign', 2, 'Winter Webinar Series', '[]'],
   ['Year-End Review', 'Annual performance review', 'Meeting', '2024-12-20T10:00:00', '2024-12-20T11:00:00', 0, 'HR Office', null, 'Sarah Jenkins', '#4f46e5', null, null, null, '[]'],
 ];
 
@@ -577,13 +577,13 @@ const insertEmail = db.prepare(`
 `);
 
 const emails = [
-  ['Enterprise License Proposal - TechFlow Inc.', 'Dear John,\n\nThank you for your interest in our Enterprise License. I am pleased to present our proposal based on our recent discussions.\n\nThe package includes:\n- Unlimited user access\n- 24/7 premium support\n- Custom integrations\n- Dedicated success manager\n\nPlease find the detailed pricing in the attached document. I would be happy to schedule a call to discuss any questions.\n\nBest regards,\nSarah Jenkins', 'sarah.jenkins@zenith.com', '["john.anderson@techflow.io"]', '["maria.santos@techflow.io"]', 'Sent', '2024-12-05T10:30:00', null, '2024-12-05T14:22:00', '2024-12-05T14:25:00', 1, 1, 'Deal', 1, 'Enterprise License', '2024-12-05T10:00:00'],
-  ['Follow-up: Security Suite Discussion', 'Hi Jennifer,\n\nIt was great speaking with you yesterday about your security infrastructure needs. As discussed, our Security Suite offers comprehensive protection with:\n\n- Real-time threat monitoring\n- Automated incident response\n- Compliance reporting\n- Integration with existing tools\n\nI have attached some case studies from similar implementations. Let me know when you would like to schedule the technical demo.\n\nBest,\nSarah', 'sarah.jenkins@zenith.com', '["jennifer@securenet.io"]', null, 'Sent', '2024-12-04T16:45:00', null, '2024-12-05T09:10:00', null, 1, 1, 'Deal', 3, 'Security Suite Upgrade', '2024-12-04T16:00:00'],
-  ['Welcome to Zenith CRM!', 'Dear David,\n\nWelcome to Zenith CRM! We are excited to have Innovate Labs on board.\n\nHere are some resources to help you get started:\n- Quick Start Guide\n- Video Tutorials\n- Knowledge Base\n\nYour dedicated success manager, Michael Chen, will reach out shortly to schedule an onboarding call.\n\nBest regards,\nThe Zenith Team', 'support@zenith.com', '["david.miller@innovate.io"]', null, 'Sent', '2024-12-03T11:00:00', null, '2024-12-03T11:45:00', '2024-12-03T11:47:00', 1, 1, 'Contact', 7, 'David Miller', '2024-12-03T10:30:00'],
-  ['Meeting Confirmation: Contract Review', 'Hi James,\n\nThis email confirms our meeting scheduled for December 13th at 11:00 AM at your office to finalize the consulting retainer agreement.\n\nPlease let me know if you need to reschedule.\n\nLooking forward to meeting you!\n\nBest,\nMichael Chen', 'michael.chen@zenith.com', '["james@alphawave.net"]', null, 'Sent', '2024-12-06T09:00:00', null, '2024-12-06T09:30:00', null, 1, 1, 'Deal', 4, 'Consulting Retainer', '2024-12-06T08:45:00'],
-  ['Q4 Campaign Results Summary', 'Hi Team,\n\nHere is the summary of our Q4 Product Launch campaign results:\n\n- Emails Sent: 5,000\n- Open Rate: 44.9%\n- Click Rate: 18.4%\n- Conversions: 45\n- New Leads: 320\n\nGreat work everyone!\n\nEmily', 'emily.rodriguez@zenith.com', '["team@zenith.com"]', null, 'Sent', '2024-12-07T17:00:00', null, null, null, 0, 0, 'Campaign', 1, 'Q4 Product Launch', '2024-12-07T16:30:00'],
-  ['Holiday Promotion Draft', 'Draft for upcoming holiday promotion email...', 'emily.rodriguez@zenith.com', '["prospects@zenith.com"]', null, 'Draft', null, null, null, null, 1, 1, 'Campaign', 6, 'Holiday Promotion', '2024-12-08T14:00:00'],
-  ['Reminder: Webinar Registration Open', 'Dear Valued Customer,\n\nDon\'t miss our Winter Webinar Series starting December 18th!\n\nTopics include:\n- 2025 CRM Trends\n- AI-Powered Sales\n- Customer Success Strategies\n\nRegister now to secure your spot.\n\nBest,\nZenith Team', 'marketing@zenith.com', '["all-contacts@zenith.com"]', null, 'Scheduled', null, '2024-12-15T09:00:00', null, null, 1, 1, 'Campaign', 2, 'Winter Webinar Series', '2024-12-08T10:00:00'],
+  ['Enterprise License Proposal - TechFlow Inc.', 'Dear John,\n\nThank you for your interest in our Enterprise License. I am pleased to present our proposal based on our recent discussions.\n\nThe package includes:\n- Unlimited user access\n- 24/7 premium support\n- Custom integrations\n- Dedicated success manager\n\nPlease find the detailed pricing in the attached document. I would be happy to schedule a call to discuss any questions.\n\nBest regards,\nSarah Jenkins', 'sarah.jenkins@comprint.com', '["john.anderson@techflow.io"]', '["maria.santos@techflow.io"]', 'Sent', '2024-12-05T10:30:00', null, '2024-12-05T14:22:00', '2024-12-05T14:25:00', 1, 1, 'Deal', 1, 'Enterprise License', '2024-12-05T10:00:00'],
+  ['Follow-up: Security Suite Discussion', 'Hi Jennifer,\n\nIt was great speaking with you yesterday about your security infrastructure needs. As discussed, our Security Suite offers comprehensive protection with:\n\n- Real-time threat monitoring\n- Automated incident response\n- Compliance reporting\n- Integration with existing tools\n\nI have attached some case studies from similar implementations. Let me know when you would like to schedule the technical demo.\n\nBest,\nSarah', 'sarah.jenkins@comprint.com', '["jennifer@securenet.io"]', null, 'Sent', '2024-12-04T16:45:00', null, '2024-12-05T09:10:00', null, 1, 1, 'Deal', 3, 'Security Suite Upgrade', '2024-12-04T16:00:00'],
+  ['Welcome to Comprint CRM!', 'Dear David,\n\nWelcome to Comprint CRM! We are excited to have Innovate Labs on board.\n\nHere are some resources to help you get started:\n- Quick Start Guide\n- Video Tutorials\n- Knowledge Base\n\nYour dedicated success manager, Michael Chen, will reach out shortly to schedule an onboarding call.\n\nBest regards,\nThe Comprint Team', 'support@comprint.com', '["david.miller@innovate.io"]', null, 'Sent', '2024-12-03T11:00:00', null, '2024-12-03T11:45:00', '2024-12-03T11:47:00', 1, 1, 'Contact', 7, 'David Miller', '2024-12-03T10:30:00'],
+  ['Meeting Confirmation: Contract Review', 'Hi James,\n\nThis email confirms our meeting scheduled for December 13th at 11:00 AM at your office to finalize the consulting retainer agreement.\n\nPlease let me know if you need to reschedule.\n\nLooking forward to meeting you!\n\nBest,\nMichael Chen', 'michael.chen@comprint.com', '["james@alphawave.net"]', null, 'Sent', '2024-12-06T09:00:00', null, '2024-12-06T09:30:00', null, 1, 1, 'Deal', 4, 'Consulting Retainer', '2024-12-06T08:45:00'],
+  ['Q4 Campaign Results Summary', 'Hi Team,\n\nHere is the summary of our Q4 Product Launch campaign results:\n\n- Emails Sent: 5,000\n- Open Rate: 44.9%\n- Click Rate: 18.4%\n- Conversions: 45\n- New Leads: 320\n\nGreat work everyone!\n\nEmily', 'emily.rodriguez@comprint.com', '["team@comprint.com"]', null, 'Sent', '2024-12-07T17:00:00', null, null, null, 0, 0, 'Campaign', 1, 'Q4 Product Launch', '2024-12-07T16:30:00'],
+  ['Holiday Promotion Draft', 'Draft for upcoming holiday promotion email...', 'emily.rodriguez@comprint.com', '["prospects@comprint.com"]', null, 'Draft', null, null, null, null, 1, 1, 'Campaign', 6, 'Holiday Promotion', '2024-12-08T14:00:00'],
+  ['Reminder: Webinar Registration Open', 'Dear Valued Customer,\n\nDon\'t miss our Winter Webinar Series starting December 18th!\n\nTopics include:\n- 2025 CRM Trends\n- AI-Powered Sales\n- Customer Success Strategies\n\nRegister now to secure your spot.\n\nBest,\nComprint Team', 'marketing@comprint.com', '["all-contacts@comprint.com"]', null, 'Scheduled', null, '2024-12-15T09:00:00', null, null, 1, 1, 'Campaign', 2, 'Winter Webinar Series', '2024-12-08T10:00:00'],
 ];
 
 for (const email of emails) {
