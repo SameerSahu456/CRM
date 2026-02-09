@@ -338,7 +338,7 @@ INSERT INTO leads (
 )
 VALUES
   (
-    'l1111111-1111-1111-1111-111111111111',
+    '71111111-1111-1111-1111-111111111111',
     'Future Tech Systems',
     'Alice Cooper',
     'alice.cooper@futuretech.com',
@@ -401,7 +401,7 @@ VALUES
     'https://via.placeholder.com/200'
   ),
   (
-    'l2222222-2222-2222-2222-222222222222',
+    '72222222-2222-2222-2222-222222222222',
     'Smart Retail Solutions',
     'Bob Taylor',
     'bob.taylor@smartretail.com',
@@ -464,7 +464,7 @@ VALUES
     'https://via.placeholder.com/200'
   ),
   (
-    'l3333333-3333-3333-3333-333333333333',
+    '73333333-3333-3333-3333-333333333333',
     'Healthcare Innovations',
     'Carol White',
     'carol.white@healthinnov.com',
@@ -699,84 +699,84 @@ INSERT INTO deal_line_items (
 )
 VALUES
   -- Deal 1: Acme Corp - Cloud Infrastructure
-  ('dli11111-1111-1111-1111-111111111111', 'd1111111-1111-1111-1111-111111111111',
+  ('d111111-1111-1111-1111-111111111111', 'd1111111-1111-1111-1111-111111111111',
    'Servers', 'Cloud Compute', 'CS-ENT-2000',
    'Enterprise Cloud Server - 32 vCPU, 128GB RAM, 2TB NVMe',
    10, 15000.00, 150000.00, 'US-West-1', NULL, NULL, 1),
 
-  ('dli11112-1111-1111-1111-111111111111', 'd1111111-1111-1111-1111-111111111111',
+  ('d111112-1111-1111-1111-111111111111', 'd1111111-1111-1111-1111-111111111111',
    'Storage', 'NVMe Storage', 'ST-10TB-NVMe',
    'All-Flash NVMe Storage Array - 10TB',
    5, 8000.00, 40000.00, 'US-West-1', NULL, NULL, 2),
 
-  ('dli11113-1111-1111-1111-111111111111', 'd1111111-1111-1111-1111-111111111111',
+  ('d111113-1111-1111-1111-111111111111', 'd1111111-1111-1111-1111-111111111111',
    'Networking', 'Switches', 'NW-10G-SW',
    '10GbE Network Switch - 48 port managed',
    4, 5000.00, 20000.00, 'US-West-1', NULL, NULL, 3),
 
-  ('dli11114-1111-1111-1111-111111111111', 'd1111111-1111-1111-1111-111111111111',
+  ('d111114-1111-1111-1111-111111111111', 'd1111111-1111-1111-1111-111111111111',
    'Services', 'Installation', 'SVC-INSTALL-ENT',
    'Enterprise Installation and Configuration Service',
    1, 40000.00, 40000.00, 'Professional Services', NULL, NULL, 4),
 
   -- Deal 2: Global Manufacturing - IoT Sensors
-  ('dli22221-2222-2222-2222-222222222222', 'd2222222-2222-2222-2222-222222222222',
+  ('d222221-2222-2222-2222-222222222222', 'd2222222-2222-2222-2222-222222222222',
    'IoT Devices', 'Gateways', 'IG-5000',
    'Industrial IoT Gateway - Edge Computing Enabled',
    5, 8000.00, 40000.00, 'US-Central', 60000.00, 1000.00, 1),
 
-  ('dli22222-2222-2222-2222-222222222222', 'd2222222-2222-2222-2222-222222222222',
+  ('d222222-2222-2222-2222-222222222222', 'd2222222-2222-2222-2222-222222222222',
    'IoT Devices', 'Temperature Sensors', 'TS-200',
    'Industrial Temperature Sensor - Range -40°C to 125°C',
    200, 150.00, 30000.00, 'US-Central', 24000.00, 10.00, 2),
 
-  ('dli22223-2222-2222-2222-222222222222', 'd2222222-2222-2222-2222-222222222222',
+  ('d222223-2222-2222-2222-222222222222', 'd2222222-2222-2222-2222-222222222222',
    'IoT Devices', 'Vibration Sensors', 'VS-300',
    'Vibration Sensor - Predictive Maintenance Grade',
    200, 250.00, 50000.00, 'US-Central', 30000.00, 12.50, 3),
 
-  ('dli22224-2222-2222-2222-222222222222', 'd2222222-2222-2222-2222-222222222222',
+  ('d222224-2222-2222-2222-222222222222', 'd2222222-2222-2222-2222-222222222222',
    'IoT Devices', 'Pressure Sensors', 'PS-400',
    'Industrial Pressure Sensor - 0-1000 PSI',
    100, 300.00, 30000.00, 'US-Central', 18000.00, 15.00, 4),
 
-  ('dli22225-2222-2222-2222-222222222222', 'd2222222-2222-2222-2222-222222222222',
+  ('d222225-2222-2222-2222-222222222222', 'd2222222-2222-2222-2222-222222222222',
    'Software', 'Analytics Platform', 'SW-IOT-CLOUD',
    'IoT Cloud Analytics Platform - 12 month subscription',
    1, 30000.00, 30000.00, 'Cloud Service', NULL, NULL, 5),
 
   -- Deal 3: Retail Innovations - POS Systems
-  ('dli33331-3333-3333-3333-333333333333', 'd3333333-3333-3333-3333-333333333333',
+  ('d333331-3333-3333-3333-333333333333', 'd3333333-3333-3333-3333-333333333333',
    'POS Hardware', 'Terminals', 'PT-300',
    'POS Terminal - 15" Touchscreen All-in-One',
    50, 1200.00, 60000.00, 'US-South', NULL, NULL, 1),
 
-  ('dli33332-3333-3333-3333-333333333333', 'd3333333-3333-3333-3333-333333333333',
+  ('d333332-3333-3333-3333-333333333333', 'd3333333-3333-3333-3333-333333333333',
    'POS Hardware', 'Printers', 'RP-80',
    'Receipt Printer - 80mm Thermal',
    50, 200.00, 10000.00, 'US-South', NULL, NULL, 2),
 
-  ('dli33333-3333-3333-3333-333333333333', 'd3333333-3333-3333-3333-333333333333',
+  ('d333333-3333-3333-3333-333333333333', 'd3333333-3333-3333-3333-333333333333',
    'POS Hardware', 'Scanners', 'BS-2D',
    'Barcode Scanner - 2D Imager',
    50, 150.00, 7500.00, 'US-South', NULL, NULL, 3),
 
-  ('dli33334-3333-3333-3333-333333333333', 'd3333333-3333-3333-3333-333333333333',
+  ('d333334-3333-3333-3333-333333333333', 'd3333333-3333-3333-3333-333333333333',
    'POS Hardware', 'Cash Drawers', 'CD-410',
    'Cash Drawer - 4 Bill / 10 Coin',
    50, 100.00, 5000.00, 'US-South', NULL, NULL, 4),
 
-  ('dli33335-3333-3333-3333-333333333333', 'd3333333-3333-3333-3333-333333333333',
+  ('d333335-3333-3333-3333-333333333333', 'd3333333-3333-3333-3333-333333333333',
    'Software', 'POS License', 'SW-POS-CLOUD',
    'Cloud POS Software License - 3 year',
    50, 300.00, 15000.00, 'Cloud Service', NULL, NULL, 5),
 
-  ('dli33336-3333-3333-3333-333333333333', 'd3333333-3333-3333-3333-333333333333',
+  ('d333336-3333-3333-3333-333333333333', 'd3333333-3333-3333-3333-333333333333',
    'Services', 'Installation', 'SVC-INSTALL-POS',
    'POS Installation and Training - Per Location',
    50, 300.00, 15000.00, 'Professional Services', NULL, NULL, 6),
 
-  ('dli33337-3333-3333-3333-333333333333', 'd3333333-3333-3333-3333-333333333333',
+  ('d333337-3333-3333-3333-333333333333', 'd3333333-3333-3333-3333-333333333333',
    'Services', 'Support', 'SVC-SUPPORT-3YR',
    'POS Support Contract - 3 Year',
    50, 250.00, 12500.00, 'Professional Services', NULL, NULL, 7)
@@ -789,21 +789,21 @@ INSERT INTO tasks (
   id, title, description, due_date, priority, status, assigned_to, related_to_type, related_to_id
 )
 VALUES
-  ('t1111111-1111-1111-1111-111111111111', 'Follow up on Acme Corp proposal',
+  ('a4111111-1111-1111-1111-111111111111', 'Follow up on Acme Corp proposal',
    'Send proposal follow-up email and schedule demo', '2026-02-15', 'High', 'pending',
    '11111111-1111-1111-1111-111111111111', 'deal', 'd1111111-1111-1111-1111-111111111111'),
 
-  ('t2222222-2222-2222-2222-222222222222', 'Schedule IoT Gateway demo',
+  ('a4222222-2222-2222-2222-222222222222', 'Schedule IoT Gateway demo',
    'Arrange on-site demonstration of IoT gateway at customer facility', '2026-02-12', 'High', 'in_progress',
    '22222222-2222-2222-2222-222222222222', 'deal', 'd2222222-2222-2222-2222-222222222222'),
 
-  ('t3333333-3333-3333-3333-333333333333', 'Prepare POS system proposal',
+  ('a4333333-3333-3333-3333-333333333333', 'Prepare POS system proposal',
    'Create detailed proposal with ROI analysis for retail client', '2026-02-20', 'Medium', 'pending',
    '33333333-3333-3333-3333-333333333333', 'deal', 'd3333333-3333-3333-3333-333333333333'),
 
-  ('t4444444-4444-4444-4444-444444444444', 'Qualify Future Tech Systems lead',
+  ('a4444444-4444-4444-4444-444444444444', 'Qualify Future Tech Systems lead',
    'Discovery call to understand requirements and budget', '2026-02-16', 'High', 'pending',
-   '11111111-1111-1111-1111-111111111111', 'lead', 'l1111111-1111-1111-1111-111111111111')
+   '11111111-1111-1111-1111-111111111111', 'lead', '71111111-1111-1111-1111-111111111111')
 ON CONFLICT (id) DO NOTHING;
 
 -- ============================================================
@@ -836,19 +836,19 @@ INSERT INTO emails (
   id, subject, body, email_from, email_to, cc, bcc, sent_date, email_type, status, related_to_type, related_to_id
 )
 VALUES
-  ('em111111-1111-1111-1111-111111111111',
+  ('e0111111-1111-1111-1111-111111111111',
    'RE: Enterprise Cloud Infrastructure Proposal',
    'Hi Robert, Thank you for the opportunity to present our enterprise cloud solution. Attached is the comprehensive proposal including technical specifications, pricing, and implementation timeline. Looking forward to discussing this further in our upcoming demo.',
    'john.smith@comprint.com', 'robert.williams@acmecorp.com', NULL, NULL,
    '2026-02-10 09:30:00', 'outbound', 'sent', 'deal', 'd1111111-1111-1111-1111-111111111111'),
 
-  ('em222222-2222-2222-2222-222222222222',
+  ('e0222222-2222-2222-2222-222222222222',
    'IoT Sensor Network - Site Survey Confirmation',
    'Hi Jennifer, Confirming our site visit on February 14th for the IoT sensor deployment assessment. We will evaluate all 5 manufacturing zones and provide recommendations. Please arrange access to facilities.',
    'sarah.johnson@comprint.com', 'jennifer.davis@globalmanuf.com', NULL, NULL,
    '2026-02-11 14:00:00', 'outbound', 'sent', 'deal', 'd2222222-2222-2222-2222-222222222222'),
 
-  ('em333333-3333-3333-3333-333333333333',
+  ('e0333333-3333-3333-3333-333333333333',
    'POS System Upgrade - ROI Analysis',
    'Hi David, As requested, I have prepared a detailed ROI analysis for the POS system upgrade across your 50 locations. The analysis shows a 24-month payback period with significant operational efficiency gains. Let me know if you need any clarification.',
    'michael.chen@comprint.com', 'david.martinez@retailinnov.com', NULL, NULL,
