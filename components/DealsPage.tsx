@@ -651,10 +651,11 @@ export const DealsPage: React.FC = () => {
                 {deals.map(deal => (
                   <tr
                     key={deal.id}
-                    className={`border-b transition-colors ${
+                    onClick={() => openEditDealModal(deal)}
+                    className={`border-b transition-colors cursor-pointer ${
                       isDark
-                        ? 'border-zinc-800/50 hover:bg-zinc-800/30'
-                        : 'border-slate-50 hover:bg-slate-50/80'
+                        ? 'border-zinc-800/50 hover:bg-gray-800/50'
+                        : 'border-slate-50 hover:bg-gray-50'
                     }`}
                   >
                     {/* Title */}
@@ -725,7 +726,7 @@ export const DealsPage: React.FC = () => {
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-1">
                         <button
-                          onClick={() => openEditDealModal(deal)}
+                          onClick={(e) => { e.stopPropagation(); openEditDealModal(deal); }}
                           title="Edit"
                           className={`p-1.5 rounded-lg transition-colors ${
                             isDark
@@ -739,13 +740,13 @@ export const DealsPage: React.FC = () => {
                         {deleteConfirmId === deal.id ? (
                           <div className="flex items-center gap-1">
                             <button
-                              onClick={() => handleDelete(deal.id)}
+                              onClick={(e) => { e.stopPropagation(); handleDelete(deal.id); }}
                               className="px-2 py-1 rounded-lg text-xs font-medium bg-red-600 text-white hover:bg-red-700 transition-colors"
                             >
                               Confirm
                             </button>
                             <button
-                              onClick={() => setDeleteConfirmId(null)}
+                              onClick={(e) => { e.stopPropagation(); setDeleteConfirmId(null); }}
                               className={`px-2 py-1 rounded-lg text-xs font-medium transition-colors ${
                                 isDark
                                   ? 'text-zinc-400 hover:bg-zinc-800'
@@ -757,7 +758,7 @@ export const DealsPage: React.FC = () => {
                           </div>
                         ) : (
                           <button
-                            onClick={() => setDeleteConfirmId(deal.id)}
+                            onClick={(e) => { e.stopPropagation(); setDeleteConfirmId(deal.id); }}
                             title="Delete"
                             className={`p-1.5 rounded-lg transition-colors ${
                               isDark
@@ -1118,7 +1119,7 @@ export const DealsPage: React.FC = () => {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
         <div className="absolute inset-0 bg-black/50 animate-backdrop" onClick={closeDealModal} />
-        <div className={`relative w-full max-w-2xl max-h-[90vh] rounded-2xl animate-fade-in-up flex flex-col overflow-hidden ${
+        <div className={`relative w-full max-w-2xl max-h-[85vh] rounded-2xl animate-fade-in-up flex flex-col overflow-hidden ${
           isDark ? 'bg-dark-50 border border-zinc-800' : 'bg-white shadow-premium'
         }`}>
           {/* Header */}
@@ -1139,7 +1140,7 @@ export const DealsPage: React.FC = () => {
           </div>
 
           {/* Form */}
-          <form onSubmit={handleDealSubmit} className="flex-1 overflow-y-auto">
+          <form onSubmit={handleDealSubmit} className="flex-1 overflow-y-auto pb-20">
             <div className="p-6 space-y-5">
             {dealFormError && (
               <div className={`p-3 rounded-xl flex items-center gap-2 text-sm ${

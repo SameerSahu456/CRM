@@ -535,8 +535,9 @@ export const EmailsPage: React.FC = () => {
                       {emails.map(email => (
                         <tr
                           key={email.id}
-                          className={`border-b transition-colors ${
-                            isDark ? 'border-zinc-800/50 hover:bg-zinc-800/30' : 'border-slate-50 hover:bg-slate-50/80'
+                          onClick={() => openEditEmail(email)}
+                          className={`border-b transition-colors cursor-pointer ${
+                            isDark ? 'border-zinc-800/50 hover:bg-gray-800/50' : 'border-slate-50 hover:bg-gray-50'
                           }`}
                         >
                           <td className={`px-4 py-3 ${isDark ? 'text-white' : 'text-slate-900'}`}>
@@ -554,11 +555,11 @@ export const EmailsPage: React.FC = () => {
                             {email.sentAt ? formatDate(email.sentAt) : email.scheduledAt ? formatDate(email.scheduledAt) : '-'}
                           </td>
                           <td className="px-4 py-3">
-                            <div className="flex items-center gap-1">
+                            <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
                               {/* Send button for drafts */}
                               {email.status === 'draft' && (
                                 <button
-                                  onClick={() => handleSendEmail(email.id)}
+                                  onClick={(e) => { e.stopPropagation(); handleSendEmail(email.id); }}
                                   disabled={sendingId === email.id}
                                   title="Send"
                                   className={`p-1.5 rounded-lg transition-colors ${
@@ -575,7 +576,7 @@ export const EmailsPage: React.FC = () => {
                                 </button>
                               )}
                               <button
-                                onClick={() => openEditEmail(email)}
+                                onClick={(e) => { e.stopPropagation(); openEditEmail(email); }}
                                 title="Edit"
                                 className={`p-1.5 rounded-lg transition-colors ${
                                   isDark
@@ -588,13 +589,13 @@ export const EmailsPage: React.FC = () => {
                               {deleteEmailId === email.id ? (
                                 <div className="flex items-center gap-1">
                                   <button
-                                    onClick={() => handleDeleteEmail(email.id)}
+                                    onClick={(e) => { e.stopPropagation(); handleDeleteEmail(email.id); }}
                                     className="px-2 py-1 rounded-lg text-xs font-medium bg-red-600 text-white hover:bg-red-700 transition-colors"
                                   >
                                     Confirm
                                   </button>
                                   <button
-                                    onClick={() => setDeleteEmailId(null)}
+                                    onClick={(e) => { e.stopPropagation(); setDeleteEmailId(null); }}
                                     className={`px-2 py-1 rounded-lg text-xs font-medium transition-colors ${
                                       isDark ? 'text-zinc-400 hover:bg-zinc-800' : 'text-slate-500 hover:bg-slate-100'
                                     }`}
@@ -604,7 +605,7 @@ export const EmailsPage: React.FC = () => {
                                 </div>
                               ) : (
                                 <button
-                                  onClick={() => setDeleteEmailId(email.id)}
+                                  onClick={(e) => { e.stopPropagation(); setDeleteEmailId(email.id); }}
                                   title="Delete"
                                   className={`p-1.5 rounded-lg transition-colors ${
                                     isDark
@@ -811,7 +812,7 @@ export const EmailsPage: React.FC = () => {
       {showComposeModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/50 animate-backdrop" onClick={closeComposeModal} />
-          <div className={`relative w-full max-w-2xl max-h-[90vh] rounded-2xl animate-fade-in-up flex flex-col overflow-hidden ${
+          <div className={`relative w-full max-w-2xl max-h-[85vh] rounded-2xl animate-fade-in-up flex flex-col overflow-hidden ${
             isDark ? 'bg-dark-50 border border-zinc-800' : 'bg-white shadow-premium'
           }`}>
             <div className={`flex-shrink-0 flex items-center justify-between px-6 py-4 border-b ${
@@ -831,7 +832,7 @@ export const EmailsPage: React.FC = () => {
             </div>
 
             <form onSubmit={handleEmailSubmit} className="flex-1 overflow-y-auto">
-              <div className="p-6 space-y-5">
+              <div className="p-6 space-y-5 pb-20">
               {emailFormError && (
                 <div className={`p-3 rounded-xl flex items-center gap-2 text-sm ${
                   isDark ? 'bg-red-900/20 border border-red-800 text-red-400' : 'bg-red-50 border border-red-200 text-red-700'
@@ -993,7 +994,7 @@ export const EmailsPage: React.FC = () => {
       {showTemplateModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/50 animate-backdrop" onClick={closeTemplateModal} />
-          <div className={`relative w-full max-w-2xl max-h-[90vh] rounded-2xl animate-fade-in-up flex flex-col overflow-hidden ${
+          <div className={`relative w-full max-w-2xl max-h-[85vh] rounded-2xl animate-fade-in-up flex flex-col overflow-hidden ${
             isDark ? 'bg-dark-50 border border-zinc-800' : 'bg-white shadow-premium'
           }`}>
             <div className={`flex-shrink-0 flex items-center justify-between px-6 py-4 border-b ${
@@ -1013,7 +1014,7 @@ export const EmailsPage: React.FC = () => {
             </div>
 
             <form onSubmit={handleTemplateSubmit} className="flex-1 overflow-y-auto">
-              <div className="p-6 space-y-5">
+              <div className="p-6 space-y-5 pb-20">
               {templateFormError && (
                 <div className={`p-3 rounded-xl flex items-center gap-2 text-sm ${
                   isDark ? 'bg-red-900/20 border border-red-800 text-red-400' : 'bg-red-50 border border-red-200 text-red-700'
@@ -1126,7 +1127,7 @@ export const EmailsPage: React.FC = () => {
       {previewTemplate && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/50 animate-backdrop" onClick={() => setPreviewTemplate(null)} />
-          <div className={`relative w-full max-w-xl max-h-[90vh] rounded-2xl animate-fade-in-up flex flex-col overflow-hidden ${
+          <div className={`relative w-full max-w-xl max-h-[85vh] rounded-2xl animate-fade-in-up flex flex-col overflow-hidden ${
             isDark ? 'bg-dark-50 border border-zinc-800' : 'bg-white shadow-premium'
           }`}>
             <div className={`flex-shrink-0 flex items-center justify-between px-6 py-4 border-b ${
@@ -1155,7 +1156,7 @@ export const EmailsPage: React.FC = () => {
               </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-6 space-y-4">
+            <div className="flex-1 overflow-y-auto p-6 space-y-4 pb-20">
               {previewTemplate.subject && (
                 <div>
                   <p className={`text-xs font-semibold uppercase tracking-wider mb-1 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>

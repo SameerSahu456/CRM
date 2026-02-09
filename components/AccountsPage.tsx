@@ -600,23 +600,21 @@ export const AccountsPage: React.FC = () => {
                 {accounts.map(account => (
                   <tr
                     key={account.id}
-                    className={`border-b transition-colors ${
+                    onClick={() => openDetailModal(account)}
+                    className={`border-b transition-colors cursor-pointer ${
                       isDark
-                        ? 'border-zinc-800/50 hover:bg-zinc-800/30'
-                        : 'border-slate-50 hover:bg-slate-50/80'
+                        ? 'border-zinc-800/50 hover:bg-gray-800/50'
+                        : 'border-slate-50 hover:bg-gray-50'
                     }`}
                   >
                     {/* Name */}
                     <td className={`px-4 py-3 ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                      <button
-                        onClick={() => openDetailModal(account)}
-                        className="flex items-center gap-2 text-left group"
-                      >
+                      <div className="flex items-center gap-2">
                         <Building2 className={`w-3.5 h-3.5 flex-shrink-0 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`} />
-                        <span className="font-medium group-hover:text-brand-600 transition-colors">
+                        <span className="font-medium">
                           {account.name}
                         </span>
-                      </button>
+                      </div>
                     </td>
 
                     {/* Industry */}
@@ -664,7 +662,7 @@ export const AccountsPage: React.FC = () => {
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-1">
                         <button
-                          onClick={() => openDetailModal(account)}
+                          onClick={(e) => { e.stopPropagation(); openDetailModal(account); }}
                           title="View"
                           className={`p-1.5 rounded-lg transition-colors ${
                             isDark
@@ -675,7 +673,7 @@ export const AccountsPage: React.FC = () => {
                           <Eye className="w-4 h-4" />
                         </button>
                         <button
-                          onClick={() => openEditModal(account)}
+                          onClick={(e) => { e.stopPropagation(); openEditModal(account); }}
                           title="Edit"
                           className={`p-1.5 rounded-lg transition-colors ${
                             isDark
@@ -689,13 +687,13 @@ export const AccountsPage: React.FC = () => {
                         {deleteConfirmId === account.id ? (
                           <div className="flex items-center gap-1">
                             <button
-                              onClick={() => handleDelete(account.id)}
+                              onClick={(e) => { e.stopPropagation(); handleDelete(account.id); }}
                               className="px-2 py-1 rounded-lg text-xs font-medium bg-red-600 text-white hover:bg-red-700 transition-colors"
                             >
                               Confirm
                             </button>
                             <button
-                              onClick={() => setDeleteConfirmId(null)}
+                              onClick={(e) => { e.stopPropagation(); setDeleteConfirmId(null); }}
                               className={`px-2 py-1 rounded-lg text-xs font-medium transition-colors ${
                                 isDark
                                   ? 'text-zinc-400 hover:bg-zinc-800'
@@ -707,7 +705,7 @@ export const AccountsPage: React.FC = () => {
                           </div>
                         ) : (
                           <button
-                            onClick={() => setDeleteConfirmId(account.id)}
+                            onClick={(e) => { e.stopPropagation(); setDeleteConfirmId(account.id); }}
                             title="Delete"
                             className={`p-1.5 rounded-lg transition-colors ${
                               isDark
@@ -817,7 +815,7 @@ export const AccountsPage: React.FC = () => {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
         <div className="absolute inset-0 bg-black/50 animate-backdrop" onClick={closeDetailModal} />
-        <div className={`relative w-full max-w-3xl max-h-[90vh] rounded-2xl animate-fade-in-up flex flex-col overflow-hidden ${
+        <div className={`relative w-full max-w-3xl max-h-[85vh] rounded-2xl animate-fade-in-up flex flex-col overflow-hidden ${
           isDark ? 'bg-dark-50 border border-zinc-800' : 'bg-white shadow-premium'
         }`}>
           {/* Header */}
@@ -857,7 +855,7 @@ export const AccountsPage: React.FC = () => {
           </div>
 
           <div className="flex-1 overflow-y-auto">
-          <div className="p-6 space-y-6">
+          <div className="p-6 space-y-6 pb-20">
             {/* Account info grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <InfoRow label="Industry" value={account.industry} isDark={isDark} icon={<Briefcase className="w-3.5 h-3.5" />} />
@@ -931,7 +929,7 @@ export const AccountsPage: React.FC = () => {
                     No contacts linked to this account
                   </p>
                 ) : (
-                  <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1">
+                  <div className="space-y-2 pr-1">
                     {detailContacts.map((contact: any) => (
                       <div
                         key={contact.id}
@@ -972,7 +970,7 @@ export const AccountsPage: React.FC = () => {
                     No deals linked to this account
                   </p>
                 ) : (
-                  <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1">
+                  <div className="space-y-2 pr-1">
                     {detailDeals.map((deal: any) => (
                       <div
                         key={deal.id}

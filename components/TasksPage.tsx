@@ -549,7 +549,8 @@ export const TasksPage: React.FC = () => {
     return (
       <div
         key={task.id}
-        className={`${cardClass} p-4 transition-all hover-lift ${
+        onClick={() => openEditTaskModal(task)}
+        className={`${cardClass} p-4 transition-all hover-lift cursor-pointer ${
           overdue
             ? isDark
               ? 'border-red-800/60 bg-red-900/10'
@@ -560,7 +561,10 @@ export const TasksPage: React.FC = () => {
         <div className="flex items-start gap-3">
           {/* Quick complete button */}
           <button
-            onClick={() => !isCompleted && handleComplete(task.id)}
+            onClick={(e) => {
+              e.stopPropagation();
+              !isCompleted && handleComplete(task.id);
+            }}
             disabled={isCompleted || isCompleting}
             className={`flex-shrink-0 mt-0.5 w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all ${
               isCompleted
@@ -664,7 +668,10 @@ export const TasksPage: React.FC = () => {
           {/* Actions */}
           <div className="flex items-center gap-1 flex-shrink-0">
             <button
-              onClick={() => openEditTaskModal(task)}
+              onClick={(e) => {
+                e.stopPropagation();
+                openEditTaskModal(task);
+              }}
               title="Edit"
               className={`p-1.5 rounded-lg transition-colors ${
                 isDark
@@ -678,13 +685,19 @@ export const TasksPage: React.FC = () => {
             {deleteConfirmId === task.id ? (
               <div className="flex items-center gap-1">
                 <button
-                  onClick={() => handleDelete(task.id)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDelete(task.id);
+                  }}
                   className="px-2 py-1 rounded-lg text-xs font-medium bg-red-600 text-white hover:bg-red-700 transition-colors"
                 >
                   Confirm
                 </button>
                 <button
-                  onClick={() => setDeleteConfirmId(null)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setDeleteConfirmId(null);
+                  }}
                   className={`px-2 py-1 rounded-lg text-xs font-medium transition-colors ${
                     isDark
                       ? 'text-zinc-400 hover:bg-zinc-800'
@@ -696,7 +709,10 @@ export const TasksPage: React.FC = () => {
               </div>
             ) : (
               <button
-                onClick={() => setDeleteConfirmId(task.id)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setDeleteConfirmId(task.id);
+                }}
                 title="Delete"
                 className={`p-1.5 rounded-lg transition-colors ${
                   isDark
@@ -843,7 +859,7 @@ export const TasksPage: React.FC = () => {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
         <div className="absolute inset-0 bg-black/50 animate-backdrop" onClick={closeTaskModal} />
-        <div className={`relative w-full max-w-lg max-h-[90vh] rounded-2xl animate-fade-in-up flex flex-col overflow-hidden ${
+        <div className={`relative w-full max-w-lg max-h-[85vh] rounded-2xl animate-fade-in-up flex flex-col overflow-hidden ${
           isDark ? 'bg-dark-50 border border-zinc-800' : 'bg-white shadow-premium'
         }`}>
           {/* Header */}
@@ -865,7 +881,7 @@ export const TasksPage: React.FC = () => {
 
           {/* Form */}
           <form onSubmit={handleTaskSubmit} className="flex-1 overflow-y-auto">
-            <div className="p-6 space-y-5">
+            <div className="p-6 pb-20 space-y-5">
             {taskFormError && (
               <div className={`p-3 rounded-xl flex items-center gap-2 text-sm ${
                 isDark ? 'bg-red-900/20 border border-red-800 text-red-400' : 'bg-red-50 border border-red-200 text-red-700'
