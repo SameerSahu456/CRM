@@ -1,570 +1,1037 @@
-import React, { useState, useEffect } from 'react';
-import { TrendingUp, Users, DollarSign, Activity, MoreHorizontal, ArrowUpRight, ArrowDownRight, Target, CheckCircle2, Clock, Calendar, Mail, Phone, Briefcase, AlertCircle, ChevronRight, Loader2 } from 'lucide-react';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell, Legend } from 'recharts';
-import { dashboardApi, leadsApi, tasksApi, dealsApi } from '../services/api';
-import { revenueByMonth, leadsBySource, pipelineSummary, topPerformers } from '../data/mockData';
-import { Lead, Task, Deal } from '../types';
-import { useNavigation } from '../contexts/NavigationContext';
+import React, { useState, useEffect, useCallback } from 'react';
+import {
+  TrendingUp, TrendingDown, Users, Target, ShoppingCart, IndianRupee,
+  ArrowUpRight, ArrowDownRight, Calendar, Loader2, Minus,
+  CheckSquare, Layers, Handshake, Award, Building2, Package,
+  BarChart3, MapPin
+} from 'lucide-react';
+import {
+  AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
+  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  LineChart, Line,
+} from 'recharts';
 import { useTheme } from '../contexts/ThemeContext';
+import { useAuth } from '../contexts/AuthContext';
+import { useNavigation } from '../contexts/NavigationContext';
+import { NavigationItem } from '../types';
+import { dashboardApi, formatINR } from '../services/api';
 
-interface DashboardStats {
-  totalLeads: number;
-  totalDeals: number;
-  totalAccounts: number;
-  totalContacts: number;
-  totalRevenue: number;
-  openTasks: number;
-  openTickets: number;
-  conversionRate: number;
+// ---------- Types ----------
+interface DashboardData {
+  totalSales: number;
+  totalCount: number;
+  monthlyRevenue: number;
+  totalPartners: number;
+  pendingPartners: number;
+  activeLeads: number;
+  pendingPayments: number;
 }
 
-const colorMapLight = {
-  brand: { bg: 'bg-brand-50', text: 'text-brand-600', border: 'border-brand-100' },
-  green: { bg: 'bg-green-50', text: 'text-green-600', border: 'border-green-100' },
-  blue: { bg: 'bg-blue-50', text: 'text-blue-600', border: 'border-blue-100' },
-  purple: { bg: 'bg-purple-50', text: 'text-purple-600', border: 'border-purple-100' },
+interface GrowthData {
+  thisMonth: number;
+  lastMonth: number;
+  growthPct: number;
+  recentSales: Array<{
+    id: string;
+    customerName: string;
+    amount: number;
+    saleDate: string;
+    partnerName: string;
+    salespersonName: string;
+    paymentStatus: string;
+  }>;
+}
+
+interface MonthlyStat {
+  month: string;
+  revenue: number;
+  count: number;
+}
+
+interface TaskStatsData {
+  pending: number;
+  in_progress: number;
+  completed: number;
+}
+
+interface BreakdownItem {
+  totalAmount: number;
+  count: number;
+  productName?: string;
+  partnerName?: string;
+  salespersonName?: string;
+}
+
+interface BreakdownData {
+  byProduct: BreakdownItem[];
+  byPartner: BreakdownItem[];
+  bySalesperson: BreakdownItem[];
+}
+
+// ---------- Helpers ----------
+const formatCompact = (amount: number): string => {
+  if (amount >= 10000000) return `\u20B9${(amount / 10000000).toFixed(2)}Cr`;
+  if (amount >= 100000) return `\u20B9${(amount / 100000).toFixed(2)}L`;
+  if (amount >= 1000) return `\u20B9${(amount / 1000).toFixed(1)}K`;
+  return `\u20B9${amount.toLocaleString('en-IN')}`;
 };
 
-const colorMapDark = {
-  brand: { bg: 'bg-brand-900/50', text: 'text-brand-400', border: 'border-brand-800' },
-  green: { bg: 'bg-green-900/50', text: 'text-green-400', border: 'border-green-800' },
-  blue: { bg: 'bg-blue-900/50', text: 'text-blue-400', border: 'border-blue-800' },
-  purple: { bg: 'bg-purple-900/50', text: 'text-purple-400', border: 'border-purple-800' },
+const pctChange = (current: number, previous: number): number => {
+  if (previous === 0) return current > 0 ? 100 : 0;
+  return Math.round(((current - previous) / previous) * 100);
 };
 
-const getActivityIcon = (type: string) => {
-  switch (type) {
-    case 'deal_won': return { icon: CheckCircle2, color: 'text-green-500 bg-green-50' };
-    case 'new_lead': return { icon: Users, color: 'text-blue-500 bg-blue-50' };
-    case 'email_opened': return { icon: Mail, color: 'text-purple-500 bg-purple-50' };
-    case 'call_completed': return { icon: Phone, color: 'text-orange-500 bg-orange-50' };
-    case 'task_completed': return { icon: CheckCircle2, color: 'text-green-500 bg-green-50' };
-    default: return { icon: Activity, color: 'text-slate-500 bg-slate-50' };
-  }
-};
+// ---------- Reusable card shell ----------
+const AnalyticsCard: React.FC<{
+  icon: React.ReactNode;
+  iconBg: string;
+  iconColor: string;
+  title: string;
+  subtitle: string;
+  titleColor?: string;
+  badge?: { value: number; suffix?: string };
+  badgeRight?: React.ReactNode;
+  isDark: boolean;
+  onClick?: () => void;
+  children: React.ReactNode;
+  className?: string;
+}> = ({ icon, iconBg, iconColor, title, subtitle, titleColor, badge, badgeRight, isDark, onClick, children, className = '' }) => {
+  const [collapsed, setCollapsed] = useState(false);
+  const cardClass = `premium-card ${isDark ? 'bg-dark-50 border border-zinc-800' : 'bg-white shadow-soft'}`;
 
-const activities = [
-  { id: 1, type: 'deal_won', user: 'Sarah Jenkins', action: 'closed a deal worth', detail: '$45,000', entity: 'TechFlow Solutions', time: '2 hours ago' },
-  { id: 2, type: 'new_lead', user: 'Michael Chen', action: 'added new lead', detail: '', entity: 'DataSync Corp', time: '3 hours ago' },
-  { id: 3, type: 'email_opened', user: 'Emily Rodriguez', action: 'email was opened by', detail: '', entity: 'John Smith at Acme', time: '4 hours ago' },
-  { id: 4, type: 'call_completed', user: 'Sarah Jenkins', action: 'completed call with', detail: '(15 min)', entity: 'Global Industries', time: '5 hours ago' },
-  { id: 5, type: 'task_completed', user: 'Michael Chen', action: 'completed task', detail: '', entity: 'Send proposal to Nexus', time: '6 hours ago' },
-];
-
-// Mock dashboard stats for offline/development mode
-const MOCK_STATS: DashboardStats = {
-  totalLeads: 156,
-  totalDeals: 42,
-  totalAccounts: 89,
-  totalContacts: 324,
-  totalRevenue: 2450000,
-  openTasks: 18,
-  openTickets: 7,
-  conversionRate: 28.5,
-};
-
-// Mock leads for dashboard
-const MOCK_LEADS: Lead[] = [
-  {
-    id: 'lead-1', firstName: 'John', lastName: 'Smith', company: 'TechFlow Solutions',
-    email: 'john.smith@techflow.com', phone: '+1 (555) 123-4567', status: 'Qualified',
-    source: 'Website', score: 85, owner: 'Sarah Jenkins', createdAt: '2024-12-10T10:00:00Z',
-    lastActive: '2024-12-18T14:30:00Z', avatar: '', notes: '', tags: ['Enterprise'],
-    budget: 50000, timeline: 'Q1 2025', industry: 'Technology', jobTitle: 'IT Director',
-  },
-  {
-    id: 'lead-2', firstName: 'Sarah', lastName: 'Davis', company: 'HealthPlus Medical',
-    email: 'sarah.davis@healthplus.org', phone: '+1 (555) 456-7890', status: 'Proposal',
-    source: 'Referral', score: 90, owner: 'Emily Rodriguez', createdAt: '2024-11-28T08:00:00Z',
-    lastActive: '2024-12-18T09:00:00Z', avatar: '', notes: '', tags: ['Healthcare'],
-    budget: 75000, timeline: 'Q1 2025', industry: 'Healthcare', jobTitle: 'Procurement Director',
-  },
-];
-
-// Mock tasks for dashboard
-const MOCK_TASKS: Task[] = [
-  {
-    id: 'task-1', title: 'Follow up with Acme Corp on proposal', description: '',
-    type: 'Call', status: 'Not Started', priority: 'High',
-    dueDate: new Date().toISOString().split('T')[0], dueTime: '14:00',
-    assignedTo: 'Sarah Jenkins', createdBy: 'Sarah Jenkins', createdAt: '2024-12-17T09:00:00Z',
-    completedAt: '', relatedTo: { type: 'Deal', id: 'deal-1', name: 'Enterprise Software License' },
-  },
-  {
-    id: 'task-2', title: 'Prepare demo for TechStart', description: '',
-    type: 'Demo', status: 'In Progress', priority: 'Urgent',
-    dueDate: new Date().toISOString().split('T')[0], dueTime: '10:00',
-    assignedTo: 'Michael Chen', createdBy: 'Michael Chen', createdAt: '2024-12-16T14:00:00Z',
-    completedAt: '', relatedTo: { type: 'Deal', id: 'deal-2', name: 'CRM Implementation' },
-  },
-];
-
-export const Dashboard: React.FC = () => {
-  const [stats, setStats] = useState<DashboardStats | null>(null);
-  const [leads, setLeads] = useState<Lead[]>([]);
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const { setActiveTab } = useNavigation();
-  const { theme } = useTheme();
-
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setLoading(true);
-        let statsData: DashboardStats;
-        let leadsData: Lead[];
-        let tasksData: Task[];
-
-        try {
-          const [fetchedStats, fetchedLeads, fetchedTasks] = await Promise.all([
-            dashboardApi.getStats(),
-            leadsApi.getAll(),
-            tasksApi.getAll(),
-          ]);
-          statsData = fetchedStats;
-          leadsData = fetchedLeads as Lead[];
-          tasksData = fetchedTasks as Task[];
-        } catch {
-          // API unavailable, use mock data
-          console.log('API unavailable, using mock dashboard data');
-          statsData = MOCK_STATS;
-          leadsData = MOCK_LEADS;
-          tasksData = MOCK_TASKS;
-        }
-
-        setStats(statsData);
-        setLeads(leadsData);
-        setTasks(tasksData);
-        setError(null);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to fetch data');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchData();
-  }, []);
-
-  const today = new Date().toISOString().split('T')[0];
-  const todayTasks = tasks.filter(t => t.dueDate === today && t.status !== 'Completed');
-  const overdueTasks = tasks.filter(t => t.dueDate < today && t.status !== 'Completed');
-  const hotLeads = leads.filter(l => l.status === 'Qualified' || l.status === 'Proposal');
-
-  const kpiStats = [
-    { label: 'Total Revenue', value: stats ? `$${(stats.totalRevenue / 1000000).toFixed(1)}M` : '-', change: 12.5, trend: 'up' as const, icon: DollarSign, color: 'brand', navigateTo: 'reports' as const },
-    { label: 'Active Deals', value: stats?.totalDeals?.toString() || '-', change: 8.2, trend: 'up' as const, icon: Briefcase, color: 'green', navigateTo: 'deals' as const },
-    { label: 'New Leads', value: stats?.totalLeads?.toString() || '-', change: 15.3, trend: 'up' as const, icon: Users, color: 'blue', navigateTo: 'leads' as const },
-    { label: 'Win Rate', value: stats ? `${stats.conversionRate}%` : '-', change: 4.2, trend: 'up' as const, icon: Target, color: 'purple', navigateTo: 'reports' as const },
-  ];
-
-  const isDark = theme === 'dark';
-
-  if (loading) {
-    return (
-      <div className="p-8 flex items-center justify-center min-h-[400px]">
-        <div className="flex flex-col items-center gap-3">
-          <Loader2 className="w-8 h-8 animate-spin text-brand-600" />
-          <p className={isDark ? 'text-zinc-500' : 'text-slate-500'}>Loading dashboard...</p>
+  return (
+    <div className={`${cardClass} p-4 sm:p-5 ${className}`}>
+      {/* Header */}
+      <div className="flex items-start justify-between mb-4">
+        <div className="flex items-center gap-3 cursor-pointer" onClick={onClick}>
+          <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${iconBg}`}>
+            <span className={iconColor}>{icon}</span>
+          </div>
+          <div className="min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <h3 className={`text-sm font-bold ${titleColor || (isDark ? 'text-white' : 'text-slate-900')}`}>{title}</h3>
+              {badge && (
+                <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold inline-flex items-center gap-0.5 ${
+                  badge.value >= 0
+                    ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
+                    : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                }`}>
+                  {badge.value >= 0 ? <ArrowUpRight className="w-2.5 h-2.5" /> : <ArrowDownRight className="w-2.5 h-2.5" />}
+                  {badge.value >= 0 ? '+' : ''}{badge.value}{badge.suffix || '%'}
+                </span>
+              )}
+            </div>
+            <p className={`text-[11px] ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>{subtitle}</p>
+          </div>
         </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="p-8">
-        <div className={`rounded-xl p-6 text-center ${isDark ? 'bg-red-900/20 border border-red-800' : 'bg-red-50 border border-red-200'}`}>
-          <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-3" />
-          <h3 className={`text-lg font-semibold mb-2 ${isDark ? 'text-red-300' : 'text-red-800'}`}>Failed to load dashboard</h3>
-          <p className={isDark ? 'text-red-400' : 'text-red-600'}>{error}</p>
+        <div className="flex items-center gap-1.5 flex-shrink-0 ml-2">
+          {badgeRight}
           <button
-            onClick={() => window.location.reload()}
-            className="mt-4 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+            onClick={(e) => { e.stopPropagation(); setCollapsed(!collapsed); }}
+            className={`w-6 h-6 rounded-lg flex items-center justify-center transition-colors ${
+              isDark ? 'hover:bg-zinc-800 text-zinc-500' : 'hover:bg-slate-100 text-slate-400'
+            }`}
           >
-            Retry
+            <Minus className="w-3.5 h-3.5" />
           </button>
         </div>
       </div>
+      {/* Body */}
+      {!collapsed && children}
+    </div>
+  );
+};
+
+// ---------- Main Dashboard ----------
+export const Dashboard: React.FC = () => {
+  const { theme } = useTheme();
+  const { user } = useAuth();
+  const { setActiveTab } = useNavigation();
+  const isDark = theme === 'dark';
+  const navigate = (tab: NavigationItem) => setActiveTab(tab);
+
+  const [stats, setStats] = useState<DashboardData | null>(null);
+  const [growth, setGrowth] = useState<GrowthData | null>(null);
+  const [monthly, setMonthly] = useState<MonthlyStat[]>([]);
+  const [leadStats, setLeadStats] = useState<Record<string, number>>({});
+  const [dealStatsRaw, setDealStatsRaw] = useState<Record<string, { count: number; value: number }>>({});
+  const [taskStatsData, setTaskStatsData] = useState<TaskStatsData | null>(null);
+  const [breakdownData, setBreakdownData] = useState<BreakdownData>({ byProduct: [], byPartner: [], bySalesperson: [] });
+  const [isLoading, setIsLoading] = useState(true);
+
+  const fetchData = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      // Single API call replaces 7 separate requests — much faster on Vercel serverless
+      const all = await dashboardApi.getAll();
+      setStats(all.stats);
+      setGrowth(all.growth);
+      setMonthly(Array.isArray(all.monthlyStats) ? all.monthlyStats : []);
+      setLeadStats(all.leadStats || {});
+      setDealStatsRaw(all.dealStats || {});
+      setTaskStatsData(all.taskStats || null);
+      setBreakdownData(all.breakdown || { byProduct: [], byPartner: [], bySalesperson: [] });
+    } catch {
+      // Dashboard is best-effort
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  // ---------- Computed data ----------
+  const sortedSalespersons = [...breakdownData.bySalesperson].sort((a, b) => b.totalAmount - a.totalAmount);
+  const sortedPartners = [...breakdownData.byPartner].sort((a, b) => b.totalAmount - a.totalAmount);
+  const sortedProducts = [...breakdownData.byProduct].sort((a, b) => b.totalAmount - a.totalAmount);
+
+  const totalSalesAmount = sortedSalespersons.reduce((s, sp) => s + sp.totalAmount, 0);
+  const totalSalesCount = sortedSalespersons.reduce((s, sp) => s + sp.count, 0);
+  const totalPartnerRevenue = sortedPartners.reduce((s, p) => s + p.totalAmount, 0);
+  const totalPartnerDeals = sortedPartners.reduce((s, p) => s + p.count, 0);
+  const totalProductRevenue = sortedProducts.reduce((s, p) => s + p.totalAmount, 0);
+  const totalProductDeals = sortedProducts.reduce((s, p) => s + p.count, 0);
+
+  // Monthly with % change
+  const monthlyWithChange = monthly.slice(-6).map((m, i, arr) => {
+    const prev = i > 0 ? arr[i - 1].revenue : 0;
+    return { ...m, change: i > 0 ? pctChange(m.revenue, prev) : 0 };
+  });
+  const totalMonthlyRevenue = monthly.reduce((s, m) => s + m.revenue, 0);
+  const totalMonthlyDeals = monthly.reduce((s, m) => s + m.count, 0);
+  const monthlyChange = monthly.length >= 2 ? pctChange(monthly[monthly.length - 1].revenue, monthly[monthly.length - 2].revenue) : 0;
+
+  // Deal pipeline
+  const DEAL_STAGE_ORDER = ['Discovery', 'Qualification', 'Needs Analysis', 'Proposal', 'Negotiation', 'Closed Won', 'Closed Lost'];
+  const pipelineStages = DEAL_STAGE_ORDER
+    .filter(s => dealStatsRaw[s])
+    .map(s => ({ stage: s, count: dealStatsRaw[s]?.count ?? 0, value: dealStatsRaw[s]?.value ?? 0 }));
+  const totalDeals = pipelineStages.reduce((sum, s) => sum + s.count, 0);
+  const totalDealValue = pipelineStages.reduce((sum, s) => sum + s.value, 0);
+  const wonDeals = dealStatsRaw['Closed Won']?.count ?? 0;
+  const lostDeals = dealStatsRaw['Closed Lost']?.count ?? 0;
+  const dealWinRate = (wonDeals + lostDeals) > 0 ? Math.round((wonDeals / (wonDeals + lostDeals)) * 100) : 0;
+
+  // Lead stats
+  const LEAD_STAGES = ['New', 'Contacted', 'Qualified', 'Proposal', 'Negotiation', 'Won', 'Lost'];
+  const totalLeads = (Object.values(leadStats) as number[]).reduce((a, b) => a + b, 0);
+  const wonLeads = (leadStats['Won'] as number) || 0;
+  const conversionRate = totalLeads > 0 ? Math.round((wonLeads / totalLeads) * 100) : 0;
+
+  // Tasks
+  const tasksCompleted = taskStatsData?.completed ?? 0;
+  const tasksPending = (taskStatsData?.pending ?? 0) + (taskStatsData?.in_progress ?? 0);
+  const tasksTotal = tasksCompleted + tasksPending;
+  const tasksCompletionPct = tasksTotal > 0 ? Math.round((tasksCompleted / tasksTotal) * 100) : 0;
+
+  // Growth
+  const momChange = growth ? pctChange(growth.thisMonth, growth.lastMonth) : 0;
+
+  // Table helpers
+  const thClass = `text-[10px] font-semibold uppercase tracking-wider ${isDark ? 'text-zinc-500' : 'text-slate-400'}`;
+  const tdClass = `text-xs ${isDark ? 'text-zinc-300' : 'text-slate-700'}`;
+  const tdBold = `text-xs font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`;
+  const rowBorder = isDark ? 'border-zinc-800/50' : 'border-slate-100';
+
+  const PIPELINE_COLORS: Record<string, string> = {
+    Discovery: '#06b6d4', Qualification: '#3b82f6', 'Needs Analysis': '#8b5cf6',
+    Proposal: '#a855f7', Negotiation: '#f97316', 'Closed Won': '#10b981', 'Closed Lost': '#ef4444',
+  };
+
+  const LEAD_COLORS: Record<string, string> = {
+    New: '#3b82f6', Contacted: '#06b6d4', Qualified: '#f59e0b',
+    Proposal: '#a855f7', Negotiation: '#f97316', Won: '#10b981', Lost: '#ef4444',
+  };
+
+  if (isLoading) {
+    return (
+      <div className="p-3 sm:p-4 lg:p-6 flex items-center justify-center h-full">
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 className="w-8 h-8 text-brand-600 animate-spin" />
+          <p className={`text-sm ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>Loading analytics...</p>
+        </div>
+      </div>
     );
   }
 
+  const currentMonth = new Date().toLocaleString('default', { month: 'long', year: 'numeric' });
+
   return (
-    <div className="p-4 lg:p-8 space-y-4 lg:space-y-6">
-      {/* KPI Cards with Premium Animations */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {kpiStats.map((stat, index) => {
-          const colorMap = isDark ? colorMapDark : colorMapLight;
-          const colors = colorMap[stat.color as keyof typeof colorMap];
-          return (
-            <button
-              key={index}
-              onClick={() => setActiveTab(stat.navigateTo)}
-              className={`relative p-6 rounded-2xl shadow-soft border transition-all duration-300 text-left cursor-pointer group hover-lift ripple overflow-hidden animate-fade-in-up stagger-${index + 1} ${
-                isDark
-                  ? 'bg-zinc-900 border-zinc-800 hover:border-brand-500'
-                  : 'bg-white border-slate-100 hover:border-brand-300'
-              }`}
-              style={{ opacity: 0 }}
-            >
-              {/* Animated gradient background on hover */}
-              <div className={`absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 ${
-                isDark
-                  ? 'bg-gradient-to-br from-brand-900/20 via-transparent to-purple-900/20'
-                  : 'bg-gradient-to-br from-brand-50/50 via-transparent to-purple-50/50'
-              }`} />
+    <div className="p-3 sm:p-4 lg:p-6 space-y-4 sm:space-y-5 animate-fade-in-up">
+      {/* ==================== ROW 1: Main Analytics Cards ==================== */}
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4 sm:gap-5">
 
-              {/* Shimmer effect on hover */}
-              <div className="absolute inset-0 opacity-0 group-hover:opacity-100 animate-shimmer" />
-
-              <div className="relative z-10">
-                <div className="flex justify-between items-start mb-4">
-                  <div>
-                    <p className={`font-medium text-sm font-display uppercase tracking-wide ${isDark ? 'text-zinc-500' : 'text-slate-500'}`}>
-                      {stat.label}
-                    </p>
-                    <h3 className={`text-3xl font-bold mt-1 font-brand group-hover:text-brand-600 transition-colors animate-count-up ${isDark ? 'text-zinc-100' : 'text-slate-900'}`}>
-                      {stat.value}
-                    </h3>
-                  </div>
-                  <div className={`p-3 rounded-xl ${colors.bg} ${colors.text} group-hover:scale-110 group-hover:rotate-3 transition-all duration-300 icon-bounce`}>
-                    <stat.icon size={24} />
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className={`text-sm font-semibold flex items-center gap-0.5 ${stat.trend === 'up' ? 'text-green-500' : 'text-red-500'}`}>
-                    <span className="group-hover:animate-bounce">
-                      {stat.trend === 'up' ? <ArrowUpRight size={16} /> : <ArrowDownRight size={16} />}
-                    </span>
-                    {Math.abs(stat.change)}%
-                  </span>
-                  <span className={`text-sm ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>vs last month</span>
-                </div>
-              </div>
-
-              {/* Glowing border effect on hover */}
-              <div className={`absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none ${
-                isDark ? 'shadow-[inset_0_0_20px_rgba(99,102,241,0.15)]' : 'shadow-[inset_0_0_20px_rgba(79,70,229,0.1)]'
-              }`} />
-            </button>
-          );
-        })}
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-        {/* Revenue Chart */}
-        <div className={`md:col-span-2 p-4 md:p-6 rounded-2xl shadow-soft border hover-lift transition-all duration-300 animate-fade-in-up stagger-5 ${
-          isDark ? 'bg-zinc-900 border-zinc-800 hover:border-zinc-700' : 'bg-white border-slate-100 hover:border-slate-200'
-        }`} style={{ opacity: 0 }}>
-          <div className="flex justify-between items-center mb-6">
+        {/* ===== 1. SALES TEAM — Performance Tracker ===== */}
+        <AnalyticsCard
+          icon={<Users className="w-4 h-4" />}
+          iconBg={isDark ? 'bg-emerald-900/30' : 'bg-emerald-50'}
+          iconColor={isDark ? 'text-emerald-400' : 'text-emerald-600'}
+          title="Sales Team"
+          titleColor={isDark ? 'text-emerald-400' : 'text-emerald-700'}
+          subtitle="Performance Tracker"
+          badge={momChange !== 0 ? { value: momChange } : undefined}
+          isDark={isDark}
+          onClick={() => navigate('reports')}
+        >
+          {/* Big metric */}
+          <div className="flex items-baseline justify-between mb-4">
             <div>
-              <h3 className={`text-lg font-bold font-display ${isDark ? 'text-zinc-100' : 'text-slate-900'}`}>Revenue Overview</h3>
-              <p className={`text-sm mt-1 ${isDark ? 'text-zinc-500' : 'text-slate-500'}`}>Monthly revenue vs targets for 2024</p>
+              <p className={`text-2xl font-bold tracking-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                {formatCompact(totalSalesAmount)}
+              </p>
+              <p className={`text-[10px] uppercase tracking-wider mt-0.5 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
+                Total Achieved
+              </p>
             </div>
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full bg-brand-600"></div>
-                <span className={`text-xs ${isDark ? 'text-zinc-500' : 'text-slate-500'}`}>Revenue</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full bg-red-400"></div>
-                <span className={`text-xs ${isDark ? 'text-zinc-500' : 'text-slate-500'}`}>Target</span>
-              </div>
+            <div className="text-right">
+              <p className={`text-lg font-bold ${isDark ? 'text-emerald-400' : 'text-emerald-600'}`}>
+                {totalSalesCount}
+              </p>
+              <p className={`text-[10px] uppercase tracking-wider ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Deals</p>
             </div>
           </div>
-          <div className="h-72 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={revenueByMonth}>
-                <defs>
-                  <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#4f46e5" stopOpacity={0.3}/>
-                    <stop offset="95%" stopColor="#4f46e5" stopOpacity={0}/>
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={isDark ? '#27272a' : '#f1f5f9'} />
-                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: isDark ? '#71717a' : '#94a3b8', fontSize: 12}} />
-                <YAxis axisLine={false} tickLine={false} tick={{fill: isDark ? '#71717a' : '#94a3b8', fontSize: 12}} tickFormatter={(value) => `$${value / 1000}k`} />
-                <Tooltip contentStyle={{ backgroundColor: isDark ? '#18181b' : '#1e1b4b', border: 'none', borderRadius: '8px', color: '#fff' }} formatter={(value: number) => [`$${value.toLocaleString()}`, '']} />
-                <Area type="monotone" dataKey="revenue" stroke="#4f46e5" strokeWidth={3} fillOpacity={1} fill="url(#colorRevenue)" />
-                <Area type="monotone" dataKey="target" stroke="#dc2626" strokeWidth={2} strokeDasharray="5 5" fillOpacity={0} />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
 
-        {/* Lead Sources */}
-        <div className={`p-6 rounded-2xl shadow-soft border hover-lift transition-all duration-300 animate-fade-in-up stagger-6 ${
-          isDark ? 'bg-zinc-900 border-zinc-800 hover:border-zinc-700' : 'bg-white border-slate-100 hover:border-slate-200'
-        }`} style={{ opacity: 0 }}>
-          <div className="flex justify-between items-center mb-4">
-            <div>
-              <h3 className={`text-lg font-bold font-display ${isDark ? 'text-zinc-100' : 'text-slate-900'}`}>Lead Sources</h3>
-              <p className={`text-sm mt-1 ${isDark ? 'text-zinc-500' : 'text-slate-500'}`}>Distribution this quarter</p>
-            </div>
-          </div>
-          <div className="h-56">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie data={leadsBySource} cx="50%" cy="50%" innerRadius={50} outerRadius={80} paddingAngle={2} dataKey="value">
-                  {leadsBySource.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-          <div className="grid grid-cols-2 gap-2 mt-2">
-            {leadsBySource.map((source, index) => (
-              <div key={index} className="flex items-center gap-2">
-                <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: source.color }}></div>
-                <span className={`text-xs ${isDark ? 'text-zinc-400' : 'text-slate-600'}`}>{source.name}</span>
-                <span className={`text-xs font-bold ml-auto ${isDark ? 'text-zinc-100' : 'text-slate-900'}`}>{source.value}%</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-        {/* Pipeline Summary */}
-        <div className={`p-6 rounded-2xl shadow-soft border hover-lift transition-all duration-300 animate-fade-in-up stagger-7 ${
-          isDark ? 'bg-zinc-900 border-zinc-800 hover:border-zinc-700' : 'bg-white border-slate-100 hover:border-slate-200'
-        }`} style={{ opacity: 0 }}>
-          <div className="flex justify-between items-center mb-6">
-            <div>
-              <h3 className={`text-lg font-bold font-display ${isDark ? 'text-zinc-100' : 'text-slate-900'}`}>Pipeline Summary</h3>
-              <p className={`text-sm mt-1 ${isDark ? 'text-zinc-500' : 'text-slate-500'}`}>Current deal stages</p>
-            </div>
-            <button onClick={() => setActiveTab('deals')} className="text-sm text-brand-600 hover:text-brand-700 font-medium animated-underline">View all</button>
-          </div>
-          <div className="space-y-4">
-            {pipelineSummary.map((stage, index) => (
-              <div key={index} className="animate-fade-in" style={{ animationDelay: `${index * 0.1}s` }}>
-                <div className="flex justify-between items-center mb-2">
-                  <span className={`text-sm font-medium ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>{stage.stage}</span>
-                  <span className={`text-sm font-bold ${isDark ? 'text-zinc-100' : 'text-slate-900'}`}>${(stage.value / 1000).toFixed(0)}k</span>
-                </div>
-                <div className={`w-full rounded-full h-2 overflow-hidden ${isDark ? 'bg-zinc-800' : 'bg-slate-100'}`}>
-                  <div className="h-2 rounded-full animate-progress" style={{ width: `${Math.min((stage.value / Math.max(...pipelineSummary.map(s => s.value))) * 100, 100)}%`, backgroundColor: stage.color }}></div>
-                </div>
-                <div className="flex justify-between mt-1">
-                  <span className={`text-xs ${isDark ? 'text-zinc-500' : 'text-slate-500'}`}>{stage.count} deals</span>
-                  <span className={`text-xs ${isDark ? 'text-zinc-500' : 'text-slate-500'}`}>{((stage.value / 2400000) * 100).toFixed(0)}% of total</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Recent Activity */}
-        <div className={`p-6 rounded-2xl shadow-soft border hover-lift transition-all duration-300 animate-fade-in-up stagger-8 ${
-          isDark ? 'bg-zinc-900 border-zinc-800 hover:border-zinc-700' : 'bg-white border-slate-100 hover:border-slate-200'
-        }`} style={{ opacity: 0 }}>
-          <div className="flex justify-between items-center mb-6">
-            <h3 className={`text-lg font-bold font-display ${isDark ? 'text-zinc-100' : 'text-slate-900'}`}>Recent Activity</h3>
-            <button onClick={() => setActiveTab('reports')} className="text-sm text-brand-600 hover:text-brand-700 font-medium animated-underline">View all</button>
-          </div>
-          <div className="space-y-4">
-            {activities.slice(0, 5).map((activity, index) => {
-              const { icon: Icon, color } = getActivityIcon(activity.type);
-              return (
-                <div key={activity.id} className="flex gap-3 animate-slide-in-left" style={{ animationDelay: `${index * 0.08}s`, opacity: 0 }}>
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 transition-transform hover:scale-110 ${isDark ? color.replace('bg-', 'bg-opacity-20 bg-') : color}`}>
-                    <Icon size={14} />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className={`text-sm ${isDark ? 'text-zinc-400' : 'text-slate-700'}`}>
-                      <span className={`font-semibold ${isDark ? 'text-zinc-100' : 'text-slate-900'}`}>{activity.user}</span> {activity.action}{' '}
-                      {activity.detail && <span className="font-semibold text-green-500">{activity.detail}</span>}{' '}
-                      <span className="text-brand-500">{activity.entity}</span>
-                    </p>
-                    <span className={`text-xs ${isDark ? 'text-zinc-600' : 'text-slate-400'}`}>{activity.time}</span>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Top Performers */}
-        <div className={`p-6 rounded-2xl shadow-soft border hover-lift transition-all duration-300 animate-fade-in-up ${
-          isDark ? 'bg-zinc-900 border-zinc-800 hover:border-zinc-700' : 'bg-white border-slate-100 hover:border-slate-200'
-        }`} style={{ opacity: 0, animationDelay: '0.45s' }}>
-          <div className="flex justify-between items-center mb-6">
-            <div>
-              <h3 className={`text-lg font-bold font-display ${isDark ? 'text-zinc-100' : 'text-slate-900'}`}>Top Performers</h3>
-              <p className={`text-sm mt-1 ${isDark ? 'text-zinc-500' : 'text-slate-500'}`}>This month</p>
-            </div>
-          </div>
-          <div className="space-y-4">
-            {topPerformers.map((performer, index) => (
-              <div key={index} className="flex items-center gap-4 animate-slide-in-right transition-all hover:translate-x-1" style={{ animationDelay: `${index * 0.1}s`, opacity: 0 }}>
-                <div className="relative group">
-                  <img src={performer.avatar} alt={performer.name} className={`w-10 h-10 rounded-full object-cover border-2 shadow-sm transition-transform group-hover:scale-110 ${isDark ? 'border-zinc-800' : 'border-white'}`} />
-                  {index === 0 && (
-                    <div className="absolute -top-1 -right-1 w-5 h-5 bg-yellow-400 rounded-full flex items-center justify-center text-[10px] font-bold text-yellow-900 badge-pulse">1</div>
-                  )}
-                </div>
-                <div className="flex-1">
-                  <p className={`text-sm font-semibold ${isDark ? 'text-zinc-100' : 'text-slate-900'}`}>{performer.name}</p>
-                  <p className={`text-xs ${isDark ? 'text-zinc-500' : 'text-slate-500'}`}>{performer.deals} deals closed</p>
-                </div>
-                <div className="text-right">
-                  <p className={`text-sm font-bold ${isDark ? 'text-zinc-100' : 'text-slate-900'}`}>${(performer.revenue / 1000).toFixed(0)}k</p>
-                  <p className="text-xs text-green-500">+{performer.change}%</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
-        {/* Tasks Due Today */}
-        <div className={`p-6 rounded-2xl shadow-soft border hover-lift transition-all duration-300 animate-fade-in-up ${
-          isDark ? 'bg-zinc-900 border-zinc-800 hover:border-zinc-700' : 'bg-white border-slate-100 hover:border-slate-200'
-        }`} style={{ opacity: 0, animationDelay: '0.5s' }}>
-          <div className="flex justify-between items-center mb-6">
-            <div className="flex items-center gap-3">
-              <h3 className={`text-lg font-bold font-display ${isDark ? 'text-zinc-100' : 'text-slate-900'}`}>Tasks Due Today</h3>
-              <span className={`px-2 py-0.5 text-xs font-semibold rounded-full ${isDark ? 'bg-blue-900/50 text-blue-400' : 'bg-blue-50 text-blue-600'}`}>{todayTasks.length}</span>
-            </div>
-            <button onClick={() => setActiveTab('tasks')} className="text-sm text-brand-600 hover:text-brand-700 font-medium flex items-center gap-1">
-              View all <ChevronRight size={14} />
-            </button>
-          </div>
-          {todayTasks.length === 0 ? (
-            <div className="text-center py-8">
-              <CheckCircle2 size={40} className="mx-auto text-green-400 mb-3" />
-              <p className={isDark ? 'text-zinc-500' : 'text-slate-500'}>All caught up! No tasks due today.</p>
+          {/* Table */}
+          {sortedSalespersons.length === 0 ? (
+            <div className={`h-24 flex items-center justify-center rounded-xl ${isDark ? 'bg-zinc-900/50' : 'bg-slate-50'}`}>
+              <p className={`text-xs ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>No sales data</p>
             </div>
           ) : (
-            <div className="space-y-3">
-              {todayTasks.slice(0, 4).map((task) => (
-                <div key={task.id} className={`flex items-center gap-3 p-3 rounded-lg transition-colors ${
-                  isDark ? 'hover:bg-zinc-800' : 'hover:bg-slate-50'
-                }`}>
-                  <button className={`transition-colors ${isDark ? 'text-zinc-500 hover:text-green-400' : 'text-slate-400 hover:text-green-500'}`}>
-                    <CheckCircle2 size={20} />
-                  </button>
-                  <div className="flex-1">
-                    <p className={`text-sm font-medium ${isDark ? 'text-zinc-100' : 'text-slate-900'}`}>{task.title}</p>
-                    {task.relatedTo && (
-                      <p className={`text-xs ${isDark ? 'text-zinc-500' : 'text-slate-500'}`}>{task.relatedTo.type}: {task.relatedTo.name}</p>
-                    )}
-                  </div>
-                  <span className={`text-xs px-2 py-0.5 rounded border ${
-                    task.priority === 'Urgent'
-                      ? (isDark ? 'bg-red-900/50 text-red-400 border-red-800' : 'bg-red-50 text-red-600 border-red-200')
-                      : task.priority === 'High'
-                        ? (isDark ? 'bg-orange-900/50 text-orange-400 border-orange-800' : 'bg-orange-50 text-orange-600 border-orange-200')
-                        : (isDark ? 'bg-zinc-800 text-zinc-400 border-zinc-700' : 'bg-slate-50 text-slate-600 border-slate-200')
-                  }`}>
-                    {task.priority}
+            <div className="max-h-[200px] overflow-y-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className={`border-b ${rowBorder}`}>
+                    <th className={`${thClass} text-left pb-2`}>Name</th>
+                    <th className={`${thClass} text-right pb-2`}>Achieved</th>
+                    <th className={`${thClass} text-right pb-2`}>%</th>
+                    <th className={`${thClass} text-right pb-2`}>Deals</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {sortedSalespersons.slice(0, 10).map((sp, i) => {
+                    const pct = totalSalesAmount > 0 ? Math.round((sp.totalAmount / totalSalesAmount) * 100) : 0;
+                    return (
+                      <tr key={i} className={`border-b last:border-0 ${rowBorder}`}>
+                        <td className={`${tdClass} py-2 truncate max-w-[100px]`}>{sp.salespersonName || 'Unknown'}</td>
+                        <td className={`${tdBold} py-2 text-right`}>{formatCompact(sp.totalAmount)}</td>
+                        <td className={`text-xs py-2 text-right ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>{pct}%</td>
+                        <td className={`${tdClass} py-2 text-right`}>{sp.count}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </AnalyticsCard>
+
+        {/* ===== 2. MONTHLY — Last 6 Months ===== */}
+        <AnalyticsCard
+          icon={<Calendar className="w-4 h-4" />}
+          iconBg={isDark ? 'bg-green-900/30' : 'bg-green-50'}
+          iconColor={isDark ? 'text-green-400' : 'text-green-600'}
+          title="Monthly"
+          titleColor={isDark ? 'text-green-400' : 'text-green-700'}
+          subtitle="Last 6 Months"
+          badge={monthlyChange !== 0 ? { value: monthlyChange } : undefined}
+          isDark={isDark}
+          onClick={() => navigate('reports')}
+        >
+          {/* Big metric */}
+          <div className="flex items-baseline justify-between mb-3">
+            <div>
+              <p className={`text-2xl font-bold tracking-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                {formatCompact(totalMonthlyRevenue)}
+              </p>
+              <p className={`text-[10px] uppercase tracking-wider mt-0.5 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
+                Total Revenue
+              </p>
+            </div>
+            <div className="text-right">
+              <p className={`text-lg font-bold ${isDark ? 'text-green-400' : 'text-green-600'}`}>
+                {totalMonthlyDeals.toLocaleString()}
+              </p>
+              <p className={`text-[10px] uppercase tracking-wider ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Deals</p>
+            </div>
+          </div>
+
+          {/* Mini sparkline */}
+          {monthlyWithChange.length > 1 && (
+            <div className="mb-3">
+              <ResponsiveContainer width="100%" height={40}>
+                <LineChart data={monthlyWithChange}>
+                  <Line type="monotone" dataKey="revenue" stroke={isDark ? '#4ade80' : '#16a34a'} strokeWidth={2} dot={false} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+
+          {/* Table */}
+          {monthlyWithChange.length === 0 ? (
+            <div className={`h-24 flex items-center justify-center rounded-xl ${isDark ? 'bg-zinc-900/50' : 'bg-slate-50'}`}>
+              <p className={`text-xs ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>No monthly data</p>
+            </div>
+          ) : (
+            <div className="max-h-[200px] overflow-y-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className={`border-b ${rowBorder}`}>
+                    <th className={`${thClass} text-left pb-2`}>Mon</th>
+                    <th className={`${thClass} text-right pb-2`}>Amount</th>
+                    <th className={`${thClass} text-right pb-2`}>%</th>
+                    <th className={`${thClass} text-right pb-2`}>Deals</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {monthlyWithChange.map((m, i) => (
+                    <tr key={i} className={`border-b last:border-0 ${rowBorder}`}>
+                      <td className={`${tdClass} py-2`}>{m.month.split(' ')[0]?.slice(0, 3) || m.month}</td>
+                      <td className={`${tdBold} py-2 text-right`}>{formatCompact(m.revenue)}</td>
+                      <td className="py-2 text-right">
+                        {i > 0 && (
+                          <span className={`text-[10px] font-semibold ${m.change >= 0 ? (isDark ? 'text-emerald-400' : 'text-emerald-600') : (isDark ? 'text-red-400' : 'text-red-600')}`}>
+                            {m.change >= 0 ? '+' : ''}{m.change}%
+                          </span>
+                        )}
+                      </td>
+                      <td className={`${tdClass} py-2 text-right`}>{m.count}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </AnalyticsCard>
+
+        {/* ===== 3. PARTNERS — Current Month ===== */}
+        <AnalyticsCard
+          icon={<Building2 className="w-4 h-4" />}
+          iconBg={isDark ? 'bg-blue-900/30' : 'bg-blue-50'}
+          iconColor={isDark ? 'text-blue-400' : 'text-blue-600'}
+          title="Partners"
+          titleColor={isDark ? 'text-blue-400' : 'text-blue-700'}
+          subtitle={currentMonth}
+          isDark={isDark}
+          onClick={() => navigate('partners')}
+        >
+          {/* Status badges */}
+          <div className="flex flex-wrap gap-2 mb-4">
+            <div className={`px-2.5 py-1.5 rounded-lg text-center ${isDark ? 'bg-blue-900/20 border border-blue-800/30' : 'bg-blue-50 border border-blue-200'}`}>
+              <p className={`text-sm font-bold ${isDark ? 'text-blue-400' : 'text-blue-700'}`}>{stats?.totalPartners ?? 0}</p>
+              <p className={`text-[9px] uppercase tracking-wider font-medium ${isDark ? 'text-blue-500/70' : 'text-blue-500'}`}>Active</p>
+            </div>
+            <div className={`px-2.5 py-1.5 rounded-lg text-center ${isDark ? 'bg-amber-900/20 border border-amber-800/30' : 'bg-amber-50 border border-amber-200'}`}>
+              <p className={`text-sm font-bold ${isDark ? 'text-amber-400' : 'text-amber-700'}`}>{stats?.pendingPartners ?? 0}</p>
+              <p className={`text-[9px] uppercase tracking-wider font-medium ${isDark ? 'text-amber-500/70' : 'text-amber-500'}`}>Pending</p>
+            </div>
+            <div className={`px-2.5 py-1.5 rounded-lg text-center ${isDark ? 'bg-emerald-900/20 border border-emerald-800/30' : 'bg-emerald-50 border border-emerald-200'}`}>
+              <p className={`text-sm font-bold ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`}>{sortedPartners.filter(p => p.totalAmount > 0).length}</p>
+              <p className={`text-[9px] uppercase tracking-wider font-medium ${isDark ? 'text-emerald-500/70' : 'text-emerald-500'}`}>Billed</p>
+            </div>
+          </div>
+
+          {/* Partner table */}
+          {sortedPartners.length === 0 ? (
+            <div className={`h-24 flex items-center justify-center rounded-xl ${isDark ? 'bg-zinc-900/50' : 'bg-slate-50'}`}>
+              <p className={`text-xs ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>No partner data</p>
+            </div>
+          ) : (
+            <>
+              <div className="max-h-[160px] overflow-y-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className={`border-b ${rowBorder}`}>
+                      <th className={`${thClass} text-left pb-2`}>Partner</th>
+                      <th className={`${thClass} text-right pb-2`}>Sales</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {sortedPartners.slice(0, 8).map((p, i) => (
+                      <tr key={i} className={`border-b last:border-0 ${rowBorder}`}>
+                        <td className={`${tdClass} py-1.5 truncate max-w-[140px]`}>{p.partnerName || 'Unknown'}</td>
+                        <td className={`${tdBold} py-1.5 text-right`}>{formatCompact(p.totalAmount)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              {/* Footer */}
+              <div className={`flex items-center justify-between pt-3 mt-3 border-t ${rowBorder}`}>
+                <span className={`text-xs font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>{totalPartnerDeals}</span>
+                <span className={`text-[10px] uppercase tracking-wider ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Total Deals</span>
+              </div>
+            </>
+          )}
+        </AnalyticsCard>
+
+        {/* ===== 4. DEAL PIPELINE — Stage Distribution ===== */}
+        <AnalyticsCard
+          icon={<Layers className="w-4 h-4" />}
+          iconBg={isDark ? 'bg-purple-900/30' : 'bg-purple-50'}
+          iconColor={isDark ? 'text-purple-400' : 'text-purple-600'}
+          title="Pipeline"
+          titleColor={isDark ? 'text-purple-400' : 'text-purple-700'}
+          subtitle="Stage Distribution"
+          badgeRight={
+            <div className="flex items-center gap-1">
+              <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${isDark ? 'bg-zinc-800 text-zinc-300' : 'bg-slate-100 text-slate-600'}`}>{totalDeals}</span>
+            </div>
+          }
+          isDark={isDark}
+          onClick={() => navigate('deals')}
+        >
+          {/* Big metric */}
+          <div className="flex items-baseline justify-between mb-4">
+            <div>
+              <p className={`text-2xl font-bold tracking-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                {formatCompact(totalDealValue)}
+              </p>
+              <p className={`text-[10px] uppercase tracking-wider mt-0.5 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
+                Total Value
+              </p>
+            </div>
+            <div className="text-right">
+              <p className={`text-lg font-bold ${isDark ? 'text-purple-400' : 'text-purple-600'}`}>{dealWinRate}%</p>
+              <p className={`text-[10px] uppercase tracking-wider ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Win Rate</p>
+            </div>
+          </div>
+
+          {/* Table */}
+          {pipelineStages.length === 0 ? (
+            <div className={`h-24 flex items-center justify-center rounded-xl ${isDark ? 'bg-zinc-900/50' : 'bg-slate-50'}`}>
+              <p className={`text-xs ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>No pipeline data</p>
+            </div>
+          ) : (
+            <div className="max-h-[200px] overflow-y-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className={`border-b ${rowBorder}`}>
+                    <th className={`${thClass} text-left pb-2`}>Stage</th>
+                    <th className={`${thClass} text-right pb-2`}>Amount</th>
+                    <th className={`${thClass} text-right pb-2`}>%</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pipelineStages.map((s, i) => {
+                    const pct = totalDealValue > 0 ? Math.round((s.value / totalDealValue) * 100) : 0;
+                    return (
+                      <tr key={i} className={`border-b last:border-0 ${rowBorder}`}>
+                        <td className="py-2">
+                          <div className="flex items-center gap-2">
+                            <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: PIPELINE_COLORS[s.stage] || '#94a3b8' }} />
+                            <span className={`${tdClass} truncate`}>{s.stage}</span>
+                          </div>
+                        </td>
+                        <td className={`${tdBold} py-2 text-right`}>{formatCompact(s.value)}</td>
+                        <td className={`text-xs py-2 text-right ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>{pct}%</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </AnalyticsCard>
+
+        {/* ===== 5. GROWTH — Performance Metrics ===== */}
+        <AnalyticsCard
+          icon={<TrendingUp className="w-4 h-4" />}
+          iconBg={isDark ? 'bg-indigo-900/30' : 'bg-indigo-50'}
+          iconColor={isDark ? 'text-indigo-400' : 'text-indigo-600'}
+          title="Growth"
+          titleColor={isDark ? 'text-indigo-400' : 'text-indigo-700'}
+          subtitle="Performance Metrics"
+          badge={momChange !== 0 ? { value: momChange } : undefined}
+          isDark={isDark}
+          onClick={() => navigate('reports')}
+        >
+          {/* This Month */}
+          <div className="flex items-baseline justify-between mb-5">
+            <div>
+              <p className={`text-2xl font-bold tracking-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                {formatCompact(growth?.thisMonth ?? 0)}
+              </p>
+              <p className={`text-[10px] uppercase tracking-wider mt-0.5 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
+                This Month
+              </p>
+            </div>
+            <div className="text-right">
+              <p className={`text-lg font-bold ${isDark ? 'text-indigo-400' : 'text-indigo-600'}`}>{stats?.totalCount ?? 0}</p>
+              <p className={`text-[10px] uppercase tracking-wider ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Deals</p>
+            </div>
+          </div>
+
+          {/* Last month + MOM */}
+          <div className={`p-3 rounded-xl mb-3 ${isDark ? 'bg-zinc-900/50' : 'bg-slate-50'}`}>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className={`text-[10px] uppercase tracking-wider ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Last Month</p>
+                <p className={`text-sm font-semibold mt-0.5 ${isDark ? 'text-white' : 'text-slate-900'}`}>{formatCompact(growth?.lastMonth ?? 0)}</p>
+              </div>
+              <div className="text-right">
+                <p className={`text-[10px] uppercase tracking-wider ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>MOM Change</p>
+                <div className={`flex items-center justify-end gap-1 mt-0.5`}>
+                  {momChange >= 0 ? (
+                    <ArrowUpRight className={`w-3 h-3 ${isDark ? 'text-emerald-400' : 'text-emerald-600'}`} />
+                  ) : (
+                    <ArrowDownRight className={`w-3 h-3 ${isDark ? 'text-red-400' : 'text-red-600'}`} />
+                  )}
+                  <span className={`text-sm font-semibold ${momChange >= 0 ? (isDark ? 'text-emerald-400' : 'text-emerald-600') : (isDark ? 'text-red-400' : 'text-red-600')}`}>
+                    {momChange >= 0 ? '+' : ''}{momChange}%
                   </span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Summary metrics */}
+          <div className="space-y-2">
+            <div className={`flex items-center justify-between p-2.5 rounded-xl ${isDark ? 'bg-zinc-900/50' : 'bg-slate-50'}`}>
+              <span className={`text-xs font-semibold ${isDark ? 'text-amber-400' : 'text-amber-600'}`}>Total Revenue</span>
+              <div className="flex items-center gap-2">
+                <span className={`text-xs ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>{formatCompact(stats?.totalSales ?? 0)}</span>
+              </div>
+            </div>
+            <div className={`flex items-center justify-between p-2.5 rounded-xl ${isDark ? 'bg-zinc-900/50' : 'bg-slate-50'}`}>
+              <span className={`text-xs font-semibold ${isDark ? 'text-blue-400' : 'text-blue-600'}`}>Pending Payments</span>
+              <span className={`text-xs ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>{stats?.pendingPayments ?? 0}</span>
+            </div>
+          </div>
+        </AnalyticsCard>
+      </div>
+
+      {/* ==================== ROW 2: Secondary Analytics Cards ==================== */}
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4 sm:gap-5">
+
+        {/* ===== 6. PRODUCTS — Portfolio Performance ===== */}
+        <AnalyticsCard
+          icon={<Package className="w-4 h-4" />}
+          iconBg={isDark ? 'bg-teal-900/30' : 'bg-teal-50'}
+          iconColor={isDark ? 'text-teal-400' : 'text-teal-600'}
+          title="Products"
+          titleColor={isDark ? 'text-teal-400' : 'text-teal-700'}
+          subtitle="Portfolio Performance"
+          isDark={isDark}
+          onClick={() => navigate('reports')}
+        >
+          {/* Big metric */}
+          <div className="flex items-baseline justify-between mb-4">
+            <div>
+              <p className={`text-2xl font-bold tracking-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                {formatCompact(totalProductRevenue)}
+              </p>
+              <p className={`text-[10px] uppercase tracking-wider mt-0.5 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Total Revenue</p>
+            </div>
+            <div className="text-right">
+              <p className={`text-lg font-bold ${isDark ? 'text-teal-400' : 'text-teal-600'}`}>{totalProductDeals}</p>
+              <p className={`text-[10px] uppercase tracking-wider ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Deals</p>
+            </div>
+          </div>
+
+          {sortedProducts.length === 0 ? (
+            <div className={`h-24 flex items-center justify-center rounded-xl ${isDark ? 'bg-zinc-900/50' : 'bg-slate-50'}`}>
+              <p className={`text-xs ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>No product data</p>
+            </div>
+          ) : (
+            <div className="max-h-[200px] overflow-y-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className={`border-b ${rowBorder}`}>
+                    <th className={`${thClass} text-left pb-2`}>Product</th>
+                    <th className={`${thClass} text-right pb-2`}>Amount</th>
+                    <th className={`${thClass} text-right pb-2`}>Deals</th>
+                    <th className={`${thClass} text-right pb-2`}>%</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {sortedProducts.slice(0, 8).map((p, i) => {
+                    const pct = totalProductRevenue > 0 ? Math.round((p.totalAmount / totalProductRevenue) * 100) : 0;
+                    return (
+                      <tr key={i} className={`border-b last:border-0 ${rowBorder}`}>
+                        <td className={`${tdClass} py-1.5 truncate max-w-[100px]`}>{p.productName || 'Unknown'}</td>
+                        <td className={`${tdBold} py-1.5 text-right`}>{formatCompact(p.totalAmount)}</td>
+                        <td className={`${tdClass} py-1.5 text-right`}>{p.count}</td>
+                        <td className={`py-1.5 text-right`}>
+                          <span className={`text-[10px] font-semibold ${isDark ? 'text-teal-400' : 'text-teal-600'}`}>{pct}%</span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </AnalyticsCard>
+
+        {/* ===== 7. LEADS — Funnel Analysis ===== */}
+        <AnalyticsCard
+          icon={<Target className="w-4 h-4" />}
+          iconBg={isDark ? 'bg-orange-900/30' : 'bg-orange-50'}
+          iconColor={isDark ? 'text-orange-400' : 'text-orange-600'}
+          title="Leads"
+          titleColor={isDark ? 'text-orange-400' : 'text-orange-700'}
+          subtitle="Funnel Analysis"
+          isDark={isDark}
+          onClick={() => navigate('crm')}
+        >
+          {/* Big metric */}
+          <div className="flex items-baseline justify-between mb-4">
+            <div>
+              <p className={`text-2xl font-bold tracking-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                {totalLeads}
+              </p>
+              <p className={`text-[10px] uppercase tracking-wider mt-0.5 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
+                Total Leads
+              </p>
+            </div>
+            <div className="text-right">
+              <p className={`text-lg font-bold ${isDark ? 'text-emerald-400' : 'text-emerald-600'}`}>{conversionRate}%</p>
+              <p className={`text-[10px] uppercase tracking-wider ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Conversion</p>
+            </div>
+          </div>
+
+          {totalLeads === 0 ? (
+            <div className={`h-24 flex items-center justify-center rounded-xl ${isDark ? 'bg-zinc-900/50' : 'bg-slate-50'}`}>
+              <p className={`text-xs ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>No leads data</p>
+            </div>
+          ) : (
+            <div className="max-h-[200px] overflow-y-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className={`border-b ${rowBorder}`}>
+                    <th className={`${thClass} text-left pb-2`}>Stage</th>
+                    <th className={`${thClass} text-right pb-2`}>Count</th>
+                    <th className={`${thClass} text-right pb-2`}>%</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {LEAD_STAGES.filter(s => (leadStats[s] ?? 0) > 0).map((stage, i) => {
+                    const count = (leadStats[stage] as number) || 0;
+                    const pct = totalLeads > 0 ? Math.round((count / totalLeads) * 100) : 0;
+                    return (
+                      <tr key={i} className={`border-b last:border-0 ${rowBorder}`}>
+                        <td className="py-1.5">
+                          <div className="flex items-center gap-2">
+                            <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: LEAD_COLORS[stage] || '#94a3b8' }} />
+                            <span className={tdClass}>{stage}</span>
+                          </div>
+                        </td>
+                        <td className={`${tdBold} py-1.5 text-right`}>{count}</td>
+                        <td className={`text-xs py-1.5 text-right ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>{pct}%</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+              {/* Conversion ring */}
+              <div className={`flex items-center justify-center gap-4 pt-3 mt-3 border-t ${rowBorder}`}>
+                <div className="relative w-12 h-12">
+                  <svg className="w-full h-full -rotate-90" viewBox="0 0 48 48">
+                    <circle cx="24" cy="24" r="18" fill="none" stroke={isDark ? '#27272a' : '#f1f5f9'} strokeWidth="4" />
+                    <circle cx="24" cy="24" r="18" fill="none" stroke="#10b981" strokeWidth="4"
+                      strokeLinecap="round" strokeDasharray={`${2 * Math.PI * 18}`}
+                      strokeDashoffset={`${2 * Math.PI * 18 * (1 - conversionRate / 100)}`} />
+                  </svg>
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <span className={`text-[10px] font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>{conversionRate}%</span>
+                  </div>
+                </div>
+                <div>
+                  <p className={`text-xs font-medium ${isDark ? 'text-white' : 'text-slate-900'}`}>Won: {wonLeads}</p>
+                  <p className={`text-[10px] ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Lost: {(leadStats['Lost'] as number) || 0}</p>
+                </div>
+              </div>
+            </div>
+          )}
+        </AnalyticsCard>
+
+        {/* ===== 8. TASKS — Status Overview ===== */}
+        <AnalyticsCard
+          icon={<CheckSquare className="w-4 h-4" />}
+          iconBg={isDark ? 'bg-amber-900/30' : 'bg-amber-50'}
+          iconColor={isDark ? 'text-amber-400' : 'text-amber-600'}
+          title="Tasks"
+          titleColor={isDark ? 'text-amber-400' : 'text-amber-700'}
+          subtitle="Status Overview"
+          isDark={isDark}
+          onClick={() => navigate('tasks')}
+        >
+          {/* Completion ring */}
+          <div className="flex items-center justify-center gap-5 mb-4">
+            <div className="relative w-20 h-20">
+              <svg className="w-full h-full -rotate-90" viewBox="0 0 80 80">
+                <circle cx="40" cy="40" r="32" fill="none" stroke={isDark ? '#27272a' : '#f1f5f9'} strokeWidth="6" />
+                <circle cx="40" cy="40" r="32" fill="none" stroke={isDark ? '#10b981' : '#059669'} strokeWidth="6"
+                  strokeLinecap="round" strokeDasharray={`${2 * Math.PI * 32}`}
+                  strokeDashoffset={`${2 * Math.PI * 32 * (1 - tasksCompletionPct / 100)}`}
+                  className="transition-all duration-1000" />
+              </svg>
+              <div className="absolute inset-0 flex flex-col items-center justify-center">
+                <span className={`text-lg font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>{tasksCompletionPct}%</span>
+                <span className={`text-[8px] uppercase tracking-wider ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Done</span>
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <div>
+                <p className={`text-lg font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>{tasksTotal}</p>
+                <p className={`text-[10px] uppercase tracking-wider ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Total</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Status rows */}
+          <div className="space-y-2">
+            {[
+              { label: 'Completed', value: tasksCompleted, color: isDark ? 'text-emerald-400' : 'text-emerald-600', bg: isDark ? 'bg-emerald-900/20' : 'bg-emerald-50' },
+              { label: 'In Progress', value: taskStatsData?.in_progress ?? 0, color: isDark ? 'text-blue-400' : 'text-blue-600', bg: isDark ? 'bg-blue-900/20' : 'bg-blue-50' },
+              { label: 'Pending', value: taskStatsData?.pending ?? 0, color: isDark ? 'text-amber-400' : 'text-amber-600', bg: isDark ? 'bg-amber-900/20' : 'bg-amber-50' },
+            ].map(item => (
+              <div key={item.label} className={`flex items-center justify-between p-2.5 rounded-xl ${item.bg}`}>
+                <span className={`text-xs ${isDark ? 'text-zinc-300' : 'text-slate-600'}`}>{item.label}</span>
+                <span className={`text-sm font-bold ${item.color}`}>{item.value}</span>
+              </div>
+            ))}
+          </div>
+        </AnalyticsCard>
+
+        {/* ===== 9. TOP PARTNERS — Revenue Rankings ===== */}
+        <AnalyticsCard
+          icon={<Award className="w-4 h-4" />}
+          iconBg={isDark ? 'bg-rose-900/30' : 'bg-rose-50'}
+          iconColor={isDark ? 'text-rose-400' : 'text-rose-600'}
+          title="Top Partners"
+          titleColor={isDark ? 'text-rose-400' : 'text-rose-700'}
+          subtitle="Revenue Rankings"
+          isDark={isDark}
+          onClick={() => navigate('partners')}
+        >
+          {sortedPartners.length === 0 ? (
+            <div className={`h-32 flex items-center justify-center rounded-xl ${isDark ? 'bg-zinc-900/50' : 'bg-slate-50'}`}>
+              <p className={`text-xs ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>No partner data</p>
+            </div>
+          ) : (
+            <div className="space-y-2 max-h-[280px] overflow-y-auto">
+              {sortedPartners.slice(0, 8).map((p, i) => {
+                const pct = totalPartnerRevenue > 0 ? Math.round((p.totalAmount / totalPartnerRevenue) * 100) : 0;
+                return (
+                  <div key={i} className={`flex items-center gap-2.5 p-2 rounded-xl ${isDark ? 'bg-zinc-900/50' : 'bg-slate-50'}`}>
+                    <div className={`w-6 h-6 rounded-lg flex items-center justify-center text-[10px] font-bold flex-shrink-0 ${
+                      i === 0 ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
+                      : i === 1 ? 'bg-slate-100 text-slate-500 dark:bg-zinc-800 dark:text-zinc-400'
+                      : i === 2 ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400'
+                      : `${isDark ? 'bg-zinc-800 text-zinc-500' : 'bg-white text-slate-400'}`
+                    }`}>
+                      #{i + 1}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className={`text-xs font-medium truncate ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                        {p.partnerName || 'Unknown'}
+                      </p>
+                    </div>
+                    <div className="text-right flex-shrink-0">
+                      <p className={`text-xs font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>{formatCompact(p.totalAmount)}</p>
+                      <p className={`text-[9px] ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>{pct}%</p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </AnalyticsCard>
+
+        {/* ===== 10. RECENT SALES — Latest Transactions ===== */}
+        <AnalyticsCard
+          icon={<ShoppingCart className="w-4 h-4" />}
+          iconBg={isDark ? 'bg-cyan-900/30' : 'bg-cyan-50'}
+          iconColor={isDark ? 'text-cyan-400' : 'text-cyan-600'}
+          title="Recent Sales"
+          titleColor={isDark ? 'text-cyan-400' : 'text-cyan-700'}
+          subtitle="Latest Transactions"
+          isDark={isDark}
+          onClick={() => navigate('sales-entry')}
+        >
+          {!growth?.recentSales?.length ? (
+            <div className={`h-32 flex items-center justify-center rounded-xl ${isDark ? 'bg-zinc-900/50' : 'bg-slate-50'}`}>
+              <p className={`text-xs ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>No recent sales</p>
+            </div>
+          ) : (
+            <div className="space-y-2 max-h-[280px] overflow-y-auto">
+              {growth.recentSales.slice(0, 8).map(sale => (
+                <div key={sale.id} className={`p-2.5 rounded-xl ${isDark ? 'bg-zinc-900/50' : 'bg-slate-50'}`}>
+                  <div className="flex items-center justify-between">
+                    <p className={`text-xs font-medium truncate max-w-[120px] ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                      {sale.customerName || sale.partnerName || 'N/A'}
+                    </p>
+                    <p className={`text-xs font-bold flex-shrink-0 ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                      {formatCompact(sale.amount)}
+                    </p>
+                  </div>
+                  <div className="flex items-center justify-between mt-1">
+                    <span className={`text-[10px] ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
+                      {sale.saleDate} {sale.salespersonName ? `\u00B7 ${sale.salespersonName}` : ''}
+                    </span>
+                    <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-medium ${
+                      sale.paymentStatus === 'paid'
+                        ? isDark ? 'bg-emerald-900/30 text-emerald-400' : 'bg-emerald-50 text-emerald-700'
+                        : sale.paymentStatus === 'overdue'
+                          ? isDark ? 'bg-red-900/30 text-red-400' : 'bg-red-50 text-red-700'
+                          : isDark ? 'bg-amber-900/30 text-amber-400' : 'bg-amber-50 text-amber-700'
+                    }`}>
+                      {sale.paymentStatus}
+                    </span>
+                  </div>
                 </div>
               ))}
             </div>
           )}
-          {overdueTasks.length > 0 && (
-            <div className={`mt-4 p-3 rounded-lg border ${isDark ? 'bg-red-900/20 border-red-800' : 'bg-red-50 border-red-100'}`}>
-              <div className={`flex items-center gap-2 ${isDark ? 'text-red-400' : 'text-red-600'}`}>
-                <AlertCircle size={16} />
-                <span className="text-sm font-medium">{overdueTasks.length} overdue task{overdueTasks.length > 1 ? 's' : ''}</span>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Hot Leads */}
-        <div className={`p-6 rounded-2xl shadow-soft border hover-lift transition-all duration-300 animate-fade-in-up ${
-          isDark ? 'bg-zinc-900 border-zinc-800 hover:border-zinc-700' : 'bg-white border-slate-100 hover:border-slate-200'
-        }`} style={{ opacity: 0, animationDelay: '0.55s' }}>
-          <div className="flex justify-between items-center mb-6">
-            <div className="flex items-center gap-3">
-              <h3 className={`text-lg font-bold font-display ${isDark ? 'text-zinc-100' : 'text-slate-900'}`}>Hot Leads</h3>
-              <span className={`px-2 py-0.5 text-xs font-semibold rounded-full ${isDark ? 'bg-orange-900/50 text-orange-400' : 'bg-orange-50 text-orange-600'}`}>{hotLeads.length}</span>
-            </div>
-            <button onClick={() => setActiveTab('leads')} className="text-sm text-brand-600 hover:text-brand-700 font-medium flex items-center gap-1">
-              View all <ChevronRight size={14} />
-            </button>
-          </div>
-          <div className="space-y-3">
-            {hotLeads.slice(0, 4).map((lead) => (
-              <div key={lead.id} className={`flex items-center gap-4 p-3 rounded-lg transition-colors ${
-                isDark ? 'hover:bg-zinc-800' : 'hover:bg-slate-50'
-              }`}>
-                <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm ${
-                  isDark ? 'bg-brand-900/50 text-brand-400' : 'bg-brand-100 text-brand-600'
-                }`}>
-                  {lead.firstName[0]}{lead.lastName[0]}
-                </div>
-                <div className="flex-1">
-                  <p className={`text-sm font-semibold ${isDark ? 'text-zinc-100' : 'text-slate-900'}`}>{lead.firstName} {lead.lastName}</p>
-                  <p className={`text-xs ${isDark ? 'text-zinc-500' : 'text-slate-500'}`}>{lead.company} • {lead.jobTitle}</p>
-                </div>
-                <div className="text-right">
-                  <span className={`text-xs px-2 py-1 rounded-full ${
-                    lead.status === 'Qualified'
-                      ? (isDark ? 'bg-green-900/50 text-green-400' : 'bg-green-50 text-green-600')
-                      : lead.status === 'Proposal'
-                        ? (isDark ? 'bg-purple-900/50 text-purple-400' : 'bg-purple-50 text-purple-600')
-                        : (isDark ? 'bg-blue-900/50 text-blue-400' : 'bg-blue-50 text-blue-600')
-                  }`}>
-                    {lead.status}
-                  </span>
-                  {lead.budget && (
-                    <p className={`text-xs mt-1 ${isDark ? 'text-zinc-500' : 'text-slate-500'}`}>${lead.budget.toLocaleString()}</p>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
+        </AnalyticsCard>
       </div>
 
-      {/* Quick Actions Bar - Premium Animated */}
-      <div className="relative overflow-hidden bg-gradient-to-r from-brand-600 via-brand-700 to-brand-800 p-4 lg:p-6 rounded-2xl text-white animate-fade-in-up animate-gradient" style={{ opacity: 0, animationDelay: '0.6s', backgroundSize: '200% 200%' }}>
-        {/* Animated background particles */}
-        <div className="absolute inset-0 overflow-hidden">
-          <div className="absolute w-64 h-64 -top-32 -left-32 bg-white/5 rounded-full blur-3xl animate-float"></div>
-          <div className="absolute w-64 h-64 -bottom-32 -right-32 bg-white/5 rounded-full blur-3xl animate-float" style={{ animationDelay: '1s' }}></div>
-        </div>
+      {/* ==================== ROW 3: Charts Row ==================== */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-5">
+        {/* Revenue Trend Chart */}
+        <AnalyticsCard
+          icon={<BarChart3 className="w-4 h-4" />}
+          iconBg={isDark ? 'bg-brand-900/30' : 'bg-brand-50'}
+          iconColor={isDark ? 'text-brand-400' : 'text-brand-600'}
+          title="Revenue Trend"
+          titleColor={isDark ? 'text-brand-400' : 'text-brand-700'}
+          subtitle={`Last ${monthly.length} months`}
+          badge={monthlyChange !== 0 ? { value: monthlyChange } : undefined}
+          isDark={isDark}
+          onClick={() => navigate('reports')}
+        >
+          {monthly.length === 0 ? (
+            <div className={`h-44 flex items-center justify-center rounded-xl ${isDark ? 'bg-zinc-900/50' : 'bg-slate-50'}`}>
+              <p className={`text-xs ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>No data</p>
+            </div>
+          ) : (
+            <ResponsiveContainer width="100%" height={200}>
+              <AreaChart data={monthly} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="dashGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor={isDark ? '#818cf8' : '#6366f1'} stopOpacity={0.3} />
+                    <stop offset="95%" stopColor={isDark ? '#818cf8' : '#6366f1'} stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke={isDark ? '#27272a' : '#f1f5f9'} vertical={false} />
+                <XAxis dataKey="month" tick={{ fontSize: 10, fill: isDark ? '#71717a' : '#94a3b8' }} tickLine={false} axisLine={false}
+                  tickFormatter={(v: string) => v.split(' ')[0]?.slice(0, 3) || v} />
+                <YAxis tick={{ fontSize: 10, fill: isDark ? '#71717a' : '#94a3b8' }} tickLine={false} axisLine={false}
+                  tickFormatter={(v: number) => v >= 100000 ? `${(v / 100000).toFixed(1)}L` : v >= 1000 ? `${(v / 1000).toFixed(0)}K` : String(v)} />
+                <Tooltip content={({ active, payload, label }: any) => {
+                  if (!active || !payload?.length) return null;
+                  return (
+                    <div className={`px-3 py-2 rounded-xl shadow-lg text-xs border ${isDark ? 'bg-zinc-800 border-zinc-700 text-white' : 'bg-white border-slate-200 text-slate-900'}`}>
+                      <p className={`font-medium mb-1 ${isDark ? 'text-zinc-300' : 'text-slate-500'}`}>{label}</p>
+                      <p className="font-semibold" style={{ color: isDark ? '#818cf8' : '#6366f1' }}>Revenue: {formatINR(payload[0].value)}</p>
+                    </div>
+                  );
+                }} />
+                <Area type="monotone" dataKey="revenue" stroke={isDark ? '#818cf8' : '#6366f1'} strokeWidth={2.5} fill="url(#dashGrad)"
+                  dot={{ fill: isDark ? '#818cf8' : '#6366f1', strokeWidth: 0, r: 3 }}
+                  activeDot={{ r: 5, fill: isDark ? '#818cf8' : '#6366f1', stroke: isDark ? '#18181b' : '#fff', strokeWidth: 2 }} />
+              </AreaChart>
+            </ResponsiveContainer>
+          )}
+        </AnalyticsCard>
 
-        <div className="relative z-10 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-          <div>
-            <h3 className="text-lg font-bold neon-text">Quick Actions</h3>
-            <p className="text-brand-200 text-sm mt-1">Jump to common tasks</p>
-          </div>
-          <div className="grid grid-cols-2 sm:flex gap-2 lg:gap-3">
-            <button
-              onClick={() => setActiveTab('leads')}
-              className="flex items-center justify-center gap-2 px-3 lg:px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-sm font-medium transition-all duration-300 hover:scale-105 hover:shadow-lg ripple"
-            >
-              <Users size={16} className="icon-bounce" /> <span className="hidden sm:inline">Add</span> Lead
-            </button>
-            <button
-              onClick={() => setActiveTab('deals')}
-              className="flex items-center justify-center gap-2 px-3 lg:px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-sm font-medium transition-all duration-300 hover:scale-105 hover:shadow-lg ripple"
-            >
-              <Briefcase size={16} className="icon-bounce" /> <span className="hidden sm:inline">Create</span> Deal
-            </button>
-            <button
-              onClick={() => setActiveTab('calendar')}
-              className="flex items-center justify-center gap-2 px-3 lg:px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-sm font-medium transition-all duration-300 hover:scale-105 hover:shadow-lg ripple"
-            >
-              <Calendar size={16} className="icon-bounce" /> <span className="hidden sm:inline">Schedule</span> Meeting
-            </button>
-            <button
-              onClick={() => setActiveTab('email')}
-              className="flex items-center justify-center gap-2 px-3 lg:px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-sm font-medium transition-all duration-300 hover:scale-105 hover:shadow-lg ripple"
-            >
-              <Mail size={16} className="icon-bounce" /> <span className="hidden sm:inline">Send</span> Email
-            </button>
-          </div>
-        </div>
+        {/* Deal Pipeline Bar Chart */}
+        <AnalyticsCard
+          icon={<Layers className="w-4 h-4" />}
+          iconBg={isDark ? 'bg-purple-900/30' : 'bg-purple-50'}
+          iconColor={isDark ? 'text-purple-400' : 'text-purple-600'}
+          title="Pipeline Chart"
+          titleColor={isDark ? 'text-purple-400' : 'text-purple-700'}
+          subtitle={`${totalDeals} deals \u00B7 ${formatCompact(totalDealValue)}`}
+          isDark={isDark}
+          onClick={() => navigate('deals')}
+        >
+          {pipelineStages.length === 0 ? (
+            <div className={`h-44 flex items-center justify-center rounded-xl ${isDark ? 'bg-zinc-900/50' : 'bg-slate-50'}`}>
+              <p className={`text-xs ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>No pipeline data</p>
+            </div>
+          ) : (
+            <ResponsiveContainer width="100%" height={200}>
+              <BarChart data={pipelineStages.map(s => ({
+                stage: s.stage.replace('Closed ', 'C.').replace('Needs Analysis', 'Analysis'),
+                fullStage: s.stage, count: s.count, value: s.value,
+                fill: PIPELINE_COLORS[s.stage] || '#94a3b8',
+              }))} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke={isDark ? '#27272a' : '#f1f5f9'} vertical={false} />
+                <XAxis dataKey="stage" tick={{ fontSize: 9, fill: isDark ? '#71717a' : '#94a3b8' }} tickLine={false} axisLine={false} />
+                <YAxis tick={{ fontSize: 10, fill: isDark ? '#71717a' : '#94a3b8' }} tickLine={false} axisLine={false} allowDecimals={false} />
+                <Tooltip content={({ active, payload }: any) => {
+                  if (!active || !payload?.length) return null;
+                  const d = payload[0].payload;
+                  return (
+                    <div className={`px-3 py-2 rounded-xl shadow-lg text-xs border ${isDark ? 'bg-zinc-800 border-zinc-700 text-white' : 'bg-white border-slate-200 text-slate-900'}`}>
+                      <p className="font-semibold">{d.fullStage}</p>
+                      <p>{d.count} deals &middot; {formatINR(d.value)}</p>
+                    </div>
+                  );
+                }} />
+                <Bar dataKey="count" radius={[6, 6, 0, 0]} maxBarSize={32}>
+                  {pipelineStages.map((s, i) => (
+                    <Cell key={i} fill={PIPELINE_COLORS[s.stage] || '#94a3b8'} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          )}
+        </AnalyticsCard>
+
+        {/* Lead Distribution Donut */}
+        <AnalyticsCard
+          icon={<Users className="w-4 h-4" />}
+          iconBg={isDark ? 'bg-blue-900/30' : 'bg-blue-50'}
+          iconColor={isDark ? 'text-blue-400' : 'text-blue-600'}
+          title="Leads Distribution"
+          titleColor={isDark ? 'text-blue-400' : 'text-blue-700'}
+          subtitle={`${totalLeads} total leads`}
+          isDark={isDark}
+          onClick={() => navigate('crm')}
+        >
+          {totalLeads === 0 ? (
+            <div className={`h-44 flex items-center justify-center rounded-xl ${isDark ? 'bg-zinc-900/50' : 'bg-slate-50'}`}>
+              <p className={`text-xs ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>No leads data</p>
+            </div>
+          ) : (() => {
+            const pieData = Object.entries(leadStats)
+              .filter(([, v]) => (v as number) > 0)
+              .map(([key, value]) => ({ name: key, value: value as number, fill: LEAD_COLORS[key] || '#94a3b8' }));
+            return (
+              <div className="flex flex-col items-center">
+                <ResponsiveContainer width="100%" height={160}>
+                  <PieChart>
+                    <Pie data={pieData} cx="50%" cy="50%" innerRadius={40} outerRadius={65} paddingAngle={3} dataKey="value" stroke="none">
+                      {pieData.map((entry, index) => <Cell key={index} fill={entry.fill} />)}
+                    </Pie>
+                    <Tooltip content={({ active, payload }: any) => {
+                      if (!active || !payload?.length) return null;
+                      const d = payload[0].payload;
+                      return (
+                        <div className={`px-3 py-2 rounded-xl shadow-lg text-xs border ${isDark ? 'bg-zinc-800 border-zinc-700 text-white' : 'bg-white border-slate-200 text-slate-900'}`}>
+                          <p className="font-semibold">{d.name}: {d.value}</p>
+                        </div>
+                      );
+                    }} />
+                  </PieChart>
+                </ResponsiveContainer>
+                <div className="flex flex-wrap justify-center gap-x-3 gap-y-1 mt-1">
+                  {pieData.map(d => (
+                    <div key={d.name} className="flex items-center gap-1.5">
+                      <div className="w-2 h-2 rounded-full" style={{ backgroundColor: d.fill }} />
+                      <span className={`text-[10px] ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>{d.name} ({d.value})</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })()}
+        </AnalyticsCard>
       </div>
     </div>
   );

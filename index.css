@@ -1,0 +1,282 @@
+/* ============================================
+   Comprint CRM - Premium Styles
+   ============================================ */
+
+/* Smooth scrolling for modal content */
+.overflow-y-auto {
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Better table responsiveness */
+.table-responsive {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* ========== MOBILE RESPONSIVENESS ========== */
+
+/* Prevent iOS zoom on input focus */
+@media (max-width: 640px) {
+  input, select, textarea {
+    font-size: 16px !important;
+  }
+}
+
+/* Mobile table: hide less important columns */
+@media (max-width: 768px) {
+  table th:nth-child(n+5),
+  table td:nth-child(n+5) {
+    display: none;
+  }
+
+  table th, table td {
+    padding-left: 12px !important;
+    padding-right: 12px !important;
+  }
+}
+
+@media (max-width: 480px) {
+  table th:nth-child(n+4),
+  table td:nth-child(n+4) {
+    display: none;
+  }
+}
+
+/* ========== SMOOTH TRANSITIONS ========== */
+
+/* Page content transitions */
+main > * {
+  will-change: opacity, transform;
+}
+
+/* Smooth transitions for interactive elements */
+button, a, input, select, textarea {
+  transition-property: background-color, border-color, color, box-shadow, transform, opacity;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
+}
+
+/* ========== PREMIUM SELECT STYLING ========== */
+
+/* Custom select arrow */
+select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 36px !important;
+}
+
+html.dark select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2352525b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+}
+
+/* ========== FOCUS STYLES ========== */
+
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+button:focus-visible {
+  outline: 2px solid #4f46e5;
+  outline-offset: 2px;
+}
+
+html.dark input:focus-visible,
+html.dark select:focus-visible,
+html.dark textarea:focus-visible,
+html.dark button:focus-visible {
+  outline-color: #818cf8;
+}
+
+/* ========== MODAL STYLES ========== */
+
+/* Ensure sticky footer in modals gets proper background */
+.sticky.bottom-0 {
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+/* ========== PREMIUM TABLE STYLES ========== */
+
+/* Table row hover with smooth transition */
+table tbody tr {
+  transition: background-color 0.15s ease;
+}
+
+/* Table header subtle border effect */
+table thead tr {
+  position: relative;
+}
+
+table thead tr::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(79, 70, 229, 0.1), transparent);
+}
+
+html.dark table thead tr::after {
+  background: linear-gradient(90deg, transparent, rgba(99, 102, 241, 0.1), transparent);
+}
+
+/* ========== PREMIUM BADGE STYLES ========== */
+
+/* Subtle badge glow on hover */
+.rounded-full[class*="bg-emerald"]:hover,
+.rounded-full[class*="bg-amber"]:hover,
+.rounded-full[class*="bg-red"]:hover,
+.rounded-full[class*="bg-blue"]:hover {
+  filter: brightness(1.05);
+}
+
+/* ========== SCROLLBAR IMPROVEMENTS ========== */
+
+/* Thinner scrollbar in modals */
+.overflow-y-auto::-webkit-scrollbar {
+  width: 4px;
+}
+
+/* ========== STAT CARD ANIMATIONS ========== */
+
+/* Number counters in stat cards */
+.text-2xl, .text-3xl {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ========== TOAST / NOTIFICATION ========== */
+
+/* Success flash effect for saved items */
+@keyframes successFlash {
+  0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4); }
+  70% { box-shadow: 0 0 0 10px rgba(16, 185, 129, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+}
+
+.animate-success {
+  animation: successFlash 0.6s ease-out;
+}
+
+/* ========== PREMIUM LOADING ========== */
+
+/* Subtle loading shimmer for cards */
+@keyframes loadingPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+.loading-pulse {
+  animation: loadingPulse 1.5s ease-in-out infinite;
+}
+
+/* ========== RESPONSIVE UTILITIES ========== */
+
+/* Better touch targets on mobile */
+@media (max-width: 640px) {
+  .p-1\.5 {
+    padding: 8px;
+  }
+
+  /* Slightly larger hit areas for action buttons */
+  button[title] {
+    min-width: 36px;
+    min-height: 36px;
+  }
+}
+
+/* ========== MOBILE PREMIUM POLISH ========== */
+
+/* Safe area insets for notched devices (iPhone etc.) */
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0);
+}
+
+/* Horizontal scroll container — hide scrollbar, smooth snap */
+.scroll-row {
+  display: flex;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none; /* Firefox */
+  gap: 12px;
+  padding-bottom: 4px;
+}
+.scroll-row::-webkit-scrollbar {
+  display: none;
+}
+.scroll-row > * {
+  scroll-snap-align: start;
+  flex-shrink: 0;
+}
+
+/* Mobile card padding reduction */
+@media (max-width: 640px) {
+  .mobile-compact {
+    padding: 1rem !important;
+  }
+}
+
+/* Smooth active press feedback on cards & buttons */
+.press-feedback {
+  transition: transform 0.12s ease, opacity 0.12s ease;
+}
+.press-feedback:active {
+  transform: scale(0.97);
+  opacity: 0.9;
+}
+
+/* Only apply hover effects on non-touch devices */
+@media (hover: hover) and (pointer: fine) {
+  .hover-highlight:hover {
+    filter: brightness(1.02);
+  }
+}
+
+/* Mobile-optimized chart container */
+@media (max-width: 640px) {
+  .recharts-responsive-container {
+    min-height: 180px;
+  }
+}
+
+/* Better tap target sizing on mobile */
+@media (max-width: 768px) {
+  .tap-target {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}
+
+/* Fade gradient indicator for horizontal scroll */
+.scroll-fade-right {
+  position: relative;
+}
+.scroll-fade-right::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 4px;
+  width: 40px;
+  background: linear-gradient(to right, transparent, #f8fafc);
+  pointer-events: none;
+  border-radius: 0 1rem 1rem 0;
+}
+html.dark .scroll-fade-right::after {
+  background: linear-gradient(to right, transparent, #121214);
+}
+
+/* Print-friendly styles */
+@media print {
+  header, aside, .btn-premium, button {
+    display: none !important;
+  }
+
+  .premium-card {
+    break-inside: avoid;
+    box-shadow: none !important;
+    border: 1px solid #e2e8f0 !important;
+  }
+}

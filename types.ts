@@ -1,483 +1,288 @@
 // Navigation Types
 export type NavigationItem =
   | 'dashboard'
-  | 'leads'
-  | 'deals'
+  | 'sales-entry'
+  | 'partners'
+  | 'crm'
   | 'accounts'
-  | 'analytics'
   | 'contacts'
+  | 'deals'
+  | 'quote-builder'
+  | 'carepacks'
   | 'tasks'
   | 'calendar'
-  | 'campaigns'
-  | 'tickets'
-  | 'email'
+  | 'emails'
   | 'reports'
+  | 'admin'
   | 'settings';
 
-// Lead Management
-export interface Lead {
+// User / Auth
+export interface User {
   id: string;
-  // Lead Information
-  firstName: string;
-  lastName: string;
   email: string;
-  mobile?: string;
-  phone?: string;
-  mobileAlternate?: string;
-  phoneAlternate?: string;
-  campaignSource?: string;
-  website?: string;
-  leadOwner?: string;
-  company: string;
-  accountType?: 'Customer' | 'Prospect' | 'Partner' | 'Vendor' | 'Competitor' | 'Other';
-  source: 'Website' | 'Referral' | 'LinkedIn' | 'Cold Call' | 'Trade Show' | 'Email Campaign' | 'Advertisement' | 'Social Media' | 'Partner' | 'Other';
-  status: 'New' | 'Contacted' | 'Qualified' | 'Proposal' | 'Negotiation' | 'Converted' | 'Lost' | 'Not Contacted' | 'Attempted' | 'Junk';
-  leadCategory?: 'Hot' | 'Warm' | 'Cold';
-  createdBy?: string;
-  modifiedBy?: string;
-  score: number;
-  lastActive: string;
-  avatar?: string;
-  owner: string;
-  createdAt: string;
-  modifiedAt?: string;
-  tags?: string[];
-  budget?: number;
-  timeline?: string;
-  industry?: string;
-  jobTitle?: string;
-
-  // Order Information
-  orderInfo?: {
-    productList?: string[];
-    typeOfOrder?: 'New' | 'Renewal' | 'Upgrade' | 'Downgrade';
-    billingDeliveryDate?: string;
-    poDate?: string;
-    poNumber?: string;
-    paymentMode?: 'Cash' | 'Credit Card' | 'Bank Transfer' | 'Cheque' | 'Online' | 'Other';
-    paymentReceived?: boolean;
-    paymentReceivedDate?: string;
-    paymentBankName?: string;
-    paymentChequeNo?: string;
-    paymentOtherDetails?: string;
-    paymentRefNo?: string;
-  };
-
-  // Forms Information
-  formsInfo?: {
-    gst?: string;
-    dlNo?: string;
-    aadharNo?: string;
-    panNo?: string;
-    fssaiNo?: string;
-    tanNo?: string;
-    otherText?: string;
-    attachDL?: string;
-    attachGST?: string;
-    attachAadhar?: string;
-    attachPAN?: string;
-    attachFSSAI?: string;
-    attachOther?: string;
-    attachPhoto?: string;
-    fileUpload?: string;
-    groupName?: string;
-    mappedBy?: string;
-  };
-
-  // Billing Address Information
-  billingAddress?: {
-    street?: string;
-    city?: string;
-    state?: string;
-    zipCode?: string;
-    country?: string;
-    landmark?: string;
-    area?: string;
-  };
-
-  // Description Information
-  description?: string;
-  notes?: string;
-
-  // Visit Summary
-  visitSummary?: {
-    rmName?: string;
-    visitDate?: string;
-    visitSummary?: string;
-    productRequirements?: string;
-    enquiryList?: string[];
-    currentDealers?: string;
-    requirements?: string;
-    competition?: string;
-    creditDays?: number;
-    specialPrice?: string;
-    marketCredit?: string;
-    remarks?: string;
-    finalRemarks?: string;
-    potential?: 'High' | 'Medium' | 'Low';
-    visitScheduleDate?: string;
-    visitScheduleTime?: string;
-    orderType?: string;
-    orderValue?: number;
-    billingDate?: string;
-  };
-}
-
-// Contact Management
-export interface Contact {
-  id: string;
-
-  // Contact Information
-  salutation?: 'Mr.' | 'Mrs.' | 'Ms.' | 'Dr.' | 'Prof.';
-  firstName: string;
-  lastName: string;
-  fullName?: string;
-  email: string;
-  secondaryEmail?: string;
-  phone: string;
-  mobile?: string;
-  homePhone?: string;
-  otherPhone?: string;
-  fax?: string;
-  assistant?: string;
-  assistantPhone?: string;
-
-  // Professional Info
-  jobTitle: string;
+  name: string;
+  role: UserRole;
   department?: string;
-  reportingTo?: string;
-  reportingToId?: string;
-  dateOfBirth?: string;
-  skypeId?: string;
-  twitter?: string;
-
-  // Account Relation
-  accountId: string;
-  accountName: string;
-  vendorName?: string;
-
-  // Classification
-  type: 'Customer' | 'Prospect' | 'Partner' | 'Vendor' | 'Other';
-  status: 'Active' | 'Inactive';
-  leadSource?: string;
-
-  // Address Information
-  mailingAddress?: {
-    street?: string;
-    city?: string;
-    state?: string;
-    zipCode?: string;
-    country?: string;
-    landmark?: string;
-    area?: string;
-  };
-  otherAddress?: {
-    street?: string;
-    city?: string;
-    state?: string;
-    zipCode?: string;
-    country?: string;
-    landmark?: string;
-    area?: string;
-  };
-
-  // Description
-  description?: string;
-  notes?: string;
-
-  // System Fields
-  avatar: string;
-  address?: Address;
-  socialProfiles?: SocialProfiles;
-  lastContacted?: string;
-  createdAt: string;
-  modifiedAt?: string;
-  createdBy?: string;
-  modifiedBy?: string;
-  owner: string;
-  tags?: string[];
-  preferredContact?: 'Email' | 'Phone' | 'Mobile';
-  doNotContact?: boolean;
-  emailOptOut?: boolean;
-
-  // Hierarchy (for org chart / hierarchy view)
-  hierarchy?: {
-    level?: number;
-    parentContactId?: string;
-    childContactIds?: string[];
-  };
+  phone?: string;
+  employeeId?: string;
+  isActive: boolean;
+  monthlyTarget?: number;
+  lastLogin?: string;
+  createdAt?: string;
 }
 
-export interface SocialProfiles {
-  linkedin?: string;
-  twitter?: string;
-  facebook?: string;
+export type UserRole =
+  | 'admin'
+  | 'superadmin'
+  | 'salesperson'
+  | 'branchhead'
+  | 'producthead'
+  | 'businesshead'
+  | 'salesmanager';
+
+// Products
+export interface Product {
+  id: string;
+  name: string;
+  category?: string;
+  basePrice?: number;
+  commissionRate?: number;
+  isActive: boolean;
+  createdAt?: string;
 }
 
-export interface Address {
-  street?: string;
+// Partners
+export interface Partner {
+  id: string;
+  companyName: string;
+  contactPerson?: string;
+  email?: string;
+  phone?: string;
+  mobile?: string;
+  gstNumber?: string;
+  panNumber?: string;
+  address?: string;
   city?: string;
   state?: string;
-  zipCode?: string;
-  country?: string;
+  pincode?: string;
+  partnerType?: string;
+  vertical?: string;
+  status: 'pending' | 'approved' | 'rejected';
+  tier: 'elite' | 'growth' | 'new';
+  assignedTo?: string;
+  approvedBy?: string;
+  approvedAt?: string;
+  rejectionReason?: string;
+  notes?: string;
+  isActive: boolean;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
-// Account/Company Management
+// Sales Entries
+export interface SalesEntry {
+  id: string;
+  partnerId: string;
+  productId: string;
+  salespersonId: string;
+  customerName?: string;
+  quantity: number;
+  amount: number;
+  poNumber?: string;
+  invoiceNo?: string;
+  paymentStatus: string;
+  commissionAmount?: number;
+  saleDate: string;
+  locationId?: string;
+  verticalId?: string;
+  notes?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  // Joined data
+  partnerName?: string;
+  productName?: string;
+  salespersonName?: string;
+}
+
+// Leads / CRM
+export interface Lead {
+  id: string;
+  companyName: string;
+  contactPerson?: string;
+  email?: string;
+  phone?: string;
+  source?: string;
+  stage: LeadStage;
+  priority: 'Low' | 'Medium' | 'High';
+  estimatedValue?: number;
+  productInterest?: string;
+  assignedTo?: string;
+  partnerId?: string;
+  notes?: string;
+  expectedCloseDate?: string;
+  lostReason?: string;
+  wonSaleId?: string;
+  nextFollowUp?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export type LeadStage = 'New' | 'Contacted' | 'Qualified' | 'Proposal' | 'Negotiation' | 'Won' | 'Lost';
+
+export interface LeadActivity {
+  id: string;
+  leadId: string;
+  activityType: string;
+  title: string;
+  description?: string;
+  createdBy?: string;
+  createdAt?: string;
+}
+
+// Quotes
+export interface Quote {
+  id: string;
+  quoteNumber?: string;
+  leadId?: string;
+  partnerId?: string;
+  customerName: string;
+  validUntil?: string;
+  subtotal: number;
+  taxRate: number;
+  taxAmount: number;
+  discountAmount: number;
+  totalAmount: number;
+  status: 'draft' | 'sent' | 'accepted' | 'rejected';
+  terms?: string;
+  notes?: string;
+  createdBy?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  partnerName?: string;
+  lineItems?: QuoteLineItem[];
+}
+
+export interface QuoteLineItem {
+  id?: string;
+  quoteId?: string;
+  productId?: string;
+  description?: string;
+  quantity: number;
+  unitPrice: number;
+  discountPct: number;
+  lineTotal: number;
+  sortOrder?: number;
+  productName?: string;
+}
+
+// Carepacks
+export interface Carepack {
+  id: string;
+  partnerId?: string;
+  productType?: string;
+  serialNumber?: string;
+  carepackSku?: string;
+  customerName?: string;
+  startDate?: string;
+  endDate?: string;
+  status: 'active' | 'expired' | 'cancelled';
+  notes?: string;
+  createdBy?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  partnerName?: string;
+}
+
+// Accounts
 export interface Account {
   id: string;
-
-  // Description Information
-  description?: string;
-  group?: string;
-
-  // Account Information
   name: string;
+  industry?: string;
+  website?: string;
+  revenue?: number;
+  employees?: number;
+  location?: string;
+  type?: string;
+  status: string;
   phone?: string;
   email?: string;
-  website: string;
-  accountOwner?: string;
-  industry: string;
-  companyIndustry?: string;
-  accountType?: 'Customer' | 'Prospect' | 'Partner' | 'Vendor' | 'Competitor' | 'Analyst' | 'Integrator' | 'Investor' | 'Press' | 'Reseller' | 'Other';
-  endcustomerAccountsCategory?: string;
-  paymentTerms?: 'Net 15' | 'Net 30' | 'Net 45' | 'Net 60' | 'Due on Receipt' | 'Advance Payment' | 'COD' | 'Other';
-  rating?: 'Hot' | 'Warm' | 'Cold' | 'Acquired' | 'Active' | 'Market Failed' | 'Project Cancelled' | 'Shut Down';
-  accountNumber?: string;
-  accountSite?: string;
-  parentAccount?: string;
-  parentAccountId?: string;
-  ticker?: string;
-  ownership?: 'Public' | 'Private' | 'Subsidiary' | 'Partnership' | 'Government' | 'Other';
-  accountStatus?: 'Active' | 'Inactive' | 'On Hold' | 'Closed' | 'Suspended';
-  partner?: string;
-  leadCategory?: 'Hot' | 'Warm' | 'Cold';
-  newLeads?: number;
-
-  // Tax & Legal Info
-  panNo?: string;
+  healthScore?: number;
+  description?: string;
+  ownerId?: string;
   gstinNo?: string;
-
-  // Products Info
-  productsWeSelling?: string;
-  productsTheySelling?: string;
-
-  // Other Info
-  territory?: string;
-  dealClosingDate?: string;
-  supportStartDate?: string;
-  supportExpiryDate?: string;
-  productDetails?: string;
-  purchaseOrderNo?: string;
-  lockingPeriodEndDate?: string;
-  sicCode?: string;
-  noOfRetailCounters?: number;
-  references?: string;
-  bankStatement?: string;
-  documents?: string;
-
-  // Contact Info
-  contactName?: string;
-  contactEmail?: string;
-  contactMobile?: string;
-  contactPhone?: string;
-  contactDesignation?: string;
-  contactOthers?: string;
-  otherDesignationName?: string;
-  fax?: string;
-
-  // Employees & Revenue
-  employees: number;
-  revenue: number;
-  annualRevenue?: number;
-
-  // Address Information
-  location: string;
-  locateMap?: string;
-  billingAddress?: {
-    street?: string;
-    city?: string;
-    state?: string;
-    zipCode?: string;
-    country?: string;
-    landmark?: string;
-    area?: string;
-  };
-  shippingAddress?: {
-    street?: string;
-    city?: string;
-    state?: string;
-    zipCode?: string;
-    country?: string;
-    landmark?: string;
-    area?: string;
-  };
-
-  // System Fields
-  healthScore: number;
-  logo: string;
-  type: 'Customer' | 'Prospect' | 'Partner' | 'Vendor' | 'Competitor';
-  status: 'Active' | 'Inactive' | 'Churned';
-  owner: string;
-  createdBy?: string;
-  modifiedBy?: string;
-  createdAt: string;
-  modifiedAt?: string;
-
-  // Relations
-  contacts?: string[];
-  deals?: string[];
+  paymentTerms?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  ownerName?: string;
 }
 
-// Deal/Opportunity Management
+// Contacts
+export interface Contact {
+  id: string;
+  firstName: string;
+  lastName?: string;
+  email?: string;
+  phone?: string;
+  mobile?: string;
+  jobTitle?: string;
+  department?: string;
+  accountId?: string;
+  type?: string;
+  status: string;
+  notes?: string;
+  preferredContact?: string;
+  ownerId?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  accountName?: string;
+  ownerName?: string;
+}
+
+// Deals
 export interface Deal {
   id: string;
-
-  // Deal Information
   title: string;
-  dealName?: string;
+  company?: string;
   accountId?: string;
-  accountName?: string;
-  contactId?: string;
-  contactName?: string;
-  typeOfOrder?: 'New' | 'Renewal' | 'Upgrade' | 'Downgrade' | 'Cross-sell' | 'Upsell';
-  createdByRM?: string;
-  dealOwner?: string;
-  amount?: number;
-  value: number;
-  closingDate: string;
-  leadSource?: string;
-  stage: 'Qualification' | 'Discovery' | 'Proposal' | 'Negotiation' | 'Closed Won' | 'Closed Lost' | 'Needs Analysis' | 'Value Proposition' | 'Id. Decision Makers' | 'Perception Analysis';
-  probability: number;
-  expectedRevenue?: number;
-  campaignSource?: string;
-  nextStep?: string;
-
-  // Product Information
-  productInfo?: {
-    productList?: string[];
-    productName?: string;
-    productCode?: string;
-    quantity?: number;
-    unitPrice?: number;
-    discount?: number;
-    totalAmount?: number;
-  };
-  products?: DealProduct[];
-
-  // Forms Information
-  formsInfo?: {
-    gst?: string;
-    dlNo?: string;
-    aadharNo?: string;
-    panNo?: string;
-    fssaiNo?: string;
-    tanNo?: string;
-    otherText?: string;
-    attachDL?: string;
-    attachGST?: string;
-    attachAadhar?: string;
-    attachPAN?: string;
-    attachFSSAI?: string;
-    attachOther?: string;
-    attachPhoto?: string;
-    fileUpload?: string;
-    groupName?: string;
-    mappedBy?: string;
-  };
-
-  // Other Info
-  territory?: string;
-  billingDeliveryDate?: string;
-  poDate?: string;
-  poNumber?: string;
-  paymentMode?: 'Cash' | 'Credit Card' | 'Bank Transfer' | 'Cheque' | 'Online' | 'Other';
-  paymentReceived?: boolean;
-  paymentReceivedDate?: string;
-  paymentBankName?: string;
-  paymentChequeNo?: string;
-  paymentOtherDetails?: string;
-  paymentRefNo?: string;
-  supportStartDate?: string;
-  supportExpiryDate?: string;
-  lockingPeriodEndDate?: string;
-
-  // Billing Address Information
-  billingAddress?: {
-    street?: string;
-    city?: string;
-    state?: string;
-    zipCode?: string;
-    country?: string;
-    landmark?: string;
-    area?: string;
-  };
-
-  // Description Information
+  value?: number;
+  stage: DealStage;
+  probability?: number;
+  ownerId?: string;
+  closingDate?: string;
   description?: string;
-  notes?: string;
-
-  // System Fields
-  company: string;
-  owner: string;
+  contactId?: string;
+  nextStep?: string;
+  forecast?: string;
+  type?: string;
+  leadSource?: string;
   createdAt?: string;
-  modifiedAt?: string;
-  createdBy?: string;
-  modifiedBy?: string;
-  lostReason?: string;
-  competitorName?: string;
-  forecast?: 'Pipeline' | 'Best Case' | 'Commit' | 'Omitted' | 'Closed' | 'Upside';
-  type?: 'New Business' | 'Existing Business' | 'Renewal' | 'Expansion' | 'Partnership';
+  updatedAt?: string;
+  accountName?: string;
+  contactName?: string;
+  ownerName?: string;
 }
 
-export interface DealProduct {
-  id: string;
-  name: string;
-  quantity: number;
-  price: number;
-  discount?: number;
-}
+export type DealStage = 'Qualification' | 'Discovery' | 'Proposal' | 'Negotiation' | 'Closed Won' | 'Closed Lost';
 
-// Activity/Task Management
+// Tasks
 export interface Task {
   id: string;
   title: string;
   description?: string;
-  type: 'Call' | 'Email' | 'Meeting' | 'Task' | 'Follow-up' | 'Demo';
-  status: 'Not Started' | 'In Progress' | 'Completed' | 'Deferred' | 'Cancelled';
-  priority: 'Low' | 'Normal' | 'High' | 'Urgent';
-  dueDate: string;
+  type?: string;
+  status: string;
+  priority: string;
+  dueDate?: string;
   dueTime?: string;
-  relatedTo?: {
-    type: 'Lead' | 'Contact' | 'Account' | 'Deal' | 'Ticket';
-    id: string;
-    name: string;
-  };
-  assignedTo: string;
-  createdBy: string;
-  createdAt: string;
+  assignedTo?: string;
+  createdBy?: string;
   completedAt?: string;
-  reminderDate?: string;
-  recurring?: {
-    frequency: 'Daily' | 'Weekly' | 'Monthly' | 'Yearly';
-    endDate?: string;
-  };
-}
-
-export interface Activity {
-  id: string;
-  type: 'Call' | 'Email' | 'Meeting' | 'Note' | 'Task Completed' | 'Deal Update' | 'Status Change';
-  subject: string;
-  description?: string;
-  date: string;
-  duration?: number;
-  outcome?: 'Successful' | 'Unsuccessful' | 'No Answer' | 'Left Voicemail' | 'Scheduled Follow-up';
-  relatedTo: {
-    type: 'Lead' | 'Contact' | 'Account' | 'Deal' | 'Ticket';
-    id: string;
-    name: string;
-  };
-  performedBy: string;
-  createdAt: string;
+  relatedToType?: string;
+  relatedToId?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  assignedToName?: string;
+  createdByName?: string;
 }
 
 // Calendar Events
@@ -485,473 +290,134 @@ export interface CalendarEvent {
   id: string;
   title: string;
   description?: string;
-  type: 'Meeting' | 'Call' | 'Demo' | 'Webinar' | 'Task' | 'Reminder' | 'Out of Office';
-  start: string;
-  end: string;
+  type?: string;
+  startTime: string;
+  endTime?: string;
   allDay?: boolean;
   location?: string;
   meetingLink?: string;
-  attendees?: Attendee[];
-  relatedTo?: {
-    type: 'Lead' | 'Contact' | 'Account' | 'Deal';
-    id: string;
-    name: string;
-  };
-  owner: string;
+  ownerId?: string;
   color?: string;
-  reminder?: number;
+  relatedToType?: string;
+  relatedToId?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  ownerName?: string;
 }
 
-export interface Attendee {
+// Emails
+export interface Email {
   id: string;
-  name: string;
-  email: string;
-  status: 'Pending' | 'Accepted' | 'Declined' | 'Tentative';
-  type: 'Required' | 'Optional';
-}
-
-// Marketing Campaigns
-export interface Campaign {
-  id: string;
-  name: string;
-  type: 'Email' | 'Social Media' | 'Webinar' | 'Trade Show' | 'Advertisement' | 'Referral Program' | 'Content Marketing';
-  status: 'Planning' | 'Active' | 'Paused' | 'Completed' | 'Cancelled';
-  startDate: string;
-  endDate: string;
-  budget: number;
-  actualCost?: number;
-  expectedRevenue?: number;
-  actualRevenue?: number;
-  description?: string;
-  owner: string;
-  createdAt: string;
-  targetAudience?: string;
-  goals?: string;
-  metrics?: CampaignMetrics;
-  members?: CampaignMember[];
-}
-
-export interface CampaignMetrics {
-  sent?: number;
-  delivered?: number;
-  opened?: number;
-  clicked?: number;
-  converted?: number;
-  unsubscribed?: number;
-  bounced?: number;
-  leads?: number;
-  roi?: number;
-}
-
-export interface CampaignMember {
-  id: string;
-  type: 'Lead' | 'Contact';
-  name: string;
-  email: string;
-  status: 'Sent' | 'Opened' | 'Clicked' | 'Responded' | 'Converted' | 'Opted Out';
-  addedAt: string;
+  subject: string;
+  body?: string;
+  fromAddress?: string;
+  toAddress?: string;
+  cc?: string;
+  bcc?: string;
+  status: string;
+  sentAt?: string;
+  scheduledAt?: string;
+  relatedToType?: string;
+  relatedToId?: string;
+  templateId?: string;
+  ownerId?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  ownerName?: string;
+  templateName?: string;
 }
 
 // Email Templates
 export interface EmailTemplate {
   id: string;
   name: string;
-  subject: string;
-  body: string;
-  type: 'Sales' | 'Marketing' | 'Support' | 'Follow-up' | 'Introduction';
+  subject?: string;
+  body?: string;
   category?: string;
-  owner: string;
-  createdAt: string;
-  lastUsed?: string;
-  usageCount?: number;
-}
-
-export interface Email {
-  id: string;
-  subject: string;
-  body: string;
-  from: string;
-  to: string[];
-  cc?: string[];
-  bcc?: string[];
-  status: 'Draft' | 'Sent' | 'Scheduled' | 'Failed' | 'Received';
-  sentAt?: string;
-  scheduledAt?: string;
-  openedAt?: string;
-  clickedAt?: string;
+  ownerId?: string;
   createdAt?: string;
-  relatedTo?: {
-    type: 'Lead' | 'Contact' | 'Account' | 'Deal' | 'Ticket' | 'Campaign';
-    id: string;
-    name: string;
-  };
-  templateId?: string;
-  attachments?: Attachment[];
-  trackOpens?: boolean;
-  trackClicks?: boolean;
-}
-
-export interface Attachment {
-  id: string;
-  name: string;
-  size: number;
-  type: string;
-  url: string;
-}
-
-// Customer Support Tickets
-export interface Ticket {
-  id: string;
-  ticketNumber: string;
-  subject: string;
-  description: string;
-  status: 'Open' | 'In Progress' | 'Pending' | 'On Hold' | 'Resolved' | 'Closed';
-  priority: 'Low' | 'Medium' | 'High' | 'Urgent';
-  type: 'Question' | 'Problem' | 'Feature Request' | 'Bug' | 'Task';
-  category?: string;
-  contactId: string;
-  contactName: string;
-  contactEmail: string;
-  accountId?: string;
-  accountName?: string;
-  assignedTo?: string;
-  assignedTeam?: string;
-  createdAt: string;
-  updatedAt: string;
-  resolvedAt?: string;
-  closedAt?: string;
-  dueDate?: string;
-  sla?: {
-    responseTime: number;
-    resolutionTime: number;
-    breached: boolean;
-  };
-  comments?: TicketComment[];
-  tags?: string[];
-  satisfaction?: {
-    rating: number;
-    feedback?: string;
-  };
-}
-
-export interface TicketComment {
-  id: string;
-  content: string;
-  author: string;
-  authorType: 'Agent' | 'Customer';
-  createdAt: string;
-  isInternal?: boolean;
-  attachments?: Attachment[];
-}
-
-// Knowledge Base
-export interface KnowledgeArticle {
-  id: string;
-  title: string;
-  content: string;
-  category: string;
-  subcategory?: string;
-  status: 'Draft' | 'Published' | 'Archived';
-  author: string;
-  createdAt: string;
-  updatedAt: string;
-  publishedAt?: string;
-  views?: number;
-  helpfulVotes?: number;
-  notHelpfulVotes?: number;
-  tags?: string[];
-  relatedArticles?: string[];
-}
-
-// Reports
-export interface Report {
-  id: string;
-  name: string;
-  description?: string;
-  type: 'Lead' | 'Contact' | 'Account' | 'Deal' | 'Activity' | 'Campaign' | 'Ticket' | 'Custom';
-  chartType: 'Bar' | 'Line' | 'Pie' | 'Funnel' | 'Table' | 'KPI';
-  filters?: ReportFilter[];
-  columns?: string[];
-  groupBy?: string;
-  sortBy?: string;
-  sortOrder?: 'asc' | 'desc';
-  owner: string;
-  createdAt: string;
-  lastRun?: string;
-  schedule?: {
-    frequency: 'Daily' | 'Weekly' | 'Monthly';
-    recipients: string[];
-    nextRun: string;
-  };
-  isPublic?: boolean;
-}
-
-export interface ReportFilter {
-  field: string;
-  operator: 'equals' | 'not_equals' | 'contains' | 'greater_than' | 'less_than' | 'between' | 'is_empty' | 'is_not_empty';
-  value: string | number | string[] | number[];
-}
-
-// Dashboard & Analytics
-export interface ChartData {
-  name: string;
-  value: number;
-  value2?: number;
-}
-
-export interface KpiStat {
-  label: string;
-  value: string;
-  change: number;
-  trend: 'up' | 'down';
-  icon?: string;
-  color?: string;
-}
-
-export interface DashboardWidget {
-  id: string;
-  type: 'kpi' | 'chart' | 'table' | 'list' | 'funnel';
-  title: string;
-  dataSource: string;
-  size: 'small' | 'medium' | 'large';
-  position: { x: number; y: number };
-  config?: Record<string, unknown>;
-}
-
-// Users & Settings
-export interface User {
-  id: string;
-  firstName: string;
-  lastName: string;
-  email: string;
-  avatar?: string;
-  role: 'Admin' | 'Sales Manager' | 'Sales Rep' | 'Marketing' | 'Support' | 'Read Only';
-  department?: string;
-  phone?: string;
-  timezone?: string;
-  isActive?: boolean;
-  lastLogin?: string;
-  createdAt: string;
-  permissions?: Permission[];
-  notificationPreferences?: NotificationPreferences;
-}
-
-export interface Permission {
-  module: string;
-  actions: ('create' | 'read' | 'update' | 'delete')[];
-}
-
-export interface NotificationPreferences {
-  email: boolean;
-  inApp: boolean;
-  push: boolean;
-  digest: 'realtime' | 'daily' | 'weekly' | 'none';
+  updatedAt?: string;
+  ownerName?: string;
 }
 
 // Notifications
 export interface Notification {
   id: string;
-  type: 'info' | 'success' | 'warning' | 'error' | 'task' | 'mention' | 'reminder';
-  title: string;
-  message: string;
+  userId: string;
+  type?: string;
+  title?: string;
+  message?: string;
   link?: string;
-  relatedTo?: {
-    type: string;
-    id: string;
-  };
-  read: boolean;
-  createdAt: string;
+  isRead: boolean;
+  createdAt?: string;
 }
 
 // Settings
-export interface CompanySettings {
-  name: string;
-  logo?: string;
-  website?: string;
-  phone?: string;
-  address?: Address;
-  timezone?: string;
-  currency?: string;
-  fiscalYearStart?: string;
-  dateFormat?: string;
-  timeFormat?: '12h' | '24h';
-}
-
-export interface SalesSettings {
-  defaultCurrency: string;
-  dealStages: { name: string; probability: number; order: number }[];
-  leadStatuses: string[];
-  leadSources: string[];
-  forecastCategories: string[];
-  roundRobinAssignment: boolean;
-}
-
-// Workflow Automation
-export interface Workflow {
+export interface Setting {
   id: string;
-  name: string;
-  description?: string;
-  trigger: WorkflowTrigger;
-  conditions?: WorkflowCondition[];
-  actions: WorkflowAction[];
-  isActive: boolean;
-  createdAt: string;
-  createdBy: string;
-  lastTriggered?: string;
-  executionCount?: number;
-}
-
-export interface WorkflowTrigger {
-  type: 'record_created' | 'record_updated' | 'field_changed' | 'scheduled' | 'manual';
-  module: string;
-  field?: string;
-  schedule?: string;
-}
-
-export interface WorkflowCondition {
-  field: string;
-  operator: string;
-  value: string | number | boolean;
-  logic?: 'AND' | 'OR';
-}
-
-export interface WorkflowAction {
-  type: 'send_email' | 'create_task' | 'update_field' | 'notify_user' | 'webhook' | 'assign_owner';
-  config: Record<string, unknown>;
-}
-
-// Quote/Proposal
-export interface Quote {
-  id: string;
-  quoteNumber: string;
-  name: string;
-  dealId: string;
-  accountId: string;
-  contactId: string;
-  status: 'Draft' | 'Pending' | 'Sent' | 'Accepted' | 'Rejected' | 'Expired';
-  validUntil: string;
-  subtotal: number;
-  discount: number;
-  tax: number;
-  total: number;
-  currency: string;
-  terms?: string;
-  notes?: string;
-  lineItems: QuoteLineItem[];
-  owner: string;
-  createdAt: string;
-  sentAt?: string;
-  acceptedAt?: string;
-}
-
-export interface QuoteLineItem {
-  id: string;
-  productId?: string;
-  name: string;
-  description?: string;
-  quantity: number;
-  unitPrice: number;
-  discount?: number;
-  total: number;
-}
-
-// Products/Services
-export interface Product {
-  id: string;
-  name: string;
-  code?: string;
-  description?: string;
+  key: string;
+  value: string;
   category?: string;
-  unitPrice: number;
-  currency: string;
+}
+
+// Announcements
+export interface Announcement {
+  id: string;
+  title: string;
+  message?: string;
+  priority?: string;
+  createdBy?: string;
   isActive: boolean;
-  taxable?: boolean;
-  taxRate?: number;
+  createdAt?: string;
 }
 
-// Lead-specific types for notes, activities, calls
-export interface LeadNote {
+// Master Data
+export interface MasterItem {
   id: string;
-  leadId: string;
-  content: string;
-  createdBy: string;
-  createdAt: string;
-  updatedAt?: string;
+  name: string;
+  isActive: boolean;
 }
 
-export interface LeadActivity {
+export interface MasterLocation {
   id: string;
-  leadId: string;
-  activityType: 'call_scheduled' | 'call_logged' | 'email_sent' | 'task_created' | 'status_changed' | 'note_added' | 'tag_added' | 'owner_changed' | 'converted';
-  title: string;
-  description?: string;
-  scheduledAt?: string;
-  completedAt?: string;
-  durationMinutes?: number;
-  outcome?: string;
-  createdBy: string;
-  createdAt: string;
+  city: string;
+  state: string;
+  region?: string;
+  isActive: boolean;
 }
 
-export interface LeadCall {
+export interface MasterCategory {
   id: string;
-  leadId: string;
-  callType: 'scheduled' | 'logged';
-  subject: string;
-  callPurpose?: string;
-  scheduledAt?: string;
-  startTime?: string;
-  durationMinutes?: number;
-  callResult?: string;
-  description?: string;
-  createdBy: string;
-  createdAt: string;
+  name: string;
+  oemId?: string;
+  isActive: boolean;
 }
 
-export interface LeadTask {
-  id: string;
-  leadId: string;
-  title: string;
-  description?: string;
-  status: 'Pending' | 'In Progress' | 'Completed' | 'Cancelled';
-  priority: 'Low' | 'Normal' | 'High' | 'Urgent';
-  dueDate?: string;
-  dueTime?: string;
-  assignedTo?: string;
-  createdBy: string;
-  createdAt: string;
-  updatedAt?: string;
-  completedAt?: string;
+// Dashboard
+export interface DashboardStats {
+  totalSales: number;
+  totalPartners: number;
+  activeLeads: number;
+  monthlyRevenue: number;
+  pendingPartners: number;
+  pendingPayments: number;
 }
 
-// Extended Lead with printing-specific fields
-export interface ExtendedLead extends Lead {
-  // Additional Lead Information
-  fax?: string;
-  noOfEmployees?: number;
-  annualRevenue?: number;
-  rating?: 'None' | 'Acquired' | 'Active' | 'Market Failed' | 'Project Cancelled' | 'Shut Down';
-  skypeId?: string;
-  secondaryEmail?: string;
-  twitter?: string;
+export interface MonthlyStat {
+  month: string;
+  revenue: number;
+  count: number;
+}
 
-  // Order Info (Sample tracking)
-  sampleRequested?: boolean;
-  sampleReceived?: boolean;
-  sampleSent?: boolean;
-  sampleDetails?: string;
+// Pagination
+export interface PaginationMeta {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+}
 
-  // Forms Info (Printing specific)
-  noOfPieces?: number;
-  gsm?: number;
-  size?: string;
-  paperType?: string;
-  finish?: string;
-
-  // Billing Address
-  billingStreet?: string;
-  billingCity?: string;
-  billingState?: string;
-  billingZipCode?: string;
-  billingCountry?: string;
+export interface PaginatedResponse<T> {
+  data: T[];
+  pagination: PaginationMeta;
 }
