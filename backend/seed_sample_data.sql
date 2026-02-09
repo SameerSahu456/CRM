@@ -10,11 +10,11 @@
 -- ============================================================
 -- 1. USERS (Sales Reps)
 -- ============================================================
-INSERT INTO users (id, name, email, role_id, is_active, password_hash)
+INSERT INTO users (id, name, email, role, is_active, password_hash)
 VALUES
-  ('11111111-1111-1111-1111-111111111111', 'John Smith', 'john.smith@comprint.com', 'sales_rep', true, '$2b$12$dummy'),
-  ('22222222-2222-2222-2222-222222222222', 'Sarah Johnson', 'sarah.johnson@comprint.com', 'sales_rep', true, '$2b$12$dummy'),
-  ('33333333-3333-3333-3333-333333333333', 'Michael Chen', 'michael.chen@comprint.com', 'sales_manager', true, '$2b$12$dummy')
+  ('11111111-1111-1111-1111-111111111111', 'John Smith', 'john.smith@comprint.com', 'salesperson', true, '$2b$12$LKGtTdpVEjNuNvLXRZiMdOd7bVU.Jox6zvT0p/C4WQQjr/rJZqZ0a'),
+  ('22222222-2222-2222-2222-222222222222', 'Sarah Johnson', 'sarah.johnson@comprint.com', 'salesperson', true, '$2b$12$LKGtTdpVEjNuNvLXRZiMdOd7bVU.Jox6zvT0p/C4WQQjr/rJZqZ0a'),
+  ('33333333-3333-3333-3333-333333333333', 'Michael Chen', 'michael.chen@comprint.com', 'salesmanager', true, '$2b$12$LKGtTdpVEjNuNvLXRZiMdOd7bVU.Jox6zvT0p/C4WQQjr/rJZqZ0a')
 ON CONFLICT (id) DO NOTHING;
 
 -- ============================================================
