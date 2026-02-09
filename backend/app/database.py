@@ -10,16 +10,16 @@ from app.config import settings
 db_url = settings.DATABASE_URL
 connect_args = {}
 
+# Supabase ALWAYS requires SSL - configure it first
+if "supabase" in db_url.lower():
+    ssl_ctx = ssl_module.create_default_context()
+    ssl_ctx.check_hostname = False
+    ssl_ctx.verify_mode = ssl_module.CERT_NONE
+    connect_args["ssl"] = ssl_ctx
+
 # Strip query parameters that asyncpg doesn't support (sslmode, pgbouncer, etc.)
 if "?" in db_url:
-    base_url = db_url.split("?")[0]
-    # Check if we need SSL (Supabase always requires SSL)
-    if "supabase" in db_url or "sslmode=" in db_url:
-        ssl_ctx = ssl_module.create_default_context()
-        ssl_ctx.check_hostname = False
-        ssl_ctx.verify_mode = ssl_module.CERT_NONE
-        connect_args["ssl"] = ssl_ctx
-    db_url = base_url
+    db_url = db_url.split("?")[0]
 
 # Detect serverless environment (Vercel / AWS Lambda)
 is_serverless = bool(os.environ.get("VERCEL") or os.environ.get("AWS_LAMBDA_FUNCTION_NAME"))
