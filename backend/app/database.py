@@ -17,6 +17,11 @@ if "supabase" in db_url.lower():
     ssl_ctx.verify_mode = ssl_module.CERT_NONE
     connect_args["ssl"] = ssl_ctx
 
+    # Disable prepared statements for pgbouncer compatibility
+    # Connection pooling URLs (.pooler.supabase.com) use pgbouncer
+    if ".pooler.supabase.com" in db_url or "pgbouncer" in db_url:
+        connect_args["statement_cache_size"] = 0
+
 # Strip query parameters that asyncpg doesn't support (sslmode, pgbouncer, etc.)
 if "?" in db_url:
     db_url = db_url.split("?")[0]
