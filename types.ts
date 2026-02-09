@@ -123,6 +123,65 @@ export interface Lead {
   lostReason?: string;
   wonSaleId?: string;
   nextFollowUp?: string;
+
+  // Lead Information (Extended)
+  firstName?: string;
+  lastName?: string;
+  mobile?: string;
+  mobileAlternate?: string;
+  phoneAlternate?: string;
+  campaignSource?: string;
+  website?: string;
+  accountType?: string;
+  leadCategory?: string;
+
+  // Order Info
+  productList?: string;
+  typeOfOrder?: string;
+  billingDeliveryDate?: string;
+  orderProductDetails?: string;
+  payment?: string;
+  poNumberOrMailConfirmation?: string;
+  brand?: string;
+  orcAmount?: number;
+  productWarranty?: string;
+  shipBy?: string;
+  specialInstruction?: string;
+  thirdPartyDeliveryAddress?: string;
+  billingCompany?: string;
+
+  // Forms Info
+  enterProductDetails?: string;
+  rentalDuration?: string;
+  productConfiguration?: string;
+  bandwidthRequired?: string;
+  productNameAndPartNumber?: string;
+  specifications?: string;
+  formName?: string;
+
+  // Billing Address
+  billingStreet?: string;
+  billingCity?: string;
+  billingState?: string;
+  billingCountry?: string;
+  billingZipCode?: string;
+
+  // Description Info
+  description?: string;
+  leadTime?: string;
+  productName?: string;
+  receiverMobileNumber?: string;
+  subject?: string;
+  senderLandlineNo?: string;
+  senderLandlineNoAlt?: string;
+  callDuration?: string;
+  leadType?: string;
+  queryId?: string;
+  mcatName?: string;
+
+  // Lead Image
+  leadImage?: string;
+
   createdAt?: string;
   updatedAt?: string;
 }
@@ -211,9 +270,46 @@ export interface Account {
   ownerId?: string;
   gstinNo?: string;
   paymentTerms?: string;
+
+  // Additional fields
+  accountImage?: string;
+  groupName?: string;
+  parentAccountId?: string;
+  endcustomerCategory?: string;
+  productsSellingToThem?: string;
+  productsTheySell?: string;
+  panNo?: string;
+  partnerId?: string;
+  leadCategory?: string;
+  newLeads?: number;
+  referencesDoc?: string;
+  bankStatementDoc?: string;
+
+  // Contact Information
+  contactName?: string;
+  contactEmail?: string;
+  contactPhone?: string;
+  contactDesignation?: string;
+  contactDesignationOther?: string;
+
+  // Billing Address
+  billingStreet?: string;
+  billingCity?: string;
+  billingState?: string;
+  billingCode?: string;
+  billingCountry?: string;
+
+  // Shipping Address
+  shippingStreet?: string;
+  shippingCity?: string;
+  shippingState?: string;
+  shippingCode?: string;
+  shippingCountry?: string;
+
   createdAt?: string;
   updatedAt?: string;
   ownerName?: string;
+  partnerName?: string;
 }
 
 // Contacts
@@ -236,6 +332,48 @@ export interface Contact {
   updatedAt?: string;
   accountName?: string;
   ownerName?: string;
+
+  // Contact Image
+  image?: string;
+
+  // Description Information
+  description?: string;
+  contactGroup?: string;
+
+  // Extended Contact Information
+  ctsiplEmail?: string;
+  pan?: string;
+  gstinNo?: string;
+  productInterested?: string;
+  productInterestedText?: string;
+  leadSource?: string;
+  leadCategory?: string;
+  designation?: string;
+  vendorName?: string;
+  partnerId?: string;
+  newLeads?: boolean;
+
+  // Forms Info
+  bandwidthRequired?: string;
+  productConfiguration?: string;
+  productDetails?: string;
+  rentalDuration?: string;
+  productNamePartNumber?: string;
+  specifications?: string;
+
+  // Mailing Address
+  mailingStreet?: string;
+  mailingCity?: string;
+  mailingState?: string;
+  mailingZip?: string;
+  mailingCountry?: string;
+
+  // Other Address
+  otherStreet?: string;
+  otherCity?: string;
+  otherState?: string;
+  otherZip?: string;
+  otherCountry?: string;
 }
 
 // Deals

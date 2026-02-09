@@ -7,8 +7,9 @@ import {
 } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
-import { accountsApi, contactsApi, formatINR } from '../services/api';
-import { Account, Contact, Deal, PaginatedResponse } from '../types';
+import { accountsApi, contactsApi, partnersApi, adminApi, formatINR } from '../services/api';
+import { Account, Contact, Deal, PaginatedResponse, Partner, User } from '../types';
+import { EnhancedAccountForm, EnhancedAccountFormData } from './EnhancedAccountForm';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -167,6 +168,11 @@ export const AccountsPage: React.FC = () => {
   const [statsActive, setStatsActive] = useState(0);
   const [statsTotalRevenue, setStatsTotalRevenue] = useState(0);
 
+  // Dropdown data for enhanced form
+  const [partners, setPartners] = useState<Partner[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
+  const [parentAccounts, setParentAccounts] = useState<Account[]>([]);
+
   // ---------------------------------------------------------------------------
   // Styling helpers
   // ---------------------------------------------------------------------------
@@ -224,6 +230,28 @@ export const AccountsPage: React.FC = () => {
     setPage(1);
   }, [filterStatus, filterIndustry, searchTerm]);
 
+  // Fetch dropdown data for enhanced form
+  useEffect(() => {
+    const fetchDropdownData = async () => {
+      try {
+        // Fetch partners
+        const partnersData = await partnersApi.list({ limit: '1000' });
+        setPartners(partnersData.data || []);
+
+        // Fetch users
+        const usersData = await adminApi.listUsers();
+        setUsers(usersData || []);
+
+        // Fetch accounts for parent selection
+        const accountsData = await accountsApi.list({ limit: '1000' });
+        setParentAccounts(accountsData.data || []);
+      } catch (err) {
+        console.error('Failed to fetch dropdown data:', err);
+      }
+    };
+    fetchDropdownData();
+  }, []);
+
   // ---------------------------------------------------------------------------
   // Form handlers
   // ---------------------------------------------------------------------------
@@ -231,6 +259,7 @@ export const AccountsPage: React.FC = () => {
   const openCreateModal = () => {
     setFormData({ ...EMPTY_ACCOUNT_FORM });
     setEditingAccountId(null);
+    setDetailAccount(null);
     setFormError('');
     setShowFormModal(true);
   };
@@ -253,6 +282,7 @@ export const AccountsPage: React.FC = () => {
       paymentTerms: account.paymentTerms || '',
     });
     setEditingAccountId(account.id);
+    setDetailAccount(account);
     setFormError('');
     setShowFormModal(true);
   };
@@ -260,6 +290,7 @@ export const AccountsPage: React.FC = () => {
   const closeFormModal = () => {
     setShowFormModal(false);
     setEditingAccountId(null);
+    setDetailAccount(null);
     setFormError('');
   };
 
@@ -295,6 +326,33 @@ export const AccountsPage: React.FC = () => {
       fetchAccounts();
     } catch (err: any) {
       setFormError(err.message || 'Failed to save account');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Enhanced form submit handler
+  const handleEnhancedFormSubmit = async (formData: EnhancedAccountFormData) => {
+    setFormError('');
+
+    if (!formData.name.trim()) {
+      setFormError('Account name is required');
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const payload = { ...formData, ownerId: formData.ownerId || user?.id };
+      if (editingAccountId) {
+        await accountsApi.update(editingAccountId, payload);
+      } else {
+        await accountsApi.create(payload);
+      }
+      closeFormModal();
+      fetchAccounts();
+    } catch (err: any) {
+      setFormError(err.message || 'Failed to save account');
+      throw err; // Re-throw so the form knows submission failed
     } finally {
       setIsSubmitting(false);
     }
@@ -964,10 +1022,27 @@ export const AccountsPage: React.FC = () => {
   };
 
   // ---------------------------------------------------------------------------
-  // Render: Create/Edit Modal
+  // Render: Create/Edit Modal (Enhanced Form)
   // ---------------------------------------------------------------------------
 
   const renderFormModal = () => {
+    return (
+      <EnhancedAccountForm
+        isOpen={showFormModal}
+        onClose={closeFormModal}
+        onSubmit={handleEnhancedFormSubmit}
+        editingAccount={detailAccount}
+        isSubmitting={isSubmitting}
+        formError={formError}
+        partners={partners.map(p => ({ id: p.id, companyName: p.companyName }))}
+        accounts={parentAccounts.map(a => ({ id: a.id, name: a.name }))}
+        users={users.map(u => ({ id: u.id, name: u.name }))}
+      />
+    );
+  };
+
+  // OLD FORM MODAL (keeping for reference, can be deleted later)
+  const renderOldFormModal_BACKUP = () => {
     if (!showFormModal) return null;
 
     return (
@@ -1268,7 +1343,7 @@ export const AccountsPage: React.FC = () => {
         </div>
       </div>
     );
-  };
+  }; // END renderOldFormModal_BACKUP
 
   // ---------------------------------------------------------------------------
   // Main render

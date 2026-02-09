@@ -68,6 +68,42 @@ CREATE TABLE IF NOT EXISTS accounts (
     owner_id UUID,
     gstin_no VARCHAR(50),
     payment_terms VARCHAR(100),
+
+    -- Additional fields
+    account_image VARCHAR(500),
+    group_name VARCHAR(255),
+    parent_account_id UUID,
+    endcustomer_category VARCHAR(100),
+    products_selling_to_them TEXT,
+    products_they_sell TEXT,
+    pan_no VARCHAR(50),
+    partner_id UUID REFERENCES partners(id),
+    lead_category VARCHAR(100),
+    new_leads INTEGER DEFAULT 0,
+    references_doc VARCHAR(500),
+    bank_statement_doc VARCHAR(500),
+
+    -- Contact Information
+    contact_name VARCHAR(255),
+    contact_email VARCHAR(255),
+    contact_phone VARCHAR(50),
+    contact_designation VARCHAR(100),
+    contact_designation_other VARCHAR(100),
+
+    -- Billing Address
+    billing_street TEXT,
+    billing_city VARCHAR(100),
+    billing_state VARCHAR(100),
+    billing_code VARCHAR(20),
+    billing_country VARCHAR(100),
+
+    -- Shipping Address
+    shipping_street TEXT,
+    shipping_city VARCHAR(100),
+    shipping_state VARCHAR(100),
+    shipping_code VARCHAR(20),
+    shipping_country VARCHAR(100),
+
     created_at TIMESTAMP DEFAULT now(),
     updated_at TIMESTAMP DEFAULT now()
 );
@@ -90,6 +126,49 @@ CREATE TABLE IF NOT EXISTS contacts (
     notes TEXT,
     preferred_contact VARCHAR(50),
     owner_id UUID,
+
+    -- Contact Image
+    image VARCHAR(500),
+
+    -- Description Information
+    description TEXT,
+    contact_group VARCHAR(100),
+
+    -- Extended Contact Information
+    ctsipl_email VARCHAR(255),
+    pan VARCHAR(50),
+    gstin_no VARCHAR(50),
+    product_interested VARCHAR(255),
+    product_interested_text TEXT,
+    lead_source VARCHAR(100),
+    lead_category VARCHAR(100),
+    designation VARCHAR(100),
+    vendor_name VARCHAR(255),
+    partner_id UUID REFERENCES partners(id),
+    new_leads BOOLEAN DEFAULT false,
+
+    -- Forms Info
+    bandwidth_required VARCHAR(255),
+    product_configuration TEXT,
+    product_details TEXT,
+    rental_duration VARCHAR(100),
+    product_name_part_number TEXT,
+    specifications TEXT,
+
+    -- Mailing Address
+    mailing_street TEXT,
+    mailing_city VARCHAR(100),
+    mailing_state VARCHAR(100),
+    mailing_zip VARCHAR(20),
+    mailing_country VARCHAR(100),
+
+    -- Other Address
+    other_street TEXT,
+    other_city VARCHAR(100),
+    other_state VARCHAR(100),
+    other_zip VARCHAR(20),
+    other_country VARCHAR(100),
+
     created_at TIMESTAMP DEFAULT now(),
     updated_at TIMESTAMP DEFAULT now()
 );
@@ -159,6 +238,65 @@ CREATE TABLE IF NOT EXISTS leads (
     lost_reason TEXT,
     won_sale_id UUID,
     next_follow_up DATE,
+
+    -- Lead Information (Extended)
+    first_name VARCHAR(100),
+    last_name VARCHAR(100),
+    mobile VARCHAR(50),
+    mobile_alternate VARCHAR(50),
+    phone_alternate VARCHAR(50),
+    campaign_source VARCHAR(100),
+    website VARCHAR(500),
+    account_type VARCHAR(50),
+    lead_category VARCHAR(50),
+
+    -- Order Info
+    product_list VARCHAR(255),
+    type_of_order VARCHAR(100),
+    billing_delivery_date DATE,
+    order_product_details TEXT,
+    payment VARCHAR(100),
+    po_number_or_mail_confirmation VARCHAR(100),
+    brand VARCHAR(100),
+    orc_amount NUMERIC(15,2),
+    product_warranty VARCHAR(100),
+    ship_by VARCHAR(100),
+    special_instruction TEXT,
+    third_party_delivery_address TEXT,
+    billing_company VARCHAR(255),
+
+    -- Forms Info
+    enter_product_details TEXT,
+    rental_duration VARCHAR(100),
+    product_configuration TEXT,
+    bandwidth_required VARCHAR(100),
+    product_name_and_part_number VARCHAR(255),
+    specifications TEXT,
+    form_name VARCHAR(100),
+
+    -- Billing Address
+    billing_street VARCHAR(255),
+    billing_city VARCHAR(100),
+    billing_state VARCHAR(100),
+    billing_country VARCHAR(100),
+    billing_zip_code VARCHAR(20),
+
+    -- Description Info
+    description TEXT,
+    lead_time VARCHAR(100),
+    product_name VARCHAR(255),
+    receiver_mobile_number VARCHAR(50),
+    subject VARCHAR(500),
+    sender_landline_no VARCHAR(50),
+    sender_landline_no_alt VARCHAR(50),
+    call_duration VARCHAR(50),
+    lead_type VARCHAR(50),
+    query_id VARCHAR(100),
+    mcat_name VARCHAR(100),
+
+    -- Lead Image
+    lead_image TEXT,
+
     created_at TIMESTAMP DEFAULT now(),
     updated_at TIMESTAMP DEFAULT now()
 );

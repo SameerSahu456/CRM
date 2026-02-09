@@ -1,7 +1,7 @@
 import uuid
 from typing import Optional
 
-from sqlalchemy import String, Text, text
+from sqlalchemy import String, Text, text, Boolean
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -31,3 +31,47 @@ class Contact(TimestampMixin, Base):
     owner_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         UUID(as_uuid=True), nullable=True
     )
+
+    # Contact Image
+    image: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+
+    # Description Information
+    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    contact_group: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+
+    # Extended Contact Information
+    ctsipl_email: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    pan: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    gstin_no: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    product_interested: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    product_interested_text: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    lead_source: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    lead_category: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    designation: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    vendor_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    partner_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), nullable=True
+    )
+    new_leads: Mapped[Optional[bool]] = mapped_column(Boolean, server_default="false")
+
+    # Forms Info
+    bandwidth_required: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    product_configuration: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    product_details: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    rental_duration: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    product_name_part_number: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    specifications: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    # Mailing Address
+    mailing_street: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    mailing_city: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    mailing_state: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    mailing_zip: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
+    mailing_country: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+
+    # Other Address
+    other_street: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    other_city: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    other_state: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    other_zip: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
+    other_country: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
