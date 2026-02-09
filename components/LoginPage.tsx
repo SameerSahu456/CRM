@@ -20,6 +20,16 @@ const LoginPage: React.FC = () => {
     }
   };
 
+  const handleQuickLogin = async () => {
+    setEmail('admin@gmail.com');
+    setPassword('1');
+    setError('');
+    const result = await signIn('admin@gmail.com', '1');
+    if (!result.success) {
+      setError(result.error || 'Login failed');
+    }
+  };
+
   return (
     <div className="min-h-screen flex bg-[#0a0a0a]">
       {/* Left Panel — Brand */}
@@ -135,9 +145,19 @@ const LoginPage: React.FC = () => {
           {/* Divider */}
           <div className="flex items-center gap-3 my-6">
             <div className="flex-1 h-px bg-zinc-800" />
-            <span className="text-zinc-600 text-xs">Chakrapatch</span>
+            <span className="text-zinc-600 text-xs">or</span>
             <div className="flex-1 h-px bg-zinc-800" />
           </div>
+
+          {/* Quick Demo Login */}
+          <button
+            type="button"
+            onClick={handleQuickLogin}
+            disabled={isLoading}
+            className="w-full py-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 font-medium text-sm hover:bg-emerald-500/20 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed mb-6"
+          >
+            Quick Demo Login (Admin)
+          </button>
 
           {/* Footer */}
           <p className="text-center text-zinc-600 text-xs">
