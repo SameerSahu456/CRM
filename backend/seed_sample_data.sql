@@ -20,10 +20,10 @@ ON CONFLICT (id) DO NOTHING;
 -- ============================================================
 -- 2. PARTNERS
 -- ============================================================
-INSERT INTO partners (id, name, type, email, phone, website, status)
+INSERT INTO partners (id, company_name, contact_person, email, phone, mobile, gst_number, pan_number, address, city, state, pincode, partner_type, vertical, status, tier, assigned_to)
 VALUES
-  ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'TechVendor Solutions', 'Channel Partner', 'contact@techvendor.com', '+1-555-0101', 'www.techvendor.com', 'active'),
-  ('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', 'Global Distributors Inc', 'Distributor', 'sales@globaldist.com', '+1-555-0102', 'www.globaldist.com', 'active')
+  ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'TechVendor Solutions', 'Mark Johnson', 'contact@techvendor.com', '+1-555-0101', '+1-555-0102', '29ABCTECH1234A1Z', 'ABCTECH1234', '123 Tech Park', 'San Francisco', 'California', '94102', 'Channel Partner', 'Technology', 'active', 'gold', '11111111-1111-1111-1111-111111111111'),
+  ('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', 'Global Distributors Inc', 'Lisa Chen', 'sales@globaldist.com', '+1-555-0103', '+1-555-0104', '29XYZGLOB5678B2Y', 'XYZGLOB5678', '456 Distribution Avenue', 'Chicago', 'Illinois', '60601', 'Distributor', 'General', 'active', 'silver', '22222222-2222-2222-2222-222222222222')
 ON CONFLICT (id) DO NOTHING;
 
 -- ============================================================
@@ -182,7 +182,7 @@ ON CONFLICT (id) DO NOTHING;
 -- 4. CONTACTS (with all extended fields)
 -- ============================================================
 INSERT INTO contacts (
-  id, first_name, last_name, email, phone, title, department, account_id, owner_id,
+  id, first_name, last_name, email, phone, job_title, department, account_id, owner_id,
   image, description, contact_group, ctsipl_email, pan, gstin_no,
   product_interested, product_interested_text, lead_source, lead_category,
   designation, vendor_name, partner_id, new_leads,
