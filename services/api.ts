@@ -147,6 +147,12 @@ export const dashboardApi = {
   monthlyStats: () => fetchApi<any>('/data/dashboard/monthly-stats'),
   growthStats: () => fetchApi<any>('/data/dashboard/growth-stats'),
   getAll: () => fetchApi<any>('/data/dashboard/all'),
+  getPreferences: () => fetchApi<any>('/me/dashboard-preferences'),
+  updatePreferences: (prefs: any) =>
+    fetchApi<any>('/me/dashboard-preferences', {
+      method: 'PUT',
+      body: JSON.stringify(prefs),
+    }),
 };
 
 // Quotes
@@ -335,6 +341,7 @@ export const settingsApi = {
       body: JSON.stringify({ key, value }),
     }),
 };
+
 
 // INR currency formatter
 export const formatINR = (amount: number): string => {

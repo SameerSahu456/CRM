@@ -77,7 +77,7 @@ CREATE TABLE IF NOT EXISTS accounts (
     products_selling_to_them TEXT,
     products_they_sell TEXT,
     pan_no VARCHAR(50),
-    partner_id UUID REFERENCES partners(id),
+    partner_id UUID,
     lead_category VARCHAR(100),
     new_leads INTEGER DEFAULT 0,
     references_doc VARCHAR(500),
@@ -144,7 +144,7 @@ CREATE TABLE IF NOT EXISTS contacts (
     lead_category VARCHAR(100),
     designation VARCHAR(100),
     vendor_name VARCHAR(255),
-    partner_id UUID REFERENCES partners(id),
+    partner_id UUID,
     new_leads BOOLEAN DEFAULT false,
 
     -- Forms Info
@@ -323,6 +323,76 @@ CREATE TABLE IF NOT EXISTS deals (
     created_at TIMESTAMP DEFAULT now(),
     updated_at TIMESTAMP DEFAULT now()
 );
+
+-- ============================================================
+-- Add comprehensive fields to deals table
+-- ============================================================
+
+-- Deal Information (5 new fields)
+ALTER TABLE deals ADD COLUMN IF NOT EXISTS sdp_no VARCHAR(100);
+ALTER TABLE deals ADD COLUMN IF NOT EXISTS sales_created_by_rm UUID;
+ALTER TABLE deals ADD COLUMN IF NOT EXISTS lead_category VARCHAR(100);
+ALTER TABLE deals ADD COLUMN IF NOT EXISTS product_manager VARCHAR(255);
+ALTER TABLE deals ADD COLUMN IF NOT EXISTS expected_revenue NUMERIC(15,2);
+
+-- Forms Info (6 fields)
+ALTER TABLE deals ADD COLUMN IF NOT EXISTS bandwidth_required VARCHAR(255);
+ALTER TABLE deals ADD COLUMN IF NOT EXISTS product_configuration TEXT;
+ALTER TABLE deals ADD COLUMN IF NOT EXISTS rental_duration VARCHAR(100);
+ALTER TABLE deals ADD COLUMN IF NOT EXISTS enter_product_details TEXT;
+ALTER TABLE deals ADD COLUMN IF NOT EXISTS product_name_and_part_number VARCHAR(500);
+ALTER TABLE deals ADD COLUMN IF NOT EXISTS specifications TEXT;
+
+-- Other Info (16 fields)
+ALTER TABLE deals ADD COLUMN IF NOT EXISTS show_subform BOOLEAN DEFAULT false;
+ALTER TABLE deals ADD COLUMN IF NOT EXISTS billing_delivery_date DATE;
+ALTER TABLE deals ADD COLUMN IF NOT EXISTS description_of_product TEXT;
+ALTER TABLE deals ADD COLUMN IF NOT EXISTS payment VARCHAR(255);
+ALTER TABLE deals ADD COLUMN IF NOT EXISTS payment_terms VARCHAR(100);
+ALTER TABLE deals ADD COLUMN IF NOT EXISTS po_number_or_mail_confirmation VARCHAR(255);
+ALTER TABLE deals ADD COLUMN IF NOT EXISTS integration_requirement VARCHAR(100);
+ALTER TABLE deals ADD COLUMN IF NOT EXISTS brand VARCHAR(255);
+ALTER TABLE deals ADD COLUMN IF NOT EXISTS orc_amount NUMERIC(15,2);
+ALTER TABLE deals ADD COLUMN IF NOT EXISTS product_warranty VARCHAR(255);
+ALTER TABLE deals ADD COLUMN IF NOT EXISTS ship_by VARCHAR(100);
+ALTER TABLE deals ADD COLUMN IF NOT EXISTS special_instruction TEXT;
+ALTER TABLE deals ADD COLUMN IF NOT EXISTS third_party_delivery_address TEXT;
+ALTER TABLE deals ADD COLUMN IF NOT EXISTS billing_company VARCHAR(255);
+ALTER TABLE deals ADD COLUMN IF NOT EXISTS email_subject VARCHAR(500);
+ALTER TABLE deals ADD COLUMN IF NOT EXISTS additional_information TEXT;
+ALTER TABLE deals ADD COLUMN IF NOT EXISTS da VARCHAR(100);
+ALTER TABLE deals ADD COLUMN IF NOT EXISTS delivery_address TEXT;
+
+-- Billing Address (5 fields)
+ALTER TABLE deals ADD COLUMN IF NOT EXISTS billing_street TEXT;
+ALTER TABLE deals ADD COLUMN IF NOT EXISTS billing_state VARCHAR(100);
+ALTER TABLE deals ADD COLUMN IF NOT EXISTS billing_country VARCHAR(100);
+ALTER TABLE deals ADD COLUMN IF NOT EXISTS billing_city VARCHAR(100);
+ALTER TABLE deals ADD COLUMN IF NOT EXISTS billing_zip_code VARCHAR(20);
+
+-- ============================================================
+-- Create deal_line_items table for Product Info
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS deal_line_items (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    deal_id UUID NOT NULL REFERENCES deals(id) ON DELETE CASCADE,
+
+    -- Product Info Fields
+    product_category VARCHAR(100),
+    product_sub_category VARCHAR(100),
+    part_number VARCHAR(255),
+    description TEXT,
+    quantity INTEGER DEFAULT 1,
+    pricing NUMERIC(15,2),
+    total_price NUMERIC(15,2),
+    warehouse VARCHAR(100),
+    total_rental NUMERIC(15,2),
+    rental_per_unit NUMERIC(15,2),
+    sort_order INTEGER DEFAULT 0
+);
+
+CREATE INDEX IF NOT EXISTS idx_deal_line_items_deal_id ON deal_line_items(deal_id);
 
 -- ============================================================
 -- 8. SALES ENTRIES
@@ -568,5 +638,36 @@ VALUES (
 ) ON CONFLICT (email) DO NOTHING;
 
 -- ============================================================
--- DONE! All 17 tables created + admin user seeded.
+-- Add dashboard_preferences column for customizable dashboards
+-- ============================================================
+ALTER TABLE users
+ADD COLUMN IF NOT EXISTS dashboard_preferences JSONB DEFAULT '{
+  "widgets": [],
+  "lastModified": null
+}'::jsonb;
+
+-- Add index for faster JSONB queries
+CREATE INDEX IF NOT EXISTS idx_users_dashboard_preferences
+ON users USING gin(dashboard_preferences);
+
+COMMENT ON COLUMN users.dashboard_preferences IS
+'Stores user dashboard layout: widget IDs, order, visibility, and grid positions';
+
+-- ============================================================
+-- Add view_access column (if not already added from previous migrations)
+-- ============================================================
+ALTER TABLE users
+ADD COLUMN IF NOT EXISTS view_access VARCHAR(50) NOT NULL DEFAULT 'presales';
+
+ALTER TABLE users DROP CONSTRAINT IF EXISTS check_view_access;
+
+ALTER TABLE users
+ADD CONSTRAINT check_view_access
+CHECK (view_access IN ('presales', 'postsales', 'both'));
+
+COMMENT ON COLUMN users.view_access IS
+'Determines which view the user has access to: presales, postsales, or both';
+
+-- ============================================================
+-- DONE! All 17 tables created + admin user seeded + dashboard customization.
 -- ============================================================

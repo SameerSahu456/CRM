@@ -9,6 +9,7 @@ from app.models.User import User
 from app.repositories.UserRepository import UserRepository
 from app.schemas.UserSchema import (
     ChangePasswordRequest,
+    DashboardPreferences,
     LoginRequest,
     UserOut,
 )
@@ -45,3 +46,29 @@ async def change_password(
         str(user.id), body.current_password, body.new_password
     )
     return {"message": "Password changed successfully"}
+
+
+@router.get("/me/dashboard-preferences", response_model=DashboardPreferences)
+async def get_dashboard_preferences(
+    user: User = Depends(get_current_user),
+):
+    """Get current user's dashboard layout preferences"""
+    if user.dashboard_preferences:
+        return DashboardPreferences.model_validate(user.dashboard_preferences)
+    # Return default empty preferences
+    return DashboardPreferences(widgets=[], last_modified=None)
+
+
+@router.put("/me/dashboard-preferences", response_model=DashboardPreferences)
+async def update_dashboard_preferences(
+    preferences: DashboardPreferences,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Update current user's dashboard layout preferences"""
+    user_repo = UserRepository(db)
+    # Update the dashboard_preferences field
+    user.dashboard_preferences = preferences.model_dump()
+    await db.commit()
+    await db.refresh(user)
+    return DashboardPreferences.model_validate(user.dashboard_preferences)

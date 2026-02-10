@@ -1,10 +1,24 @@
 from __future__ import annotations
 
-from typing import Optional
+from typing import Optional, List, Dict, Any
 from uuid import UUID
 from datetime import datetime
 
 from app.schemas.common import CamelModel
+
+
+class DashboardWidget(CamelModel):
+    """Widget placement configuration"""
+    id: str
+    visible: bool = True
+    order: int
+    grid_position: Optional[Dict[str, int]] = None  # Future: {row: 1, col: 1, width: 1}
+
+
+class DashboardPreferences(CamelModel):
+    """User dashboard layout preferences"""
+    widgets: List[DashboardWidget] = []
+    last_modified: Optional[str] = None
 
 
 class LoginRequest(CamelModel):
@@ -34,6 +48,8 @@ class UserOut(CamelModel):
     monthly_target: Optional[float] = None
     last_login: Optional[datetime] = None
     created_at: Optional[datetime] = None
+    view_access: str = "presales"
+    dashboard_preferences: Optional[DashboardPreferences] = None
 
 
 class UserCreate(CamelModel):
@@ -46,6 +62,7 @@ class UserCreate(CamelModel):
     employee_id: Optional[str] = None
     manager_id: Optional[str] = None
     monthly_target: Optional[float] = None
+    view_access: str = "presales"
 
 
 class UserUpdate(CamelModel):
@@ -57,6 +74,7 @@ class UserUpdate(CamelModel):
     manager_id: Optional[str] = None
     is_active: Optional[bool] = None
     monthly_target: Optional[float] = None
+    view_access: Optional[str] = None
 
 
 class ResetPasswordRequest(CamelModel):

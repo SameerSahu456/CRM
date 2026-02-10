@@ -29,7 +29,11 @@ export interface User {
   monthlyTarget?: number;
   lastLogin?: string;
   createdAt?: string;
+  viewAccess?: 'presales' | 'postsales' | 'both';
+  dashboardPreferences?: DashboardPreferences;
 }
+
+export type ViewAccess = 'presales' | 'postsales' | 'both';
 
 export type UserRole =
   | 'admin'
@@ -39,6 +43,39 @@ export type UserRole =
   | 'producthead'
   | 'businesshead'
   | 'salesmanager';
+
+// Dashboard Widget Types
+export interface WidgetMetadata {
+  id: string;
+  label: string;
+  description: string;
+  category: 'presales' | 'postsales' | 'both' | 'analytics' | 'tasks';
+  icon: React.ReactNode;
+  requiredView?: 'presales' | 'postsales' | 'both';
+  requiredRoles?: UserRole[];
+  defaultVisible: boolean;
+  defaultOrder: number;
+  component: React.ComponentType<WidgetProps>;
+}
+
+export interface WidgetPlacement {
+  id: string;
+  visible: boolean;
+  order: number;
+  gridPosition?: { row: number; col: number; width: number };
+}
+
+export interface DashboardPreferences {
+  widgets: WidgetPlacement[];
+  lastModified?: string;
+}
+
+export interface WidgetProps {
+  isDark: boolean;
+  user: User | null;
+  currentView: ViewAccess;
+  navigate: (tab: NavigationItem) => void;
+}
 
 // Products
 export interface Product {
@@ -186,7 +223,7 @@ export interface Lead {
   updatedAt?: string;
 }
 
-export type LeadStage = 'New' | 'Contacted' | 'Qualified' | 'Proposal' | 'Negotiation' | 'Won' | 'Lost';
+export type LeadStage = 'New' | 'Contacted' | 'Qualified' | 'Proposal' | 'Negotiation' | 'Converted' | 'Won' | 'Lost';
 
 export interface LeadActivity {
   id: string;
