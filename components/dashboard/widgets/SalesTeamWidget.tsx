@@ -5,7 +5,7 @@ import { WidgetProps, BreakdownData, GrowthData } from '../types';
 import { dashboardApi } from '../../../services/api';
 import { formatCompact, pctChange } from '../../../utils/dashboard';
 
-export const SalesTeamWidget: React.FC<WidgetProps> = ({ isDark, navigate }) => {
+export const SalesTeamWidget: React.FC<WidgetProps> = ({ isDark, navigate, onDetailClick }) => {
   const [breakdownData, setBreakdownData] = useState<BreakdownData>({ byProduct: [], byPartner: [], bySalesperson: [] });
   const [growth, setGrowth] = useState<GrowthData | null>(null);
 
@@ -42,7 +42,7 @@ export const SalesTeamWidget: React.FC<WidgetProps> = ({ isDark, navigate }) => 
       subtitle="Performance Tracker"
       badge={momChange !== 0 ? { value: momChange } : undefined}
       isDark={isDark}
-      onClick={() => navigate('reports')}
+      onClick={() => onDetailClick?.()}
     >
       {/* Big metric */}
       <div className="flex items-baseline justify-between mb-4">

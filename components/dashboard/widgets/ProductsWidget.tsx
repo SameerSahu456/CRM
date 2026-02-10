@@ -5,7 +5,7 @@ import { WidgetProps, BreakdownData } from '../types';
 import { dashboardApi } from '../../../services/api';
 import { formatCompact } from '../../../utils/dashboard';
 
-export const ProductsWidget: React.FC<WidgetProps> = ({ isDark, navigate }) => {
+export const ProductsWidget: React.FC<WidgetProps> = ({ isDark, navigate, onDetailClick }) => {
   const [breakdownData, setBreakdownData] = useState<BreakdownData>({ byProduct: [], byPartner: [], bySalesperson: [] });
 
   useEffect(() => {
@@ -38,7 +38,7 @@ export const ProductsWidget: React.FC<WidgetProps> = ({ isDark, navigate }) => {
       titleColor={isDark ? 'text-teal-400' : 'text-teal-700'}
       subtitle="Portfolio Performance"
       isDark={isDark}
-      onClick={() => navigate('reports')}
+      onClick={() => onDetailClick?.()}
     >
       {/* Big metric */}
       <div className="flex items-baseline justify-between mb-4">

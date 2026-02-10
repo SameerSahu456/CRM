@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.Account import Account
 from app.models.Contact import Contact
 from app.models.Deal import Deal
+from app.models.DealLineItem import DealLineItem
 from app.models.User import User
 from app.repositories.base import BaseRepository
 
@@ -125,3 +126,39 @@ class DealRepository(BaseRepository[Deal]):
                 "owner_name": row[3],
             })
         return items
+
+    async def get_with_line_items(self, deal_id):
+        """Fetch deal with account/contact/owner names and line items."""
+        stmt = (
+            select(
+                Deal,
+                Account.name.label("account_name"),
+                Contact.first_name.label("contact_name"),
+                User.name.label("owner_name"),
+            )
+            .outerjoin(Account, Deal.account_id == Account.id)
+            .outerjoin(Contact, Deal.contact_id == Contact.id)
+            .outerjoin(User, Deal.owner_id == User.id)
+            .where(Deal.id == deal_id)
+        )
+        result = await self.db.execute(stmt)
+        row = result.first()
+        if not row:
+            return None
+
+        # Get line items
+        items_stmt = (
+            select(DealLineItem)
+            .where(DealLineItem.deal_id == deal_id)
+            .order_by(DealLineItem.sort_order)
+        )
+        items_result = await self.db.execute(items_stmt)
+        items = list(items_result.scalars().all())
+
+        return {
+            "deal": row[0],
+            "account_name": row[1],
+            "contact_name": row[2],
+            "owner_name": row[3],
+            "line_items": items,
+        }

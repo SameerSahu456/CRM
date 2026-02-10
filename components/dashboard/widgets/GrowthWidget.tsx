@@ -5,7 +5,7 @@ import { WidgetProps, DashboardData, GrowthData } from '../types';
 import { dashboardApi } from '../../../services/api';
 import { formatCompact, pctChange } from '../../../utils/dashboard';
 
-export const GrowthWidget: React.FC<WidgetProps> = ({ isDark, navigate }) => {
+export const GrowthWidget: React.FC<WidgetProps> = ({ isDark, navigate, onDetailClick }) => {
   const [stats, setStats] = useState<DashboardData | null>(null);
   const [growth, setGrowth] = useState<GrowthData | null>(null);
 
@@ -34,7 +34,7 @@ export const GrowthWidget: React.FC<WidgetProps> = ({ isDark, navigate }) => {
       subtitle="Performance Metrics"
       badge={momChange !== 0 ? { value: momChange } : undefined}
       isDark={isDark}
-      onClick={() => navigate('reports')}
+      onClick={() => onDetailClick?.()}
     >
       {/* This Month */}
       <div className="flex items-baseline justify-between mb-5">

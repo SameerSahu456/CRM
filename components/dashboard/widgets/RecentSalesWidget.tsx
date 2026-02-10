@@ -5,7 +5,7 @@ import { WidgetProps, GrowthData } from '../types';
 import { dashboardApi } from '../../../services/api';
 import { formatCompact } from '../../../utils/dashboard';
 
-export const RecentSalesWidget: React.FC<WidgetProps> = ({ isDark, navigate }) => {
+export const RecentSalesWidget: React.FC<WidgetProps> = ({ isDark, navigate, onDetailClick }) => {
   const [growth, setGrowth] = useState<GrowthData | null>(null);
 
   useEffect(() => {
@@ -29,7 +29,7 @@ export const RecentSalesWidget: React.FC<WidgetProps> = ({ isDark, navigate }) =
       titleColor={isDark ? 'text-cyan-400' : 'text-cyan-700'}
       subtitle="Latest Transactions"
       isDark={isDark}
-      onClick={() => navigate('sales-entry')}
+      onClick={() => onDetailClick?.()}
     >
       {!growth?.recentSales?.length ? (
         <div className={`h-32 flex items-center justify-center rounded-xl ${isDark ? 'bg-zinc-900/50' : 'bg-slate-50'}`}>

@@ -6,6 +6,7 @@ import { NavigationItem } from './types';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { NavigationProvider } from './contexts/NavigationContext';
+import { ViewProvider } from './contexts/ViewContext';
 
 // Lazy load all page components for code splitting
 const Dashboard = lazy(() => import('./components/Dashboard').then(m => ({ default: m.Dashboard })));
@@ -170,7 +171,9 @@ const App: React.FC = () => {
   return (
     <ThemeProvider>
       <AuthProvider>
-        <AppContent />
+        <ViewProvider>
+          <AppContent />
+        </ViewProvider>
       </AuthProvider>
     </ThemeProvider>
   );

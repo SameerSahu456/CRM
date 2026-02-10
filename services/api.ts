@@ -147,9 +147,9 @@ export const dashboardApi = {
   monthlyStats: () => fetchApi<any>('/data/dashboard/monthly-stats'),
   growthStats: () => fetchApi<any>('/data/dashboard/growth-stats'),
   getAll: () => fetchApi<any>('/data/dashboard/all'),
-  getPreferences: () => fetchApi<any>('/me/dashboard-preferences'),
+  getPreferences: () => fetchApi<any>('/auth/me/dashboard-preferences'),
   updatePreferences: (prefs: any) =>
-    fetchApi<any>('/me/dashboard-preferences', {
+    fetchApi<any>('/auth/me/dashboard-preferences', {
       method: 'PUT',
       body: JSON.stringify(prefs),
     }),

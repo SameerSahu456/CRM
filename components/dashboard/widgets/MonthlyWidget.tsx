@@ -6,7 +6,7 @@ import { WidgetProps, MonthlyStat } from '../types';
 import { dashboardApi } from '../../../services/api';
 import { formatCompact, pctChange } from '../../../utils/dashboard';
 
-export const MonthlyWidget: React.FC<WidgetProps> = ({ isDark, navigate }) => {
+export const MonthlyWidget: React.FC<WidgetProps> = ({ isDark, navigate, onDetailClick }) => {
   const [monthly, setMonthly] = useState<MonthlyStat[]>([]);
 
   useEffect(() => {
@@ -44,7 +44,7 @@ export const MonthlyWidget: React.FC<WidgetProps> = ({ isDark, navigate }) => {
       subtitle="Last 6 Months"
       badge={monthlyChange !== 0 ? { value: monthlyChange } : undefined}
       isDark={isDark}
-      onClick={() => navigate('reports')}
+      onClick={() => onDetailClick?.()}
     >
       {/* Big metric */}
       <div className="flex items-baseline justify-between mb-3">

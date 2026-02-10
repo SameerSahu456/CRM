@@ -1,12 +1,11 @@
-import { User } from '../../contexts/AuthContext';
-import { ViewAccess } from '../../contexts/ViewContext';
-import { NavigationItem } from '../../types';
+import { User, ViewAccess, NavigationItem } from '../../types';
 
 export interface WidgetProps {
   isDark: boolean;
   user: User | null;
   currentView: ViewAccess;
   navigate: (tab: NavigationItem) => void;
+  onDetailClick?: () => void;
 }
 
 export interface DashboardData {

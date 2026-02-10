@@ -5,7 +5,7 @@ import { WidgetProps, BreakdownData } from '../types';
 import { dashboardApi } from '../../../services/api';
 import { formatCompact } from '../../../utils/dashboard';
 
-export const TopPartnersWidget: React.FC<WidgetProps> = ({ isDark, navigate }) => {
+export const TopPartnersWidget: React.FC<WidgetProps> = ({ isDark, navigate, onDetailClick }) => {
   const [breakdownData, setBreakdownData] = useState<BreakdownData>({ byProduct: [], byPartner: [], bySalesperson: [] });
 
   useEffect(() => {
@@ -32,7 +32,7 @@ export const TopPartnersWidget: React.FC<WidgetProps> = ({ isDark, navigate }) =
       titleColor={isDark ? 'text-rose-400' : 'text-rose-700'}
       subtitle="Revenue Rankings"
       isDark={isDark}
-      onClick={() => navigate('partners')}
+      onClick={() => onDetailClick?.()}
     >
       {sortedPartners.length === 0 ? (
         <div className={`h-32 flex items-center justify-center rounded-xl ${isDark ? 'bg-zinc-900/50' : 'bg-slate-50'}`}>

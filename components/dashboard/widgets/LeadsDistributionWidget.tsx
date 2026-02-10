@@ -5,7 +5,7 @@ import { AnalyticsCard } from '../AnalyticsCard';
 import { WidgetProps } from '../types';
 import { dashboardApi } from '../../../services/api';
 
-export const LeadsDistributionWidget: React.FC<WidgetProps> = ({ isDark, navigate }) => {
+export const LeadsDistributionWidget: React.FC<WidgetProps> = ({ isDark, navigate, onDetailClick }) => {
   const [leadStats, setLeadStats] = useState<Record<string, number>>({});
 
   useEffect(() => {
@@ -36,7 +36,7 @@ export const LeadsDistributionWidget: React.FC<WidgetProps> = ({ isDark, navigat
       titleColor={isDark ? 'text-blue-400' : 'text-blue-700'}
       subtitle={`${totalLeads} total leads`}
       isDark={isDark}
-      onClick={() => navigate('crm')}
+      onClick={() => onDetailClick?.()}
     >
       {totalLeads === 0 ? (
         <div className={`h-44 flex items-center justify-center rounded-xl ${isDark ? 'bg-zinc-900/50' : 'bg-slate-50'}`}>

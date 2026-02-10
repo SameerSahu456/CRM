@@ -230,7 +230,7 @@ export const CarepackPage: React.FC = () => {
 
   const fetchDropdownData = useCallback(async () => {
     try {
-      const partnersResponse = await partnersApi.list({ limit: '500', status: 'approved' });
+      const partnersResponse = await partnersApi.list({ limit: '100', status: 'approved' });
       const partnerData = (partnersResponse as PaginatedResponse<Partner>)?.data ?? partnersResponse;
       setPartners(Array.isArray(partnerData) ? partnerData : []);
     } catch {

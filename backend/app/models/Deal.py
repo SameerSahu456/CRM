@@ -3,7 +3,7 @@ from typing import Optional
 from datetime import date
 from decimal import Decimal
 
-from sqlalchemy import Date, Integer, Numeric, String, Text, text
+from sqlalchemy import Boolean, Date, Integer, Numeric, String, Text, text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -38,3 +38,45 @@ class Deal(TimestampMixin, Base):
     forecast: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
     type: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
     lead_source: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+
+    # Deal Information
+    sdp_no: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    sales_created_by_rm: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), nullable=True)
+    lead_category: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    product_manager: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    expected_revenue: Mapped[Optional[Decimal]] = mapped_column(Numeric(15, 2), nullable=True)
+
+    # Forms Info
+    bandwidth_required: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    product_configuration: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    rental_duration: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    enter_product_details: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    product_name_and_part_number: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    specifications: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    # Other Info
+    show_subform: Mapped[Optional[bool]] = mapped_column(Boolean, server_default="false")
+    billing_delivery_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
+    description_of_product: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    payment: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    payment_terms: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    po_number_or_mail_confirmation: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    integration_requirement: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    brand: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    orc_amount: Mapped[Optional[Decimal]] = mapped_column(Numeric(15, 2), nullable=True)
+    product_warranty: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    ship_by: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    special_instruction: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    third_party_delivery_address: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    billing_company: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    email_subject: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    additional_information: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    da: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    delivery_address: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    # Billing Address
+    billing_street: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    billing_state: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    billing_country: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    billing_city: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    billing_zip_code: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)

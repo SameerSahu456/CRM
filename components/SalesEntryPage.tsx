@@ -126,6 +126,10 @@ export const SalesEntryPage: React.FC = () => {
   const [tableError, setTableError] = useState('');
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
+  // Detail modal
+  const [showDetailModal, setShowDetailModal] = useState(false);
+  const [detailEntry, setDetailEntry] = useState<SalesEntry | null>(null);
+
   // ---------------------------------------------------------------------------
   // Data fetching
   // ---------------------------------------------------------------------------
@@ -172,7 +176,7 @@ export const SalesEntryPage: React.FC = () => {
     try {
       const [productsList, partnersResponse] = await Promise.all([
         productsApi.list(),
-        partnersApi.list({ limit: '500', status: 'approved' }),
+        partnersApi.list({ limit: '100', status: 'approved' }),
       ]);
       setProducts(Array.isArray(productsList) ? productsList : []);
       // partnersApi.list returns paginated
@@ -312,6 +316,20 @@ export const SalesEntryPage: React.FC = () => {
   };
 
   const hasActiveFilters = filterPartner || filterProduct || filterPaymentStatus || searchTerm;
+
+  // ---------------------------------------------------------------------------
+  // Detail modal handlers
+  // ---------------------------------------------------------------------------
+
+  const openDetailModal = (entry: SalesEntry) => {
+    setDetailEntry(entry);
+    setShowDetailModal(true);
+  };
+
+  const closeDetailModal = () => {
+    setShowDetailModal(false);
+    setDetailEntry(null);
+  };
 
   // ---------------------------------------------------------------------------
   // Styling helpers
@@ -558,7 +576,8 @@ export const SalesEntryPage: React.FC = () => {
                   {sales.map((entry, idx) => (
                     <tr
                       key={entry.id}
-                      className={`border-b transition-colors ${
+                      onClick={() => openDetailModal(entry)}
+                      className={`border-b transition-colors cursor-pointer ${
                         isDark
                           ? 'border-zinc-800/50 hover:bg-zinc-800/30'
                           : 'border-slate-50 hover:bg-slate-50/80'
@@ -608,7 +627,7 @@ export const SalesEntryPage: React.FC = () => {
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-1">
                           <button
-                            onClick={() => openEditModal(entry)}
+                            onClick={(e) => { e.stopPropagation(); openEditModal(entry); }}
                             title="Edit"
                             className={`p-1.5 rounded-lg transition-colors ${
                               isDark
@@ -622,13 +641,13 @@ export const SalesEntryPage: React.FC = () => {
                           {deleteConfirmId === entry.id ? (
                             <div className="flex items-center gap-1">
                               <button
-                                onClick={() => handleDelete(entry.id)}
+                                onClick={(e) => { e.stopPropagation(); handleDelete(entry.id); }}
                                 className="px-2 py-1 rounded-lg text-xs font-medium bg-red-600 text-white hover:bg-red-700 transition-colors"
                               >
                                 Confirm
                               </button>
                               <button
-                                onClick={() => setDeleteConfirmId(null)}
+                                onClick={(e) => { e.stopPropagation(); setDeleteConfirmId(null); }}
                                 className={`px-2 py-1 rounded-lg text-xs font-medium transition-colors ${
                                   isDark
                                     ? 'text-zinc-400 hover:bg-zinc-800'
@@ -640,7 +659,7 @@ export const SalesEntryPage: React.FC = () => {
                             </div>
                           ) : (
                             <button
-                              onClick={() => setDeleteConfirmId(entry.id)}
+                              onClick={(e) => { e.stopPropagation(); setDeleteConfirmId(entry.id); }}
                               title="Delete"
                               className={`p-1.5 rounded-lg transition-colors ${
                                 isDark

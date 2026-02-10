@@ -235,18 +235,22 @@ export const AccountsPage: React.FC = () => {
     const fetchDropdownData = async () => {
       try {
         // Fetch partners
-        const partnersData = await partnersApi.list({ limit: '1000' });
-        setPartners(partnersData.data || []);
+        const partnersData = await partnersApi.list({ limit: '100' });
+        setPartners(Array.isArray(partnersData?.data) ? partnersData.data : []);
 
         // Fetch users
         const usersData = await adminApi.listUsers();
-        setUsers(usersData || []);
+        setUsers(Array.isArray(usersData) ? usersData : []);
 
         // Fetch accounts for parent selection
-        const accountsData = await accountsApi.list({ limit: '1000' });
-        setParentAccounts(accountsData.data || []);
+        const accountsData = await accountsApi.list({ limit: '100' });
+        setParentAccounts(Array.isArray(accountsData?.data) ? accountsData.data : []);
       } catch (err) {
         console.error('Failed to fetch dropdown data:', err);
+        // Ensure arrays are set even on error
+        setPartners([]);
+        setUsers([]);
+        setParentAccounts([]);
       }
     };
     fetchDropdownData();
@@ -1032,9 +1036,9 @@ export const AccountsPage: React.FC = () => {
         editingAccount={detailAccount}
         isSubmitting={isSubmitting}
         formError={formError}
-        partners={partners.map(p => ({ id: p.id, companyName: p.companyName }))}
-        accounts={parentAccounts.map(a => ({ id: a.id, name: a.name }))}
-        users={users.map(u => ({ id: u.id, name: u.name }))}
+        partners={Array.isArray(partners) ? partners.map(p => ({ id: p.id, companyName: p.companyName })) : []}
+        accounts={Array.isArray(parentAccounts) ? parentAccounts.map(a => ({ id: a.id, name: a.name })) : []}
+        users={Array.isArray(users) ? users.map(u => ({ id: u.id, name: u.name })) : []}
       />
     );
   };

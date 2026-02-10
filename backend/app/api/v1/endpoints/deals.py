@@ -3,15 +3,18 @@ from __future__ import annotations
 from typing import Optional
 
 from fastapi import APIRouter, Depends, Query
+from sqlalchemy import delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.exceptions import NotFoundException
 from app.middleware.security import get_current_user
 from app.models.Deal import Deal
+from app.models.DealLineItem import DealLineItem
 from app.models.User import User
 from app.repositories.DealRepository import DealRepository
 from app.schemas.DealSchema import DealOut, DealCreate, DealUpdate
+from app.schemas.DealLineItemSchema import DealLineItemOut
 
 router = APIRouter()
 
@@ -93,10 +96,19 @@ async def get_deal(
     db: AsyncSession = Depends(get_db),
 ):
     repo = DealRepository(db)
-    deal = await repo.get_by_id(deal_id)
-    if not deal:
+    result = await repo.get_with_line_items(deal_id)
+    if not result:
         raise NotFoundException("Deal not found")
-    return DealOut.model_validate(deal).model_dump(by_alias=True)
+
+    out = DealOut.model_validate(result["deal"]).model_dump(by_alias=True)
+    out["accountName"] = result["account_name"]
+    out["contactName"] = result["contact_name"]
+    out["ownerName"] = result["owner_name"]
+    out["lineItems"] = [
+        DealLineItemOut.model_validate(item).model_dump(by_alias=True)
+        for item in result["line_items"]
+    ]
+    return out
 
 
 @router.post("/")
@@ -106,11 +118,31 @@ async def create_deal(
     db: AsyncSession = Depends(get_db),
 ):
     repo = DealRepository(db)
-    data = body.model_dump(exclude_unset=True)
+
+    # Extract line items
+    line_items = body.line_items
+    data = body.model_dump(exclude_unset=True, exclude={"line_items"})
+
     if "owner_id" not in data or data["owner_id"] is None:
         data["owner_id"] = user.id
+
+    # Create deal
     deal = await repo.create(data)
-    return DealOut.model_validate(deal).model_dump(by_alias=True)
+
+    # Create line items
+    for item in line_items:
+        li = DealLineItem(**item.model_dump(), deal_id=deal.id)
+        db.add(li)
+    await db.flush()
+
+    # Return with line items
+    result = await repo.get_with_line_items(deal.id)
+    out = DealOut.model_validate(result["deal"]).model_dump(by_alias=True)
+    out["lineItems"] = [
+        DealLineItemOut.model_validate(item).model_dump(by_alias=True)
+        for item in result["line_items"]
+    ]
+    return out
 
 
 @router.put("/{deal_id}")
@@ -121,10 +153,31 @@ async def update_deal(
     db: AsyncSession = Depends(get_db),
 ):
     repo = DealRepository(db)
-    deal = await repo.update(deal_id, body.model_dump(exclude_unset=True))
+
+    # Update deal (exclude line items)
+    update_data = body.model_dump(exclude_unset=True, exclude={"line_items"})
+    deal = await repo.update(deal_id, update_data)
     if not deal:
         raise NotFoundException("Deal not found")
-    return DealOut.model_validate(deal).model_dump(by_alias=True)
+
+    # Replace line items if provided
+    if body.line_items is not None:
+        await db.execute(
+            delete(DealLineItem).where(DealLineItem.deal_id == deal_id)
+        )
+        for item in body.line_items:
+            li = DealLineItem(**item.model_dump(), deal_id=deal.id)
+            db.add(li)
+        await db.flush()
+
+    # Return with line items
+    result = await repo.get_with_line_items(deal.id)
+    out = DealOut.model_validate(result["deal"]).model_dump(by_alias=True)
+    out["lineItems"] = [
+        DealLineItemOut.model_validate(item).model_dump(by_alias=True)
+        for item in result["line_items"]
+    ]
+    return out
 
 
 @router.delete("/{deal_id}")

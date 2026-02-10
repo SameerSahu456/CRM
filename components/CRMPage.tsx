@@ -18,9 +18,9 @@ import { Lead, LeadStage, LeadActivity, PaginatedResponse, Partner, Product, Use
 
 const PAGE_SIZE = 10;
 
-const LEAD_STAGES: LeadStage[] = ['New', 'Contacted', 'Qualified', 'Proposal', 'Negotiation', 'Won', 'Lost'];
+const LEAD_STAGES: LeadStage[] = ['New', 'Contacted', 'Qualified', 'Proposal', 'Negotiation', 'Converted', 'Won', 'Lost'];
 const PIPELINE_STAGES: LeadStage[] = ['New', 'Contacted', 'Qualified', 'Proposal', 'Negotiation'];
-const TERMINAL_STAGES: LeadStage[] = ['Won', 'Lost'];
+const TERMINAL_STAGES: LeadStage[] = ['Converted', 'Won', 'Lost'];
 
 const PRIORITIES = ['Low', 'Medium', 'High'] as const;
 
@@ -46,6 +46,7 @@ const STAGE_COLORS: Record<LeadStage, { bg: string; text: string; darkBg: string
   Qualified:   { bg: 'bg-amber-50', text: 'text-amber-700', darkBg: 'bg-amber-900/30', darkText: 'text-amber-400', iconBg: 'bg-amber-100', darkIconBg: 'bg-amber-900/20' },
   Proposal:    { bg: 'bg-purple-50', text: 'text-purple-700', darkBg: 'bg-purple-900/30', darkText: 'text-purple-400', iconBg: 'bg-purple-100', darkIconBg: 'bg-purple-900/20' },
   Negotiation: { bg: 'bg-orange-50', text: 'text-orange-700', darkBg: 'bg-orange-900/30', darkText: 'text-orange-400', iconBg: 'bg-orange-100', darkIconBg: 'bg-orange-900/20' },
+  Converted:   { bg: 'bg-teal-50', text: 'text-teal-700', darkBg: 'bg-teal-900/30', darkText: 'text-teal-400', iconBg: 'bg-teal-100', darkIconBg: 'bg-teal-900/20' },
   Won:         { bg: 'bg-emerald-50', text: 'text-emerald-700', darkBg: 'bg-emerald-900/30', darkText: 'text-emerald-400', iconBg: 'bg-emerald-100', darkIconBg: 'bg-emerald-900/20' },
   Lost:        { bg: 'bg-red-50', text: 'text-red-700', darkBg: 'bg-red-900/30', darkText: 'text-red-400', iconBg: 'bg-red-100', darkIconBg: 'bg-red-900/20' },
 };
@@ -75,6 +76,64 @@ interface LeadFormData {
   notes: string;
   assignedTo: string;
   partnerId: string;
+
+  // Lead Information (Extended)
+  firstName: string;
+  lastName: string;
+  mobile: string;
+  mobileAlternate: string;
+  phoneAlternate: string;
+  campaignSource: string;
+  website: string;
+  accountType: string;
+  leadCategory: string;
+
+  // Order Info
+  productList: string;
+  typeOfOrder: string;
+  billingDeliveryDate: string;
+  orderProductDetails: string;
+  payment: string;
+  poNumberOrMailConfirmation: string;
+  brand: string;
+  orcAmount: number;
+  productWarranty: string;
+  shipBy: string;
+  specialInstruction: string;
+  thirdPartyDeliveryAddress: string;
+  billingCompany: string;
+
+  // Forms Info
+  enterProductDetails: string;
+  rentalDuration: string;
+  productConfiguration: string;
+  bandwidthRequired: string;
+  productNameAndPartNumber: string;
+  specifications: string;
+  formName: string;
+
+  // Billing Address
+  billingStreet: string;
+  billingCity: string;
+  billingState: string;
+  billingCountry: string;
+  billingZipCode: string;
+
+  // Description Info
+  description: string;
+  leadTime: string;
+  productName: string;
+  receiverMobileNumber: string;
+  subject: string;
+  senderLandlineNo: string;
+  senderLandlineNoAlt: string;
+  callDuration: string;
+  leadType: string;
+  queryId: string;
+  mcatName: string;
+
+  // Lead Image
+  leadImage: string;
 }
 
 interface ConvertFormData {
@@ -106,6 +165,64 @@ const EMPTY_LEAD_FORM: LeadFormData = {
   notes: '',
   assignedTo: '',
   partnerId: '',
+
+  // Lead Information (Extended)
+  firstName: '',
+  lastName: '',
+  mobile: '',
+  mobileAlternate: '',
+  phoneAlternate: '',
+  campaignSource: '',
+  website: '',
+  accountType: '',
+  leadCategory: '',
+
+  // Order Info
+  productList: '',
+  typeOfOrder: '',
+  billingDeliveryDate: '',
+  orderProductDetails: '',
+  payment: '',
+  poNumberOrMailConfirmation: '',
+  brand: '',
+  orcAmount: 0,
+  productWarranty: '',
+  shipBy: '',
+  specialInstruction: '',
+  thirdPartyDeliveryAddress: '',
+  billingCompany: '',
+
+  // Forms Info
+  enterProductDetails: '',
+  rentalDuration: '',
+  productConfiguration: '',
+  bandwidthRequired: '',
+  productNameAndPartNumber: '',
+  specifications: '',
+  formName: '',
+
+  // Billing Address
+  billingStreet: '',
+  billingCity: '',
+  billingState: '',
+  billingCountry: '',
+  billingZipCode: '',
+
+  // Description Info
+  description: '',
+  leadTime: '',
+  productName: '',
+  receiverMobileNumber: '',
+  subject: '',
+  senderLandlineNo: '',
+  senderLandlineNoAlt: '',
+  callDuration: '',
+  leadType: '',
+  queryId: '',
+  mcatName: '',
+
+  // Lead Image
+  leadImage: '',
 };
 
 const EMPTY_CONVERT_FORM: ConvertFormData = {
@@ -187,7 +304,7 @@ function getActivityIcon(type: string) {
 
 function stageBadge(stage: LeadStage, isDark: boolean): string {
   const base = 'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium';
-  const c = STAGE_COLORS[stage];
+  const c = STAGE_COLORS[stage] || STAGE_COLORS.New;
   return `${base} ${isDark ? `${c.darkBg} ${c.darkText}` : `${c.bg} ${c.text}`}`;
 }
 
@@ -242,6 +359,16 @@ export const CRMPage: React.FC = () => {
   const [editingLeadId, setEditingLeadId] = useState<string | null>(null);
   const [leadFormData, setLeadFormData] = useState<LeadFormData>({ ...EMPTY_LEAD_FORM });
   const [leadFormError, setLeadFormError] = useState('');
+  const [expandedSections, setExpandedSections] = useState({
+    leadInfo: true,
+    orderInfo: false,
+    formsInfo: false,
+    billingAddress: false,
+    descriptionInfo: false,
+    leadImage: false,
+    opportunityDetails: false,
+    classification: false,
+  });
 
   // Lead detail modal
   const [showDetailModal, setShowDetailModal] = useState(false);
@@ -320,7 +447,7 @@ export const CRMPage: React.FC = () => {
   const fetchPipelineLeads = useCallback(async () => {
     setIsPipelineLoading(true);
     try {
-      const response: PaginatedResponse<Lead> = await leadsApi.list({ limit: '500' });
+      const response: PaginatedResponse<Lead> = await leadsApi.list({ limit: '100' });
       const grouped: Record<string, Lead[]> = {};
       LEAD_STAGES.forEach(s => { grouped[s] = []; });
       response.data.forEach(lead => {
@@ -340,7 +467,7 @@ export const CRMPage: React.FC = () => {
     try {
       const [productsList, partnersResponse, usersList] = await Promise.all([
         productsApi.list(),
-        partnersApi.list({ limit: '500', status: 'approved' }),
+        partnersApi.list({ limit: '100', status: 'approved' }),
         adminApi.listUsers(),
       ]);
       setProducts(Array.isArray(productsList) ? productsList : []);
@@ -411,13 +538,20 @@ export const CRMPage: React.FC = () => {
     setLeadFormError('');
   };
 
+  const toggleSection = (section: string) => {
+    setExpandedSections(prev => ({
+      ...prev,
+      [section]: !prev[section as keyof typeof prev]
+    }));
+  };
+
   const handleLeadFormChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
   ) => {
     const { name, value } = e.target;
     setLeadFormData(prev => ({
       ...prev,
-      [name]: name === 'estimatedValue' ? Number(value) || 0 : value,
+      [name]: name === 'estimatedValue' || name === 'orcAmount' ? Number(value) || 0 : value,
     }));
   };
 
@@ -1540,7 +1674,7 @@ export const CRMPage: React.FC = () => {
 
           {/* Form */}
           <form onSubmit={handleLeadSubmit} className="flex-1 overflow-y-auto">
-            <div className="p-6 space-y-5">
+            <div className="p-6 space-y-4">
             {leadFormError && (
               <div className={`p-3 rounded-xl flex items-center gap-2 text-sm ${
                 isDark ? 'bg-red-900/20 border border-red-800 text-red-400' : 'bg-red-50 border border-red-200 text-red-700'
@@ -1550,264 +1684,650 @@ export const CRMPage: React.FC = () => {
               </div>
             )}
 
-            {/* Section: Lead Information */}
-            <div className={`flex items-center gap-2 pb-1 border-b ${isDark ? 'border-zinc-700' : 'border-slate-200'}`}>
-              <UserIcon className={`w-4 h-4 ${isDark ? 'text-brand-400' : 'text-brand-600'}`} />
-              <h3 className={`text-sm font-semibold ${isDark ? 'text-zinc-200' : 'text-slate-700'}`}>Lead Information</h3>
+            {/* Lead Information Section - Collapsible */}
+            <div className={`border rounded-lg ${isDark ? 'border-zinc-700' : 'border-slate-200'}`}>
+              <button
+                type="button"
+                onClick={() => toggleSection('leadInfo')}
+                className={`w-full p-4 flex justify-between items-center transition-colors ${
+                  isDark ? 'hover:bg-zinc-800/50' : 'hover:bg-slate-50'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <UserIcon className={`w-4 h-4 ${isDark ? 'text-brand-400' : 'text-brand-600'}`} />
+                  <h3 className={`text-sm font-semibold ${isDark ? 'text-zinc-200' : 'text-slate-700'}`}>Lead Information</h3>
+                </div>
+                <ChevronDown className={`w-4 h-4 transition-transform ${expandedSections.leadInfo ? 'rotate-180' : ''} ${
+                  isDark ? 'text-zinc-400' : 'text-slate-400'
+                }`} />
+              </button>
+              {expandedSections.leadInfo && (
+                <div className="px-4 pb-4 space-y-4">
+                  {/* Company Name + Contact Person */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label htmlFor="companyName" className={labelClass}>
+                        Company Name <span className="text-red-500">*</span>
+                      </label>
+                      <div className="relative">
+                        <Building2 className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`} />
+                        <input
+                          id="companyName"
+                          name="companyName"
+                          type="text"
+                          placeholder="Enter company name"
+                          value={leadFormData.companyName}
+                          onChange={handleLeadFormChange}
+                          className={`${inputClass} pl-10`}
+                          required
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label htmlFor="contactPerson" className={labelClass}>Contact Person</label>
+                      <div className="relative">
+                        <UserIcon className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`} />
+                        <input
+                          id="contactPerson"
+                          name="contactPerson"
+                          type="text"
+                          placeholder="Contact person name"
+                          value={leadFormData.contactPerson}
+                          onChange={handleLeadFormChange}
+                          className={`${inputClass} pl-10`}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* First Name + Last Name */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label htmlFor="firstName" className={labelClass}>First Name</label>
+                      <input
+                        id="firstName"
+                        name="firstName"
+                        type="text"
+                        placeholder="First name"
+                        value={leadFormData.firstName}
+                        onChange={handleLeadFormChange}
+                        className={inputClass}
+                      />
+                    </div>
+                    <div>
+                      <label htmlFor="lastName" className={labelClass}>Last Name</label>
+                      <input
+                        id="lastName"
+                        name="lastName"
+                        type="text"
+                        placeholder="Last name"
+                        value={leadFormData.lastName}
+                        onChange={handleLeadFormChange}
+                        className={inputClass}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Email + Mobile */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label htmlFor="email" className={labelClass}>Email</label>
+                      <div className="relative">
+                        <Mail className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`} />
+                        <input
+                          id="email"
+                          name="email"
+                          type="email"
+                          placeholder="contact@company.com"
+                          value={leadFormData.email}
+                          onChange={handleLeadFormChange}
+                          className={`${inputClass} pl-10`}
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label htmlFor="mobile" className={labelClass}>Mobile</label>
+                      <div className="relative">
+                        <Phone className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`} />
+                        <input
+                          id="mobile"
+                          name="mobile"
+                          type="text"
+                          placeholder="+91 XXXXX XXXXX"
+                          value={leadFormData.mobile}
+                          onChange={handleLeadFormChange}
+                          className={`${inputClass} pl-10`}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Phone + Mobile Alternate */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label htmlFor="phone" className={labelClass}>Phone</label>
+                      <div className="relative">
+                        <Phone className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`} />
+                        <input
+                          id="phone"
+                          name="phone"
+                          type="text"
+                          placeholder="+91 XXXXX XXXXX"
+                          value={leadFormData.phone}
+                          onChange={handleLeadFormChange}
+                          className={`${inputClass} pl-10`}
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label htmlFor="mobileAlternate" className={labelClass}>Mobile Alternate</label>
+                      <input
+                        id="mobileAlternate"
+                        name="mobileAlternate"
+                        type="text"
+                        placeholder="Alternate mobile"
+                        value={leadFormData.mobileAlternate}
+                        onChange={handleLeadFormChange}
+                        className={inputClass}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Phone Alternate + Campaign Source */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label htmlFor="phoneAlternate" className={labelClass}>Phone Alternate</label>
+                      <input
+                        id="phoneAlternate"
+                        name="phoneAlternate"
+                        type="text"
+                        placeholder="Alternate phone"
+                        value={leadFormData.phoneAlternate}
+                        onChange={handleLeadFormChange}
+                        className={inputClass}
+                      />
+                    </div>
+                    <div>
+                      <label htmlFor="campaignSource" className={labelClass}>Campaign Source</label>
+                      <input
+                        id="campaignSource"
+                        name="campaignSource"
+                        type="text"
+                        placeholder="Campaign source"
+                        value={leadFormData.campaignSource}
+                        onChange={handleLeadFormChange}
+                        className={inputClass}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Website + Account Type */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label htmlFor="website" className={labelClass}>Website</label>
+                      <input
+                        id="website"
+                        name="website"
+                        type="url"
+                        placeholder="https://company.com"
+                        value={leadFormData.website}
+                        onChange={handleLeadFormChange}
+                        className={inputClass}
+                      />
+                    </div>
+                    <div>
+                      <label htmlFor="accountType" className={labelClass}>Account Type</label>
+                      <input
+                        id="accountType"
+                        name="accountType"
+                        type="text"
+                        placeholder="Account type"
+                        value={leadFormData.accountType}
+                        onChange={handleLeadFormChange}
+                        className={inputClass}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Lead Category */}
+                  <div>
+                    <label htmlFor="leadCategory" className={labelClass}>Lead Category</label>
+                    <input
+                      id="leadCategory"
+                      name="leadCategory"
+                      type="text"
+                      placeholder="Lead category"
+                      value={leadFormData.leadCategory}
+                      onChange={handleLeadFormChange}
+                      className={inputClass}
+                    />
+                  </div>
+                </div>
+              )}
             </div>
 
-            {/* Company Name + Contact Person */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label htmlFor="companyName" className={labelClass}>
-                  Company Name <span className="text-red-500">*</span>
-                </label>
-                <div className="relative">
-                  <Building2 className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`} />
-                  <input
-                    id="companyName"
-                    name="companyName"
-                    type="text"
-                    placeholder="Enter company name"
-                    value={leadFormData.companyName}
-                    onChange={handleLeadFormChange}
-                    className={`${inputClass} pl-10`}
-                    required
-                  />
+            {/* Order Info Section - Collapsible */}
+            <div className={`border rounded-lg ${isDark ? 'border-zinc-700' : 'border-slate-200'}`}>
+              <button
+                type="button"
+                onClick={() => toggleSection('orderInfo')}
+                className={`w-full p-4 flex justify-between items-center transition-colors ${
+                  isDark ? 'hover:bg-zinc-800/50' : 'hover:bg-slate-50'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <FileText className={`w-4 h-4 ${isDark ? 'text-brand-400' : 'text-brand-600'}`} />
+                  <h3 className={`text-sm font-semibold ${isDark ? 'text-zinc-200' : 'text-slate-700'}`}>Order Information</h3>
                 </div>
-              </div>
-              <div>
-                <label htmlFor="contactPerson" className={labelClass}>Contact Person</label>
-                <div className="relative">
-                  <UserIcon className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`} />
-                  <input
-                    id="contactPerson"
-                    name="contactPerson"
-                    type="text"
-                    placeholder="Contact person name"
-                    value={leadFormData.contactPerson}
-                    onChange={handleLeadFormChange}
-                    className={`${inputClass} pl-10`}
-                  />
+                <ChevronDown className={`w-4 h-4 transition-transform ${expandedSections.orderInfo ? 'rotate-180' : ''} ${
+                  isDark ? 'text-zinc-400' : 'text-slate-400'
+                }`} />
+              </button>
+              {expandedSections.orderInfo && (
+                <div className="px-4 pb-4 space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label htmlFor="productList" className={labelClass}>Product List</label>
+                      <input id="productList" name="productList" type="text" placeholder="Product list" value={leadFormData.productList} onChange={handleLeadFormChange} className={inputClass} />
+                    </div>
+                    <div>
+                      <label htmlFor="typeOfOrder" className={labelClass}>Type of Order</label>
+                      <input id="typeOfOrder" name="typeOfOrder" type="text" placeholder="Order type" value={leadFormData.typeOfOrder} onChange={handleLeadFormChange} className={inputClass} />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label htmlFor="billingDeliveryDate" className={labelClass}>Billing Delivery Date</label>
+                      <input id="billingDeliveryDate" name="billingDeliveryDate" type="date" value={leadFormData.billingDeliveryDate} onChange={handleLeadFormChange} className={inputClass} />
+                    </div>
+                    <div>
+                      <label htmlFor="payment" className={labelClass}>Payment</label>
+                      <input id="payment" name="payment" type="text" placeholder="Payment details" value={leadFormData.payment} onChange={handleLeadFormChange} className={inputClass} />
+                    </div>
+                  </div>
+                  <div>
+                    <label htmlFor="orderProductDetails" className={labelClass}>Order Product Details</label>
+                    <textarea id="orderProductDetails" name="orderProductDetails" rows={3} placeholder="Order product details..." value={leadFormData.orderProductDetails} onChange={handleLeadFormChange} className={`${inputClass} resize-none`} />
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label htmlFor="poNumberOrMailConfirmation" className={labelClass}>PO Number / Mail Confirmation</label>
+                      <input id="poNumberOrMailConfirmation" name="poNumberOrMailConfirmation" type="text" placeholder="PO number" value={leadFormData.poNumberOrMailConfirmation} onChange={handleLeadFormChange} className={inputClass} />
+                    </div>
+                    <div>
+                      <label htmlFor="brand" className={labelClass}>Brand</label>
+                      <input id="brand" name="brand" type="text" placeholder="Brand" value={leadFormData.brand} onChange={handleLeadFormChange} className={inputClass} />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label htmlFor="orcAmount" className={labelClass}>ORC Amount (INR)</label>
+                      <div className="relative">
+                        <IndianRupee className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`} />
+                        <input id="orcAmount" name="orcAmount" type="number" min="0" step="1" placeholder="0" value={leadFormData.orcAmount || ''} onChange={handleLeadFormChange} className={`${inputClass} pl-10`} />
+                      </div>
+                    </div>
+                    <div>
+                      <label htmlFor="productWarranty" className={labelClass}>Product Warranty</label>
+                      <input id="productWarranty" name="productWarranty" type="text" placeholder="Warranty" value={leadFormData.productWarranty} onChange={handleLeadFormChange} className={inputClass} />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label htmlFor="shipBy" className={labelClass}>Ship By</label>
+                      <input id="shipBy" name="shipBy" type="text" placeholder="Shipping method" value={leadFormData.shipBy} onChange={handleLeadFormChange} className={inputClass} />
+                    </div>
+                    <div>
+                      <label htmlFor="billingCompany" className={labelClass}>Billing Company</label>
+                      <input id="billingCompany" name="billingCompany" type="text" placeholder="Billing company" value={leadFormData.billingCompany} onChange={handleLeadFormChange} className={inputClass} />
+                    </div>
+                  </div>
+                  <div>
+                    <label htmlFor="specialInstruction" className={labelClass}>Special Instructions</label>
+                    <textarea id="specialInstruction" name="specialInstruction" rows={2} placeholder="Special instructions..." value={leadFormData.specialInstruction} onChange={handleLeadFormChange} className={`${inputClass} resize-none`} />
+                  </div>
+                  <div>
+                    <label htmlFor="thirdPartyDeliveryAddress" className={labelClass}>3rd Party Delivery Address</label>
+                    <textarea id="thirdPartyDeliveryAddress" name="thirdPartyDeliveryAddress" rows={2} placeholder="Delivery address..." value={leadFormData.thirdPartyDeliveryAddress} onChange={handleLeadFormChange} className={`${inputClass} resize-none`} />
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
 
-            {/* Email + Phone */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label htmlFor="email" className={labelClass}>
-                  Email <span className="text-red-500">*</span>
-                </label>
-                <div className="relative">
-                  <Mail className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`} />
-                  <input
-                    id="email"
-                    name="email"
-                    type="email"
-                    placeholder="contact@company.com"
-                    value={leadFormData.email}
-                    onChange={handleLeadFormChange}
-                    className={`${inputClass} pl-10`}
-                    required
-                  />
+            {/* Forms Info Section - Collapsible */}
+            <div className={`border rounded-lg ${isDark ? 'border-zinc-700' : 'border-slate-200'}`}>
+              <button
+                type="button"
+                onClick={() => toggleSection('formsInfo')}
+                className={`w-full p-4 flex justify-between items-center transition-colors ${
+                  isDark ? 'hover:bg-zinc-800/50' : 'hover:bg-slate-50'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <FileText className={`w-4 h-4 ${isDark ? 'text-brand-400' : 'text-brand-600'}`} />
+                  <h3 className={`text-sm font-semibold ${isDark ? 'text-zinc-200' : 'text-slate-700'}`}>Forms Info</h3>
                 </div>
-              </div>
-              <div>
-                <label htmlFor="phone" className={labelClass}>Phone</label>
-                <div className="relative">
-                  <Phone className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`} />
-                  <input
-                    id="phone"
-                    name="phone"
-                    type="text"
-                    placeholder="+91 XXXXX XXXXX"
-                    value={leadFormData.phone}
-                    onChange={handleLeadFormChange}
-                    className={`${inputClass} pl-10`}
-                  />
+                <ChevronDown className={`w-4 h-4 transition-transform ${expandedSections.formsInfo ? 'rotate-180' : ''} ${
+                  isDark ? 'text-zinc-400' : 'text-slate-400'
+                }`} />
+              </button>
+              {expandedSections.formsInfo && (
+                <div className="px-4 pb-4 space-y-4">
+                  <div>
+                    <label htmlFor="enterProductDetails" className={labelClass}>Enter Product Details</label>
+                    <textarea id="enterProductDetails" name="enterProductDetails" rows={3} placeholder="Product details..." value={leadFormData.enterProductDetails} onChange={handleLeadFormChange} className={`${inputClass} resize-none`} />
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label htmlFor="rentalDuration" className={labelClass}>Rental Duration</label>
+                      <input id="rentalDuration" name="rentalDuration" type="text" placeholder="e.g., 12 months" value={leadFormData.rentalDuration} onChange={handleLeadFormChange} className={inputClass} />
+                    </div>
+                    <div>
+                      <label htmlFor="bandwidthRequired" className={labelClass}>Bandwidth Required</label>
+                      <input id="bandwidthRequired" name="bandwidthRequired" type="text" placeholder="Bandwidth" value={leadFormData.bandwidthRequired} onChange={handleLeadFormChange} className={inputClass} />
+                    </div>
+                  </div>
+                  <div>
+                    <label htmlFor="productConfiguration" className={labelClass}>Product Configuration</label>
+                    <textarea id="productConfiguration" name="productConfiguration" rows={3} placeholder="Configuration details..." value={leadFormData.productConfiguration} onChange={handleLeadFormChange} className={`${inputClass} resize-none`} />
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label htmlFor="productNameAndPartNumber" className={labelClass}>Product Name & Part Number</label>
+                      <input id="productNameAndPartNumber" name="productNameAndPartNumber" type="text" placeholder="Product & part number" value={leadFormData.productNameAndPartNumber} onChange={handleLeadFormChange} className={inputClass} />
+                    </div>
+                    <div>
+                      <label htmlFor="formName" className={labelClass}>Form Name</label>
+                      <input id="formName" name="formName" type="text" placeholder="Form name" value={leadFormData.formName} onChange={handleLeadFormChange} className={inputClass} />
+                    </div>
+                  </div>
+                  <div>
+                    <label htmlFor="specifications" className={labelClass}>Specifications</label>
+                    <textarea id="specifications" name="specifications" rows={3} placeholder="Specifications..." value={leadFormData.specifications} onChange={handleLeadFormChange} className={`${inputClass} resize-none`} />
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
 
-            {/* Section: Opportunity Details */}
-            <div className={`flex items-center gap-2 pb-1 border-b ${isDark ? 'border-zinc-700' : 'border-slate-200'} mt-2`}>
-              <Target className={`w-4 h-4 ${isDark ? 'text-brand-400' : 'text-brand-600'}`} />
-              <h3 className={`text-sm font-semibold ${isDark ? 'text-zinc-200' : 'text-slate-700'}`}>Opportunity Details</h3>
+            {/* Billing Address Section - Collapsible */}
+            <div className={`border rounded-lg ${isDark ? 'border-zinc-700' : 'border-slate-200'}`}>
+              <button
+                type="button"
+                onClick={() => toggleSection('billingAddress')}
+                className={`w-full p-4 flex justify-between items-center transition-colors ${
+                  isDark ? 'hover:bg-zinc-800/50' : 'hover:bg-slate-50'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <Building2 className={`w-4 h-4 ${isDark ? 'text-brand-400' : 'text-brand-600'}`} />
+                  <h3 className={`text-sm font-semibold ${isDark ? 'text-zinc-200' : 'text-slate-700'}`}>Billing Address</h3>
+                </div>
+                <ChevronDown className={`w-4 h-4 transition-transform ${expandedSections.billingAddress ? 'rotate-180' : ''} ${
+                  isDark ? 'text-zinc-400' : 'text-slate-400'
+                }`} />
+              </button>
+              {expandedSections.billingAddress && (
+                <div className="px-4 pb-4 space-y-4">
+                  <div>
+                    <label htmlFor="billingStreet" className={labelClass}>Street</label>
+                    <input id="billingStreet" name="billingStreet" type="text" placeholder="Street address" value={leadFormData.billingStreet} onChange={handleLeadFormChange} className={inputClass} />
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label htmlFor="billingCity" className={labelClass}>City</label>
+                      <input id="billingCity" name="billingCity" type="text" placeholder="City" value={leadFormData.billingCity} onChange={handleLeadFormChange} className={inputClass} />
+                    </div>
+                    <div>
+                      <label htmlFor="billingState" className={labelClass}>State</label>
+                      <input id="billingState" name="billingState" type="text" placeholder="State" value={leadFormData.billingState} onChange={handleLeadFormChange} className={inputClass} />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label htmlFor="billingCountry" className={labelClass}>Country</label>
+                      <input id="billingCountry" name="billingCountry" type="text" placeholder="Country" value={leadFormData.billingCountry} onChange={handleLeadFormChange} className={inputClass} />
+                    </div>
+                    <div>
+                      <label htmlFor="billingZipCode" className={labelClass}>Zip Code</label>
+                      <input id="billingZipCode" name="billingZipCode" type="text" placeholder="Zip code" value={leadFormData.billingZipCode} onChange={handleLeadFormChange} className={inputClass} />
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
-            {/* Estimated Value + Product Interest */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label htmlFor="estimatedValue" className={labelClass}>Estimated Value (INR)</label>
-                <div className="relative">
-                  <IndianRupee className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`} />
-                  <input
-                    id="estimatedValue"
-                    name="estimatedValue"
-                    type="number"
-                    min="0"
-                    step="1"
-                    placeholder="0"
-                    value={leadFormData.estimatedValue || ''}
-                    onChange={handleLeadFormChange}
-                    className={`${inputClass} pl-10`}
-                  />
+            {/* Description Info Section - Collapsible */}
+            <div className={`border rounded-lg ${isDark ? 'border-zinc-700' : 'border-slate-200'}`}>
+              <button
+                type="button"
+                onClick={() => toggleSection('descriptionInfo')}
+                className={`w-full p-4 flex justify-between items-center transition-colors ${
+                  isDark ? 'hover:bg-zinc-800/50' : 'hover:bg-slate-50'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <StickyNote className={`w-4 h-4 ${isDark ? 'text-brand-400' : 'text-brand-600'}`} />
+                  <h3 className={`text-sm font-semibold ${isDark ? 'text-zinc-200' : 'text-slate-700'}`}>Description Info</h3>
                 </div>
-              </div>
-              <div>
-                <label htmlFor="productInterest" className={labelClass}>Product Interest</label>
-                <div className="relative">
-                  <Target className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`} />
-                  <input
-                    id="productInterest"
-                    name="productInterest"
-                    type="text"
-                    placeholder="e.g. HP ProLiant DL380"
-                    value={leadFormData.productInterest}
-                    onChange={handleLeadFormChange}
-                    className={`${inputClass} pl-10`}
-                  />
+                <ChevronDown className={`w-4 h-4 transition-transform ${expandedSections.descriptionInfo ? 'rotate-180' : ''} ${
+                  isDark ? 'text-zinc-400' : 'text-slate-400'
+                }`} />
+              </button>
+              {expandedSections.descriptionInfo && (
+                <div className="px-4 pb-4 space-y-4">
+                  <div>
+                    <label htmlFor="description" className={labelClass}>Description</label>
+                    <textarea id="description" name="description" rows={3} placeholder="Description..." value={leadFormData.description} onChange={handleLeadFormChange} className={`${inputClass} resize-none`} />
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label htmlFor="leadTime" className={labelClass}>Lead Time</label>
+                      <input id="leadTime" name="leadTime" type="text" placeholder="Lead time" value={leadFormData.leadTime} onChange={handleLeadFormChange} className={inputClass} />
+                    </div>
+                    <div>
+                      <label htmlFor="productName" className={labelClass}>Product Name</label>
+                      <input id="productName" name="productName" type="text" placeholder="Product name" value={leadFormData.productName} onChange={handleLeadFormChange} className={inputClass} />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label htmlFor="receiverMobileNumber" className={labelClass}>Receiver Mobile Number</label>
+                      <input id="receiverMobileNumber" name="receiverMobileNumber" type="text" placeholder="Receiver mobile" value={leadFormData.receiverMobileNumber} onChange={handleLeadFormChange} className={inputClass} />
+                    </div>
+                    <div>
+                      <label htmlFor="callDuration" className={labelClass}>Call Duration</label>
+                      <input id="callDuration" name="callDuration" type="text" placeholder="Call duration" value={leadFormData.callDuration} onChange={handleLeadFormChange} className={inputClass} />
+                    </div>
+                  </div>
+                  <div>
+                    <label htmlFor="subject" className={labelClass}>Subject</label>
+                    <input id="subject" name="subject" type="text" placeholder="Subject" value={leadFormData.subject} onChange={handleLeadFormChange} className={inputClass} />
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label htmlFor="senderLandlineNo" className={labelClass}>Sender Landline No</label>
+                      <input id="senderLandlineNo" name="senderLandlineNo" type="text" placeholder="Landline" value={leadFormData.senderLandlineNo} onChange={handleLeadFormChange} className={inputClass} />
+                    </div>
+                    <div>
+                      <label htmlFor="senderLandlineNoAlt" className={labelClass}>Sender Landline No (Alt)</label>
+                      <input id="senderLandlineNoAlt" name="senderLandlineNoAlt" type="text" placeholder="Alt landline" value={leadFormData.senderLandlineNoAlt} onChange={handleLeadFormChange} className={inputClass} />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div>
+                      <label htmlFor="leadType" className={labelClass}>Lead Type</label>
+                      <input id="leadType" name="leadType" type="text" placeholder="Lead type" value={leadFormData.leadType} onChange={handleLeadFormChange} className={inputClass} />
+                    </div>
+                    <div>
+                      <label htmlFor="queryId" className={labelClass}>Query ID</label>
+                      <input id="queryId" name="queryId" type="text" placeholder="Query ID" value={leadFormData.queryId} onChange={handleLeadFormChange} className={inputClass} />
+                    </div>
+                    <div>
+                      <label htmlFor="mcatName" className={labelClass}>MCAT Name</label>
+                      <input id="mcatName" name="mcatName" type="text" placeholder="MCAT name" value={leadFormData.mcatName} onChange={handleLeadFormChange} className={inputClass} />
+                    </div>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
 
-            {/* Expected Close Date + Next Follow-up */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label htmlFor="expectedCloseDate" className={labelClass}>Expected Close Date</label>
-                <div className="relative">
-                  <Calendar className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`} />
-                  <input
-                    id="expectedCloseDate"
-                    name="expectedCloseDate"
-                    type="date"
-                    value={leadFormData.expectedCloseDate}
-                    onChange={handleLeadFormChange}
-                    className={`${inputClass} pl-10`}
-                  />
+            {/* Lead Image Section - Collapsible */}
+            <div className={`border rounded-lg ${isDark ? 'border-zinc-700' : 'border-slate-200'}`}>
+              <button
+                type="button"
+                onClick={() => toggleSection('leadImage')}
+                className={`w-full p-4 flex justify-between items-center transition-colors ${
+                  isDark ? 'hover:bg-zinc-800/50' : 'hover:bg-slate-50'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <UserIcon className={`w-4 h-4 ${isDark ? 'text-brand-400' : 'text-brand-600'}`} />
+                  <h3 className={`text-sm font-semibold ${isDark ? 'text-zinc-200' : 'text-slate-700'}`}>Lead Image</h3>
                 </div>
-              </div>
-              <div>
-                <label htmlFor="nextFollowUp" className={labelClass}>Next Follow-up</label>
-                <div className="relative">
-                  <Clock className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`} />
-                  <input
-                    id="nextFollowUp"
-                    name="nextFollowUp"
-                    type="date"
-                    value={leadFormData.nextFollowUp}
-                    onChange={handleLeadFormChange}
-                    className={`${inputClass} pl-10`}
-                  />
+                <ChevronDown className={`w-4 h-4 transition-transform ${expandedSections.leadImage ? 'rotate-180' : ''} ${
+                  isDark ? 'text-zinc-400' : 'text-slate-400'
+                }`} />
+              </button>
+              {expandedSections.leadImage && (
+                <div className="px-4 pb-4">
+                  <label htmlFor="leadImage" className={labelClass}>Lead Image URL</label>
+                  <input id="leadImage" name="leadImage" type="text" placeholder="Image URL" value={leadFormData.leadImage} onChange={handleLeadFormChange} className={inputClass} />
                 </div>
-              </div>
+              )}
             </div>
 
-            {/* Section: Lead Classification */}
-            <div className={`flex items-center gap-2 pb-1 border-b ${isDark ? 'border-zinc-700' : 'border-slate-200'} mt-2`}>
-              <Tags className={`w-4 h-4 ${isDark ? 'text-brand-400' : 'text-brand-600'}`} />
-              <h3 className={`text-sm font-semibold ${isDark ? 'text-zinc-200' : 'text-slate-700'}`}>Lead Classification</h3>
-            </div>
-
-            {/* Source + Stage + Priority */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div>
-                <label htmlFor="source" className={labelClass}>Source</label>
-                <select
-                  id="source"
-                  name="source"
-                  value={leadFormData.source}
-                  onChange={handleLeadFormChange}
-                  className={selectClass}
-                >
-                  <option value="">Select Source</option>
-                  {SOURCES.map(s => (
-                    <option key={s.value} value={s.value}>{s.label}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label htmlFor="stage" className={labelClass}>Stage</label>
-                <select
-                  id="stage"
-                  name="stage"
-                  value={leadFormData.stage}
-                  onChange={handleLeadFormChange}
-                  className={selectClass}
-                >
-                  {LEAD_STAGES.map(s => (
-                    <option key={s} value={s}>{s}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label htmlFor="priority" className={labelClass}>Priority</label>
-                <select
-                  id="priority"
-                  name="priority"
-                  value={leadFormData.priority}
-                  onChange={handleLeadFormChange}
-                  className={selectClass}
-                >
-                  {PRIORITIES.map(p => (
-                    <option key={p} value={p}>{p}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            {/* Assigned To + Partner */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label htmlFor="assignedTo" className={labelClass}>
-                  Assigned To
-                </label>
-                <div className="relative">
-                  <Users className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`} />
-                  <select
-                    id="assignedTo"
-                    name="assignedTo"
-                    value={leadFormData.assignedTo}
-                    onChange={handleLeadFormChange}
-                    className={`${selectClass} pl-10`}
-                  >
-                    <option value="">Auto-assign (Me)</option>
-                    {users.map(u => (
-                      <option key={u.id} value={u.id}>{u.name}</option>
-                    ))}
-                  </select>
+            {/* Opportunity Details Section - Collapsible */}
+            <div className={`border rounded-lg ${isDark ? 'border-zinc-700' : 'border-slate-200'}`}>
+              <button
+                type="button"
+                onClick={() => toggleSection('opportunityDetails')}
+                className={`w-full p-4 flex justify-between items-center transition-colors ${
+                  isDark ? 'hover:bg-zinc-800/50' : 'hover:bg-slate-50'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <Target className={`w-4 h-4 ${isDark ? 'text-brand-400' : 'text-brand-600'}`} />
+                  <h3 className={`text-sm font-semibold ${isDark ? 'text-zinc-200' : 'text-slate-700'}`}>Opportunity Details</h3>
                 </div>
-              </div>
-              <div>
-                <label htmlFor="partnerId" className={labelClass}>Partner</label>
-                <select
-                  id="partnerId"
-                  name="partnerId"
-                  value={leadFormData.partnerId}
-                  onChange={handleLeadFormChange}
-                  className={selectClass}
-                >
-                  <option value="">Select Partner (Optional)</option>
-                  {partners.map(p => (
-                    <option key={p.id} value={p.id}>{p.companyName}</option>
-                  ))}
-                </select>
-              </div>
+                <ChevronDown className={`w-4 h-4 transition-transform ${expandedSections.opportunityDetails ? 'rotate-180' : ''} ${
+                  isDark ? 'text-zinc-400' : 'text-slate-400'
+                }`} />
+              </button>
+              {expandedSections.opportunityDetails && (
+                <div className="px-4 pb-4 space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label htmlFor="estimatedValue" className={labelClass}>Estimated Value (INR)</label>
+                      <div className="relative">
+                        <IndianRupee className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`} />
+                        <input id="estimatedValue" name="estimatedValue" type="number" min="0" step="1" placeholder="0" value={leadFormData.estimatedValue || ''} onChange={handleLeadFormChange} className={`${inputClass} pl-10`} />
+                      </div>
+                    </div>
+                    <div>
+                      <label htmlFor="productInterest" className={labelClass}>Product Interest</label>
+                      <div className="relative">
+                        <Target className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`} />
+                        <input id="productInterest" name="productInterest" type="text" placeholder="e.g. HP ProLiant DL380" value={leadFormData.productInterest} onChange={handleLeadFormChange} className={`${inputClass} pl-10`} />
+                      </div>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label htmlFor="expectedCloseDate" className={labelClass}>Expected Close Date</label>
+                      <div className="relative">
+                        <Calendar className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`} />
+                        <input id="expectedCloseDate" name="expectedCloseDate" type="date" value={leadFormData.expectedCloseDate} onChange={handleLeadFormChange} className={`${inputClass} pl-10`} />
+                      </div>
+                    </div>
+                    <div>
+                      <label htmlFor="nextFollowUp" className={labelClass}>Next Follow-up</label>
+                      <div className="relative">
+                        <Clock className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`} />
+                        <input id="nextFollowUp" name="nextFollowUp" type="date" value={leadFormData.nextFollowUp} onChange={handleLeadFormChange} className={`${inputClass} pl-10`} />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Lead Classification Section - Collapsible */}
+            <div className={`border rounded-lg ${isDark ? 'border-zinc-700' : 'border-slate-200'}`}>
+              <button
+                type="button"
+                onClick={() => toggleSection('classification')}
+                className={`w-full p-4 flex justify-between items-center transition-colors ${
+                  isDark ? 'hover:bg-zinc-800/50' : 'hover:bg-slate-50'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <Tags className={`w-4 h-4 ${isDark ? 'text-brand-400' : 'text-brand-600'}`} />
+                  <h3 className={`text-sm font-semibold ${isDark ? 'text-zinc-200' : 'text-slate-700'}`}>Lead Classification</h3>
+                </div>
+                <ChevronDown className={`w-4 h-4 transition-transform ${expandedSections.classification ? 'rotate-180' : ''} ${
+                  isDark ? 'text-zinc-400' : 'text-slate-400'
+                }`} />
+              </button>
+              {expandedSections.classification && (
+                <div className="px-4 pb-4 space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div>
+                      <label htmlFor="source" className={labelClass}>Source</label>
+                      <select id="source" name="source" value={leadFormData.source} onChange={handleLeadFormChange} className={selectClass}>
+                        <option value="">Select Source</option>
+                        {SOURCES.map(s => (
+                          <option key={s.value} value={s.value}>{s.label}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label htmlFor="stage" className={labelClass}>Stage</label>
+                      <select id="stage" name="stage" value={leadFormData.stage} onChange={handleLeadFormChange} className={selectClass}>
+                        {LEAD_STAGES.map(s => (
+                          <option key={s} value={s}>{s}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label htmlFor="priority" className={labelClass}>Priority</label>
+                      <select id="priority" name="priority" value={leadFormData.priority} onChange={handleLeadFormChange} className={selectClass}>
+                        {PRIORITIES.map(p => (
+                          <option key={p} value={p}>{p}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label htmlFor="assignedTo" className={labelClass}>Assigned To</label>
+                      <div className="relative">
+                        <Users className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`} />
+                        <select id="assignedTo" name="assignedTo" value={leadFormData.assignedTo} onChange={handleLeadFormChange} className={`${selectClass} pl-10`}>
+                          <option value="">Auto-assign (Me)</option>
+                          {users.map(u => (
+                            <option key={u.id} value={u.id}>{u.name}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                    <div>
+                      <label htmlFor="partnerId" className={labelClass}>Partner</label>
+                      <select id="partnerId" name="partnerId" value={leadFormData.partnerId} onChange={handleLeadFormChange} className={selectClass}>
+                        <option value="">Select Partner (Optional)</option>
+                        {partners.map(p => (
+                          <option key={p.id} value={p.id}>{p.companyName}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Notes */}
             <div>
               <label htmlFor="notes" className={labelClass}>Notes</label>
-              <textarea
-                id="notes"
-                name="notes"
-                rows={3}
-                placeholder="Additional notes about this lead..."
-                value={leadFormData.notes}
-                onChange={handleLeadFormChange}
-                className={`${inputClass} resize-none`}
-              />
+              <textarea id="notes" name="notes" rows={3} placeholder="Additional notes about this lead..." value={leadFormData.notes} onChange={handleLeadFormChange} className={`${inputClass} resize-none`} />
             </div>
 
             </div>

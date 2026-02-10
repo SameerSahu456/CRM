@@ -5,7 +5,7 @@ import { WidgetProps, DashboardData, BreakdownData } from '../types';
 import { dashboardApi } from '../../../services/api';
 import { formatCompact } from '../../../utils/dashboard';
 
-export const PartnersWidget: React.FC<WidgetProps> = ({ isDark, navigate }) => {
+export const PartnersWidget: React.FC<WidgetProps> = ({ isDark, navigate, onDetailClick }) => {
   const [stats, setStats] = useState<DashboardData | null>(null);
   const [breakdownData, setBreakdownData] = useState<BreakdownData>({ byProduct: [], byPartner: [], bySalesperson: [] });
 
@@ -40,7 +40,7 @@ export const PartnersWidget: React.FC<WidgetProps> = ({ isDark, navigate }) => {
       titleColor={isDark ? 'text-blue-400' : 'text-blue-700'}
       subtitle={currentMonth}
       isDark={isDark}
-      onClick={() => navigate('partners')}
+      onClick={() => onDetailClick?.()}
     >
       {/* Status badges */}
       <div className="flex flex-wrap gap-2 mb-4">

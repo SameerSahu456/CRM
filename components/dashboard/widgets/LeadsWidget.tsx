@@ -4,7 +4,7 @@ import { AnalyticsCard } from '../AnalyticsCard';
 import { WidgetProps } from '../types';
 import { dashboardApi } from '../../../services/api';
 
-export const LeadsWidget: React.FC<WidgetProps> = ({ isDark, navigate }) => {
+export const LeadsWidget: React.FC<WidgetProps> = ({ isDark, navigate, onDetailClick }) => {
   const [leadStats, setLeadStats] = useState<Record<string, number>>({});
 
   useEffect(() => {
@@ -43,7 +43,7 @@ export const LeadsWidget: React.FC<WidgetProps> = ({ isDark, navigate }) => {
       titleColor={isDark ? 'text-orange-400' : 'text-orange-700'}
       subtitle="Funnel Analysis"
       isDark={isDark}
-      onClick={() => navigate('crm')}
+      onClick={() => onDetailClick?.()}
     >
       {/* Big metric */}
       <div className="flex items-baseline justify-between mb-4">

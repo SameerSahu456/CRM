@@ -7,6 +7,8 @@ import {
 import { NavigationItem } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
+import { useView } from '../contexts/ViewContext';
+import { ViewSwitcher } from './ViewSwitcher';
 
 interface SidebarProps {
   activeTab: NavigationItem;
@@ -21,36 +23,51 @@ interface NavItem {
   icon: React.ReactNode;
   section: string;
   roles?: string[];
+  view?: 'presales' | 'postsales' | 'both'; // Which view this item belongs to
 }
 
 const navItems: NavItem[] = [
-  { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard className="w-4 h-4" />, section: 'Overview' },
-  { id: 'sales-entry', label: 'Sales Entry', icon: <ShoppingCart className="w-4 h-4" />, section: 'Sales' },
-  { id: 'partners', label: 'Partners', icon: <Users className="w-4 h-4" />, section: 'Sales' },
-  { id: 'crm', label: 'CRM / Leads', icon: <Target className="w-4 h-4" />, section: 'Sales' },
-  { id: 'accounts', label: 'Accounts', icon: <Building2 className="w-4 h-4" />, section: 'Sales' },
-  { id: 'contacts', label: 'Contacts', icon: <Contact className="w-4 h-4" />, section: 'Sales' },
-  { id: 'deals', label: 'Deals', icon: <Handshake className="w-4 h-4" />, section: 'Sales' },
-  { id: 'quote-builder', label: 'Quote Builder', icon: <FileText className="w-4 h-4" />, section: 'Tools' },
-  { id: 'carepacks', label: 'Carepack Tracker', icon: <Package className="w-4 h-4" />, section: 'Tools' },
-  { id: 'tasks', label: 'Tasks', icon: <CheckSquare className="w-4 h-4" />, section: 'Tools' },
-  { id: 'calendar', label: 'Calendar', icon: <Calendar className="w-4 h-4" />, section: 'Tools' },
-  { id: 'emails', label: 'Emails', icon: <Mail className="w-4 h-4" />, section: 'Tools' },
-  { id: 'reports', label: 'Reports', icon: <BarChart3 className="w-4 h-4" />, section: 'Tools' },
-  { id: 'admin', label: 'Admin', icon: <ShieldIcon className="w-4 h-4" />, section: 'System', roles: ['admin', 'superadmin'] },
-  { id: 'settings', label: 'Settings', icon: <Settings className="w-4 h-4" />, section: 'System' },
+  { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard className="w-4 h-4" />, section: 'Overview', view: 'both' },
+  // Post-Sales items
+  { id: 'sales-entry', label: 'Sales Entry', icon: <ShoppingCart className="w-4 h-4" />, section: 'Post-Sales', view: 'postsales' },
+  { id: 'partners', label: 'Partners', icon: <Users className="w-4 h-4" />, section: 'Post-Sales', view: 'postsales' },
+  // Pre-Sales items
+  { id: 'crm', label: 'CRM / Leads', icon: <Target className="w-4 h-4" />, section: 'Pre-Sales', view: 'presales' },
+  { id: 'accounts', label: 'Accounts', icon: <Building2 className="w-4 h-4" />, section: 'Pre-Sales', view: 'presales' },
+  { id: 'contacts', label: 'Contacts', icon: <Contact className="w-4 h-4" />, section: 'Pre-Sales', view: 'presales' },
+  { id: 'deals', label: 'Deals', icon: <Handshake className="w-4 h-4" />, section: 'Pre-Sales', view: 'presales' },
+  // Tools (available in both views)
+  { id: 'quote-builder', label: 'Quote Builder', icon: <FileText className="w-4 h-4" />, section: 'Tools', view: 'both' },
+  { id: 'carepacks', label: 'Carepack Tracker', icon: <Package className="w-4 h-4" />, section: 'Tools', view: 'both' },
+  { id: 'tasks', label: 'Tasks', icon: <CheckSquare className="w-4 h-4" />, section: 'Tools', view: 'both' },
+  { id: 'calendar', label: 'Calendar', icon: <Calendar className="w-4 h-4" />, section: 'Tools', view: 'both' },
+  { id: 'emails', label: 'Emails', icon: <Mail className="w-4 h-4" />, section: 'Tools', view: 'both' },
+  { id: 'reports', label: 'Reports', icon: <BarChart3 className="w-4 h-4" />, section: 'Tools', view: 'both' },
+  // System (available in both views)
+  { id: 'admin', label: 'Admin', icon: <ShieldIcon className="w-4 h-4" />, section: 'System', roles: ['admin', 'superadmin'], view: 'both' },
+  { id: 'settings', label: 'Settings', icon: <Settings className="w-4 h-4" />, section: 'System', view: 'both' },
 ];
 
 export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, isOpen, onClose }) => {
   const { signOut, user } = useAuth();
   const { theme } = useTheme();
+  const { currentView } = useView();
 
-  const sections = ['Overview', 'Sales', 'Tools', 'System'];
+  const sections = ['Overview', 'Pre-Sales', 'Post-Sales', 'Tools', 'System'];
 
   const filteredItems = navItems.filter(item => {
+    // Filter by role
     if (item.roles && user) {
-      return item.roles.includes(user.role);
+      if (!item.roles.includes(user.role)) return false;
     }
+
+    // Filter by view
+    if (item.view) {
+      if (item.view === 'both') return true;
+      if (currentView === 'both') return true;
+      return item.view === currentView;
+    }
+
     return true;
   });
 
@@ -91,6 +108,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, isOpe
           }`}>
             <X className="w-5 h-5" />
           </button>
+        </div>
+
+        {/* View Switcher */}
+        <div className={`px-3 py-3 border-b ${
+          theme === 'dark' ? 'border-zinc-800' : 'border-slate-200'
+        }`}>
+          <ViewSwitcher />
         </div>
 
         {/* Navigation */}

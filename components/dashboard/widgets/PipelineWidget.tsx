@@ -5,7 +5,7 @@ import { WidgetProps } from '../types';
 import { dashboardApi } from '../../../services/api';
 import { formatCompact } from '../../../utils/dashboard';
 
-export const PipelineWidget: React.FC<WidgetProps> = ({ isDark, navigate }) => {
+export const PipelineWidget: React.FC<WidgetProps> = ({ isDark, navigate, onDetailClick }) => {
   const [dealStatsRaw, setDealStatsRaw] = useState<Record<string, { count: number; value: number }>>({});
 
   useEffect(() => {
@@ -54,7 +54,7 @@ export const PipelineWidget: React.FC<WidgetProps> = ({ isDark, navigate }) => {
         </div>
       }
       isDark={isDark}
-      onClick={() => navigate('deals')}
+      onClick={() => onDetailClick?.()}
     >
       {/* Big metric */}
       <div className="flex items-baseline justify-between mb-4">

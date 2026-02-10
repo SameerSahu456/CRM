@@ -171,7 +171,7 @@ export const ContactsPage: React.FC = () => {
 
   const fetchAccounts = useCallback(async () => {
     try {
-      const response = await accountsApi.list({ limit: '200' });
+      const response = await accountsApi.list({ limit: '100' });
       const data = response?.data ?? response;
       setAccountsList(Array.isArray(data) ? data : []);
     } catch {

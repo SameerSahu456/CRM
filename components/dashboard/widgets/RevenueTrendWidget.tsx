@@ -6,7 +6,7 @@ import { WidgetProps, MonthlyStat } from '../types';
 import { dashboardApi, formatINR } from '../../../services/api';
 import { pctChange } from '../../../utils/dashboard';
 
-export const RevenueTrendWidget: React.FC<WidgetProps> = ({ isDark, navigate }) => {
+export const RevenueTrendWidget: React.FC<WidgetProps> = ({ isDark, navigate, onDetailClick }) => {
   const [monthly, setMonthly] = useState<MonthlyStat[]>([]);
 
   useEffect(() => {
@@ -33,7 +33,7 @@ export const RevenueTrendWidget: React.FC<WidgetProps> = ({ isDark, navigate }) 
       subtitle={`Last ${monthly.length} months`}
       badge={monthlyChange !== 0 ? { value: monthlyChange } : undefined}
       isDark={isDark}
-      onClick={() => navigate('reports')}
+      onClick={() => onDetailClick?.()}
     >
       {monthly.length === 0 ? (
         <div className={`h-44 flex items-center justify-center rounded-xl ${isDark ? 'bg-zinc-900/50' : 'bg-slate-50'}`}>

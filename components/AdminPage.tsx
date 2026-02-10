@@ -45,6 +45,7 @@ interface UserFormData {
   employeeId: string;
   monthlyTarget: number | '';
   isActive: boolean;
+  viewAccess: 'presales' | 'postsales' | 'both';
 }
 
 const EMPTY_USER_FORM: UserFormData = {
@@ -57,6 +58,7 @@ const EMPTY_USER_FORM: UserFormData = {
   employeeId: '',
   monthlyTarget: '',
   isActive: true,
+  viewAccess: 'presales',
 };
 
 interface ProductFormData {
@@ -1332,6 +1334,7 @@ export const AdminPage: React.FC = () => {
       employeeId: u.employeeId || '',
       monthlyTarget: u.monthlyTarget ?? '',
       isActive: u.isActive,
+      viewAccess: u.viewAccess || 'presales',
     });
     setUserFormError('');
     setShowUserModal(true);
@@ -1734,6 +1737,14 @@ export const AdminPage: React.FC = () => {
                 {USER_ROLES.map(r => (
                   <option key={r.value} value={r.value}>{r.label}</option>
                 ))}
+              </select>
+            </div>
+            <div>
+              <label className={labelClass}>View Access <span className="text-red-500">*</span></label>
+              <select name="viewAccess" value={userForm.viewAccess} onChange={handleUserFormChange} className={selectClass}>
+                <option value="presales">Pre-Sales (Leads, Accounts, Contacts, Deals)</option>
+                <option value="postsales">Post-Sales (Sales Entry, Partners)</option>
+                <option value="both">Both (All Features)</option>
               </select>
             </div>
           </div>

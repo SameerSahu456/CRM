@@ -137,7 +137,7 @@ function formatDateTime(dateStr?: string): string {
 
 function stageBadge(stage: DealStage, isDark: boolean): string {
   const base = 'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium';
-  const c = STAGE_COLORS[stage];
+  const c = STAGE_COLORS[stage] || STAGE_COLORS['Qualification']; // Fallback to Qualification if stage not found
   return `${base} ${isDark ? `${c.darkBg} ${c.darkText}` : `${c.bg} ${c.text}`}`;
 }
 
@@ -194,6 +194,10 @@ export const DealsPage: React.FC = () => {
   const [editingDealId, setEditingDealId] = useState<string | null>(null);
   const [dealFormData, setDealFormData] = useState<DealFormData>({ ...EMPTY_DEAL_FORM });
   const [dealFormError, setDealFormError] = useState('');
+
+  // Detail modal
+  const [showDetailModal, setShowDetailModal] = useState(false);
+  const [detailDeal, setDetailDeal] = useState<Deal | null>(null);
 
   // Delete confirmation
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
@@ -267,8 +271,8 @@ export const DealsPage: React.FC = () => {
   const fetchDropdownData = useCallback(async () => {
     try {
       const [accountsResponse, contactsResponse] = await Promise.all([
-        accountsApi.list({ limit: '200' }),
-        contactsApi.list({ limit: '200' }),
+        accountsApi.list({ limit: '100' }),
+        contactsApi.list({ limit: '100' }),
       ]);
       const acctData = accountsResponse?.data ?? accountsResponse;
       setAccounts(Array.isArray(acctData) ? acctData : []);
@@ -335,6 +339,16 @@ export const DealsPage: React.FC = () => {
     setShowDealModal(false);
     setEditingDealId(null);
     setDealFormError('');
+  };
+
+  const openDealDetailModal = (deal: Deal) => {
+    setDetailDeal(deal);
+    setShowDetailModal(true);
+  };
+
+  const closeDealDetailModal = () => {
+    setShowDetailModal(false);
+    setDetailDeal(null);
   };
 
   const handleDealFormChange = (
@@ -446,7 +460,7 @@ export const DealsPage: React.FC = () => {
   const renderStatsBar = () => (
     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
       {DEAL_STAGES.map((stage, idx) => {
-        const c = STAGE_COLORS[stage];
+        const c = STAGE_COLORS[stage] || STAGE_COLORS['Qualification']; // Fallback to Qualification if stage not found
         const stats = pipelineStats[stage];
         const count = stats?.count ?? 0;
         const totalValue = stats?.totalValue ?? 0;
@@ -651,7 +665,7 @@ export const DealsPage: React.FC = () => {
                 {deals.map(deal => (
                   <tr
                     key={deal.id}
-                    onClick={() => openEditDealModal(deal)}
+                    onClick={() => openDealDetailModal(deal)}
                     className={`border-b transition-colors cursor-pointer ${
                       isDark
                         ? 'border-zinc-800/50 hover:bg-gray-800/50'
@@ -862,7 +876,7 @@ export const DealsPage: React.FC = () => {
   // ---------------------------------------------------------------------------
 
   const renderPipelineCard = (deal: Deal) => {
-    const c = STAGE_COLORS[deal.stage];
+    const c = STAGE_COLORS[deal.stage] || STAGE_COLORS['Qualification']; // Fallback to Qualification if stage not found
     const nextStage = NEXT_STAGE[deal.stage];
 
     return (
@@ -985,7 +999,7 @@ export const DealsPage: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {PIPELINE_STAGES.map(stage => {
             const stageDeals = (groupedDeals[stage] || []).filter(filterDeal);
-            const c = STAGE_COLORS[stage];
+            const c = STAGE_COLORS[stage] || STAGE_COLORS['Qualification']; // Fallback to Qualification if stage not found
             const stageTotal = stageDeals.reduce((sum, d) => sum + (d.value || 0), 0);
             return (
               <div key={stage} className={`${cardClass} p-3 min-h-[200px]`}>
@@ -1028,7 +1042,7 @@ export const DealsPage: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {TERMINAL_STAGES.map(stage => {
             const stageDeals = (groupedDeals[stage] || []).filter(filterDeal);
-            const c = STAGE_COLORS[stage];
+            const c = STAGE_COLORS[stage] || STAGE_COLORS['Qualification']; // Fallback to Qualification if stage not found
             const isWon = stage === 'Closed Won';
             const stageTotal = stageDeals.reduce((sum, d) => sum + (d.value || 0), 0);
             return (
@@ -1066,7 +1080,7 @@ export const DealsPage: React.FC = () => {
                     {stageDeals.slice(0, 6).map(deal => (
                       <div
                         key={deal.id}
-                        onClick={() => openEditDealModal(deal)}
+                        onClick={() => openDealDetailModal(deal)}
                         className={`p-2 rounded-lg border cursor-pointer transition-colors ${
                           isDark
                             ? 'border-zinc-700 hover:bg-zinc-800/50'
@@ -1104,6 +1118,124 @@ export const DealsPage: React.FC = () => {
               </div>
             );
           })}
+        </div>
+      </div>
+    );
+  };
+
+  // ---------------------------------------------------------------------------
+  // Render: Deal Detail Modal
+  // ---------------------------------------------------------------------------
+
+  const renderDealDetailModal = () => {
+    if (!showDetailModal || !detailDeal) return null;
+    const deal = detailDeal;
+    const stageColor = STAGE_COLORS[deal.stage] || STAGE_COLORS['Qualification'];
+
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="absolute inset-0 bg-black/50 animate-backdrop" onClick={closeDealDetailModal} />
+        <div className={`relative w-full max-w-2xl max-h-[85vh] rounded-2xl animate-fade-in-up flex flex-col overflow-hidden ${
+          isDark ? 'bg-dark-50 border border-zinc-800' : 'bg-white shadow-premium'
+        }`}>
+          {/* Header */}
+          <div className={`flex-shrink-0 flex items-center justify-between px-6 py-4 border-b ${
+            isDark ? 'bg-dark-50 border-zinc-800' : 'bg-white border-slate-200'
+          }`}>
+            <div className="flex items-center gap-3 min-w-0">
+              <h2 className={`text-lg font-semibold font-display truncate ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                {deal.title}
+              </h2>
+              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                isDark ? `${stageColor.darkBg} ${stageColor.darkText}` : `${stageColor.bg} ${stageColor.text}`
+              }`}>
+                {deal.stage}
+              </span>
+            </div>
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <button
+                onClick={() => { closeDealDetailModal(); openEditDealModal(deal); }}
+                className={`p-2 rounded-lg transition-colors ${
+                  isDark ? 'text-zinc-400 hover:text-white hover:bg-zinc-800' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100'
+                }`}
+                title="Edit"
+              >
+                <Edit2 className="w-4 h-4" />
+              </button>
+              <button
+                onClick={closeDealDetailModal}
+                className={`p-2 rounded-lg transition-colors ${
+                  isDark ? 'text-zinc-400 hover:text-white hover:bg-zinc-800' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100'
+                }`}
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
+
+          {/* Body */}
+          <div className="flex-1 overflow-y-auto">
+            <div className="p-6 space-y-6">
+              {/* Deal Value Highlight */}
+              {deal.value ? (
+                <div className={`flex items-center gap-3 p-4 rounded-xl ${
+                  isDark ? 'bg-emerald-900/10 border border-emerald-900/30' : 'bg-emerald-50 border border-emerald-100'
+                }`}>
+                  <IndianRupee className={`w-6 h-6 ${isDark ? 'text-emerald-400' : 'text-emerald-600'}`} />
+                  <div>
+                    <p className={`text-xs font-medium ${isDark ? 'text-emerald-400/70' : 'text-emerald-600/70'}`}>Deal Value</p>
+                    <p className={`text-xl font-bold ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`}>{formatINR(deal.value)}</p>
+                  </div>
+                  {deal.probability !== undefined && deal.probability !== null && (
+                    <div className="ml-auto text-right">
+                      <p className={`text-xs font-medium ${isDark ? 'text-emerald-400/70' : 'text-emerald-600/70'}`}>Probability</p>
+                      <p className={`text-lg font-bold ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`}>{deal.probability}%</p>
+                    </div>
+                  )}
+                </div>
+              ) : null}
+
+              {/* Info Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <DetailInfoRow label="Company" value={deal.company} isDark={isDark} icon={<Building2 className="w-3.5 h-3.5" />} />
+                <DetailInfoRow label="Account" value={deal.accountName} isDark={isDark} icon={<Building2 className="w-3.5 h-3.5" />} />
+                <DetailInfoRow label="Contact" value={deal.contactName} isDark={isDark} icon={<UserIcon className="w-3.5 h-3.5" />} />
+                <DetailInfoRow label="Owner" value={deal.ownerName} isDark={isDark} icon={<UserIcon className="w-3.5 h-3.5" />} />
+                <DetailInfoRow label="Closing Date" value={deal.closingDate ? formatDate(deal.closingDate) : undefined} isDark={isDark} icon={<Calendar className="w-3.5 h-3.5" />} />
+                <DetailInfoRow label="Type" value={deal.type} isDark={isDark} icon={<Briefcase className="w-3.5 h-3.5" />} />
+                <DetailInfoRow label="Forecast" value={deal.forecast} isDark={isDark} icon={<Target className="w-3.5 h-3.5" />} />
+                <DetailInfoRow label="Lead Source" value={deal.leadSource} isDark={isDark} icon={<TrendingUp className="w-3.5 h-3.5" />} />
+              </div>
+
+              {/* Next Step */}
+              {deal.nextStep && (
+                <div>
+                  <h4 className={`text-xs font-semibold uppercase tracking-wider mb-2 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
+                    Next Step
+                  </h4>
+                  <p className={`text-sm ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>{deal.nextStep}</p>
+                </div>
+              )}
+
+              {/* Description */}
+              {deal.description && (
+                <div>
+                  <h4 className={`text-xs font-semibold uppercase tracking-wider mb-2 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
+                    Description
+                  </h4>
+                  <p className={`text-sm whitespace-pre-wrap ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>{deal.description}</p>
+                </div>
+              )}
+
+              {/* Timestamps */}
+              <div className={`flex items-center gap-4 text-[11px] pt-2 border-t ${
+                isDark ? 'border-zinc-800 text-zinc-600' : 'border-slate-100 text-slate-400'
+              }`}>
+                {deal.createdAt && <span>Created: {formatDate(deal.createdAt)}</span>}
+                {deal.updatedAt && <span>Updated: {formatDate(deal.updatedAt)}</span>}
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -1442,6 +1574,32 @@ export const DealsPage: React.FC = () => {
 
       {/* Modals */}
       {renderDealModal()}
+      {renderDealDetailModal()}
     </div>
   );
 };
+
+// ---------------------------------------------------------------------------
+// Sub-components
+// ---------------------------------------------------------------------------
+
+const DetailInfoRow: React.FC<{
+  label: string;
+  value?: string;
+  isDark: boolean;
+  icon?: React.ReactNode;
+}> = ({ label, value, isDark, icon }) => (
+  <div className={`flex items-start gap-2 p-2.5 rounded-lg ${isDark ? 'bg-dark-100' : 'bg-slate-50'}`}>
+    {icon && (
+      <span className={`mt-0.5 flex-shrink-0 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
+        {icon}
+      </span>
+    )}
+    <div className="min-w-0">
+      <p className={`text-[11px] font-medium ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>{label}</p>
+      <p className={`text-sm ${isDark ? 'text-white' : 'text-slate-900'}`}>
+        {value || '-'}
+      </p>
+    </div>
+  </div>
+);

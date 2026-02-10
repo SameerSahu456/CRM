@@ -5,6 +5,7 @@ import { Settings, Loader2 } from 'lucide-react';
 import { useDashboardLayout } from '../../hooks/useDashboardLayout';
 import { WidgetWrapper } from './WidgetWrapper';
 import { WidgetLibrary } from '../WidgetLibrary';
+import { WidgetDetailModal } from './WidgetDetailModal';
 import { WIDGET_REGISTRY } from '../../config/widgetRegistry';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -15,11 +16,12 @@ export const DashboardContainer: React.FC = () => {
   const { theme } = useTheme();
   const { user } = useAuth();
   const { currentView } = useView();
-  const { navigate } = useNavigation();
+  const { setActiveTab: navigate } = useNavigation();
   const isDark = theme === 'dark';
 
   const { accessibleWidgets, reorderWidgets, isLoading, isWidgetVisible } = useDashboardLayout();
   const [showLibrary, setShowLibrary] = useState(false);
+  const [selectedWidgetId, setSelectedWidgetId] = useState<string | null>(null);
 
   // Configure sensors for drag interactions
   const sensors = useSensors(
@@ -104,6 +106,7 @@ export const DashboardContainer: React.FC = () => {
                       user={user}
                       currentView={currentView}
                       navigate={navigate}
+                      onDetailClick={() => setSelectedWidgetId(widget.id)}
                     />
                   </Suspense>
                 </WidgetWrapper>
@@ -115,6 +118,16 @@ export const DashboardContainer: React.FC = () => {
 
       {/* Widget Library Modal */}
       {showLibrary && <WidgetLibrary onClose={() => setShowLibrary(false)} />}
+
+      {/* Widget Detail Modal */}
+      {selectedWidgetId && (
+        <WidgetDetailModal
+          widgetId={selectedWidgetId}
+          isDark={isDark}
+          onClose={() => setSelectedWidgetId(null)}
+          navigate={navigate}
+        />
+      )}
     </div>
   );
 };

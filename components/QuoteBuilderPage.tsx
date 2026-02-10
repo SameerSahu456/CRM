@@ -211,7 +211,7 @@ export const QuoteBuilderPage: React.FC = () => {
     try {
       const [productsList, partnersResponse] = await Promise.all([
         productsApi.list(),
-        partnersApi.list({ limit: '500', status: 'approved' }),
+        partnersApi.list({ limit: '100', status: 'approved' }),
       ]);
       setProducts(Array.isArray(productsList) ? productsList : []);
       const partnerData = partnersResponse?.data ?? partnersResponse;

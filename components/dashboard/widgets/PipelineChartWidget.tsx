@@ -6,7 +6,7 @@ import { WidgetProps } from '../types';
 import { dashboardApi, formatINR } from '../../../services/api';
 import { formatCompact } from '../../../utils/dashboard';
 
-export const PipelineChartWidget: React.FC<WidgetProps> = ({ isDark, navigate }) => {
+export const PipelineChartWidget: React.FC<WidgetProps> = ({ isDark, navigate, onDetailClick }) => {
   const [dealStatsRaw, setDealStatsRaw] = useState<Record<string, { count: number; value: number }>>({});
 
   useEffect(() => {
@@ -42,7 +42,7 @@ export const PipelineChartWidget: React.FC<WidgetProps> = ({ isDark, navigate })
       titleColor={isDark ? 'text-purple-400' : 'text-purple-700'}
       subtitle={`${totalDeals} deals · ${formatCompact(totalDealValue)}`}
       isDark={isDark}
-      onClick={() => navigate('deals')}
+      onClick={() => onDetailClick?.()}
     >
       {pipelineStages.length === 0 ? (
         <div className={`h-44 flex items-center justify-center rounded-xl ${isDark ? 'bg-zinc-900/50' : 'bg-slate-50'}`}>

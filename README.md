@@ -1,6 +1,6 @@
-# Comprint CRM
+# Zenith CRM
 
-A modern Customer Relationship Management system built with React, TypeScript, and Supabase.
+A modern Customer Relationship Management system built with React, TypeScript, and FastAPI.
 
 ## Features
 
@@ -23,93 +23,89 @@ A modern Customer Relationship Management system built with React, TypeScript, a
 ### Additional Features
 - Dark/Light theme support
 - Responsive design for mobile and desktop
-- Real-time data sync with Supabase
-- User authentication
+- User authentication with JWT
 
 ## Tech Stack
 
-- **Frontend**: React 18, TypeScript, Tailwind CSS
-- **Backend**: Vercel Serverless Functions
-- **Database**: Supabase (PostgreSQL)
-- **Deployment**: Vercel
+- **Frontend**: React 19, TypeScript, Vite
+- **Backend**: Python FastAPI + SQLAlchemy async + Pydantic v2
+- **Database**: PostgreSQL
 
 ## Getting Started
 
 ### Prerequisites
 - Node.js 18+
-- npm or yarn
-- Supabase account
-- Vercel account (for deployment)
+- Python 3.9+
+- PostgreSQL 14+
 
 ### Installation
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/yourusername/comprint-crm.git
-cd comprint-crm
+git clone https://github.com/yourusername/zenith-crm.git
+cd zenith-crm
 ```
 
-2. Install dependencies:
+2. Install frontend dependencies:
 ```bash
 npm install
 ```
 
-3. Set up environment variables:
-
-Create a `.env` file in the root directory:
-```env
-SUPABASE_URL=your_supabase_url
-SUPABASE_ANON_KEY=your_supabase_anon_key
+3. Install backend dependencies:
+```bash
+cd backend
+pip install -r requirements.txt
 ```
 
 4. Set up the database:
+```bash
+# Create the database and tables
+psql -U postgres -f backend/scripts/init_db.sql
+```
 
-Run the SQL schema in your Supabase SQL Editor:
-- Execute `supabase/complete-schema.sql` to create all tables and seed data
+5. Configure the backend:
 
-5. Start the development server:
+Edit `backend/.env`:
+```env
+DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5432/zenith_crm
+SECRET_KEY=your-secret-key
+```
+
+6. Start the backend server:
+```bash
+cd backend
+python run.py
+```
+
+7. Start the frontend dev server (in a separate terminal):
 ```bash
 npm run dev
 ```
 
-### Deployment
-
-Deploy to Vercel:
-```bash
-npx vercel --prod
-```
-
-Make sure to add environment variables in Vercel:
-- `SUPABASE_URL`
-- `SUPABASE_ANON_KEY`
-
 ## Project Structure
 
 ```
-comprint-crm/
-├── api/                    # Vercel serverless API functions
-│   └── index.js           # Main API handler
+zenith-crm/
+├── backend/                # FastAPI backend
+│   ├── app/
+│   │   ├── api/v1/        # API endpoints
+│   │   ├── models/        # SQLAlchemy models
+│   │   ├── schemas/       # Pydantic schemas
+│   │   ├── repositories/  # Data access layer
+│   │   ├── services/      # Business logic
+│   │   ├── middleware/     # Auth middleware
+│   │   ├── main.py        # FastAPI app
+│   │   ├── config.py      # Settings
+│   │   └── database.py    # DB connection
+│   ├── scripts/
+│   │   └── init_db.sql    # Database init script
+│   ├── requirements.txt
+│   ├── .env
+│   └── run.py             # Uvicorn entry point
 ├── components/            # React components
-│   ├── Dashboard.tsx
-│   ├── LeadsTable.tsx
-│   ├── ContactsTable.tsx
-│   ├── AccountsTable.tsx
-│   ├── Pipeline.tsx
-│   ├── TasksView.tsx
-│   ├── CalendarView.tsx
-│   ├── EmailView.tsx
-│   ├── ReportsView.tsx
-│   ├── SettingsView.tsx
-│   └── ...
 ├── contexts/              # React contexts
-│   ├── AuthContext.tsx
-│   ├── ThemeContext.tsx
-│   └── NavigationContext.tsx
 ├── services/              # API service layer
 │   └── api.ts
-├── supabase/              # Database schemas
-│   ├── complete-schema.sql
-│   └── schema.sql
 ├── App.tsx               # Main app component
 ├── types.ts              # TypeScript type definitions
 └── ...
@@ -117,18 +113,11 @@ comprint-crm/
 
 ## Database Schema
 
-The CRM uses the following main tables:
-- `leads` - Lead/prospect information
-- `contacts` - Contact details
-- `accounts` - Company/organization data
-- `deals` - Sales opportunities
-- `tasks` - Task management
-- `calendar_events` - Calendar entries
-- `tickets` - Support tickets
-- `campaigns` - Marketing campaigns
-- `emails` - Email records
-- `profiles` - User profiles
-- `roles` - Role definitions with permissions
+The CRM uses 20 tables across 12 core entities and 8 sub-entity tables:
+
+**Core**: leads, contacts, accounts, deals, tasks, calendar_events, tickets, campaigns, emails, notifications, profiles, roles
+
+**Sub-entities**: lead_notes, lead_activities, lead_calls, lead_tasks, email_templates, account_notes, account_activities, account_documents
 
 ## API Endpoints
 
@@ -138,8 +127,8 @@ All API endpoints are available at `/api/`:
 |--------|----------|-------------|
 | GET | `/api/leads` | Get all leads |
 | POST | `/api/leads` | Create a lead |
-| PUT | `/api/leads/:id` | Update a lead |
-| DELETE | `/api/leads/:id` | Delete a lead |
+| PUT | `/api/leads/{id}` | Update a lead |
+| DELETE | `/api/leads/{id}` | Delete a lead |
 | GET | `/api/contacts` | Get all contacts |
 | GET | `/api/accounts` | Get all accounts |
 | GET | `/api/deals` | Get all deals |
@@ -147,6 +136,9 @@ All API endpoints are available at `/api/`:
 | GET | `/api/profiles` | Get all users |
 | GET | `/api/roles` | Get all roles |
 | GET | `/api/dashboard/stats` | Get dashboard statistics |
+| POST | `/api/auth/login` | Authenticate user |
+
+Full API documentation available at `http://localhost:3002/docs` when the backend is running.
 
 ## Contributing
 
@@ -158,8 +150,4 @@ All API endpoints are available at `/api/`:
 
 ## License
 
-This project is proprietary software for Comprint Technologies.
-
-## Live Demo
-
-Visit the live application: [https://comprint-crm.vercel.app](https://comprint-crm.vercel.app)
+This project is proprietary software.

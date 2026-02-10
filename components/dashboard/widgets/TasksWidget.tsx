@@ -4,7 +4,7 @@ import { AnalyticsCard } from '../AnalyticsCard';
 import { WidgetProps, TaskStatsData } from '../types';
 import { dashboardApi } from '../../../services/api';
 
-export const TasksWidget: React.FC<WidgetProps> = ({ isDark, navigate }) => {
+export const TasksWidget: React.FC<WidgetProps> = ({ isDark, navigate, onDetailClick }) => {
   const [taskStatsData, setTaskStatsData] = useState<TaskStatsData | null>(null);
 
   useEffect(() => {
@@ -33,7 +33,7 @@ export const TasksWidget: React.FC<WidgetProps> = ({ isDark, navigate }) => {
       titleColor={isDark ? 'text-amber-400' : 'text-amber-700'}
       subtitle="Status Overview"
       isDark={isDark}
-      onClick={() => navigate('tasks')}
+      onClick={() => onDetailClick?.()}
     >
       {/* Completion ring */}
       <div className="flex items-center justify-center gap-5 mb-4">
