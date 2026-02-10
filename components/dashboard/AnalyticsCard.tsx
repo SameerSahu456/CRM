@@ -34,10 +34,10 @@ export const AnalyticsCard: React.FC<AnalyticsCardProps> = ({
   const cardClass = `premium-card ${isDark ? 'bg-dark-50 border border-zinc-800' : 'bg-white shadow-soft'}`;
 
   return (
-    <div className={`${cardClass} p-4 sm:p-5 ${className}`}>
+    <div className={`${cardClass} p-4 sm:p-5 ${className} ${onClick ? 'cursor-pointer hover:ring-2 hover:ring-brand-500/30 transition-shadow' : ''}`} onClick={onClick}>
       {/* Header */}
       <div className="flex items-start justify-between mb-4">
-        <div className="flex items-center gap-3 cursor-pointer" onClick={onClick}>
+        <div className="flex items-center gap-3">
           <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${iconBg}`}>
             <span className={iconColor}>{icon}</span>
           </div>
