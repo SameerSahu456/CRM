@@ -101,8 +101,8 @@ export const ReportsPage: React.FC = () => {
 
   // Chart constants
   const BRAND = isDark ? '#818cf8' : '#6366f1';
-  const gridColor = isDark ? '#27272a' : '#f1f5f9';
-  const axisStyle = { fontSize: 11, fill: isDark ? '#71717a' : '#94a3b8' };
+  const gridColor = isDark ? '#1a2535' : '#f1f5f9';
+  const axisStyle = { fontSize: 11, fill: isDark ? '#64748b' : '#94a3b8' };
 
   // Product bar colors (gradient from brand to cyan)
   const PRODUCT_COLORS = ['#6366f1', '#7c3aed', '#8b5cf6', '#06b6d4', '#0891b2', '#0d9488', '#059669', '#f59e0b'];
@@ -151,7 +151,7 @@ export const ReportsPage: React.FC = () => {
                 <CartesianGrid strokeDasharray="3 3" stroke={gridColor} horizontal={false} />
                 <XAxis type="number" tick={axisStyle} tickLine={false} axisLine={false}
                   tickFormatter={(v: number) => v >= 100000 ? `${(v / 100000).toFixed(0)}L` : v >= 1000 ? `${(v / 1000).toFixed(0)}K` : String(v)} />
-                <YAxis type="category" dataKey="productName" tick={{ fontSize: 10, fill: isDark ? '#a1a1aa' : '#64748b' }}
+                <YAxis type="category" dataKey="productName" tick={{ fontSize: 10, fill: isDark ? '#8b9bb0' : '#64748b' }}
                   tickLine={false} axisLine={false} width={80} />
                 <Tooltip content={({ active, payload }: any) => {
                   if (!active || !payload?.length) return null;
@@ -278,7 +278,7 @@ export const ReportsPage: React.FC = () => {
             <ResponsiveContainer width="100%" height={240}>
               <BarChart data={pipelineData} margin={{ top: 5, right: 10, left: -10, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke={gridColor} vertical={false} />
-                <XAxis dataKey="stage" tick={{ fontSize: 9, fill: isDark ? '#71717a' : '#94a3b8' }} tickLine={false} axisLine={false} />
+                <XAxis dataKey="stage" tick={{ fontSize: 9, fill: isDark ? '#64748b' : '#94a3b8' }} tickLine={false} axisLine={false} />
                 <YAxis tick={axisStyle} tickLine={false} axisLine={false}
                   tickFormatter={(v: number) => v >= 100000 ? `${(v / 100000).toFixed(0)}L` : v >= 1000 ? `${(v / 1000).toFixed(0)}K` : String(v)} />
                 <Tooltip content={({ active, payload }: any) => {
@@ -314,7 +314,7 @@ export const ReportsPage: React.FC = () => {
           <div className="flex flex-col items-center justify-center py-4">
             <div className="relative w-40 h-40">
               <svg className="w-full h-full -rotate-90" viewBox="0 0 160 160">
-                <circle cx="80" cy="80" r="70" fill="none" stroke={isDark ? '#27272a' : '#f1f5f9'} strokeWidth="12" />
+                <circle cx="80" cy="80" r="70" fill="none" stroke={isDark ? '#1a2535' : '#f1f5f9'} strokeWidth="12" />
                 <circle cx="80" cy="80" r="70" fill="none" stroke={isDark ? '#10b981' : '#059669'} strokeWidth="12"
                   strokeLinecap="round" strokeDasharray={`${2 * Math.PI * 70}`}
                   strokeDashoffset={`${2 * Math.PI * 70 * (1 - conversionRate / 100)}`} className="transition-all duration-1000" />
@@ -386,7 +386,7 @@ export const ReportsPage: React.FC = () => {
                   }} />
                   <Area type="monotone" dataKey="revenue" stroke="#06b6d4" strokeWidth={2.5} fill="url(#rptGrad)"
                     dot={{ fill: '#06b6d4', strokeWidth: 0, r: 3 }}
-                    activeDot={{ r: 5, fill: '#06b6d4', stroke: isDark ? '#18181b' : '#fff', strokeWidth: 2 }} />
+                    activeDot={{ r: 5, fill: '#06b6d4', stroke: isDark ? '#111a2e' : '#fff', strokeWidth: 2 }} />
                 </AreaChart>
               </ResponsiveContainer>
 

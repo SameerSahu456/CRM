@@ -21,7 +21,7 @@ export const PipelineChartWidget: React.FC<WidgetProps> = ({ isDark, navigate, o
     fetchData();
   }, []);
 
-  const DEAL_STAGE_ORDER = ['Discovery', 'Qualification', 'Needs Analysis', 'Proposal', 'Negotiation', 'Closed Won', 'Closed Lost'];
+  const DEAL_STAGE_ORDER = ['Cold', 'Proposal', 'Negotiation', 'Closed Won', 'Closed Lost'];
   const pipelineStages = DEAL_STAGE_ORDER
     .filter(s => dealStatsRaw[s])
     .map(s => ({ stage: s, count: dealStatsRaw[s]?.count ?? 0, value: dealStatsRaw[s]?.value ?? 0 }));
@@ -29,8 +29,7 @@ export const PipelineChartWidget: React.FC<WidgetProps> = ({ isDark, navigate, o
   const totalDealValue = pipelineStages.reduce((sum, s) => sum + s.value, 0);
 
   const PIPELINE_COLORS: Record<string, string> = {
-    Discovery: '#06b6d4', Qualification: '#3b82f6', 'Needs Analysis': '#8b5cf6',
-    Proposal: '#a855f7', Negotiation: '#f97316', 'Closed Won': '#10b981', 'Closed Lost': '#ef4444',
+    Cold: '#3b82f6', Proposal: '#a855f7', Negotiation: '#f97316', 'Closed Won': '#10b981', 'Closed Lost': '#ef4444',
   };
 
   return (
@@ -51,13 +50,13 @@ export const PipelineChartWidget: React.FC<WidgetProps> = ({ isDark, navigate, o
       ) : (
         <ResponsiveContainer width="100%" height={200}>
           <BarChart data={pipelineStages.map(s => ({
-            stage: s.stage.replace('Closed ', 'C.').replace('Needs Analysis', 'Analysis'),
+            stage: s.stage.replace('Closed ', 'C.'),
             fullStage: s.stage, count: s.count, value: s.value,
             fill: PIPELINE_COLORS[s.stage] || '#94a3b8',
           }))} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke={isDark ? '#27272a' : '#f1f5f9'} vertical={false} />
-            <XAxis dataKey="stage" tick={{ fontSize: 9, fill: isDark ? '#71717a' : '#94a3b8' }} tickLine={false} axisLine={false} />
-            <YAxis tick={{ fontSize: 10, fill: isDark ? '#71717a' : '#94a3b8' }} tickLine={false} axisLine={false} allowDecimals={false} />
+            <CartesianGrid strokeDasharray="3 3" stroke={isDark ? '#1a2535' : '#f1f5f9'} vertical={false} />
+            <XAxis dataKey="stage" tick={{ fontSize: 9, fill: isDark ? '#64748b' : '#94a3b8' }} tickLine={false} axisLine={false} />
+            <YAxis tick={{ fontSize: 10, fill: isDark ? '#64748b' : '#94a3b8' }} tickLine={false} axisLine={false} allowDecimals={false} />
             <Tooltip content={({ active, payload }: any) => {
               if (!active || !payload?.length) return null;
               const d = payload[0].payload;

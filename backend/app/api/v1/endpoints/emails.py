@@ -30,7 +30,7 @@ async def list_emails(
     if status:
         filters.append(Email.status == status)
 
-    if user.role == "salesperson":
+    if user.role == "sales":
         filters.append(Email.owner_id == user.id)
 
     result = await repo.get_with_names(page=page, limit=limit, filters=filters or None)

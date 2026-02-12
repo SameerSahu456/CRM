@@ -19,7 +19,7 @@ class User(TimestampMixin, Base):
     email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
     name: Mapped[str] = mapped_column(String(200), nullable=False)
-    role: Mapped[str] = mapped_column(String(50), nullable=False, server_default="salesperson")
+    role: Mapped[str] = mapped_column(String(50), nullable=False, server_default="sales")
     department: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     phone: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
     employee_id: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
@@ -35,6 +35,9 @@ class User(TimestampMixin, Base):
     view_access: Mapped[str] = mapped_column(
         String(50), nullable=False, server_default="presales"
     )  # Options: presales, postsales, both
+    tag: Mapped[Optional[str]] = mapped_column(
+        String(50), nullable=True
+    )  # Options: channel, endcustomer, both
     dashboard_preferences: Mapped[Optional[dict]] = mapped_column(
         JSONB, nullable=True, server_default=text("'{\"widgets\": [], \"lastModified\": null}'::jsonb")
     )  # Stores user dashboard layout: widget IDs, order, visibility

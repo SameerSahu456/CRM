@@ -99,6 +99,12 @@ export const partnersApi = {
       method: 'POST',
       body: JSON.stringify({ approved, rejectionReason: reason }),
     }),
+  getTargets: () => fetchApi<any>('/data/partners/targets'),
+  saveTargets: (targets: { elite: string; growth: string; new: string }) =>
+    fetchApi<any>('/data/partners/targets', {
+      method: 'PUT',
+      body: JSON.stringify(targets),
+    }),
 };
 
 // Sales Entries
@@ -139,6 +145,7 @@ export const leadsApi = {
   getActivities: (id: string) => fetchApi<any[]>(`/leads/${id}/activities`),
   addActivity: (id: string, data: any) =>
     fetchApi<any>(`/leads/${id}/activities`, { method: 'POST', body: JSON.stringify(data) }),
+  getAuditLog: (id: string) => fetchApi<any[]>(`/leads/${id}/audit-log`),
 };
 
 // Dashboard
@@ -147,6 +154,7 @@ export const dashboardApi = {
   monthlyStats: () => fetchApi<any>('/data/dashboard/monthly-stats'),
   growthStats: () => fetchApi<any>('/data/dashboard/growth-stats'),
   getAll: () => fetchApi<any>('/data/dashboard/all'),
+  getAssigneeDetail: (userId: string) => fetchApi<any>(`/data/dashboard/assignee/${userId}`),
   getPreferences: () => fetchApi<any>('/auth/me/dashboard-preferences'),
   updatePreferences: (prefs: any) =>
     fetchApi<any>('/auth/me/dashboard-preferences', {
@@ -232,6 +240,10 @@ export const dealsApi = {
     fetchApi<any>(`/deals/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   delete: (id: string) =>
     fetchApi<any>(`/deals/${id}`, { method: 'DELETE' }),
+  getActivities: (id: string) => fetchApi<any[]>(`/deals/${id}/activities`),
+  addActivity: (id: string, data: any) =>
+    fetchApi<any>(`/deals/${id}/activities`, { method: 'POST', body: JSON.stringify(data) }),
+  getAuditLog: (id: string) => fetchApi<any[]>(`/deals/${id}/audit-log`),
 };
 
 // Tasks
@@ -321,13 +333,34 @@ export const adminApi = {
     }),
 };
 
+// Snake-case to camelCase converter for raw SQL responses
+function snakeToCamel(obj: any): any {
+  if (Array.isArray(obj)) return obj.map(snakeToCamel);
+  if (obj !== null && typeof obj === 'object') {
+    return Object.fromEntries(
+      Object.entries(obj).map(([key, val]) => [
+        key.replace(/_([a-z])/g, (_: string, c: string) => c.toUpperCase()),
+        val,
+      ])
+    );
+  }
+  return obj;
+}
+
 // Master Data
 export const masterDataApi = {
-  list: (entity: string) => fetchApi<any[]>(`/data/master/${entity}`),
-  create: (entity: string, data: any) =>
-    fetchApi<any>(`/data/master/${entity}`, { method: 'POST', body: JSON.stringify(data) }),
-  update: (entity: string, id: string, data: any) =>
-    fetchApi<any>(`/data/master/${entity}/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  list: async (entity: string) => {
+    const data = await fetchApi<any[]>(`/data/master/${entity}`);
+    return snakeToCamel(data);
+  },
+  create: async (entity: string, data: any) => {
+    const result = await fetchApi<any>(`/data/master/${entity}`, { method: 'POST', body: JSON.stringify(data) });
+    return snakeToCamel(result);
+  },
+  update: async (entity: string, id: string, data: any) => {
+    const result = await fetchApi<any>(`/data/master/${entity}/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+    return snakeToCamel(result);
+  },
   delete: (entity: string, id: string) =>
     fetchApi<any>(`/data/master/${entity}/${id}`, { method: 'DELETE' }),
 };
@@ -342,6 +375,63 @@ export const settingsApi = {
     }),
 };
 
+
+// Roles & Permissions
+export const rolesApi = {
+  list: () => fetchApi<any[]>('/admin/roles/'),
+  create: (data: any) =>
+    fetchApi<any>('/admin/roles/', { method: 'POST', body: JSON.stringify(data) }),
+  update: (id: string, data: any) =>
+    fetchApi<any>(`/admin/roles/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  delete: (id: string) =>
+    fetchApi<any>(`/admin/roles/${id}`, { method: 'DELETE' }),
+  updatePermissions: (id: string, permissions: any[]) =>
+    fetchApi<any>(`/admin/roles/${id}/permissions`, {
+      method: 'PUT',
+      body: JSON.stringify(permissions),
+    }),
+};
+
+// Activity Logs
+export const activityLogApi = {
+  list: (params?: Record<string, string>) => {
+    const qs = params ? '?' + new URLSearchParams(params).toString() : '';
+    return fetchApi<any>(`/admin/activity-logs/${qs}`);
+  },
+};
+
+// Bulk Import
+export const bulkImportApi = {
+  downloadTemplate: async (entity: string) => {
+    const token = getToken();
+    const res = await fetch(`${API_BASE}/bulk/template/${entity}`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    if (!res.ok) throw new Error('Failed to download template');
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${entity}_template.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  },
+  import: async (entity: string, file: File) => {
+    const token = getToken();
+    const formData = new FormData();
+    formData.append('file', file);
+    const res = await fetch(`${API_BASE}/bulk/import/${entity}`, {
+      method: 'POST',
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: formData,
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || 'Import failed');
+    }
+    return res.json();
+  },
+};
 
 // INR currency formatter
 export const formatINR = (amount: number): string => {

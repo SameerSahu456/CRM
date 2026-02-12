@@ -200,7 +200,7 @@ export const TasksPage: React.FC = () => {
   // ---------------------------------------------------------------------------
 
   const cardClass = `premium-card ${isDark ? 'bg-dark-50 border border-zinc-800' : 'bg-white shadow-soft'}`;
-  const inputClass = `w-full px-3 py-2 rounded-xl border text-sm transition-all ${
+  const inputClass = `w-full px-3 py-2.5 rounded-xl border text-sm transition-all ${
     isDark
       ? 'bg-dark-100 border-zinc-700 text-white placeholder-zinc-500 focus:border-brand-500'
       : 'bg-white border-slate-200 text-slate-900 placeholder-slate-400 focus:border-brand-500'
@@ -859,7 +859,7 @@ export const TasksPage: React.FC = () => {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
         <div className="absolute inset-0 bg-black/50 animate-backdrop" onClick={closeTaskModal} />
-        <div className={`relative w-full max-w-lg max-h-[85vh] rounded-2xl animate-fade-in-up flex flex-col overflow-hidden ${
+        <div className={`relative w-full max-w-md max-h-[75vh] rounded-2xl animate-fade-in-up flex flex-col overflow-hidden ${
           isDark ? 'bg-dark-50 border border-zinc-800' : 'bg-white shadow-premium'
         }`}>
           {/* Header */}
@@ -881,7 +881,7 @@ export const TasksPage: React.FC = () => {
 
           {/* Form */}
           <form onSubmit={handleTaskSubmit} className="flex-1 overflow-y-auto">
-            <div className="p-6 pb-20 space-y-5">
+            <div className="p-6 pb-6 space-y-5">
             {taskFormError && (
               <div className={`p-3 rounded-xl flex items-center gap-2 text-sm ${
                 isDark ? 'bg-red-900/20 border border-red-800 text-red-400' : 'bg-red-50 border border-red-200 text-red-700'

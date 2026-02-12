@@ -33,9 +33,9 @@ export const WidgetLibrary: React.FC<WidgetLibraryProps> = ({ onClose }) => {
       <div className="absolute inset-0 bg-black/50 animate-backdrop" onClick={onClose} />
 
       {/* Modal */}
-      <div className={`relative w-full max-w-4xl max-h-[90vh] overflow-y-auto rounded-2xl animate-fade-in-up ${isDark ? 'bg-dark-50 border border-zinc-800' : 'bg-white'}`}>
+      <div className={`relative w-full max-w-3xl max-h-[80vh] overflow-y-auto rounded-2xl animate-fade-in-up ${isDark ? 'bg-[rgba(8,13,27,0.92)] backdrop-blur-2xl border border-white/[0.06]' : 'bg-white'}`}>
         {/* Header */}
-        <div className={`sticky top-0 z-10 px-6 py-4 border-b flex items-center justify-between ${isDark ? 'bg-dark-50 border-zinc-800' : 'bg-white border-slate-200'}`}>
+        <div className={`sticky top-0 z-10 px-6 py-4 border-b flex items-center justify-between ${isDark ? 'bg-[rgba(8,13,27,0.95)] backdrop-blur-xl border-white/[0.06]' : 'bg-white border-slate-200'}`}>
           <div>
             <h2 className={`text-xl font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>
               Dashboard Widgets
@@ -47,12 +47,12 @@ export const WidgetLibrary: React.FC<WidgetLibraryProps> = ({ onClose }) => {
           <div className="flex items-center gap-2">
             <button
               onClick={resetToDefaults}
-              className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors ${isDark ? 'hover:bg-dark-100 text-zinc-400 hover:text-white' : 'hover:bg-slate-100 text-slate-600 hover:text-slate-900'}`}
+              className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors ${isDark ? 'hover:bg-white/[0.06] text-zinc-400 hover:text-white' : 'hover:bg-slate-100 text-slate-600 hover:text-slate-900'}`}
             >
               <RotateCcw className="w-4 h-4" />
               Reset
             </button>
-            <button onClick={onClose} className={`p-2 rounded-lg ${isDark ? 'hover:bg-dark-100' : 'hover:bg-slate-100'}`}>
+            <button onClick={onClose} className={`p-2 rounded-lg ${isDark ? 'hover:bg-white/[0.06]' : 'hover:bg-slate-100'}`}>
               <X className={`w-5 h-5 ${isDark ? 'text-zinc-400' : 'text-slate-600'}`} />
             </button>
           </div>
@@ -76,10 +76,10 @@ export const WidgetLibrary: React.FC<WidgetLibraryProps> = ({ onClose }) => {
                       className={`p-4 rounded-xl border transition-all ${
                         isWidgetVisible(widget.id)
                           ? isDark
-                            ? 'bg-dark-100 border-zinc-800'
+                            ? 'bg-[rgba(10,16,32,0.5)] border-white/[0.06]'
                             : 'bg-slate-50 border-slate-200'
                           : isDark
-                          ? 'bg-dark-100/50 border-zinc-800/50 opacity-60'
+                          ? 'bg-[rgba(10,16,32,0.3)] border-white/[0.03] opacity-60'
                           : 'bg-slate-50/50 border-slate-200/50 opacity-60'
                       }`}
                     >
@@ -117,7 +117,7 @@ export const WidgetLibrary: React.FC<WidgetLibraryProps> = ({ onClose }) => {
         </div>
 
         {/* Footer */}
-        <div className={`sticky bottom-0 px-6 py-4 border-t flex items-center justify-between ${isDark ? 'bg-dark-50 border-zinc-800' : 'bg-white border-slate-200'}`}>
+        <div className={`sticky bottom-0 px-6 py-4 border-t flex items-center justify-between ${isDark ? 'bg-[rgba(8,13,27,0.95)] backdrop-blur-xl border-white/[0.06]' : 'bg-white border-slate-200'}`}>
           <p className={`text-sm ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>
             {accessibleWidgets.filter(w => isWidgetVisible(w.id)).length} of {accessibleWidgets.length} widgets visible
           </p>

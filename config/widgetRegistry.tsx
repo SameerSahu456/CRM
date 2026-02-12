@@ -1,7 +1,7 @@
 import React from 'react';
 import {
   Users, Calendar, Building2, Layers, TrendingUp, Package,
-  Target, CheckSquare, Award, ShoppingCart, BarChart3
+  Target, Award, ShoppingCart, BarChart3, UserCheck
 } from 'lucide-react';
 import { WidgetMetadata, DashboardPreferences } from '../types';
 
@@ -20,6 +20,7 @@ export const WIDGET_REGISTRY: Record<string, WidgetMetadata> = {
     defaultVisible: true,
     defaultOrder: 1,
     component: React.lazy(() => import('../components/dashboard/widgets/SalesTeamWidget').then(m => ({ default: m.SalesTeamWidget }))),
+    navigateTo: 'sales-entry',
   },
   'monthly': {
     id: 'monthly',
@@ -31,6 +32,7 @@ export const WIDGET_REGISTRY: Record<string, WidgetMetadata> = {
     defaultVisible: true,
     defaultOrder: 2,
     component: React.lazy(() => import('../components/dashboard/widgets/MonthlyWidget').then(m => ({ default: m.MonthlyWidget }))),
+    navigateTo: 'sales-entry',
   },
   'partners': {
     id: 'partners',
@@ -42,6 +44,7 @@ export const WIDGET_REGISTRY: Record<string, WidgetMetadata> = {
     defaultVisible: true,
     defaultOrder: 3,
     component: React.lazy(() => import('../components/dashboard/widgets/PartnersWidget').then(m => ({ default: m.PartnersWidget }))),
+    navigateTo: 'partners',
   },
   'pipeline': {
     id: 'pipeline',
@@ -53,6 +56,7 @@ export const WIDGET_REGISTRY: Record<string, WidgetMetadata> = {
     defaultVisible: true,
     defaultOrder: 4,
     component: React.lazy(() => import('../components/dashboard/widgets/PipelineWidget').then(m => ({ default: m.PipelineWidget }))),
+    navigateTo: 'deals',
   },
   'growth': {
     id: 'growth',
@@ -64,6 +68,7 @@ export const WIDGET_REGISTRY: Record<string, WidgetMetadata> = {
     defaultVisible: true,
     defaultOrder: 5,
     component: React.lazy(() => import('../components/dashboard/widgets/GrowthWidget').then(m => ({ default: m.GrowthWidget }))),
+    navigateTo: 'sales-entry',
   },
   'products': {
     id: 'products',
@@ -75,6 +80,7 @@ export const WIDGET_REGISTRY: Record<string, WidgetMetadata> = {
     defaultVisible: true,
     defaultOrder: 6,
     component: React.lazy(() => import('../components/dashboard/widgets/ProductsWidget').then(m => ({ default: m.ProductsWidget }))),
+    navigateTo: 'sales-entry',
   },
   'leads': {
     id: 'leads',
@@ -86,17 +92,7 @@ export const WIDGET_REGISTRY: Record<string, WidgetMetadata> = {
     defaultVisible: true,
     defaultOrder: 7,
     component: React.lazy(() => import('../components/dashboard/widgets/LeadsWidget').then(m => ({ default: m.LeadsWidget }))),
-  },
-  'tasks': {
-    id: 'tasks',
-    label: 'Tasks',
-    description: 'Task status overview',
-    category: 'both',
-    icon: <CheckSquare className="w-4 h-4" />,
-    requiredView: 'both',
-    defaultVisible: true,
-    defaultOrder: 8,
-    component: React.lazy(() => import('../components/dashboard/widgets/TasksWidget').then(m => ({ default: m.TasksWidget }))),
+    navigateTo: 'crm',
   },
   'top-partners': {
     id: 'top-partners',
@@ -108,6 +104,7 @@ export const WIDGET_REGISTRY: Record<string, WidgetMetadata> = {
     defaultVisible: true,
     defaultOrder: 9,
     component: React.lazy(() => import('../components/dashboard/widgets/TopPartnersWidget').then(m => ({ default: m.TopPartnersWidget }))),
+    navigateTo: 'partners',
   },
   'recent-sales': {
     id: 'recent-sales',
@@ -119,6 +116,7 @@ export const WIDGET_REGISTRY: Record<string, WidgetMetadata> = {
     defaultVisible: true,
     defaultOrder: 10,
     component: React.lazy(() => import('../components/dashboard/widgets/RecentSalesWidget').then(m => ({ default: m.RecentSalesWidget }))),
+    navigateTo: 'sales-entry',
   },
   'revenue-trend': {
     id: 'revenue-trend',
@@ -130,6 +128,7 @@ export const WIDGET_REGISTRY: Record<string, WidgetMetadata> = {
     defaultVisible: true,
     defaultOrder: 11,
     component: React.lazy(() => import('../components/dashboard/widgets/RevenueTrendWidget').then(m => ({ default: m.RevenueTrendWidget }))),
+    navigateTo: 'sales-entry',
   },
   'pipeline-chart': {
     id: 'pipeline-chart',
@@ -141,6 +140,17 @@ export const WIDGET_REGISTRY: Record<string, WidgetMetadata> = {
     defaultVisible: true,
     defaultOrder: 12,
     component: React.lazy(() => import('../components/dashboard/widgets/PipelineChartWidget').then(m => ({ default: m.PipelineChartWidget }))),
+    navigateTo: 'deals',
+  },
+  'assignee-summary': {
+    id: 'assignee-summary',
+    label: 'Assignee Summary',
+    description: 'Per-user assigned partners, leads, deals & sales',
+    category: 'analytics',
+    icon: <UserCheck className="w-4 h-4" />,
+    defaultVisible: true,
+    defaultOrder: 8,
+    component: React.lazy(() => import('../components/dashboard/widgets/AssigneeSummaryWidget').then(m => ({ default: m.AssigneeSummaryWidget }))),
   },
   'leads-distribution': {
     id: 'leads-distribution',
@@ -152,6 +162,7 @@ export const WIDGET_REGISTRY: Record<string, WidgetMetadata> = {
     defaultVisible: true,
     defaultOrder: 13,
     component: React.lazy(() => import('../components/dashboard/widgets/LeadsDistributionWidget').then(m => ({ default: m.LeadsDistributionWidget }))),
+    navigateTo: 'crm',
   },
 };
 

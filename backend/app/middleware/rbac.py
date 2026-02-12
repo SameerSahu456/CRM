@@ -27,4 +27,4 @@ def require_admin():
 
 def require_manager():
     """Shortcut for manager-level and above."""
-    return require_role("admin", "superadmin", "businesshead", "branchhead", "salesmanager", "producthead")
+    return require_role("admin", "superadmin", "businesshead", "productmanager")

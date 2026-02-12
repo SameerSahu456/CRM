@@ -49,6 +49,7 @@ class UserOut(CamelModel):
     last_login: Optional[datetime] = None
     created_at: Optional[datetime] = None
     view_access: str = "presales"
+    tag: Optional[str] = None
     dashboard_preferences: Optional[DashboardPreferences] = None
 
 
@@ -56,13 +57,14 @@ class UserCreate(CamelModel):
     email: str
     password: str
     name: str
-    role: str = "salesperson"
+    role: str = "sales"
     department: Optional[str] = None
     phone: Optional[str] = None
     employee_id: Optional[str] = None
     manager_id: Optional[str] = None
     monthly_target: Optional[float] = None
     view_access: str = "presales"
+    tag: Optional[str] = None
 
 
 class UserUpdate(CamelModel):
@@ -75,6 +77,7 @@ class UserUpdate(CamelModel):
     is_active: Optional[bool] = None
     monthly_target: Optional[float] = None
     view_access: Optional[str] = None
+    tag: Optional[str] = None
 
 
 class ResetPasswordRequest(CamelModel):

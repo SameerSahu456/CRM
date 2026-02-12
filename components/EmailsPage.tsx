@@ -158,7 +158,7 @@ export const EmailsPage: React.FC = () => {
 
   // Styling helpers
   const cardClass = `premium-card ${isDark ? 'bg-dark-50 border border-zinc-800' : 'bg-white shadow-soft'}`;
-  const inputClass = `w-full px-3 py-2 rounded-xl border text-sm transition-all ${isDark ? 'bg-dark-100 border-zinc-700 text-white placeholder-zinc-500' : 'bg-white border-slate-200 text-slate-900 placeholder-slate-400'} focus:outline-none focus:ring-1 focus:ring-brand-500`;
+  const inputClass = `w-full px-3 py-2.5 rounded-xl border text-sm transition-all ${isDark ? 'bg-dark-100 border-zinc-700 text-white placeholder-zinc-500' : 'bg-white border-slate-200 text-slate-900 placeholder-slate-400'} focus:outline-none focus:ring-1 focus:ring-brand-500`;
   const labelClass = `block text-sm font-medium mb-1.5 ${isDark ? 'text-slate-300' : 'text-slate-700'}`;
   const selectClass = `${inputClass} appearance-none cursor-pointer`;
 
@@ -812,7 +812,7 @@ export const EmailsPage: React.FC = () => {
       {showComposeModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/50 animate-backdrop" onClick={closeComposeModal} />
-          <div className={`relative w-full max-w-2xl max-h-[85vh] rounded-2xl animate-fade-in-up flex flex-col overflow-hidden ${
+          <div className={`relative w-full max-w-xl max-h-[75vh] rounded-2xl animate-fade-in-up flex flex-col overflow-hidden ${
             isDark ? 'bg-dark-50 border border-zinc-800' : 'bg-white shadow-premium'
           }`}>
             <div className={`flex-shrink-0 flex items-center justify-between px-6 py-4 border-b ${
@@ -832,7 +832,7 @@ export const EmailsPage: React.FC = () => {
             </div>
 
             <form onSubmit={handleEmailSubmit} className="flex-1 overflow-y-auto">
-              <div className="p-6 space-y-5 pb-20">
+              <div className="p-6 space-y-5 pb-6">
               {emailFormError && (
                 <div className={`p-3 rounded-xl flex items-center gap-2 text-sm ${
                   isDark ? 'bg-red-900/20 border border-red-800 text-red-400' : 'bg-red-50 border border-red-200 text-red-700'
@@ -994,7 +994,7 @@ export const EmailsPage: React.FC = () => {
       {showTemplateModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/50 animate-backdrop" onClick={closeTemplateModal} />
-          <div className={`relative w-full max-w-2xl max-h-[85vh] rounded-2xl animate-fade-in-up flex flex-col overflow-hidden ${
+          <div className={`relative w-full max-w-xl max-h-[75vh] rounded-2xl animate-fade-in-up flex flex-col overflow-hidden ${
             isDark ? 'bg-dark-50 border border-zinc-800' : 'bg-white shadow-premium'
           }`}>
             <div className={`flex-shrink-0 flex items-center justify-between px-6 py-4 border-b ${
@@ -1014,7 +1014,7 @@ export const EmailsPage: React.FC = () => {
             </div>
 
             <form onSubmit={handleTemplateSubmit} className="flex-1 overflow-y-auto">
-              <div className="p-6 space-y-5 pb-20">
+              <div className="p-6 space-y-5 pb-6">
               {templateFormError && (
                 <div className={`p-3 rounded-xl flex items-center gap-2 text-sm ${
                   isDark ? 'bg-red-900/20 border border-red-800 text-red-400' : 'bg-red-50 border border-red-200 text-red-700'
@@ -1127,7 +1127,7 @@ export const EmailsPage: React.FC = () => {
       {previewTemplate && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/50 animate-backdrop" onClick={() => setPreviewTemplate(null)} />
-          <div className={`relative w-full max-w-xl max-h-[85vh] rounded-2xl animate-fade-in-up flex flex-col overflow-hidden ${
+          <div className={`relative w-full max-w-lg max-h-[75vh] rounded-2xl animate-fade-in-up flex flex-col overflow-hidden ${
             isDark ? 'bg-dark-50 border border-zinc-800' : 'bg-white shadow-premium'
           }`}>
             <div className={`flex-shrink-0 flex items-center justify-between px-6 py-4 border-b ${
@@ -1156,7 +1156,7 @@ export const EmailsPage: React.FC = () => {
               </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-6 space-y-4 pb-20">
+            <div className="flex-1 overflow-y-auto p-6 space-y-4 pb-6">
               {previewTemplate.subject && (
                 <div>
                   <p className={`text-xs font-semibold uppercase tracking-wider mb-1 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>

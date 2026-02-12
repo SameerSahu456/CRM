@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
+import { useNavigation } from '../contexts/NavigationContext';
 import { carepacksApi, partnersApi } from '../services/api';
 import { Carepack, Partner, PaginatedResponse } from '../types';
 
@@ -121,6 +122,7 @@ function getDaysLabel(days: number | null): string {
 export const CarepackPage: React.FC = () => {
   const { theme } = useTheme();
   const { user } = useAuth();
+  const { setActiveTab: navigate } = useNavigation();
   const isDark = theme === 'dark';
 
   // Tab state
@@ -152,6 +154,10 @@ export const CarepackPage: React.FC = () => {
   const [formData, setFormData] = useState<CarepackFormData>({ ...EMPTY_FORM });
   const [formError, setFormError] = useState('');
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+
+  // Detail modal
+  const [showDetailModal, setShowDetailModal] = useState(false);
+  const [detailCarepack, setDetailCarepack] = useState<Carepack | null>(null);
 
   // Summary counts
   const [totalActive, setTotalActive] = useState(0);
@@ -362,6 +368,20 @@ export const CarepackPage: React.FC = () => {
   };
 
   const hasActiveFilters = filterStatus || filterPartner || searchTerm;
+
+  // ---------------------------------------------------------------------------
+  // Detail modal handlers
+  // ---------------------------------------------------------------------------
+
+  const openDetailModal = (carepack: Carepack) => {
+    setDetailCarepack(carepack);
+    setShowDetailModal(true);
+  };
+
+  const closeDetailModal = () => {
+    setShowDetailModal(false);
+    setDetailCarepack(null);
+  };
 
   // ---------------------------------------------------------------------------
   // Styling helpers
@@ -670,7 +690,8 @@ export const CarepackPage: React.FC = () => {
                     return (
                       <tr
                         key={cp.id}
-                        className={`border-b transition-colors ${
+                        onClick={() => openDetailModal(cp)}
+                        className={`border-b transition-colors cursor-pointer ${
                           isDark
                             ? 'border-zinc-800/50 hover:bg-zinc-800/30'
                             : 'border-slate-50 hover:bg-slate-50/80'
@@ -789,7 +810,8 @@ export const CarepackPage: React.FC = () => {
                 return (
                   <tr
                     key={cp.id}
-                    className={`border-b transition-colors ${
+                    onClick={() => openDetailModal(cp)}
+                    className={`border-b transition-colors cursor-pointer ${
                       isUrgent
                         ? isDark
                           ? 'border-zinc-800/50 bg-red-900/10 hover:bg-red-900/20'
@@ -882,7 +904,7 @@ export const CarepackPage: React.FC = () => {
       {/* Summary Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Total Active */}
-        <div className={`${cardClass} p-4 hover-lift animate-fade-in-up stagger-1`}>
+        <div className={`${cardClass} p-4 hover-lift animate-fade-in-up stagger-1 cursor-pointer`} onClick={() => navigate('carepacks')}>
           <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-3 ${
             isDark ? 'bg-emerald-900/20' : 'bg-emerald-50'
           }`}>
@@ -895,7 +917,7 @@ export const CarepackPage: React.FC = () => {
         </div>
 
         {/* Expiring This Month */}
-        <div className={`${cardClass} p-4 hover-lift animate-fade-in-up stagger-2`}>
+        <div className={`${cardClass} p-4 hover-lift animate-fade-in-up stagger-2 cursor-pointer`} onClick={() => navigate('carepacks')}>
           <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-3 ${
             isDark ? 'bg-amber-900/20' : 'bg-amber-50'
           }`}>
@@ -908,7 +930,7 @@ export const CarepackPage: React.FC = () => {
         </div>
 
         {/* Total Expired */}
-        <div className={`${cardClass} p-4 hover-lift animate-fade-in-up stagger-3`}>
+        <div className={`${cardClass} p-4 hover-lift animate-fade-in-up stagger-3 cursor-pointer`} onClick={() => navigate('carepacks')}>
           <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-3 ${
             isDark ? 'bg-red-900/20' : 'bg-red-50'
           }`}>
@@ -921,7 +943,7 @@ export const CarepackPage: React.FC = () => {
         </div>
 
         {/* Total Carepacks */}
-        <div className={`${cardClass} p-4 hover-lift animate-fade-in-up stagger-4`}>
+        <div className={`${cardClass} p-4 hover-lift animate-fade-in-up stagger-4 cursor-pointer`} onClick={() => navigate('carepacks')}>
           <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-3 ${
             isDark ? 'bg-brand-900/20' : 'bg-brand-50'
           }`}>
@@ -978,25 +1000,126 @@ export const CarepackPage: React.FC = () => {
       {activeTab === 'all' && renderAllCarepacks()}
       {activeTab === 'expiring' && renderExpiringTab()}
 
+      {/* Detail Modal */}
+      {showDetailModal && detailCarepack && (() => {
+        const days = detailCarepack.status === 'active' ? getDaysRemaining(detailCarepack.endDate) : null;
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-black/50 animate-backdrop" onClick={closeDetailModal} />
+            <div className={`relative w-full max-w-xl max-h-[75vh] rounded-2xl animate-fade-in-up flex flex-col overflow-hidden ${
+              isDark ? 'bg-dark-50 border border-zinc-800' : 'bg-white shadow-premium'
+            }`}>
+              {/* Header */}
+              <div className={`flex-shrink-0 flex items-center justify-between px-6 py-4 border-b ${
+                isDark ? 'bg-dark-50 border-zinc-800' : 'bg-white border-slate-200'
+              }`}>
+                <div className="flex items-center gap-3 min-w-0">
+                  <h2 className={`text-lg font-semibold font-display truncate ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                    Carepack Details
+                  </h2>
+                  <span className={statusBadge(detailCarepack.status, isDark)}>
+                    {capitalize(detailCarepack.status)}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <button
+                    onClick={() => { closeDetailModal(); openEditModal(detailCarepack); }}
+                    className={`p-2 rounded-lg transition-colors ${
+                      isDark ? 'text-zinc-400 hover:text-white hover:bg-zinc-800' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100'
+                    }`}
+                    title="Edit"
+                  >
+                    <Edit2 className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={closeDetailModal}
+                    className={`p-2 rounded-lg transition-colors ${
+                      isDark ? 'text-zinc-400 hover:text-white hover:bg-zinc-800' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100'
+                    }`}
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Body */}
+              <div className="flex-1 overflow-y-auto">
+                <div className="p-6 space-y-6">
+                  {/* Days Remaining Highlight */}
+                  {detailCarepack.status === 'active' && days !== null && (
+                    <div className={`flex items-center gap-3 p-4 rounded-xl ${
+                      days <= 30
+                        ? isDark ? 'bg-red-900/10 border border-red-900/30' : 'bg-red-50 border border-red-100'
+                        : days <= 90
+                          ? isDark ? 'bg-amber-900/10 border border-amber-900/30' : 'bg-amber-50 border border-amber-100'
+                          : isDark ? 'bg-emerald-900/10 border border-emerald-900/30' : 'bg-emerald-50 border border-emerald-100'
+                    }`}>
+                      <Clock className={`w-6 h-6 ${
+                        days <= 30 ? (isDark ? 'text-red-400' : 'text-red-600')
+                          : days <= 90 ? (isDark ? 'text-amber-400' : 'text-amber-600')
+                          : (isDark ? 'text-emerald-400' : 'text-emerald-600')
+                      }`} />
+                      <div>
+                        <p className={`text-xs font-medium ${
+                          days <= 30 ? (isDark ? 'text-red-400/70' : 'text-red-600/70')
+                            : days <= 90 ? (isDark ? 'text-amber-400/70' : 'text-amber-600/70')
+                            : (isDark ? 'text-emerald-400/70' : 'text-emerald-600/70')
+                        }`}>Days Remaining</p>
+                        <p className={`text-xl font-bold ${
+                          days <= 30 ? (isDark ? 'text-red-400' : 'text-red-700')
+                            : days <= 90 ? (isDark ? 'text-amber-400' : 'text-amber-700')
+                            : (isDark ? 'text-emerald-400' : 'text-emerald-700')
+                        }`}>{getDaysLabel(days)}</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Info Grid */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <CarepackInfoRow label="Partner" value={detailCarepack.partnerName} isDark={isDark} icon={<UserIcon className="w-3.5 h-3.5" />} />
+                    <CarepackInfoRow label="Customer" value={detailCarepack.customerName} isDark={isDark} icon={<UserIcon className="w-3.5 h-3.5" />} />
+                    <CarepackInfoRow label="Product Type" value={detailCarepack.productType} isDark={isDark} icon={<Package className="w-3.5 h-3.5" />} />
+                    <CarepackInfoRow label="Serial Number" value={detailCarepack.serialNumber} isDark={isDark} icon={<Hash className="w-3.5 h-3.5" />} />
+                    <CarepackInfoRow label="Carepack SKU" value={detailCarepack.carepackSku} isDark={isDark} icon={<FileText className="w-3.5 h-3.5" />} />
+                    <CarepackInfoRow label="Start Date" value={detailCarepack.startDate ? formatDate(detailCarepack.startDate) : undefined} isDark={isDark} icon={<Calendar className="w-3.5 h-3.5" />} />
+                    <CarepackInfoRow label="End Date" value={detailCarepack.endDate ? formatDate(detailCarepack.endDate) : undefined} isDark={isDark} icon={<Calendar className="w-3.5 h-3.5" />} />
+                  </div>
+
+                  {/* Notes */}
+                  {detailCarepack.notes && (
+                    <div>
+                      <h4 className={`text-xs font-semibold uppercase tracking-wider mb-2 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
+                        Notes
+                      </h4>
+                      <p className={`text-sm whitespace-pre-wrap ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
+                        {detailCarepack.notes}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Timestamps */}
+                  <div className={`flex items-center gap-4 text-[11px] pt-2 border-t ${
+                    isDark ? 'border-zinc-800 text-zinc-600' : 'border-slate-100 text-slate-400'
+                  }`}>
+                    {detailCarepack.createdAt && <span>Created: {formatDate(detailCarepack.createdAt)}</span>}
+                    {detailCarepack.updatedAt && <span>Updated: {formatDate(detailCarepack.updatedAt)}</span>}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
       {/* Create / Edit Modal */}
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          {/* Backdrop */}
-          <div
-            className="absolute inset-0 bg-black/50 animate-backdrop"
-            onClick={closeModal}
-          />
-
-          {/* Modal content */}
-          <div
-            className={`relative w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl animate-fade-in-up ${
-              isDark
-                ? 'bg-dark-50 border border-zinc-800'
-                : 'bg-white shadow-premium'
-            }`}
-          >
+          <div className="absolute inset-0 bg-black/50 animate-backdrop" onClick={closeModal} />
+          <div className={`relative w-full max-w-xl max-h-[75vh] rounded-2xl animate-fade-in-up flex flex-col overflow-hidden ${
+            isDark ? 'bg-dark-50 border border-zinc-800' : 'bg-white shadow-premium'
+          }`}>
             {/* Header */}
-            <div className={`sticky top-0 z-10 flex items-center justify-between px-6 py-4 border-b ${
+            <div className={`flex-shrink-0 flex items-center justify-between px-6 py-4 border-b ${
               isDark ? 'bg-dark-50 border-zinc-800' : 'bg-white border-slate-200'
             }`}>
               <h2 className={`text-lg font-semibold font-display ${isDark ? 'text-white' : 'text-slate-900'}`}>
@@ -1005,9 +1128,7 @@ export const CarepackPage: React.FC = () => {
               <button
                 onClick={closeModal}
                 className={`p-2 rounded-lg transition-colors ${
-                  isDark
-                    ? 'text-zinc-400 hover:text-white hover:bg-zinc-800'
-                    : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100'
+                  isDark ? 'text-zinc-400 hover:text-white hover:bg-zinc-800' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100'
                 }`}
               >
                 <X className="w-5 h-5" />
@@ -1015,13 +1136,11 @@ export const CarepackPage: React.FC = () => {
             </div>
 
             {/* Form */}
-            <form onSubmit={handleSubmit} className="p-6 space-y-5">
-              {/* Form Error */}
+            <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto">
+              <div className="p-6 space-y-5 pb-6">
               {formError && (
                 <div className={`p-3 rounded-xl flex items-center gap-2 text-sm ${
-                  isDark
-                    ? 'bg-red-900/20 border border-red-800 text-red-400'
-                    : 'bg-red-50 border border-red-200 text-red-700'
+                  isDark ? 'bg-red-900/20 border border-red-800 text-red-400' : 'bg-red-50 border border-red-200 text-red-700'
                 }`}>
                   <AlertCircle className="w-4 h-4 flex-shrink-0" />
                   {formError}
@@ -1035,102 +1154,39 @@ export const CarepackPage: React.FC = () => {
                   Carepack Information
                 </h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {/* Partner */}
                   <div className="sm:col-span-2">
                     <label htmlFor="partnerId" className={labelClass}>Partner</label>
-                    <select
-                      id="partnerId"
-                      name="partnerId"
-                      value={formData.partnerId}
-                      onChange={handleFormChange}
-                      className={selectClass}
-                    >
+                    <select id="partnerId" name="partnerId" value={formData.partnerId} onChange={handleFormChange} className={selectClass}>
                       <option value="">Select Partner</option>
-                      {partners.map(p => (
-                        <option key={p.id} value={p.id}>{p.companyName}</option>
-                      ))}
+                      {partners.map(p => <option key={p.id} value={p.id}>{p.companyName}</option>)}
                     </select>
                   </div>
-
-                  {/* Customer Name */}
                   <div>
-                    <label htmlFor="customerName" className={labelClass}>
-                      Customer Name <span className="text-red-500">*</span>
-                    </label>
+                    <label htmlFor="customerName" className={labelClass}>Customer Name <span className="text-red-500">*</span></label>
                     <div className="relative">
-                      <UserIcon className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${
-                        isDark ? 'text-zinc-500' : 'text-slate-400'
-                      }`} />
-                      <input
-                        id="customerName"
-                        name="customerName"
-                        type="text"
-                        placeholder="Enter customer name"
-                        value={formData.customerName}
-                        onChange={handleFormChange}
-                        className={`${inputClass} pl-10`}
-                        required
-                      />
+                      <UserIcon className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`} />
+                      <input id="customerName" name="customerName" type="text" placeholder="Enter customer name" value={formData.customerName} onChange={handleFormChange} className={`${inputClass} pl-10`} required />
                     </div>
                   </div>
-
-                  {/* Product Type */}
                   <div>
                     <label htmlFor="productType" className={labelClass}>Product Type</label>
                     <div className="relative">
-                      <Package className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${
-                        isDark ? 'text-zinc-500' : 'text-slate-400'
-                      }`} />
-                      <input
-                        id="productType"
-                        name="productType"
-                        type="text"
-                        placeholder="e.g. HP ProLiant, HPE Aruba"
-                        value={formData.productType}
-                        onChange={handleFormChange}
-                        className={`${inputClass} pl-10`}
-                      />
+                      <Package className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`} />
+                      <input id="productType" name="productType" type="text" placeholder="e.g. HP ProLiant, HPE Aruba" value={formData.productType} onChange={handleFormChange} className={`${inputClass} pl-10`} />
                     </div>
                   </div>
-
-                  {/* Serial Number */}
                   <div>
-                    <label htmlFor="serialNumber" className={labelClass}>
-                      Serial Number <span className="text-red-500">*</span>
-                    </label>
+                    <label htmlFor="serialNumber" className={labelClass}>Serial Number <span className="text-red-500">*</span></label>
                     <div className="relative">
-                      <Hash className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${
-                        isDark ? 'text-zinc-500' : 'text-slate-400'
-                      }`} />
-                      <input
-                        id="serialNumber"
-                        name="serialNumber"
-                        type="text"
-                        placeholder="e.g. CZ12345678"
-                        value={formData.serialNumber}
-                        onChange={handleFormChange}
-                        className={`${inputClass} pl-10`}
-                        required
-                      />
+                      <Hash className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`} />
+                      <input id="serialNumber" name="serialNumber" type="text" placeholder="e.g. CZ12345678" value={formData.serialNumber} onChange={handleFormChange} className={`${inputClass} pl-10`} required />
                     </div>
                   </div>
-
-                  {/* Carepack SKU */}
                   <div>
                     <label htmlFor="carepackSku" className={labelClass}>Carepack SKU</label>
                     <div className="relative">
-                      <FileText className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${
-                        isDark ? 'text-zinc-500' : 'text-slate-400'
-                      }`} />
-                      <input
-                        id="carepackSku"
-                        name="carepackSku"
-                        type="text"
-                        placeholder="e.g. U8PL9E"
-                        value={formData.carepackSku}
-                        onChange={handleFormChange}
-                        className={`${inputClass} pl-10`}
-                      />
+                      <FileText className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`} />
+                      <input id="carepackSku" name="carepackSku" type="text" placeholder="e.g. U8PL9E" value={formData.carepackSku} onChange={handleFormChange} className={`${inputClass} pl-10`} />
                     </div>
                   </div>
                 </div>
@@ -1143,61 +1199,24 @@ export const CarepackPage: React.FC = () => {
                   Dates &amp; Status
                 </h3>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  {/* Start Date */}
                   <div>
-                    <label htmlFor="startDate" className={labelClass}>
-                      Start Date <span className="text-red-500">*</span>
-                    </label>
+                    <label htmlFor="startDate" className={labelClass}>Start Date <span className="text-red-500">*</span></label>
                     <div className="relative">
-                      <Calendar className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${
-                        isDark ? 'text-zinc-500' : 'text-slate-400'
-                      }`} />
-                      <input
-                        id="startDate"
-                        name="startDate"
-                        type="date"
-                        value={formData.startDate}
-                        onChange={handleFormChange}
-                        className={`${inputClass} pl-10`}
-                        required
-                      />
+                      <Calendar className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`} />
+                      <input id="startDate" name="startDate" type="date" value={formData.startDate} onChange={handleFormChange} className={`${inputClass} pl-10`} required />
                     </div>
                   </div>
-
-                  {/* End Date */}
                   <div>
-                    <label htmlFor="endDate" className={labelClass}>
-                      End Date <span className="text-red-500">*</span>
-                    </label>
+                    <label htmlFor="endDate" className={labelClass}>End Date <span className="text-red-500">*</span></label>
                     <div className="relative">
-                      <Calendar className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${
-                        isDark ? 'text-zinc-500' : 'text-slate-400'
-                      }`} />
-                      <input
-                        id="endDate"
-                        name="endDate"
-                        type="date"
-                        value={formData.endDate}
-                        onChange={handleFormChange}
-                        className={`${inputClass} pl-10`}
-                        required
-                      />
+                      <Calendar className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`} />
+                      <input id="endDate" name="endDate" type="date" value={formData.endDate} onChange={handleFormChange} className={`${inputClass} pl-10`} required />
                     </div>
                   </div>
-
-                  {/* Status */}
                   <div>
                     <label htmlFor="status" className={labelClass}>Status</label>
-                    <select
-                      id="status"
-                      name="status"
-                      value={formData.status}
-                      onChange={handleFormChange}
-                      className={selectClass}
-                    >
-                      {STATUSES.map(s => (
-                        <option key={s.value} value={s.value}>{s.label}</option>
-                      ))}
+                    <select id="status" name="status" value={formData.status} onChange={handleFormChange} className={selectClass}>
+                      {STATUSES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
                     </select>
                   </div>
                 </div>
@@ -1206,29 +1225,20 @@ export const CarepackPage: React.FC = () => {
               {/* Section: Notes */}
               <div>
                 <label htmlFor="notes" className={labelClass}>Notes</label>
-                <textarea
-                  id="notes"
-                  name="notes"
-                  rows={3}
-                  placeholder="Any additional notes about this carepack..."
-                  value={formData.notes}
-                  onChange={handleFormChange}
-                  className={`${inputClass} resize-none`}
-                />
+                <textarea id="notes" name="notes" rows={3} placeholder="Any additional notes about this carepack..." value={formData.notes} onChange={handleFormChange} className={`${inputClass} resize-none`} />
+              </div>
               </div>
 
-              {/* Footer actions */}
-              <div className={`flex items-center justify-end gap-3 pt-4 border-t ${
-                isDark ? 'border-zinc-800' : 'border-slate-200'
+              {/* Sticky Footer */}
+              <div className={`sticky bottom-0 flex items-center justify-end gap-3 px-6 py-4 border-t ${
+                isDark ? 'bg-dark-50 border-zinc-800' : 'bg-white border-slate-200'
               }`}>
                 <button
                   type="button"
                   onClick={closeModal}
                   disabled={isSubmitting}
                   className={`px-4 py-2.5 rounded-xl text-sm font-medium transition-colors ${
-                    isDark
-                      ? 'text-zinc-400 hover:text-white hover:bg-zinc-800'
-                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                    isDark ? 'text-zinc-400 hover:text-white hover:bg-zinc-800' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
                   } disabled:opacity-50`}
                 >
                   Cancel
@@ -1239,15 +1249,9 @@ export const CarepackPage: React.FC = () => {
                   className="flex items-center gap-2 px-5 py-2.5 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-sm font-medium transition-all btn-premium disabled:opacity-50"
                 >
                   {isSubmitting ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      Saving...
-                    </>
+                    <><Loader2 className="w-4 h-4 animate-spin" /> Saving...</>
                   ) : (
-                    <>
-                      <CheckCircle className="w-4 h-4" />
-                      {editingId ? 'Update Carepack' : 'Create Carepack'}
-                    </>
+                    <><CheckCircle className="w-4 h-4" /> {editingId ? 'Update Carepack' : 'Create Carepack'}</>
                   )}
                 </button>
               </div>
@@ -1258,3 +1262,28 @@ export const CarepackPage: React.FC = () => {
     </div>
   );
 };
+
+// ---------------------------------------------------------------------------
+// Sub-components
+// ---------------------------------------------------------------------------
+
+const CarepackInfoRow: React.FC<{
+  label: string;
+  value?: string;
+  isDark: boolean;
+  icon?: React.ReactNode;
+}> = ({ label, value, isDark, icon }) => (
+  <div className={`flex items-start gap-2 p-2.5 rounded-lg ${isDark ? 'bg-dark-100' : 'bg-slate-50'}`}>
+    {icon && (
+      <span className={`mt-0.5 flex-shrink-0 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
+        {icon}
+      </span>
+    )}
+    <div className="min-w-0">
+      <p className={`text-[11px] font-medium ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>{label}</p>
+      <p className={`text-sm ${isDark ? 'text-white' : 'text-slate-900'}`}>
+        {value || '-'}
+      </p>
+    </div>
+  </div>
+);

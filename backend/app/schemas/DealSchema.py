@@ -14,7 +14,7 @@ class DealOut(CamelModel):
     company: Optional[str] = None
     account_id: Optional[UUID] = None
     value: Optional[float] = None
-    stage: str = "Qualification"
+    stage: str = "Cold"
     probability: Optional[int] = None
     owner_id: Optional[UUID] = None
     closing_date: Optional[date] = None
@@ -66,6 +66,13 @@ class DealOut(CamelModel):
     billing_country: Optional[str] = None
     billing_city: Optional[str] = None
     billing_zip_code: Optional[str] = None
+    tag: Optional[str] = None
+    # Contact/Display fields
+    contact_no: Optional[str] = None
+    designation: Optional[str] = None
+    email: Optional[str] = None
+    location: Optional[str] = None
+    next_follow_up: Optional[date] = None
     line_items: Optional[list[DealLineItemOut]] = None
 
 
@@ -74,7 +81,7 @@ class DealCreate(CamelModel):
     company: Optional[str] = None
     account_id: Optional[UUID] = None
     value: Optional[float] = None
-    stage: str = "Qualification"
+    stage: str = "Cold"
     probability: Optional[int] = None
     owner_id: Optional[UUID] = None
     closing_date: Optional[date] = None
@@ -120,6 +127,13 @@ class DealCreate(CamelModel):
     billing_country: Optional[str] = None
     billing_city: Optional[str] = None
     billing_zip_code: Optional[str] = None
+    tag: Optional[str] = None
+    # Contact/Display fields
+    contact_no: Optional[str] = None
+    designation: Optional[str] = None
+    email: Optional[str] = None
+    location: Optional[str] = None
+    next_follow_up: Optional[date] = None
     line_items: list[DealLineItemCreate] = []
 
 
@@ -174,4 +188,28 @@ class DealUpdate(CamelModel):
     billing_country: Optional[str] = None
     billing_city: Optional[str] = None
     billing_zip_code: Optional[str] = None
+    tag: Optional[str] = None
+    # Contact/Display fields
+    contact_no: Optional[str] = None
+    designation: Optional[str] = None
+    email: Optional[str] = None
+    location: Optional[str] = None
+    next_follow_up: Optional[date] = None
     line_items: Optional[list[DealLineItemCreate]] = None
+
+
+class DealActivityOut(CamelModel):
+    id: UUID
+    deal_id: UUID
+    activity_type: str
+    title: str
+    description: Optional[str] = None
+    created_by: Optional[UUID] = None
+    created_at: Optional[datetime] = None
+    created_by_name: Optional[str] = None
+
+
+class DealActivityCreate(CamelModel):
+    activity_type: str
+    title: str
+    description: Optional[str] = None

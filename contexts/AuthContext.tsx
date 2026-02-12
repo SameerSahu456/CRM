@@ -62,7 +62,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   const isManager = () => {
-    const managerRoles: UserRole[] = ['admin', 'superadmin', 'businesshead', 'branchhead', 'salesmanager', 'producthead'];
+    const managerRoles: UserRole[] = ['admin', 'superadmin', 'businesshead', 'productmanager'];
     return !!user && managerRoles.includes(user.role);
   };
 

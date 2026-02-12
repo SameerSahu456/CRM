@@ -32,7 +32,23 @@ export const useDashboardLayout = () => {
           // Save defaults to backend
           await dashboardApi.updatePreferences(defaults);
         } else {
-          setPreferences(prefs);
+          // Merge in any new widgets not yet in saved preferences
+          const savedIds = new Set(prefs.widgets.map((w: WidgetPlacement) => w.id));
+          const maxOrder = Math.max(...prefs.widgets.map((w: WidgetPlacement) => w.order), 0);
+          let nextOrder = maxOrder + 1;
+          const newWidgets = [...prefs.widgets];
+          for (const [id, meta] of Object.entries(WIDGET_REGISTRY)) {
+            if (!savedIds.has(id)) {
+              newWidgets.push({ id, visible: meta.defaultVisible, order: nextOrder++ });
+            }
+          }
+          if (newWidgets.length > prefs.widgets.length) {
+            const merged = { ...prefs, widgets: newWidgets };
+            setPreferences(merged);
+            await dashboardApi.updatePreferences(merged);
+          } else {
+            setPreferences(prefs);
+          }
         }
       } catch (error) {
         console.error('Failed to load dashboard preferences:', error);

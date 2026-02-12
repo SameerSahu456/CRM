@@ -13,6 +13,8 @@ from app.models.Contact import Contact
 from app.models.User import User
 from app.repositories.ContactRepository import ContactRepository
 from app.schemas.ContactSchema import ContactOut, ContactCreate, ContactUpdate
+from app.utils.activity_logger import compute_changes, log_activity, model_to_dict
+from app.utils.scoping import get_scoped_user_ids, enforce_scope
 
 router = APIRouter()
 
@@ -44,8 +46,10 @@ async def list_contacts(
             )
         )
 
-    if user.role == "salesperson":
-        filters.append(Contact.owner_id == user.id)
+    # Scope: non-admin users only see contacts owned by them/their team
+    scoped_ids = await get_scoped_user_ids(user, db)
+    if scoped_ids is not None:
+        filters.append(Contact.owner_id.in_(scoped_ids))
 
     result = await repo.get_with_names(page=page, limit=limit, filters=filters or None)
 
@@ -69,6 +73,7 @@ async def get_contact(
     contact = await repo.get_by_id(contact_id)
     if not contact:
         raise NotFoundException("Contact not found")
+    await enforce_scope(contact, "owner_id", user, db, resource_name="contact")
     return ContactOut.model_validate(contact).model_dump(by_alias=True)
 
 
@@ -83,6 +88,8 @@ async def create_contact(
     if "owner_id" not in data or data["owner_id"] is None:
         data["owner_id"] = user.id
     contact = await repo.create(data)
+    cname = f"{contact.first_name} {getattr(contact, 'last_name', '') or ''}".strip()
+    await log_activity(db, user, "create", "contact", str(contact.id), cname)
     return ContactOut.model_validate(contact).model_dump(by_alias=True)
 
 
@@ -94,9 +101,15 @@ async def update_contact(
     db: AsyncSession = Depends(get_db),
 ):
     repo = ContactRepository(db)
-    contact = await repo.update(contact_id, body.model_dump(exclude_unset=True))
-    if not contact:
+    old = await repo.get_by_id(contact_id)
+    if not old:
         raise NotFoundException("Contact not found")
+    await enforce_scope(old, "owner_id", user, db, resource_name="contact")
+    old_data = model_to_dict(old)
+    contact = await repo.update(contact_id, body.model_dump(exclude_unset=True))
+    changes = compute_changes(old_data, model_to_dict(contact))
+    cname = f"{contact.first_name} {getattr(contact, 'last_name', '') or ''}".strip()
+    await log_activity(db, user, "update", "contact", str(contact.id), cname, changes)
     return ContactOut.model_validate(contact).model_dump(by_alias=True)
 
 
@@ -107,7 +120,11 @@ async def delete_contact(
     db: AsyncSession = Depends(get_db),
 ):
     repo = ContactRepository(db)
-    deleted = await repo.delete(contact_id)
-    if not deleted:
+    contact = await repo.get_by_id(contact_id)
+    if not contact:
         raise NotFoundException("Contact not found")
+    await enforce_scope(contact, "owner_id", user, db, resource_name="contact")
+    cname = f"{contact.first_name} {getattr(contact, 'last_name', '') or ''}".strip()
+    await repo.delete(contact_id)
+    await log_activity(db, user, "delete", "contact", contact_id, cname)
     return {"success": True}

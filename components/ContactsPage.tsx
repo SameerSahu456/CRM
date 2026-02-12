@@ -3,12 +3,16 @@ import {
   Plus, Search, X, ChevronLeft, ChevronRight, Edit2, Trash2,
   Loader2, AlertCircle, CheckCircle, Building2,
   Phone, Mail, Eye, Briefcase, User as UserIcon,
-  MessageSquare, Smartphone, Users
+  MessageSquare, Smartphone, Users,
+  Download, Upload
 } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
+import { useNavigation } from '../contexts/NavigationContext';
 import { contactsApi, accountsApi } from '../services/api';
+import { exportToCsv } from '../utils/exportCsv';
 import { Contact, Account, PaginatedResponse } from '../types';
+import { BulkImportModal } from './BulkImportModal';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -22,8 +26,6 @@ const CONTACT_TYPES = [
   'Partner',
   'Vendor',
 ];
-
-const STATUSES = ['Active', 'Inactive'];
 
 // ---------------------------------------------------------------------------
 // Form types
@@ -39,9 +41,9 @@ interface ContactFormData {
   department: string;
   accountId: string;
   type: string;
-  status: string;
   preferredContact: string;
   notes: string;
+  status: string;
 }
 
 const EMPTY_CONTACT_FORM: ContactFormData = {
@@ -54,23 +56,14 @@ const EMPTY_CONTACT_FORM: ContactFormData = {
   department: '',
   accountId: '',
   type: '',
-  status: 'Active',
   preferredContact: '',
   notes: '',
+  status: 'Active',
 };
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-
-function statusBadge(status: string, isDark: boolean): string {
-  const base = 'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium';
-  const isActive = status?.toLowerCase() === 'active';
-  if (isActive) {
-    return `${base} ${isDark ? 'bg-emerald-900/30 text-emerald-400' : 'bg-emerald-50 text-emerald-700'}`;
-  }
-  return `${base} ${isDark ? 'bg-zinc-800 text-zinc-400' : 'bg-slate-100 text-slate-500'}`;
-}
 
 function formatDate(dateStr?: string): string {
   if (!dateStr) return '-';
@@ -92,9 +85,11 @@ function formatDate(dateStr?: string): string {
 export const ContactsPage: React.FC = () => {
   const { theme } = useTheme();
   const { user } = useAuth();
+  const { setActiveTab: navigate, consumeNavParams } = useNavigation();
   const isDark = theme === 'dark';
 
   // Data state
+  const [showBulkImport, setShowBulkImport] = useState(false);
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [accountsList, setAccountsList] = useState<Account[]>([]);
 
@@ -105,7 +100,6 @@ export const ContactsPage: React.FC = () => {
 
   // Filters
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterStatus, setFilterStatus] = useState('');
   const [filterType, setFilterType] = useState('');
   const [filterAccountId, setFilterAccountId] = useState('');
 
@@ -152,7 +146,6 @@ export const ContactsPage: React.FC = () => {
         page: String(page),
         limit: String(PAGE_SIZE),
       };
-      if (filterStatus) params.status = filterStatus;
       if (filterType) params.type = filterType;
       if (filterAccountId) params.accountId = filterAccountId;
       if (searchTerm) params.search = searchTerm;
@@ -167,7 +160,7 @@ export const ContactsPage: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [page, filterStatus, filterType, filterAccountId, searchTerm]);
+  }, [page, filterType, filterAccountId, searchTerm]);
 
   const fetchAccounts = useCallback(async () => {
     try {
@@ -178,6 +171,14 @@ export const ContactsPage: React.FC = () => {
       // Dropdown data failure is non-critical
     }
   }, []);
+
+  // Consume nav params (e.g. navigated from AccountsPage with accountId)
+  useEffect(() => {
+    const params = consumeNavParams();
+    if (params?.accountId) {
+      setFilterAccountId(params.accountId);
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Initial load
   useEffect(() => {
@@ -192,7 +193,7 @@ export const ContactsPage: React.FC = () => {
   // Reset to page 1 when filters change
   useEffect(() => {
     setPage(1);
-  }, [filterStatus, filterType, filterAccountId, searchTerm]);
+  }, [filterType, filterAccountId, searchTerm]);
 
   // ---------------------------------------------------------------------------
   // Form handlers
@@ -216,9 +217,9 @@ export const ContactsPage: React.FC = () => {
       department: contact.department || '',
       accountId: contact.accountId || '',
       type: contact.type || '',
-      status: contact.status || 'Active',
       preferredContact: contact.preferredContact || '',
       notes: contact.notes || '',
+      status: (contact as any).status || 'Active',
     });
     setEditingContactId(contact.id);
     setFormError('');
@@ -299,13 +300,12 @@ export const ContactsPage: React.FC = () => {
   // ---------------------------------------------------------------------------
 
   const clearFilters = () => {
-    setFilterStatus('');
     setFilterType('');
     setFilterAccountId('');
     setSearchTerm('');
   };
 
-  const hasActiveFilters = filterStatus || filterType || filterAccountId || searchTerm;
+  const hasActiveFilters = filterType || filterAccountId || searchTerm;
 
   // ---------------------------------------------------------------------------
   // Render: Toolbar
@@ -330,20 +330,6 @@ export const ContactsPage: React.FC = () => {
                 : 'bg-white border-slate-200 text-slate-900 placeholder-slate-400 focus:border-brand-500'
             } focus:outline-none focus:ring-1 focus:ring-brand-500`}
           />
-        </div>
-
-        {/* Filter: Status */}
-        <div className="w-full lg:w-36">
-          <select
-            value={filterStatus}
-            onChange={e => setFilterStatus(e.target.value)}
-            className={selectClass}
-          >
-            <option value="">All Statuses</option>
-            {STATUSES.map(s => (
-              <option key={s} value={s}>{s}</option>
-            ))}
-          </select>
         </div>
 
         {/* Filter: Account */}
@@ -389,6 +375,48 @@ export const ContactsPage: React.FC = () => {
           </button>
         )}
 
+        {/* Bulk Import */}
+        <button
+          onClick={() => setShowBulkImport(true)}
+          title="Import from CSV"
+          className={`flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-normal transition-colors whitespace-nowrap ${
+            isDark
+              ? 'text-zinc-400 border border-zinc-700 hover:bg-zinc-800'
+              : 'text-slate-500 border border-slate-200 hover:bg-slate-50'
+          }`}
+        >
+          <Upload className="w-4 h-4" />
+          Import
+        </button>
+
+        {/* Export CSV */}
+        <button
+          onClick={() => exportToCsv('contacts', [
+            { header: 'First Name', accessor: (r: Contact) => r.firstName },
+            { header: 'Last Name', accessor: (r: Contact) => r.lastName },
+            { header: 'Email', accessor: (r: Contact) => r.email },
+            { header: 'Phone', accessor: (r: Contact) => r.phone },
+            { header: 'Mobile', accessor: (r: Contact) => r.mobile },
+            { header: 'Job Title', accessor: (r: Contact) => r.jobTitle },
+            { header: 'Department', accessor: (r: Contact) => r.department },
+            { header: 'Account', accessor: (r: Contact) => r.accountName },
+            { header: 'Type', accessor: (r: Contact) => r.type },
+            { header: 'Status', accessor: (r: Contact) => r.status },
+            { header: 'Preferred Contact', accessor: (r: Contact) => r.preferredContact },
+            { header: 'Notes', accessor: (r: Contact) => r.notes },
+          ], contacts)}
+          disabled={contacts.length === 0}
+          title="Export to Excel"
+          className={`flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-normal transition-colors whitespace-nowrap ${
+            isDark
+              ? 'text-zinc-400 border border-zinc-700 hover:bg-zinc-800 disabled:opacity-30'
+              : 'text-slate-500 border border-slate-200 hover:bg-slate-50 disabled:opacity-30'
+          }`}
+        >
+          <Download className="w-4 h-4" />
+          Export
+        </button>
+
         {/* New Contact */}
         <button
           onClick={openCreateModal}
@@ -405,6 +433,9 @@ export const ContactsPage: React.FC = () => {
   // Render: Table
   // ---------------------------------------------------------------------------
 
+  const cellBase = `px-3 py-2.5 text-sm ${isDark ? 'text-zinc-300' : 'text-slate-700'}`;
+  const hdrCell = `px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider ${isDark ? 'text-zinc-400' : 'text-slate-500'}`;
+
   const renderTable = () => (
     <div className={`${cardClass} overflow-hidden`}>
       {tableError && (
@@ -418,6 +449,13 @@ export const ContactsPage: React.FC = () => {
         </div>
       )}
 
+      {/* Record count */}
+      {totalRecords > 0 && (
+        <div className={`px-4 py-2 text-xs ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
+          {totalRecords} contact{totalRecords !== 1 ? 's' : ''} found
+        </div>
+      )}
+
       {isLoading ? (
         <div className="flex flex-col items-center justify-center py-20">
           <Loader2 className="w-8 h-8 text-brand-600 animate-spin" />
@@ -425,89 +463,68 @@ export const ContactsPage: React.FC = () => {
             Loading contacts...
           </p>
         </div>
-      ) : contacts.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-20">
-          <div className={`w-16 h-16 rounded-2xl flex items-center justify-center mb-4 ${
-            isDark ? 'bg-zinc-800' : 'bg-slate-100'
-          }`}>
-            <Users className={`w-7 h-7 ${isDark ? 'text-zinc-600' : 'text-slate-300'}`} />
-          </div>
-          <p className={`text-sm font-medium ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>
-            {hasActiveFilters ? 'No contacts match your filters' : 'No contacts yet'}
-          </p>
-          <p className={`text-xs mt-1 ${isDark ? 'text-zinc-600' : 'text-slate-400'}`}>
-            {hasActiveFilters ? 'Try adjusting your filters' : 'Click "New Contact" to create one'}
-          </p>
-        </div>
       ) : (
         <>
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="w-full text-sm border-collapse">
               <thead>
-                <tr className={`border-b ${isDark ? 'border-zinc-800' : 'border-slate-100'}`}>
-                  {['Name', 'Email', 'Phone', 'Job Title', 'Account', 'Status', 'Actions'].map(h => (
-                    <th
-                      key={h}
-                      className={`px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider ${
-                        isDark ? 'text-zinc-500' : 'text-slate-400'
-                      }`}
-                    >
-                      {h}
-                    </th>
-                  ))}
+                <tr className={`border-b ${isDark ? 'border-zinc-700' : 'border-slate-200'}`}>
+                  <th className={`${hdrCell} w-[40px] text-center`}>#</th>
+                  <th className={`${hdrCell} w-[180px]`}>Name</th>
+                  <th className={`${hdrCell} w-[200px]`}>Email</th>
+                  <th className={`${hdrCell} w-[130px]`}>Phone</th>
+                  <th className={`${hdrCell} w-[140px]`}>Job Title</th>
+                  <th className={`${hdrCell} w-[160px]`}>Account</th>
+                  <th className={`${hdrCell} w-[100px] text-center`}>Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {contacts.map(contact => (
+                {contacts.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="py-16 text-center">
+                      <Users className={`w-8 h-8 mx-auto ${isDark ? 'text-zinc-700' : 'text-slate-300'}`} />
+                      <p className={`mt-2 text-sm ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
+                        {hasActiveFilters ? 'No contacts match filters' : 'No contacts yet'}
+                      </p>
+                    </td>
+                  </tr>
+                ) : contacts.map((contact, idx) => (
                   <tr
                     key={contact.id}
                     onClick={() => openDetailModal(contact)}
-                    className={`border-b transition-colors cursor-pointer ${
+                    className={`border-b cursor-pointer transition-colors ${
                       isDark
-                        ? 'border-zinc-800/50 hover:bg-gray-800/50'
-                        : 'border-slate-50 hover:bg-gray-50'
+                        ? 'border-zinc-800 hover:bg-zinc-800/50'
+                        : 'border-slate-100 hover:bg-slate-50'
                     }`}
                   >
-                    {/* Name */}
-                    <td className={`px-4 py-3 ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                      <div className="flex items-center gap-2">
-                        <UserIcon className={`w-3.5 h-3.5 flex-shrink-0 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`} />
-                        <span className="font-medium">
-                          {contact.firstName} {contact.lastName || ''}
-                        </span>
-                      </div>
+                    <td className={`${cellBase} text-center ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
+                      {(page - 1) * PAGE_SIZE + idx + 1}
                     </td>
-
-                    {/* Email */}
-                    <td className={`px-4 py-3 ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
-                      <span className="truncate block max-w-[200px]">{contact.email || '-'}</span>
+                    <td className={cellBase}>
+                      <span className="font-medium">{contact.firstName} {contact.lastName || ''}</span>
                     </td>
-
-                    {/* Phone */}
-                    <td className={`px-4 py-3 whitespace-nowrap ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
-                      {contact.phone || '-'}
+                    <td className={cellBase}>
+                      <span className="truncate block max-w-[190px]">{contact.email || '-'}</span>
                     </td>
-
-                    {/* Job Title */}
-                    <td className={`px-4 py-3 ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
+                    <td className={cellBase}>
+                      <span className="whitespace-nowrap">{contact.phone || '-'}</span>
+                    </td>
+                    <td className={cellBase}>
                       {contact.jobTitle || '-'}
                     </td>
-
-                    {/* Account */}
-                    <td className={`px-4 py-3 ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
-                      {contact.accountName || '-'}
+                    <td className={cellBase}>
+                      {contact.accountName ? (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); navigate('accounts', { accountId: contact.accountId }); }}
+                          className={`text-left truncate max-w-[150px] font-medium hover:underline ${isDark ? 'text-brand-400 hover:text-brand-300' : 'text-brand-600 hover:text-brand-500'}`}
+                        >
+                          {contact.accountName}
+                        </button>
+                      ) : '-'}
                     </td>
-
-                    {/* Status */}
-                    <td className="px-4 py-3">
-                      <span className={statusBadge(contact.status, isDark)}>
-                        {contact.status || '-'}
-                      </span>
-                    </td>
-
-                    {/* Actions */}
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-1">
+                    <td className={`${cellBase} text-center`}>
+                      <div className="flex items-center justify-center gap-1">
                         <button
                           onClick={(e) => { e.stopPropagation(); openDetailModal(contact); }}
                           title="View"
@@ -530,24 +547,21 @@ export const ContactsPage: React.FC = () => {
                         >
                           <Edit2 className="w-4 h-4" />
                         </button>
-
                         {deleteConfirmId === contact.id ? (
                           <div className="flex items-center gap-1">
                             <button
                               onClick={(e) => { e.stopPropagation(); handleDelete(contact.id); }}
                               className="px-2 py-1 rounded-lg text-xs font-medium bg-red-600 text-white hover:bg-red-700 transition-colors"
                             >
-                              Confirm
+                              Yes
                             </button>
                             <button
                               onClick={(e) => { e.stopPropagation(); setDeleteConfirmId(null); }}
                               className={`px-2 py-1 rounded-lg text-xs font-medium transition-colors ${
-                                isDark
-                                  ? 'text-zinc-400 hover:bg-zinc-800'
-                                  : 'text-slate-500 hover:bg-slate-100'
+                                isDark ? 'text-zinc-400 hover:bg-zinc-800' : 'text-slate-500 hover:bg-slate-100'
                               }`}
                             >
-                              Cancel
+                              No
                             </button>
                           </div>
                         ) : (
@@ -662,7 +676,7 @@ export const ContactsPage: React.FC = () => {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
         <div className="absolute inset-0 bg-black/50 animate-backdrop" onClick={closeDetailModal} />
-        <div className={`relative w-full max-w-2xl max-h-[85vh] rounded-2xl animate-fade-in-up flex flex-col overflow-hidden ${
+        <div className={`relative w-full max-w-xl max-h-[75vh] rounded-2xl animate-fade-in-up flex flex-col overflow-hidden ${
           isDark ? 'bg-dark-50 border border-zinc-800' : 'bg-white shadow-premium'
         }`}>
           {/* Header */}
@@ -673,7 +687,6 @@ export const ContactsPage: React.FC = () => {
               <h2 className={`text-lg font-semibold font-display truncate ${isDark ? 'text-white' : 'text-slate-900'}`}>
                 {contact.firstName} {contact.lastName || ''}
               </h2>
-              <span className={statusBadge(contact.status, isDark)}>{contact.status}</span>
             </div>
             <div className="flex items-center gap-2 flex-shrink-0">
               <button
@@ -697,7 +710,7 @@ export const ContactsPage: React.FC = () => {
           </div>
 
           <div className="flex-1 overflow-y-auto">
-          <div className="p-6 space-y-6 pb-20">
+          <div className="p-6 space-y-6 pb-6">
             {/* Contact info grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <InfoRow label="First Name" value={contact.firstName} isDark={isDark} icon={<UserIcon className="w-3.5 h-3.5" />} />
@@ -707,7 +720,24 @@ export const ContactsPage: React.FC = () => {
               <InfoRow label="Mobile" value={contact.mobile} isDark={isDark} icon={<Smartphone className="w-3.5 h-3.5" />} />
               <InfoRow label="Job Title" value={contact.jobTitle} isDark={isDark} icon={<Briefcase className="w-3.5 h-3.5" />} />
               <InfoRow label="Department" value={contact.department} isDark={isDark} icon={<Building2 className="w-3.5 h-3.5" />} />
-              <InfoRow label="Account" value={contact.accountName} isDark={isDark} icon={<Building2 className="w-3.5 h-3.5" />} />
+              {contact.accountName && contact.accountId ? (
+                <div
+                  onClick={() => { setShowDetailModal(false); setDetailContact(null); navigate('accounts', { accountId: contact.accountId! }); }}
+                  className={`flex items-start gap-2 p-2.5 rounded-lg cursor-pointer transition-colors ${isDark ? 'bg-dark-100 hover:bg-zinc-800' : 'bg-slate-50 hover:bg-slate-100'}`}
+                >
+                  <span className={`mt-0.5 flex-shrink-0 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
+                    <Building2 className="w-3.5 h-3.5" />
+                  </span>
+                  <div className="min-w-0">
+                    <p className={`text-[11px] font-medium ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Account</p>
+                    <p className={`text-sm font-medium hover:underline ${isDark ? 'text-brand-400' : 'text-brand-600'}`}>
+                      {contact.accountName}
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <InfoRow label="Account" value={contact.accountName} isDark={isDark} icon={<Building2 className="w-3.5 h-3.5" />} />
+              )}
               <InfoRow label="Type" value={contact.type} isDark={isDark} icon={<Users className="w-3.5 h-3.5" />} />
               <InfoRow label="Preferred Contact" value={contact.preferredContact} isDark={isDark} icon={<MessageSquare className="w-3.5 h-3.5" />} />
             </div>
@@ -748,7 +778,7 @@ export const ContactsPage: React.FC = () => {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
         <div className="absolute inset-0 bg-black/50 animate-backdrop" onClick={closeFormModal} />
-        <div className={`relative w-full max-w-2xl max-h-[85vh] rounded-2xl animate-fade-in-up flex flex-col overflow-hidden ${
+        <div className={`relative w-full max-w-xl max-h-[75vh] rounded-2xl animate-fade-in-up flex flex-col overflow-hidden ${
           isDark ? 'bg-dark-50 border border-zinc-800' : 'bg-white shadow-premium'
         }`}>
           {/* Header */}
@@ -770,7 +800,7 @@ export const ContactsPage: React.FC = () => {
 
           {/* Form */}
           <form onSubmit={handleFormSubmit} className="flex-1 overflow-y-auto">
-            <div className="p-6 space-y-5 pb-20">
+            <div className="p-6 space-y-5 pb-6">
             {formError && (
               <div className={`p-3 rounded-xl flex items-center gap-2 text-sm ${
                 isDark ? 'bg-red-900/20 border border-red-800 text-red-400' : 'bg-red-50 border border-red-200 text-red-700'
@@ -1049,6 +1079,15 @@ export const ContactsPage: React.FC = () => {
       {/* Modals */}
       {renderFormModal()}
       {renderDetailModal()}
+
+      <BulkImportModal
+        isOpen={showBulkImport}
+        onClose={() => setShowBulkImport(false)}
+        entity="contacts"
+        entityLabel="Contacts"
+        isDark={isDark}
+        onSuccess={() => fetchContacts()}
+      />
     </div>
   );
 };

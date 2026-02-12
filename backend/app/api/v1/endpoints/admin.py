@@ -18,6 +18,7 @@ from app.schemas.UserSchema import (
     UserUpdate,
 )
 from app.services.AuthService import AuthService
+from app.utils.activity_logger import compute_changes, log_activity, model_to_dict
 
 router = APIRouter()
 
@@ -65,6 +66,7 @@ async def create_user(
     data["password_hash"] = AuthService.hash_password(data.pop("password"))
 
     user = await repo.create(data)
+    await log_activity(db, admin, "create", "user", str(user.id), user.name or user.email)
     return UserOut.model_validate(user).model_dump(by_alias=True)
 
 
@@ -76,9 +78,13 @@ async def update_user(
     db: AsyncSession = Depends(get_db),
 ):
     repo = UserRepository(db)
-    user = await repo.update(user_id, body.model_dump(exclude_unset=True))
-    if not user:
+    old = await repo.get_by_id(user_id)
+    if not old:
         raise NotFoundException("User not found")
+    old_data = model_to_dict(old)
+    user = await repo.update(user_id, body.model_dump(exclude_unset=True))
+    changes = compute_changes(old_data, model_to_dict(user))
+    await log_activity(db, admin, "update", "user", str(user.id), user.name or user.email, changes)
     return UserOut.model_validate(user).model_dump(by_alias=True)
 
 
@@ -90,6 +96,12 @@ async def reset_password(
     db: AsyncSession = Depends(get_db),
 ):
     repo = UserRepository(db)
+    target = await repo.get_by_id(user_id)
     auth_service = AuthService(repo)
     await auth_service.reset_password(user_id, body.new_password)
+    await log_activity(
+        db, admin, "update", "user", user_id,
+        (target.name or target.email) if target else user_id,
+        [{"field": "password", "old": "***", "new": "***"}],
+    )
     return {"success": True, "message": "Password reset successfully"}

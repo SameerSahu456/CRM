@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { X, ExternalLink, Loader2 } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { X, ExternalLink, Loader2, ArrowLeft, ChevronRight, Users, Briefcase, Target, TrendingUp } from 'lucide-react';
 import { dashboardApi, formatINR } from '../../services/api';
 import { formatCompact, pctChange } from '../../utils/dashboard';
 import { NavigationItem } from '../../types';
@@ -22,20 +22,22 @@ const WIDGET_PAGE_MAP: Record<string, NavigationItem> = {
   'pipeline-chart': 'deals',
   'leads': 'crm',
   'leads-distribution': 'crm',
-  'sales-team': 'reports',
-  'monthly': 'reports',
+  'sales-team': 'sales-entry',
+  'monthly': 'sales-entry',
   'partners': 'partners',
   'recent-sales': 'sales-entry',
-  'tasks': 'tasks',
-  'products': 'reports',
+  'products': 'sales-entry',
   'top-partners': 'partners',
-  'growth': 'reports',
-  'revenue-trend': 'reports',
+  'growth': 'sales-entry',
+  'revenue-trend': 'sales-entry',
 };
 
 export const WidgetDetailModal: React.FC<WidgetDetailModalProps> = ({ widgetId, isDark, onClose, navigate }) => {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [selectedAssignee, setSelectedAssignee] = useState<string | null>(null);
+  const [assigneeDetail, setAssigneeDetail] = useState<any>(null);
+  const [assigneeLoading, setAssigneeLoading] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -49,6 +51,20 @@ export const WidgetDetailModal: React.FC<WidgetDetailModalProps> = ({ widgetId, 
       }
     };
     fetchData();
+  }, []);
+
+  const handleAssigneeClick = useCallback(async (userId: string) => {
+    setSelectedAssignee(userId);
+    setAssigneeLoading(true);
+    setAssigneeDetail(null);
+    try {
+      const detail = await dashboardApi.getAssigneeDetail(userId);
+      setAssigneeDetail(detail);
+    } catch {
+      // Best-effort
+    } finally {
+      setAssigneeLoading(false);
+    }
   }, []);
 
   const meta = WIDGET_REGISTRY[widgetId];
@@ -109,6 +125,8 @@ export const WidgetDetailModal: React.FC<WidgetDetailModalProps> = ({ widgetId, 
         return renderGrowthDetail();
       case 'revenue-trend':
         return renderRevenueTrendDetail();
+      case 'assignee-summary':
+        return renderAssigneeSummaryDetail();
       default:
         return <p className={`text-sm ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>No detail view available</p>;
     }
@@ -117,7 +135,7 @@ export const WidgetDetailModal: React.FC<WidgetDetailModalProps> = ({ widgetId, 
   // --- Pipeline Detail ---
   const renderPipelineDetail = () => {
     const dealStatsRaw = data.dealStats || {};
-    const DEAL_STAGE_ORDER = ['Discovery', 'Qualification', 'Needs Analysis', 'Proposal', 'Negotiation', 'Closed Won', 'Closed Lost'];
+    const DEAL_STAGE_ORDER = ['Cold', 'Proposal', 'Negotiation', 'Closed Won', 'Closed Lost'];
     const pipelineStages = DEAL_STAGE_ORDER
       .filter(s => dealStatsRaw[s])
       .map(s => ({ stage: s, count: dealStatsRaw[s]?.count ?? 0, value: dealStatsRaw[s]?.value ?? 0 }));
@@ -128,8 +146,7 @@ export const WidgetDetailModal: React.FC<WidgetDetailModalProps> = ({ widgetId, 
     const dealWinRate = (wonDeals + lostDeals) > 0 ? Math.round((wonDeals / (wonDeals + lostDeals)) * 100) : 0;
 
     const PIPELINE_COLORS: Record<string, string> = {
-      Discovery: '#06b6d4', Qualification: '#3b82f6', 'Needs Analysis': '#8b5cf6',
-      Proposal: '#a855f7', Negotiation: '#f97316', 'Closed Won': '#10b981', 'Closed Lost': '#ef4444',
+      Cold: '#3b82f6', Proposal: '#a855f7', Negotiation: '#f97316', 'Closed Won': '#10b981', 'Closed Lost': '#ef4444',
     };
 
     return (
@@ -193,7 +210,7 @@ export const WidgetDetailModal: React.FC<WidgetDetailModalProps> = ({ widgetId, 
   // --- Pipeline Chart Detail ---
   const renderPipelineChartDetail = () => {
     const dealStatsRaw = data.dealStats || {};
-    const DEAL_STAGE_ORDER = ['Discovery', 'Qualification', 'Needs Analysis', 'Proposal', 'Negotiation', 'Closed Won', 'Closed Lost'];
+    const DEAL_STAGE_ORDER = ['Cold', 'Proposal', 'Negotiation', 'Closed Won', 'Closed Lost'];
     const pipelineStages = DEAL_STAGE_ORDER
       .filter(s => dealStatsRaw[s])
       .map(s => ({ stage: s, count: dealStatsRaw[s]?.count ?? 0, value: dealStatsRaw[s]?.value ?? 0 }));
@@ -201,8 +218,7 @@ export const WidgetDetailModal: React.FC<WidgetDetailModalProps> = ({ widgetId, 
     const totalDealValue = pipelineStages.reduce((sum, s) => sum + s.value, 0);
 
     const PIPELINE_COLORS: Record<string, string> = {
-      Discovery: '#06b6d4', Qualification: '#3b82f6', 'Needs Analysis': '#8b5cf6',
-      Proposal: '#a855f7', Negotiation: '#f97316', 'Closed Won': '#10b981', 'Closed Lost': '#ef4444',
+      Cold: '#3b82f6', Proposal: '#a855f7', Negotiation: '#f97316', 'Closed Won': '#10b981', 'Closed Lost': '#ef4444',
     };
 
     const chartData = pipelineStages.map(s => ({
@@ -224,9 +240,9 @@ export const WidgetDetailModal: React.FC<WidgetDetailModalProps> = ({ widgetId, 
         </div>
         <ResponsiveContainer width="100%" height={300}>
           <BarChart data={chartData} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke={isDark ? '#27272a' : '#f1f5f9'} vertical={false} />
-            <XAxis dataKey="stage" tick={{ fontSize: 11, fill: isDark ? '#71717a' : '#94a3b8' }} tickLine={false} axisLine={false} />
-            <YAxis tick={{ fontSize: 11, fill: isDark ? '#71717a' : '#94a3b8' }} tickLine={false} axisLine={false} allowDecimals={false} />
+            <CartesianGrid strokeDasharray="3 3" stroke={isDark ? '#1a2535' : '#f1f5f9'} vertical={false} />
+            <XAxis dataKey="stage" tick={{ fontSize: 11, fill: isDark ? '#64748b' : '#94a3b8' }} tickLine={false} axisLine={false} />
+            <YAxis tick={{ fontSize: 11, fill: isDark ? '#64748b' : '#94a3b8' }} tickLine={false} axisLine={false} allowDecimals={false} />
             <Tooltip content={({ active, payload }: any) => {
               if (!active || !payload?.length) return null;
               const d = payload[0].payload;
@@ -249,15 +265,14 @@ export const WidgetDetailModal: React.FC<WidgetDetailModalProps> = ({ widgetId, 
   // --- Leads Detail ---
   const renderLeadsDetail = () => {
     const leadStats = data.leadStats || {};
-    const LEAD_STAGES = ['New', 'Contacted', 'Qualified', 'Proposal', 'Negotiation', 'Won', 'Lost'];
+    const LEAD_STAGES = ['Cold', 'Proposal', 'Negotiation', 'Closed Won', 'Closed Lost'];
     const totalLeads = (Object.values(leadStats) as number[]).reduce((a, b) => a + b, 0);
-    const wonLeads = (leadStats['Won'] as number) || 0;
-    const lostLeads = (leadStats['Lost'] as number) || 0;
+    const wonLeads = (leadStats['Closed Won'] as number) || 0;
+    const lostLeads = (leadStats['Closed Lost'] as number) || 0;
     const conversionRate = totalLeads > 0 ? Math.round((wonLeads / totalLeads) * 100) : 0;
 
     const LEAD_COLORS: Record<string, string> = {
-      New: '#3b82f6', Contacted: '#06b6d4', Qualified: '#f59e0b',
-      Proposal: '#a855f7', Negotiation: '#f97316', Won: '#10b981', Lost: '#ef4444',
+      Cold: '#3b82f6', Proposal: '#a855f7', Negotiation: '#f97316', 'Closed Won': '#10b981', 'Closed Lost': '#ef4444',
     };
 
     return (
@@ -317,7 +332,7 @@ export const WidgetDetailModal: React.FC<WidgetDetailModalProps> = ({ widgetId, 
           <div className="flex items-center gap-3">
             <div className="relative w-14 h-14">
               <svg className="w-full h-full -rotate-90" viewBox="0 0 56 56">
-                <circle cx="28" cy="28" r="22" fill="none" stroke={isDark ? '#27272a' : '#f1f5f9'} strokeWidth="5" />
+                <circle cx="28" cy="28" r="22" fill="none" stroke={isDark ? '#1a2535' : '#f1f5f9'} strokeWidth="5" />
                 <circle cx="28" cy="28" r="22" fill="none" stroke="#10b981" strokeWidth="5"
                   strokeLinecap="round" strokeDasharray={`${2 * Math.PI * 22}`}
                   strokeDashoffset={`${2 * Math.PI * 22 * (1 - conversionRate / 100)}`} />
@@ -344,8 +359,7 @@ export const WidgetDetailModal: React.FC<WidgetDetailModalProps> = ({ widgetId, 
     const leadStats = data.leadStats || {};
     const totalLeads = (Object.values(leadStats) as number[]).reduce((a, b) => a + b, 0);
     const LEAD_COLORS: Record<string, string> = {
-      New: '#3b82f6', Contacted: '#06b6d4', Qualified: '#f59e0b',
-      Proposal: '#a855f7', Negotiation: '#f97316', Won: '#10b981', Lost: '#ef4444',
+      Cold: '#3b82f6', Proposal: '#a855f7', Negotiation: '#f97316', 'Closed Won': '#10b981', 'Closed Lost': '#ef4444',
     };
     const pieData = Object.entries(leadStats)
       .filter(([, v]) => (v as number) > 0)
@@ -474,10 +488,10 @@ export const WidgetDetailModal: React.FC<WidgetDetailModalProps> = ({ widgetId, 
         {monthly.length > 1 && (
           <ResponsiveContainer width="100%" height={200}>
             <LineChart data={monthly}>
-              <CartesianGrid strokeDasharray="3 3" stroke={isDark ? '#27272a' : '#f1f5f9'} vertical={false} />
-              <XAxis dataKey="month" tick={{ fontSize: 10, fill: isDark ? '#71717a' : '#94a3b8' }} tickLine={false} axisLine={false}
+              <CartesianGrid strokeDasharray="3 3" stroke={isDark ? '#1a2535' : '#f1f5f9'} vertical={false} />
+              <XAxis dataKey="month" tick={{ fontSize: 10, fill: isDark ? '#64748b' : '#94a3b8' }} tickLine={false} axisLine={false}
                 tickFormatter={(v: string) => v.split(' ')[0]?.slice(0, 3) || v} />
-              <YAxis tick={{ fontSize: 10, fill: isDark ? '#71717a' : '#94a3b8' }} tickLine={false} axisLine={false}
+              <YAxis tick={{ fontSize: 10, fill: isDark ? '#64748b' : '#94a3b8' }} tickLine={false} axisLine={false}
                 tickFormatter={(v: number) => v >= 100000 ? `${(v / 100000).toFixed(1)}L` : v >= 1000 ? `${(v / 1000).toFixed(0)}K` : String(v)} />
               <Tooltip content={({ active, payload, label }: any) => {
                 if (!active || !payload?.length) return null;
@@ -649,7 +663,7 @@ export const WidgetDetailModal: React.FC<WidgetDetailModalProps> = ({ widgetId, 
         <div className="flex items-center justify-center gap-8">
           <div className="relative w-28 h-28">
             <svg className="w-full h-full -rotate-90" viewBox="0 0 112 112">
-              <circle cx="56" cy="56" r="44" fill="none" stroke={isDark ? '#27272a' : '#f1f5f9'} strokeWidth="8" />
+              <circle cx="56" cy="56" r="44" fill="none" stroke={isDark ? '#1a2535' : '#f1f5f9'} strokeWidth="8" />
               <circle cx="56" cy="56" r="44" fill="none" stroke="#10b981" strokeWidth="8"
                 strokeLinecap="round" strokeDasharray={`${2 * Math.PI * 44}`}
                 strokeDashoffset={`${2 * Math.PI * 44 * (1 - completionPct / 100)}`}
@@ -836,6 +850,290 @@ export const WidgetDetailModal: React.FC<WidgetDetailModalProps> = ({ widgetId, 
     );
   };
 
+  // --- Assignee Summary Detail ---
+  const renderAssigneeSummaryDetail = () => {
+    // Level 2: Per-assignee drill-down
+    if (selectedAssignee) {
+      if (assigneeLoading) {
+        return (
+          <div className="flex items-center justify-center h-64">
+            <Loader2 className="w-8 h-8 animate-spin text-brand-600" />
+          </div>
+        );
+      }
+      if (!assigneeDetail) {
+        return (
+          <div className="space-y-4">
+            <button onClick={() => setSelectedAssignee(null)} className={`flex items-center gap-2 text-sm font-medium transition-colors ${isDark ? 'text-zinc-400 hover:text-white' : 'text-slate-500 hover:text-slate-900'}`}>
+              <ArrowLeft className="w-4 h-4" /> Back to all assignees
+            </button>
+            <div className={`h-48 flex items-center justify-center rounded-xl ${isDark ? 'bg-zinc-900/50' : 'bg-slate-50'}`}>
+              <p className={`text-sm ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Failed to load details</p>
+            </div>
+          </div>
+        );
+      }
+
+      const d = assigneeDetail;
+      const LEAD_COLORS: Record<string, string> = {
+        Cold: '#3b82f6', Proposal: '#a855f7', Negotiation: '#f97316', 'Closed Won': '#10b981', 'Closed Lost': '#ef4444',
+      };
+      const DEAL_COLORS: Record<string, string> = {
+        Cold: '#3b82f6', Proposal: '#a855f7', Negotiation: '#f97316', 'Closed Won': '#10b981', 'Closed Lost': '#ef4444',
+      };
+      const totalLeads = Object.values(d.leadsByStage as Record<string, number>).reduce((a, b) => a + b, 0);
+      const dealEntries = Object.entries(d.dealsByStage as Record<string, { count: number; value: number }>);
+      const totalDealValue = dealEntries.reduce((s, [, v]) => s + v.value, 0);
+      const initials = (d.userName || '?').split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase();
+
+      return (
+        <div className="space-y-6">
+          {/* Header: Back + avatar + name */}
+          <div className="flex items-center gap-4">
+            <button onClick={() => setSelectedAssignee(null)} className={`p-2 rounded-xl transition-colors ${isDark ? 'hover:bg-white/[0.06] text-zinc-400' : 'hover:bg-slate-100 text-slate-400'}`}>
+              <ArrowLeft className="w-5 h-5" />
+            </button>
+            <div className={`w-11 h-11 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0 ${isDark ? 'bg-violet-900/40 text-violet-300' : 'bg-violet-100 text-violet-700'}`}>
+              {initials}
+            </div>
+            <div className="min-w-0">
+              <h3 className={`text-lg font-bold truncate ${isDark ? 'text-white' : 'text-slate-900'}`}>{d.userName}</h3>
+              <p className={`text-xs ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Individual Performance Overview</p>
+            </div>
+          </div>
+
+          {/* Summary metric cards — 2x2 grid */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className={`p-4 rounded-xl border ${isDark ? 'bg-[rgba(10,16,32,0.5)] border-white/[0.06]' : 'bg-blue-50/50 border-blue-100'}`}>
+              <div className="flex items-center gap-2 mb-2">
+                <Users className={`w-4 h-4 ${isDark ? 'text-blue-400' : 'text-blue-500'}`} />
+                <span className={`text-[11px] uppercase tracking-wider font-medium ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Partners</span>
+              </div>
+              <p className={`text-2xl font-bold ${isDark ? 'text-blue-400' : 'text-blue-600'}`}>{d.summary.partners}</p>
+            </div>
+            <div className={`p-4 rounded-xl border ${isDark ? 'bg-[rgba(10,16,32,0.5)] border-white/[0.06]' : 'bg-emerald-50/50 border-emerald-100'}`}>
+              <div className="flex items-center gap-2 mb-2">
+                <Target className={`w-4 h-4 ${isDark ? 'text-emerald-400' : 'text-emerald-500'}`} />
+                <span className={`text-[11px] uppercase tracking-wider font-medium ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Active Leads</span>
+              </div>
+              <p className={`text-2xl font-bold ${isDark ? 'text-emerald-400' : 'text-emerald-600'}`}>{d.summary.leads}</p>
+            </div>
+            <div className={`p-4 rounded-xl border ${isDark ? 'bg-[rgba(10,16,32,0.5)] border-white/[0.06]' : 'bg-purple-50/50 border-purple-100'}`}>
+              <div className="flex items-center gap-2 mb-2">
+                <Briefcase className={`w-4 h-4 ${isDark ? 'text-purple-400' : 'text-purple-500'}`} />
+                <span className={`text-[11px] uppercase tracking-wider font-medium ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Active Deals</span>
+              </div>
+              <p className={`text-2xl font-bold ${isDark ? 'text-purple-400' : 'text-purple-600'}`}>{d.summary.deals}</p>
+              <p className={`text-xs mt-0.5 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Value: {formatINR(d.summary.dealValue)}</p>
+            </div>
+            <div className={`p-4 rounded-xl border ${isDark ? 'bg-[rgba(10,16,32,0.5)] border-white/[0.06]' : 'bg-amber-50/50 border-amber-100'}`}>
+              <div className="flex items-center gap-2 mb-2">
+                <TrendingUp className={`w-4 h-4 ${isDark ? 'text-amber-400' : 'text-amber-500'}`} />
+                <span className={`text-[11px] uppercase tracking-wider font-medium ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Total Sales</span>
+              </div>
+              <p className={`text-2xl font-bold ${isDark ? 'text-amber-400' : 'text-amber-600'}`}>{formatINR(d.summary.salesAmount)}</p>
+              <p className={`text-xs mt-0.5 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>{d.summary.salesCount} transactions</p>
+            </div>
+          </div>
+
+          {/* Leads & Deals side by side */}
+          <div className="grid grid-cols-2 gap-4">
+            {/* Leads by stage */}
+            <div className={`p-4 rounded-xl border ${isDark ? 'bg-[rgba(10,16,32,0.4)] border-white/[0.06]' : 'bg-slate-50/80 border-slate-200'}`}>
+              <h4 className={`text-xs font-semibold uppercase tracking-wider mb-3 ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>Leads by Stage</h4>
+              {totalLeads === 0 ? (
+                <p className={`text-xs py-4 text-center ${isDark ? 'text-zinc-600' : 'text-slate-400'}`}>No leads</p>
+              ) : (
+                <div className="space-y-2.5">
+                  {Object.entries(d.leadsByStage as Record<string, number>).filter(([, v]) => v > 0).map(([stage, count]) => {
+                    const pct = Math.round((count / totalLeads) * 100);
+                    return (
+                      <div key={stage}>
+                        <div className="flex items-center justify-between mb-1">
+                          <div className="flex items-center gap-2">
+                            <div className="w-2 h-2 rounded-full" style={{ backgroundColor: LEAD_COLORS[stage] || '#94a3b8' }} />
+                            <span className={`text-xs ${isDark ? 'text-zinc-300' : 'text-slate-600'}`}>{stage}</span>
+                          </div>
+                          <span className={`text-xs font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>{count}</span>
+                        </div>
+                        <div className={`w-full h-1.5 rounded-full overflow-hidden ${isDark ? 'bg-zinc-800' : 'bg-slate-200'}`}>
+                          <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: LEAD_COLORS[stage] || '#94a3b8' }} />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Deals by stage */}
+            <div className={`p-4 rounded-xl border ${isDark ? 'bg-[rgba(10,16,32,0.4)] border-white/[0.06]' : 'bg-slate-50/80 border-slate-200'}`}>
+              <h4 className={`text-xs font-semibold uppercase tracking-wider mb-3 ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>Deals by Stage</h4>
+              {dealEntries.length === 0 ? (
+                <p className={`text-xs py-4 text-center ${isDark ? 'text-zinc-600' : 'text-slate-400'}`}>No deals</p>
+              ) : (
+                <div className="space-y-2.5">
+                  {dealEntries.map(([stage, info]) => {
+                    const pct = totalDealValue > 0 ? Math.round((info.value / totalDealValue) * 100) : 0;
+                    return (
+                      <div key={stage}>
+                        <div className="flex items-center justify-between mb-1">
+                          <div className="flex items-center gap-2">
+                            <div className="w-2 h-2 rounded-full" style={{ backgroundColor: DEAL_COLORS[stage] || '#94a3b8' }} />
+                            <span className={`text-xs ${isDark ? 'text-zinc-300' : 'text-slate-600'}`}>{stage}</span>
+                          </div>
+                          <span className={`text-xs font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>{info.count} &middot; {formatINR(info.value)}</span>
+                        </div>
+                        <div className={`w-full h-1.5 rounded-full overflow-hidden ${isDark ? 'bg-zinc-800' : 'bg-slate-200'}`}>
+                          <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: DEAL_COLORS[stage] || '#94a3b8' }} />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Monthly sales trend */}
+          {d.monthlySales.length > 1 && (
+            <div className={`p-4 rounded-xl border ${isDark ? 'bg-[rgba(10,16,32,0.4)] border-white/[0.06]' : 'bg-slate-50/80 border-slate-200'}`}>
+              <h4 className={`text-xs font-semibold uppercase tracking-wider mb-4 ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>Monthly Sales Trend</h4>
+              <ResponsiveContainer width="100%" height={180}>
+                <AreaChart data={d.monthlySales} margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="assigneeGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor={isDark ? '#a78bfa' : '#7c3aed'} stopOpacity={0.3} />
+                      <stop offset="95%" stopColor={isDark ? '#a78bfa' : '#7c3aed'} stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke={isDark ? '#1a2535' : '#e2e8f0'} vertical={false} />
+                  <XAxis dataKey="month" tick={{ fontSize: 10, fill: isDark ? '#455468' : '#94a3b8' }} tickLine={false} axisLine={false}
+                    tickFormatter={(v: string) => v.split(' ')[0]?.slice(0, 3) || v} />
+                  <YAxis tick={{ fontSize: 10, fill: isDark ? '#455468' : '#94a3b8' }} tickLine={false} axisLine={false} width={45}
+                    tickFormatter={(v: number) => v >= 100000 ? `${(v / 100000).toFixed(1)}L` : v >= 1000 ? `${(v / 1000).toFixed(0)}K` : String(v)} />
+                  <Tooltip content={({ active, payload, label }: any) => {
+                    if (!active || !payload?.length) return null;
+                    return (
+                      <div className={`px-3 py-2 rounded-lg shadow-lg text-xs border ${isDark ? 'bg-zinc-800 border-zinc-700 text-white' : 'bg-white border-slate-200 text-slate-900'}`}>
+                        <p className={`font-medium mb-0.5 ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>{label}</p>
+                        <p className="font-bold">{formatINR(payload[0].value)}</p>
+                      </div>
+                    );
+                  }} />
+                  <Area type="monotone" dataKey="revenue" stroke={isDark ? '#a78bfa' : '#7c3aed'} strokeWidth={2} fill="url(#assigneeGrad)"
+                    dot={{ fill: isDark ? '#a78bfa' : '#7c3aed', strokeWidth: 0, r: 3 }}
+                    activeDot={{ r: 5, fill: isDark ? '#a78bfa' : '#7c3aed', stroke: isDark ? '#111a2e' : '#fff', strokeWidth: 2 }} />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+
+          {/* Recent sales */}
+          {d.recentSales.length > 0 && (
+            <div>
+              <h4 className={`text-xs font-semibold uppercase tracking-wider mb-3 ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>Recent Sales</h4>
+              <div className="space-y-2">
+                {d.recentSales.slice(0, 5).map((sale: any) => (
+                  <div key={sale.id} className={`flex items-center justify-between p-3 rounded-xl border ${isDark ? 'bg-[rgba(10,16,32,0.4)] border-white/[0.06]' : 'bg-slate-50/80 border-slate-200'}`}>
+                    <div className="min-w-0 flex-1">
+                      <p className={`text-sm font-semibold truncate ${isDark ? 'text-white' : 'text-slate-900'}`}>{sale.customerName || sale.partnerName || 'N/A'}</p>
+                      <p className={`text-xs ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>{sale.saleDate}</p>
+                    </div>
+                    <div className="flex items-center gap-3 flex-shrink-0 ml-3">
+                      <span className={`text-sm font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>{formatINR(sale.amount)}</span>
+                      <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold uppercase tracking-wide ${
+                        sale.paymentStatus === 'paid'
+                          ? isDark ? 'bg-emerald-900/30 text-emerald-400' : 'bg-emerald-100 text-emerald-700'
+                          : sale.paymentStatus === 'overdue'
+                            ? isDark ? 'bg-red-900/30 text-red-400' : 'bg-red-100 text-red-700'
+                            : isDark ? 'bg-amber-900/30 text-amber-400' : 'bg-amber-100 text-amber-700'
+                      }`}>
+                        {sale.paymentStatus}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // Level 1: All assignees overview — card-based layout
+    const assignees = data?.assigneeSummary || [];
+
+    return (
+      <div className="space-y-4">
+        {assignees.length === 0 ? (
+          <div className={`h-32 flex items-center justify-center rounded-xl ${isDark ? 'bg-zinc-900/50' : 'bg-slate-50'}`}>
+            <p className={`text-sm ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>No assignee data available</p>
+          </div>
+        ) : (
+          <>
+            <p className={`text-xs ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>{assignees.length} team member{assignees.length !== 1 ? 's' : ''} &middot; Select to view details</p>
+            <div className="space-y-2">
+              {assignees.map((r: any, i: number) => {
+                const initials = (r.userName || '?').split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase();
+                const colors = [
+                  { bg: isDark ? 'bg-blue-900/30' : 'bg-blue-100', text: isDark ? 'text-blue-300' : 'text-blue-700' },
+                  { bg: isDark ? 'bg-violet-900/30' : 'bg-violet-100', text: isDark ? 'text-violet-300' : 'text-violet-700' },
+                  { bg: isDark ? 'bg-emerald-900/30' : 'bg-emerald-100', text: isDark ? 'text-emerald-300' : 'text-emerald-700' },
+                  { bg: isDark ? 'bg-amber-900/30' : 'bg-amber-100', text: isDark ? 'text-amber-300' : 'text-amber-700' },
+                  { bg: isDark ? 'bg-rose-900/30' : 'bg-rose-100', text: isDark ? 'text-rose-300' : 'text-rose-700' },
+                  { bg: isDark ? 'bg-cyan-900/30' : 'bg-cyan-100', text: isDark ? 'text-cyan-300' : 'text-cyan-700' },
+                ];
+                const avatarColor = colors[i % colors.length];
+
+                return (
+                  <div
+                    key={r.userId || i}
+                    onClick={() => handleAssigneeClick(r.userId)}
+                    className={`flex items-center gap-4 p-4 rounded-xl border cursor-pointer transition-all ${
+                      isDark
+                        ? 'bg-[rgba(10,16,32,0.4)] border-white/[0.06] hover:bg-white/[0.06] hover:border-white/[0.1]'
+                        : 'bg-white border-slate-200 hover:bg-slate-50 hover:border-slate-300 hover:shadow-sm'
+                    }`}
+                  >
+                    {/* Avatar */}
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${avatarColor.bg} ${avatarColor.text}`}>
+                      {initials}
+                    </div>
+
+                    {/* Name + sales amount */}
+                    <div className="flex-1 min-w-0">
+                      <p className={`text-sm font-semibold truncate ${isDark ? 'text-white' : 'text-slate-900'}`}>{r.userName}</p>
+                      <p className={`text-xs ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
+                        {formatINR(r.salesAmount)} sales
+                      </p>
+                    </div>
+
+                    {/* Metric badges */}
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <div className={`flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium ${isDark ? 'bg-zinc-800 text-zinc-400' : 'bg-slate-100 text-slate-500'}`}>
+                        <span className={isDark ? 'text-blue-400' : 'text-blue-600'}>{r.partners}</span> P
+                      </div>
+                      <div className={`flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium ${isDark ? 'bg-zinc-800 text-zinc-400' : 'bg-slate-100 text-slate-500'}`}>
+                        <span className={isDark ? 'text-emerald-400' : 'text-emerald-600'}>{r.leads}</span> L
+                      </div>
+                      <div className={`flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium ${isDark ? 'bg-zinc-800 text-zinc-400' : 'bg-slate-100 text-slate-500'}`}>
+                        <span className={isDark ? 'text-purple-400' : 'text-purple-600'}>{r.deals}</span> D
+                      </div>
+                    </div>
+
+                    {/* Chevron */}
+                    <ChevronRight className={`w-4 h-4 flex-shrink-0 ${isDark ? 'text-zinc-600' : 'text-slate-300'}`} />
+                  </div>
+                );
+              })}
+            </div>
+          </>
+        )}
+      </div>
+    );
+  };
+
   // --- Revenue Trend Detail ---
   const renderRevenueTrendDetail = () => {
     const monthly: any[] = Array.isArray(data.monthlyStats) ? data.monthlyStats : [];
@@ -866,10 +1164,10 @@ export const WidgetDetailModal: React.FC<WidgetDetailModalProps> = ({ widgetId, 
                   <stop offset="95%" stopColor={isDark ? '#818cf8' : '#6366f1'} stopOpacity={0} />
                 </linearGradient>
               </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke={isDark ? '#27272a' : '#f1f5f9'} vertical={false} />
-              <XAxis dataKey="month" tick={{ fontSize: 11, fill: isDark ? '#71717a' : '#94a3b8' }} tickLine={false} axisLine={false}
+              <CartesianGrid strokeDasharray="3 3" stroke={isDark ? '#1a2535' : '#f1f5f9'} vertical={false} />
+              <XAxis dataKey="month" tick={{ fontSize: 11, fill: isDark ? '#64748b' : '#94a3b8' }} tickLine={false} axisLine={false}
                 tickFormatter={(v: string) => v.split(' ')[0]?.slice(0, 3) || v} />
-              <YAxis tick={{ fontSize: 11, fill: isDark ? '#71717a' : '#94a3b8' }} tickLine={false} axisLine={false}
+              <YAxis tick={{ fontSize: 11, fill: isDark ? '#64748b' : '#94a3b8' }} tickLine={false} axisLine={false}
                 tickFormatter={(v: number) => v >= 100000 ? `${(v / 100000).toFixed(1)}L` : v >= 1000 ? `${(v / 1000).toFixed(0)}K` : String(v)} />
               <Tooltip content={({ active, payload, label }: any) => {
                 if (!active || !payload?.length) return null;
@@ -882,7 +1180,7 @@ export const WidgetDetailModal: React.FC<WidgetDetailModalProps> = ({ widgetId, 
               }} />
               <Area type="monotone" dataKey="revenue" stroke={isDark ? '#818cf8' : '#6366f1'} strokeWidth={2.5} fill="url(#detailGrad)"
                 dot={{ fill: isDark ? '#818cf8' : '#6366f1', strokeWidth: 0, r: 4 }}
-                activeDot={{ r: 6, fill: isDark ? '#818cf8' : '#6366f1', stroke: isDark ? '#18181b' : '#fff', strokeWidth: 2 }} />
+                activeDot={{ r: 6, fill: isDark ? '#818cf8' : '#6366f1', stroke: isDark ? '#111a2e' : '#fff', strokeWidth: 2 }} />
             </AreaChart>
           </ResponsiveContainer>
         )}
@@ -896,12 +1194,12 @@ export const WidgetDetailModal: React.FC<WidgetDetailModalProps> = ({ widgetId, 
       <div className="absolute inset-0 bg-black/50 animate-backdrop" onClick={onClose} />
 
       {/* Modal */}
-      <div className={`relative w-full max-w-3xl max-h-[90vh] overflow-y-auto rounded-2xl animate-fade-in-up ${
-        isDark ? 'bg-dark-50 border border-zinc-800' : 'bg-white'
+      <div className={`relative w-full max-w-2xl max-h-[80vh] overflow-y-auto rounded-2xl animate-fade-in-up ${
+        isDark ? 'bg-[rgba(8,13,27,0.92)] backdrop-blur-2xl border border-white/[0.06]' : 'bg-white'
       }`}>
         {/* Header */}
         <div className={`sticky top-0 z-10 px-6 py-4 border-b flex items-center justify-between ${
-          isDark ? 'bg-dark-50 border-zinc-800' : 'bg-white border-slate-200'
+          isDark ? 'bg-[rgba(8,13,27,0.95)] backdrop-blur-xl border-white/[0.06]' : 'bg-white border-slate-200'
         }`}>
           <div className="flex items-center gap-3">
             {meta && (
@@ -923,7 +1221,7 @@ export const WidgetDetailModal: React.FC<WidgetDetailModalProps> = ({ widgetId, 
               <button
                 onClick={handleGoToPage}
                 className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-colors ${
-                  isDark ? 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  isDark ? 'bg-white/[0.06] text-zinc-300 hover:bg-white/[0.1] border border-white/[0.06]' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                 }`}
               >
                 <ExternalLink className="w-3.5 h-3.5" />
@@ -933,7 +1231,7 @@ export const WidgetDetailModal: React.FC<WidgetDetailModalProps> = ({ widgetId, 
             <button
               onClick={onClose}
               className={`p-2 rounded-lg transition-colors ${
-                isDark ? 'hover:bg-zinc-800 text-zinc-400' : 'hover:bg-slate-100 text-slate-400'
+                isDark ? 'hover:bg-white/[0.06] text-zinc-400' : 'hover:bg-slate-100 text-slate-400'
               }`}
             >
               <X className="w-5 h-5" />

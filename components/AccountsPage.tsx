@@ -1,15 +1,19 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Plus, Search, X, ChevronLeft, ChevronRight, Edit2, Trash2,
   IndianRupee, Loader2, AlertCircle, CheckCircle, Building2,
   Phone, Mail, Globe, Users, Eye, MapPin, Hash,
-  TrendingUp, Heart, FileText, Briefcase, User as UserIcon
+  TrendingUp, Heart, FileText, Briefcase, User as UserIcon,
+  Download, Upload
 } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
+import { useNavigation } from '../contexts/NavigationContext';
 import { accountsApi, contactsApi, partnersApi, adminApi, formatINR } from '../services/api';
+import { exportToCsv } from '../utils/exportCsv';
 import { Account, Contact, Deal, PaginatedResponse, Partner, User } from '../types';
 import { EnhancedAccountForm, EnhancedAccountFormData } from './EnhancedAccountForm';
+import { BulkImportModal } from './BulkImportModal';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -33,14 +37,11 @@ const INDUSTRIES = [
 ];
 
 const ACCOUNT_TYPES = [
-  'Customer',
-  'Prospect',
-  'Partner',
-  'Vendor',
-  'Competitor',
+  'Hunting',
+  'Farming',
+  'Cold',
 ];
 
-const STATUSES = ['Active', 'Inactive'];
 
 // ---------------------------------------------------------------------------
 // Form types
@@ -54,13 +55,13 @@ interface AccountFormData {
   employees: number;
   location: string;
   type: string;
-  status: string;
   phone: string;
   email: string;
   healthScore: number;
   description: string;
   gstinNo: string;
   paymentTerms: string;
+  status: string;
 }
 
 const EMPTY_ACCOUNT_FORM: AccountFormData = {
@@ -71,13 +72,13 @@ const EMPTY_ACCOUNT_FORM: AccountFormData = {
   employees: 0,
   location: '',
   type: '',
-  status: 'Active',
   phone: '',
   email: '',
   healthScore: 100,
   description: '',
   gstinNo: '',
   paymentTerms: '',
+  status: 'Active',
 };
 
 // ---------------------------------------------------------------------------
@@ -96,15 +97,6 @@ function healthScoreBadge(score: number | undefined, isDark: boolean): string {
     return `${base} ${isDark ? 'bg-amber-900/30 text-amber-400' : 'bg-amber-50 text-amber-700'}`;
   }
   return `${base} ${isDark ? 'bg-red-900/30 text-red-400' : 'bg-red-50 text-red-700'}`;
-}
-
-function statusBadge(status: string, isDark: boolean): string {
-  const base = 'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium';
-  const isActive = status?.toLowerCase() === 'active';
-  if (isActive) {
-    return `${base} ${isDark ? 'bg-emerald-900/30 text-emerald-400' : 'bg-emerald-50 text-emerald-700'}`;
-  }
-  return `${base} ${isDark ? 'bg-zinc-800 text-zinc-400' : 'bg-slate-100 text-slate-500'}`;
 }
 
 function formatDate(dateStr?: string): string {
@@ -127,9 +119,11 @@ function formatDate(dateStr?: string): string {
 export const AccountsPage: React.FC = () => {
   const { theme } = useTheme();
   const { user } = useAuth();
+  const { setActiveTab: navigate, consumeNavParams } = useNavigation();
   const isDark = theme === 'dark';
 
   // Data state
+  const [showBulkImport, setShowBulkImport] = useState(false);
   const [accounts, setAccounts] = useState<Account[]>([]);
 
   // Pagination
@@ -139,7 +133,6 @@ export const AccountsPage: React.FC = () => {
 
   // Filters
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterStatus, setFilterStatus] = useState('');
   const [filterIndustry, setFilterIndustry] = useState('');
 
   // UI state
@@ -163,6 +156,7 @@ export const AccountsPage: React.FC = () => {
 
   // Delete confirmation
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+
 
   // Stats
   const [statsActive, setStatsActive] = useState(0);
@@ -198,7 +192,6 @@ export const AccountsPage: React.FC = () => {
         page: String(page),
         limit: String(PAGE_SIZE),
       };
-      if (filterStatus) params.status = filterStatus;
       if (filterIndustry) params.industry = filterIndustry;
       if (searchTerm) params.search = searchTerm;
 
@@ -208,8 +201,6 @@ export const AccountsPage: React.FC = () => {
       setTotalRecords(response.pagination.total);
 
       // Compute stats from current page data (best effort)
-      const active = response.data.filter(a => a.status?.toLowerCase() === 'active').length;
-      setStatsActive(active);
       const rev = response.data.reduce((sum, a) => sum + (a.revenue || 0), 0);
       setStatsTotalRevenue(rev);
     } catch (err: any) {
@@ -218,7 +209,20 @@ export const AccountsPage: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [page, filterStatus, filterIndustry, searchTerm]);
+  }, [page, filterIndustry, searchTerm]);
+
+  // Consume nav params (e.g. navigated from ContactsPage with accountId)
+  useEffect(() => {
+    const params = consumeNavParams();
+    if (params?.accountId) {
+      (async () => {
+        try {
+          const account = await accountsApi.getById(params.accountId);
+          if (account) openDetailModal(account);
+        } catch { /* ignore */ }
+      })();
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Initial + filter-driven fetch
   useEffect(() => {
@@ -228,7 +232,7 @@ export const AccountsPage: React.FC = () => {
   // Reset to page 1 when filters change
   useEffect(() => {
     setPage(1);
-  }, [filterStatus, filterIndustry, searchTerm]);
+  }, [filterIndustry, searchTerm]);
 
   // Fetch dropdown data for enhanced form
   useEffect(() => {
@@ -277,13 +281,13 @@ export const AccountsPage: React.FC = () => {
       employees: account.employees || 0,
       location: account.location || '',
       type: account.type || '',
-      status: account.status || 'Active',
       phone: account.phone || '',
       email: account.email || '',
       healthScore: account.healthScore ?? 100,
       description: account.description || '',
       gstinNo: account.gstinNo || '',
       paymentTerms: account.paymentTerms || '',
+      status: (account as any).status || 'Active',
     });
     setEditingAccountId(account.id);
     setDetailAccount(account);
@@ -409,17 +413,17 @@ export const AccountsPage: React.FC = () => {
     }
   };
 
+
   // ---------------------------------------------------------------------------
   // Misc helpers
   // ---------------------------------------------------------------------------
 
   const clearFilters = () => {
-    setFilterStatus('');
     setFilterIndustry('');
     setSearchTerm('');
   };
 
-  const hasActiveFilters = filterStatus || filterIndustry || searchTerm;
+  const hasActiveFilters = filterIndustry || searchTerm;
 
   // ---------------------------------------------------------------------------
   // Render: Stats Bar
@@ -428,7 +432,7 @@ export const AccountsPage: React.FC = () => {
   const renderStatsBar = () => (
     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
       {/* Total Accounts */}
-      <div className={`${cardClass} p-4 hover-lift animate-fade-in-up`}>
+      <div onClick={() => navigate('accounts')} className={`${cardClass} p-4 hover-lift animate-fade-in-up cursor-pointer`}>
         <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-3 ${
           isDark ? 'bg-brand-900/20' : 'bg-brand-50'
         }`}>
@@ -439,7 +443,7 @@ export const AccountsPage: React.FC = () => {
       </div>
 
       {/* Active Accounts */}
-      <div className={`${cardClass} p-4 hover-lift animate-fade-in-up`} style={{ animationDelay: '50ms' }}>
+      <div onClick={() => navigate('accounts')} className={`${cardClass} p-4 hover-lift animate-fade-in-up cursor-pointer`} style={{ animationDelay: '50ms' }}>
         <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-3 ${
           isDark ? 'bg-emerald-900/20' : 'bg-emerald-50'
         }`}>
@@ -450,7 +454,7 @@ export const AccountsPage: React.FC = () => {
       </div>
 
       {/* Total Revenue */}
-      <div className={`${cardClass} p-4 hover-lift animate-fade-in-up`} style={{ animationDelay: '100ms' }}>
+      <div onClick={() => navigate('accounts')} className={`${cardClass} p-4 hover-lift animate-fade-in-up cursor-pointer`} style={{ animationDelay: '100ms' }}>
         <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-3 ${
           isDark ? 'bg-amber-900/20' : 'bg-amber-50'
         }`}>
@@ -489,20 +493,6 @@ export const AccountsPage: React.FC = () => {
           />
         </div>
 
-        {/* Filter: Status */}
-        <div className="w-full lg:w-40">
-          <select
-            value={filterStatus}
-            onChange={e => setFilterStatus(e.target.value)}
-            className={selectClass}
-          >
-            <option value="">All Statuses</option>
-            {STATUSES.map(s => (
-              <option key={s} value={s}>{s}</option>
-            ))}
-          </select>
-        </div>
-
         {/* Filter: Industry */}
         <div className="w-full lg:w-44">
           <select
@@ -532,6 +522,50 @@ export const AccountsPage: React.FC = () => {
           </button>
         )}
 
+        {/* Bulk Import */}
+        <button
+          onClick={() => setShowBulkImport(true)}
+          title="Import from CSV"
+          className={`flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-normal transition-colors whitespace-nowrap ${
+            isDark
+              ? 'text-zinc-400 border border-zinc-700 hover:bg-zinc-800'
+              : 'text-slate-500 border border-slate-200 hover:bg-slate-50'
+          }`}
+        >
+          <Upload className="w-4 h-4" />
+          Import
+        </button>
+
+        {/* Export CSV */}
+        <button
+          onClick={() => exportToCsv('accounts', [
+            { header: 'Name', accessor: (r: Account) => r.name },
+            { header: 'Industry', accessor: (r: Account) => r.industry },
+            { header: 'Type', accessor: (r: Account) => r.type },
+            { header: 'Phone', accessor: (r: Account) => r.phone },
+            { header: 'Email', accessor: (r: Account) => r.email },
+            { header: 'Website', accessor: (r: Account) => r.website },
+            { header: 'Location', accessor: (r: Account) => r.location },
+            { header: 'Revenue', accessor: (r: Account) => r.revenue },
+            { header: 'Employees', accessor: (r: Account) => r.employees },
+            { header: 'Status', accessor: (r: Account) => r.status },
+            { header: 'Health Score', accessor: (r: Account) => r.healthScore },
+            { header: 'Owner', accessor: (r: Account) => r.ownerName },
+            { header: 'GSTIN', accessor: (r: Account) => r.gstinNo },
+            { header: 'Payment Terms', accessor: (r: Account) => r.paymentTerms },
+          ], accounts)}
+          disabled={accounts.length === 0}
+          title="Export to Excel"
+          className={`flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-normal transition-colors whitespace-nowrap ${
+            isDark
+              ? 'text-zinc-400 border border-zinc-700 hover:bg-zinc-800 disabled:opacity-30'
+              : 'text-slate-500 border border-slate-200 hover:bg-slate-50 disabled:opacity-30'
+          }`}
+        >
+          <Download className="w-4 h-4" />
+          Export
+        </button>
+
         {/* New Account */}
         <button
           onClick={openCreateModal}
@@ -547,6 +581,9 @@ export const AccountsPage: React.FC = () => {
   // ---------------------------------------------------------------------------
   // Render: Table
   // ---------------------------------------------------------------------------
+
+  const cellBase = `px-4 py-3 text-sm ${isDark ? 'border-zinc-800' : 'border-slate-100'}`;
+  const hdrCell = `px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider ${isDark ? 'text-zinc-400 bg-dark-100' : 'text-slate-500 bg-slate-50'}`;
 
   const renderTable = () => (
     <div className={`${cardClass} overflow-hidden`}>
@@ -568,161 +605,120 @@ export const AccountsPage: React.FC = () => {
             Loading accounts...
           </p>
         </div>
-      ) : accounts.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-20">
-          <div className={`w-16 h-16 rounded-2xl flex items-center justify-center mb-4 ${
-            isDark ? 'bg-zinc-800' : 'bg-slate-100'
-          }`}>
-            <Building2 className={`w-7 h-7 ${isDark ? 'text-zinc-600' : 'text-slate-300'}`} />
-          </div>
-          <p className={`text-sm font-medium ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>
-            {hasActiveFilters ? 'No accounts match your filters' : 'No accounts yet'}
-          </p>
-          <p className={`text-xs mt-1 ${isDark ? 'text-zinc-600' : 'text-slate-400'}`}>
-            {hasActiveFilters ? 'Try adjusting your filters' : 'Click "New Account" to create one'}
-          </p>
-        </div>
       ) : (
         <>
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="w-full text-sm border-collapse">
               <thead>
-                <tr className={`border-b ${isDark ? 'border-zinc-800' : 'border-slate-100'}`}>
-                  {['Name', 'Industry', 'Phone', 'Email', 'Revenue', 'Status', 'Health', 'Owner', 'Actions'].map(h => (
-                    <th
-                      key={h}
-                      className={`px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider ${
-                        isDark ? 'text-zinc-500' : 'text-slate-400'
-                      }`}
-                    >
-                      {h}
-                    </th>
-                  ))}
+                <tr className={`border-b ${isDark ? 'border-zinc-700' : 'border-slate-200'}`}>
+                  <th className={`${hdrCell} w-[40px] text-center`}>#</th>
+                  <th className={`${hdrCell} w-[180px]`}>Name</th>
+                  <th className={`${hdrCell} w-[140px]`}>Industry</th>
+                  <th className={`${hdrCell} w-[130px]`}>Phone</th>
+                  <th className={`${hdrCell} w-[180px]`}>Email</th>
+                  <th className={`${hdrCell} w-[120px]`}>Revenue</th>
+                  <th className={`${hdrCell} w-[120px]`}>Type</th>
+                  <th className={`${hdrCell} w-[100px] text-center`}>Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {accounts.map(account => (
-                  <tr
-                    key={account.id}
-                    onClick={() => openDetailModal(account)}
-                    className={`border-b transition-colors cursor-pointer ${
-                      isDark
-                        ? 'border-zinc-800/50 hover:bg-gray-800/50'
-                        : 'border-slate-50 hover:bg-gray-50'
-                    }`}
-                  >
-                    {/* Name */}
-                    <td className={`px-4 py-3 ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                      <div className="flex items-center gap-2">
-                        <Building2 className={`w-3.5 h-3.5 flex-shrink-0 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`} />
-                        <span className="font-medium">
-                          {account.name}
-                        </span>
-                      </div>
-                    </td>
-
-                    {/* Industry */}
-                    <td className={`px-4 py-3 ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
-                      {account.industry || '-'}
-                    </td>
-
-                    {/* Phone */}
-                    <td className={`px-4 py-3 whitespace-nowrap ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
-                      {account.phone || '-'}
-                    </td>
-
-                    {/* Email */}
-                    <td className={`px-4 py-3 ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
-                      <span className="truncate block max-w-[180px]">{account.email || '-'}</span>
-                    </td>
-
-                    {/* Revenue */}
-                    <td className={`px-4 py-3 whitespace-nowrap font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                      {account.revenue ? formatINR(account.revenue) : '-'}
-                    </td>
-
-                    {/* Status */}
-                    <td className="px-4 py-3">
-                      <span className={statusBadge(account.status, isDark)}>
-                        {account.status || '-'}
-                      </span>
-                    </td>
-
-                    {/* Health Score */}
-                    <td className="px-4 py-3">
-                      <span className={healthScoreBadge(account.healthScore, isDark)}>
-                        {account.healthScore !== undefined && account.healthScore !== null
-                          ? `${account.healthScore}%`
-                          : '-'}
-                      </span>
-                    </td>
-
-                    {/* Owner */}
-                    <td className={`px-4 py-3 ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
-                      {account.ownerName || '-'}
-                    </td>
-
-                    {/* Actions */}
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-1">
-                        <button
-                          onClick={(e) => { e.stopPropagation(); openDetailModal(account); }}
-                          title="View"
-                          className={`p-1.5 rounded-lg transition-colors ${
-                            isDark
-                              ? 'text-zinc-400 hover:text-brand-400 hover:bg-brand-900/20'
-                              : 'text-slate-400 hover:text-brand-600 hover:bg-brand-50'
-                          }`}
-                        >
-                          <Eye className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={(e) => { e.stopPropagation(); openEditModal(account); }}
-                          title="Edit"
-                          className={`p-1.5 rounded-lg transition-colors ${
-                            isDark
-                              ? 'text-zinc-400 hover:text-brand-400 hover:bg-brand-900/20'
-                              : 'text-slate-400 hover:text-brand-600 hover:bg-brand-50'
-                          }`}
-                        >
-                          <Edit2 className="w-4 h-4" />
-                        </button>
-
-                        {deleteConfirmId === account.id ? (
-                          <div className="flex items-center gap-1">
-                            <button
-                              onClick={(e) => { e.stopPropagation(); handleDelete(account.id); }}
-                              className="px-2 py-1 rounded-lg text-xs font-medium bg-red-600 text-white hover:bg-red-700 transition-colors"
-                            >
-                              Confirm
-                            </button>
-                            <button
-                              onClick={(e) => { e.stopPropagation(); setDeleteConfirmId(null); }}
-                              className={`px-2 py-1 rounded-lg text-xs font-medium transition-colors ${
-                                isDark
-                                  ? 'text-zinc-400 hover:bg-zinc-800'
-                                  : 'text-slate-500 hover:bg-slate-100'
-                              }`}
-                            >
-                              Cancel
-                            </button>
-                          </div>
-                        ) : (
-                          <button
-                            onClick={(e) => { e.stopPropagation(); setDeleteConfirmId(account.id); }}
-                            title="Delete"
-                            className={`p-1.5 rounded-lg transition-colors ${
-                              isDark
-                                ? 'text-zinc-400 hover:text-red-400 hover:bg-red-900/20'
-                                : 'text-slate-400 hover:text-red-600 hover:bg-red-50'
-                            }`}
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        )}
-                      </div>
+                {accounts.length === 0 ? (
+                  <tr>
+                    <td colSpan={8} className="py-16 text-center">
+                      <Building2 className={`w-8 h-8 mx-auto ${isDark ? 'text-zinc-700' : 'text-slate-300'}`} />
+                      <p className={`mt-2 text-sm ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
+                        {hasActiveFilters ? 'No accounts match filters' : 'No accounts yet'}
+                      </p>
                     </td>
                   </tr>
+                ) : accounts.map((account, idx) => (
+                    <tr
+                      key={account.id}
+                      onClick={() => openDetailModal(account)}
+                      className={`border-b cursor-pointer transition-colors ${
+                        isDark
+                          ? 'border-zinc-800 hover:bg-zinc-800/50'
+                          : 'border-slate-100 hover:bg-slate-50'
+                      }`}
+                    >
+                      <td className={`${cellBase} text-center ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
+                        {(page - 1) * PAGE_SIZE + idx + 1}
+                      </td>
+                      <td className={`${cellBase} ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
+                        <span className="font-medium">{account.name}</span>
+                      </td>
+                      <td className={`${cellBase} ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
+                        {account.industry || '-'}
+                      </td>
+                      <td className={`${cellBase} ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
+                        <span className="whitespace-nowrap">{account.phone || '-'}</span>
+                      </td>
+                      <td className={`${cellBase} ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
+                        <span className="truncate block max-w-[170px]">{account.email || '-'}</span>
+                      </td>
+                      <td className={`${cellBase} ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
+                        <span className="font-semibold whitespace-nowrap">{account.revenue ? formatINR(account.revenue) : '-'}</span>
+                      </td>
+                      <td className={`${cellBase} ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
+                        {account.type || '-'}
+                      </td>
+                      <td className={`${cellBase} text-center`}>
+                        <div className="flex items-center justify-center gap-1">
+                          <button
+                            onClick={(e) => { e.stopPropagation(); openDetailModal(account); }}
+                            title="View"
+                            className={`p-1.5 rounded-lg transition-colors ${
+                              isDark
+                                ? 'text-zinc-400 hover:text-brand-400 hover:bg-brand-900/20'
+                                : 'text-slate-400 hover:text-brand-600 hover:bg-brand-50'
+                            }`}
+                          >
+                            <Eye className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); openEditModal(account); }}
+                            title="Edit"
+                            className={`p-1.5 rounded-lg transition-colors ${
+                              isDark
+                                ? 'text-zinc-400 hover:text-brand-400 hover:bg-brand-900/20'
+                                : 'text-slate-400 hover:text-brand-600 hover:bg-brand-50'
+                            }`}
+                          >
+                            <Edit2 className="w-4 h-4" />
+                          </button>
+                          {deleteConfirmId === account.id ? (
+                            <div className="flex items-center gap-1">
+                              <button
+                                onClick={(e) => { e.stopPropagation(); handleDelete(account.id); }}
+                                className="px-2 py-1 rounded-lg text-xs font-medium bg-red-600 text-white hover:bg-red-700 transition-colors"
+                              >
+                                Yes
+                              </button>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); setDeleteConfirmId(null); }}
+                                className={`px-2 py-1 rounded-lg text-xs font-medium transition-colors ${
+                                  isDark ? 'text-zinc-400 hover:bg-zinc-800' : 'text-slate-500 hover:bg-slate-100'
+                                }`}
+                              >
+                                No
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={(e) => { e.stopPropagation(); setDeleteConfirmId(account.id); }}
+                              title="Delete"
+                              className={`p-1.5 rounded-lg transition-colors ${
+                                isDark
+                                  ? 'text-zinc-400 hover:text-red-400 hover:bg-red-900/20'
+                                  : 'text-slate-400 hover:text-red-600 hover:bg-red-50'
+                              }`}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
                 ))}
               </tbody>
             </table>
@@ -819,7 +815,7 @@ export const AccountsPage: React.FC = () => {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
         <div className="absolute inset-0 bg-black/50 animate-backdrop" onClick={closeDetailModal} />
-        <div className={`relative w-full max-w-3xl max-h-[85vh] rounded-2xl animate-fade-in-up flex flex-col overflow-hidden ${
+        <div className={`relative w-full max-w-2xl max-h-[75vh] rounded-2xl animate-fade-in-up flex flex-col overflow-hidden ${
           isDark ? 'bg-dark-50 border border-zinc-800' : 'bg-white shadow-premium'
         }`}>
           {/* Header */}
@@ -830,7 +826,6 @@ export const AccountsPage: React.FC = () => {
               <h2 className={`text-lg font-semibold font-display truncate ${isDark ? 'text-white' : 'text-slate-900'}`}>
                 {account.name}
               </h2>
-              <span className={statusBadge(account.status, isDark)}>{account.status}</span>
               {account.healthScore !== undefined && account.healthScore !== null && (
                 <span className={healthScoreBadge(account.healthScore, isDark)}>
                   {account.healthScore}%
@@ -859,7 +854,7 @@ export const AccountsPage: React.FC = () => {
           </div>
 
           <div className="flex-1 overflow-y-auto">
-          <div className="p-6 space-y-6 pb-20">
+          <div className="p-6 space-y-6 pb-6">
             {/* Account info grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <InfoRow label="Industry" value={account.industry} isDark={isDark} icon={<Briefcase className="w-3.5 h-3.5" />} />
@@ -937,7 +932,8 @@ export const AccountsPage: React.FC = () => {
                     {detailContacts.map((contact: any) => (
                       <div
                         key={contact.id}
-                        className={`flex items-center gap-3 p-3 rounded-xl border transition-colors ${
+                        onClick={() => { closeDetailModal(); navigate('contacts', { accountId: account.id }); }}
+                        className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-colors ${
                           isDark ? 'border-zinc-800 hover:bg-zinc-800/30' : 'border-slate-100 hover:bg-slate-50'
                         }`}
                       >
@@ -963,9 +959,17 @@ export const AccountsPage: React.FC = () => {
                             )}
                           </div>
                         </div>
-                        <span className={statusBadge(contact.status, isDark)}>{contact.status}</span>
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${isDark ? 'bg-zinc-800 text-zinc-400' : 'bg-slate-100 text-slate-500'}`}>{contact.status}</span>
                       </div>
                     ))}
+                    <button
+                      onClick={() => { closeDetailModal(); navigate('contacts', { accountId: account.id }); }}
+                      className={`w-full mt-2 py-2 text-xs font-medium rounded-lg transition-colors ${
+                        isDark ? 'text-brand-400 hover:bg-zinc-800/50' : 'text-brand-600 hover:bg-slate-50'
+                      }`}
+                    >
+                      View All Contacts →
+                    </button>
                   </div>
                 )
               ) : (
@@ -1050,7 +1054,7 @@ export const AccountsPage: React.FC = () => {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
         <div className="absolute inset-0 bg-black/50 animate-backdrop" onClick={closeFormModal} />
-        <div className={`relative w-full max-w-2xl max-h-[90vh] rounded-2xl animate-fade-in-up flex flex-col overflow-hidden ${
+        <div className={`relative w-full max-w-xl max-h-[80vh] rounded-2xl animate-fade-in-up flex flex-col overflow-hidden ${
           isDark ? 'bg-dark-50 border border-zinc-800' : 'bg-white shadow-premium'
         }`}>
           {/* Header */}
@@ -1377,6 +1381,15 @@ export const AccountsPage: React.FC = () => {
       {/* Modals */}
       {renderFormModal()}
       {renderDetailModal()}
+
+      <BulkImportModal
+        isOpen={showBulkImport}
+        onClose={() => setShowBulkImport(false)}
+        entity="accounts"
+        entityLabel="Accounts"
+        isDark={isDark}
+        onSuccess={() => fetchAccounts()}
+      />
     </div>
   );
 };

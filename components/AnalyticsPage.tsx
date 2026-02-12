@@ -203,8 +203,8 @@ export const AnalyticsPage: React.FC = () => {
     );
   }
 
-  const axisStyle = { fontSize: 11, fill: isDark ? '#71717a' : '#94a3b8' };
-  const gridColor = isDark ? '#27272a' : '#f1f5f9';
+  const axisStyle = { fontSize: 11, fill: isDark ? '#64748b' : '#94a3b8' };
+  const gridColor = isDark ? '#1a2535' : '#f1f5f9';
 
   return (
     <div className="p-4 lg:p-6 space-y-6 animate-fade-in-up">
@@ -290,7 +290,7 @@ export const AnalyticsPage: React.FC = () => {
               <Tooltip content={<INRTooltip isDark={isDark} />} />
               <Area type="monotone" dataKey="revenue" name="Revenue" stroke={BRAND} strokeWidth={2.5}
                 fill="url(#areaGrad)" dot={{ fill: BRAND, strokeWidth: 0, r: 3 }}
-                activeDot={{ r: 6, fill: BRAND, stroke: isDark ? '#18181b' : '#fff', strokeWidth: 2 }} />
+                activeDot={{ r: 6, fill: BRAND, stroke: isDark ? '#111a2e' : '#fff', strokeWidth: 2 }} />
             </AreaChart>
           </ResponsiveContainer>
         )}
@@ -319,7 +319,7 @@ export const AnalyticsPage: React.FC = () => {
             <ResponsiveContainer width="100%" height={220}>
               <BarChart data={pipelineBarData} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke={gridColor} vertical={false} />
-                <XAxis dataKey="stage" tick={{ fontSize: 9, fill: isDark ? '#71717a' : '#94a3b8' }} tickLine={false} axisLine={false} />
+                <XAxis dataKey="stage" tick={{ fontSize: 9, fill: isDark ? '#64748b' : '#94a3b8' }} tickLine={false} axisLine={false} />
                 <YAxis tick={axisStyle} tickLine={false} axisLine={false} allowDecimals={false} />
                 <Tooltip content={({ active, payload }: any) => {
                   if (!active || !payload?.length) return null;
@@ -408,7 +408,7 @@ export const AnalyticsPage: React.FC = () => {
               <div className="flex items-center justify-center py-2">
                 <div className="relative w-28 h-28">
                   <svg className="w-full h-full -rotate-90" viewBox="0 0 120 120">
-                    <circle cx="60" cy="60" r="50" fill="none" stroke={isDark ? '#27272a' : '#f1f5f9'} strokeWidth="10" />
+                    <circle cx="60" cy="60" r="50" fill="none" stroke={isDark ? '#1a2535' : '#f1f5f9'} strokeWidth="10" />
                     <circle cx="60" cy="60" r="50" fill="none" stroke={isDark ? '#10b981' : '#059669'} strokeWidth="10"
                       strokeLinecap="round" strokeDasharray={`${2 * Math.PI * 50}`}
                       strokeDashoffset={`${2 * Math.PI * 50 * (1 - tasksCompletionPct / 100)}`} className="transition-all duration-1000" />

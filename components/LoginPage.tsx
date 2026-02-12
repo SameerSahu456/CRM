@@ -31,7 +31,7 @@ const LoginPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen flex bg-[#0a0a0a]">
+    <div className="min-h-screen flex bg-[#0a0f1e]">
       {/* Left Panel — Brand */}
       <div className="hidden lg:flex lg:w-[45%] relative overflow-hidden flex-col justify-center items-center">
         {/* ShaderGradient background */}
@@ -49,8 +49,9 @@ const LoginPage: React.FC = () => {
         {/* Content */}
         <div className="relative z-10 px-12 text-center">
           {/* Logo */}
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-600 shadow-lg shadow-emerald-500/20 mb-8">
-            <span className="text-2xl font-black text-white tracking-tight">C</span>
+          <div className="comprint-logo text-[56px] justify-center mb-8">
+            <span className="text-white">COMPRINT</span>
+            <span className="comprint-dot bg-white shadow-[0_0_8px_rgba(255,255,255,0.3)]" />
           </div>
           <h2 className="text-white text-2xl font-semibold leading-snug">
             Manage your sales,<br />
@@ -64,8 +65,9 @@ const LoginPage: React.FC = () => {
         <div className="w-full max-w-[400px]">
           {/* Mobile logo */}
           <div className="lg:hidden text-center mb-8">
-            <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-600 shadow-lg shadow-emerald-500/20 mb-4">
-              <span className="text-lg font-black text-white">C</span>
+            <div className="comprint-logo text-[32px] justify-center">
+              <span className="text-white">COMPRINT</span>
+              <span className="comprint-dot bg-white shadow-[0_0_8px_rgba(255,255,255,0.3)]" />
             </div>
           </div>
 
@@ -95,7 +97,7 @@ const LoginPage: React.FC = () => {
                   onChange={e => setEmail(e.target.value)}
                   placeholder="Enter your email address"
                   required
-                  className="w-full pl-11 pr-4 py-3 rounded-xl bg-[#141414] border border-zinc-800 text-white text-sm placeholder-zinc-600 focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/20 transition-all"
+                  className="w-full pl-11 pr-4 py-3 rounded-xl bg-[#111a2e] border border-zinc-800 text-white text-sm placeholder-zinc-600 focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/20 transition-all"
                 />
               </div>
             </div>
@@ -116,7 +118,7 @@ const LoginPage: React.FC = () => {
                   onChange={e => setPassword(e.target.value)}
                   placeholder="Enter your password"
                   required
-                  className="w-full pl-11 pr-11 py-3 rounded-xl bg-[#141414] border border-zinc-800 text-white text-sm placeholder-zinc-600 focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/20 transition-all"
+                  className="w-full pl-11 pr-11 py-3 rounded-xl bg-[#111a2e] border border-zinc-800 text-white text-sm placeholder-zinc-600 focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/20 transition-all"
                 />
                 <button
                   type="button"

@@ -1,18 +1,17 @@
 import React from 'react';
 import {
-  LayoutDashboard, ShoppingCart, Users, Target, FileText, Shield as ShieldIcon,
-  Settings, LogOut, X, Hexagon, Package, Building2, Contact, Handshake,
-  CheckSquare, Calendar, Mail, BarChart3
+  LayoutDashboard, ShoppingCart, Target, FileText, Shield as ShieldIcon,
+  Settings, LogOut, X, Building2, Contact, Handshake,
+  BarChart3
 } from 'lucide-react';
 import { NavigationItem } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { useView } from '../contexts/ViewContext';
+import { useNavigation } from '../contexts/NavigationContext';
 import { ViewSwitcher } from './ViewSwitcher';
 
 interface SidebarProps {
-  activeTab: NavigationItem;
-  setActiveTab: (tab: NavigationItem) => void;
   isOpen: boolean;
   onClose: () => void;
 }
@@ -30,25 +29,21 @@ const navItems: NavItem[] = [
   { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard className="w-4 h-4" />, section: 'Overview', view: 'both' },
   // Post-Sales items
   { id: 'sales-entry', label: 'Sales Entry', icon: <ShoppingCart className="w-4 h-4" />, section: 'Post-Sales', view: 'postsales' },
-  { id: 'partners', label: 'Partners', icon: <Users className="w-4 h-4" />, section: 'Post-Sales', view: 'postsales' },
   // Pre-Sales items
-  { id: 'crm', label: 'CRM / Leads', icon: <Target className="w-4 h-4" />, section: 'Pre-Sales', view: 'presales' },
+  { id: 'crm', label: 'Leads', icon: <Target className="w-4 h-4" />, section: 'Pre-Sales', view: 'presales' },
+  { id: 'deals', label: 'Deals', icon: <Handshake className="w-4 h-4" />, section: 'Pre-Sales', view: 'presales' },
   { id: 'accounts', label: 'Accounts', icon: <Building2 className="w-4 h-4" />, section: 'Pre-Sales', view: 'presales' },
   { id: 'contacts', label: 'Contacts', icon: <Contact className="w-4 h-4" />, section: 'Pre-Sales', view: 'presales' },
-  { id: 'deals', label: 'Deals', icon: <Handshake className="w-4 h-4" />, section: 'Pre-Sales', view: 'presales' },
   // Tools (available in both views)
   { id: 'quote-builder', label: 'Quote Builder', icon: <FileText className="w-4 h-4" />, section: 'Tools', view: 'both' },
-  { id: 'carepacks', label: 'Carepack Tracker', icon: <Package className="w-4 h-4" />, section: 'Tools', view: 'both' },
-  { id: 'tasks', label: 'Tasks', icon: <CheckSquare className="w-4 h-4" />, section: 'Tools', view: 'both' },
-  { id: 'calendar', label: 'Calendar', icon: <Calendar className="w-4 h-4" />, section: 'Tools', view: 'both' },
-  { id: 'emails', label: 'Emails', icon: <Mail className="w-4 h-4" />, section: 'Tools', view: 'both' },
   { id: 'reports', label: 'Reports', icon: <BarChart3 className="w-4 h-4" />, section: 'Tools', view: 'both' },
   // System (available in both views)
   { id: 'admin', label: 'Admin', icon: <ShieldIcon className="w-4 h-4" />, section: 'System', roles: ['admin', 'superadmin'], view: 'both' },
   { id: 'settings', label: 'Settings', icon: <Settings className="w-4 h-4" />, section: 'System', view: 'both' },
 ];
 
-export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, isOpen, onClose }) => {
+export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
+  const { activeTab, setActiveTab } = useNavigation();
   const { signOut, user } = useAuth();
   const { theme } = useTheme();
   const { currentView } = useView();
@@ -79,30 +74,24 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, isOpe
       )}
 
       <aside className={`fixed top-0 left-0 z-50 h-full w-[72vw] sm:w-64 sidebar-premium border-r transition-transform duration-300 ${
-        theme === 'dark' ? 'border-zinc-800' : 'border-slate-200'
+        theme === 'dark' ? 'border-white/[0.06]' : 'border-slate-200'
       } ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}>
 
         {/* Brand */}
         <div className={`h-14 sm:h-16 flex items-center justify-between px-4 sm:px-5 border-b ${
-          theme === 'dark' ? 'border-zinc-800' : 'border-slate-200'
+          theme === 'dark' ? 'border-white/[0.06]' : 'border-slate-200'
         }`}>
-          <div className="flex items-center gap-3">
-            <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${
-              theme === 'dark'
-                ? 'bg-gradient-to-br from-brand-500 to-brand-700 shadow-dark-glow'
-                : 'bg-gradient-to-br from-brand-500 to-brand-700 shadow-glow'
-            }`}>
-              <Hexagon className="w-4.5 h-4.5 text-white" />
+          <button
+            onClick={() => { setActiveTab('dashboard'); onClose(); }}
+            className="flex items-center cursor-pointer"
+          >
+            <div className="comprint-logo text-[22px]">
+              <span className={theme === 'dark' ? 'text-white' : 'text-slate-900'}>COMPRINT</span>
+              <span className={`comprint-dot ${
+                theme === 'dark' ? 'bg-white shadow-[0_0_8px_rgba(255,255,255,0.3)]' : 'bg-slate-900 shadow-sm'
+              }`} />
             </div>
-            <div>
-              <span className={`font-bold font-brand text-[17px] leading-tight block ${
-                theme === 'dark' ? 'text-white' : 'text-slate-900'
-              }`}>Comprint</span>
-              <span className={`text-[10px] font-medium tracking-[0.15em] uppercase leading-tight ${
-                theme === 'dark' ? 'text-zinc-500' : 'text-slate-400'
-              }`}>CRM Platform</span>
-            </div>
-          </div>
+          </button>
           <button onClick={onClose} className={`lg:hidden p-1.5 rounded-lg transition-colors ${
             theme === 'dark' ? 'text-zinc-500 hover:text-white hover:bg-zinc-800' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100'
           }`}>
@@ -112,7 +101,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, isOpe
 
         {/* View Switcher */}
         <div className={`px-3 py-3 border-b ${
-          theme === 'dark' ? 'border-zinc-800' : 'border-slate-200'
+          theme === 'dark' ? 'border-white/[0.06]' : 'border-slate-200'
         }`}>
           <ViewSwitcher />
         </div>
@@ -134,10 +123,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, isOpe
                     className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium transition-all active:scale-[0.98] ${
                       activeTab === item.id
                         ? theme === 'dark'
-                          ? 'bg-brand-600/15 text-brand-400 shadow-inner-glow'
+                          ? 'bg-brand-600/15 text-brand-400 shadow-[0_0_12px_rgba(99,102,241,0.12)] border border-brand-500/20'
                           : 'bg-brand-50 text-brand-700 shadow-sm'
                         : theme === 'dark'
-                          ? 'text-zinc-400 hover:text-white hover:bg-zinc-800/50'
+                          ? 'text-zinc-400 hover:text-white hover:bg-white/[0.04]'
                           : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
                     }`}
                   >
@@ -158,7 +147,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, isOpe
         </nav>
 
         {/* User + Logout */}
-        <div className={`p-3 sm:p-4 border-t safe-area-bottom ${theme === 'dark' ? 'border-zinc-800' : 'border-slate-200'}`}>
+        <div className={`p-3 sm:p-4 border-t safe-area-bottom ${theme === 'dark' ? 'border-white/[0.06]' : 'border-slate-200'}`}>
           {user && (
             <div className={`flex items-center gap-3 mb-3 px-2 ${
               theme === 'dark' ? 'text-zinc-400' : 'text-slate-600'

@@ -30,7 +30,7 @@ async def list_email_templates(
     repo = EmailTemplateRepository(db)
     filters = []
 
-    if user.role == "salesperson":
+    if user.role == "sales":
         filters.append(EmailTemplate.owner_id == user.id)
 
     result = await repo.get_with_owner(page=page, limit=limit, filters=filters or None)

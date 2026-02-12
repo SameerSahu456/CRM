@@ -19,14 +19,13 @@ export const LeadsWidget: React.FC<WidgetProps> = ({ isDark, navigate, onDetailC
     fetchData();
   }, []);
 
-  const LEAD_STAGES = ['New', 'Contacted', 'Qualified', 'Proposal', 'Negotiation', 'Won', 'Lost'];
+  const LEAD_STAGES = ['Cold', 'Proposal', 'Negotiation', 'Closed Won', 'Closed Lost'];
   const totalLeads = (Object.values(leadStats) as number[]).reduce((a, b) => a + b, 0);
-  const wonLeads = (leadStats['Won'] as number) || 0;
+  const wonLeads = (leadStats['Closed Won'] as number) || 0;
   const conversionRate = totalLeads > 0 ? Math.round((wonLeads / totalLeads) * 100) : 0;
 
   const LEAD_COLORS: Record<string, string> = {
-    New: '#3b82f6', Contacted: '#06b6d4', Qualified: '#f59e0b',
-    Proposal: '#a855f7', Negotiation: '#f97316', Won: '#10b981', Lost: '#ef4444',
+    Cold: '#3b82f6', Proposal: '#a855f7', Negotiation: '#f97316', 'Closed Won': '#10b981', 'Closed Lost': '#ef4444',
   };
 
   const thClass = `text-[10px] font-semibold uppercase tracking-wider ${isDark ? 'text-zinc-500' : 'text-slate-400'}`;
@@ -98,7 +97,7 @@ export const LeadsWidget: React.FC<WidgetProps> = ({ isDark, navigate, onDetailC
           <div className={`flex items-center justify-center gap-4 pt-3 mt-3 border-t ${rowBorder}`}>
             <div className="relative w-12 h-12">
               <svg className="w-full h-full -rotate-90" viewBox="0 0 48 48">
-                <circle cx="24" cy="24" r="18" fill="none" stroke={isDark ? '#27272a' : '#f1f5f9'} strokeWidth="4" />
+                <circle cx="24" cy="24" r="18" fill="none" stroke={isDark ? '#1a2535' : '#f1f5f9'} strokeWidth="4" />
                 <circle cx="24" cy="24" r="18" fill="none" stroke="#10b981" strokeWidth="4"
                   strokeLinecap="round" strokeDasharray={`${2 * Math.PI * 18}`}
                   strokeDashoffset={`${2 * Math.PI * 18 * (1 - conversionRate / 100)}`} />
@@ -109,7 +108,7 @@ export const LeadsWidget: React.FC<WidgetProps> = ({ isDark, navigate, onDetailC
             </div>
             <div>
               <p className={`text-xs font-medium ${isDark ? 'text-white' : 'text-slate-900'}`}>Won: {wonLeads}</p>
-              <p className={`text-[10px] ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Lost: {(leadStats['Lost'] as number) || 0}</p>
+              <p className={`text-[10px] ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Lost: {(leadStats['Closed Lost'] as number) || 0}</p>
             </div>
           </div>
         </div>

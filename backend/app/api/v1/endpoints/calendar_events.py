@@ -31,7 +31,7 @@ async def list_calendar_events(
     repo = CalendarEventRepository(db)
     filters = []
 
-    if user.role == "salesperson":
+    if user.role == "sales":
         filters.append(CalendarEvent.owner_id == user.id)
 
     result = await repo.get_with_owner(page=page, limit=limit, filters=filters or None)
@@ -55,7 +55,7 @@ async def get_events_by_range(
     repo = CalendarEventRepository(db)
     filters = []
 
-    if user.role == "salesperson":
+    if user.role == "sales":
         filters.append(CalendarEvent.owner_id == user.id)
 
     start_date = datetime.fromisoformat(start)

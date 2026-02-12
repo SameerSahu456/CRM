@@ -26,7 +26,7 @@ export const ViewSwitcher: React.FC = () => {
         onClick={() => setIsOpen(!isOpen)}
         className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg transition-all ${
           isDark
-            ? 'bg-dark-100 hover:bg-dark-200 text-white border border-zinc-800'
+            ? 'bg-[rgba(10,16,32,0.5)] hover:bg-[rgba(10,16,32,0.7)] text-white border border-white/[0.06]'
             : 'bg-white hover:bg-slate-50 text-slate-900 border border-slate-200 shadow-sm'
         }`}
       >
@@ -46,7 +46,7 @@ export const ViewSwitcher: React.FC = () => {
           {/* Dropdown */}
           <div
             className={`absolute top-full left-0 mt-2 w-full min-w-[240px] rounded-xl shadow-lg border z-50 overflow-hidden ${
-              isDark ? 'bg-dark-50 border-zinc-800' : 'bg-white border-slate-200'
+              isDark ? 'bg-[rgba(8,13,27,0.92)] border-white/[0.06] backdrop-blur-xl' : 'bg-white border-slate-200'
             }`}
           >
             {views.map((view) => {
@@ -65,7 +65,7 @@ export const ViewSwitcher: React.FC = () => {
                         ? 'bg-brand-600/20 border-l-2 border-brand-500'
                         : 'bg-brand-50 border-l-2 border-brand-500'
                       : isDark
-                      ? 'hover:bg-dark-100'
+                      ? 'hover:bg-white/[0.04]'
                       : 'hover:bg-slate-50'
                   }`}
                 >
@@ -76,7 +76,7 @@ export const ViewSwitcher: React.FC = () => {
                           ? 'bg-brand-600/30 text-brand-400'
                           : 'bg-brand-100 text-brand-600'
                         : isDark
-                        ? 'bg-dark-100 text-zinc-400'
+                        ? 'bg-white/[0.04] text-zinc-400'
                         : 'bg-slate-100 text-slate-600'
                     }`}
                   >

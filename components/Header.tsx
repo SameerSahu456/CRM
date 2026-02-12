@@ -14,16 +14,16 @@ export const Header: React.FC<HeaderProps> = ({ onMenuClick, title }) => {
   const isDark = theme === 'dark';
 
   return (
-    <header className={`sticky top-0 z-30 h-14 sm:h-16 flex items-center justify-between px-3 sm:px-4 lg:px-6 border-b backdrop-blur-xl ${
+    <header className={`sticky top-0 z-30 h-14 sm:h-16 flex items-center justify-between px-3 sm:px-4 lg:px-6 border-b ${
       isDark
-        ? 'bg-dark-50/80 border-zinc-800/80'
-        : 'bg-white/80 border-slate-200/80'
+        ? 'bg-[rgba(5,10,21,0.75)] border-white/[0.05]'
+        : 'bg-white/80 border-slate-200/80 backdrop-blur-xl'
     }`}>
       <div className="flex items-center gap-2 sm:gap-3">
         <button
           onClick={onMenuClick}
           className={`lg:hidden p-2.5 -ml-1 rounded-xl transition-all active:scale-95 ${
-            isDark ? 'hover:bg-zinc-800 text-zinc-400' : 'hover:bg-slate-100 text-slate-500'
+            isDark ? 'hover:bg-white/[0.06] text-zinc-400' : 'hover:bg-slate-100 text-slate-500'
           }`}
         >
           <Menu className="w-5 h-5" />
@@ -41,7 +41,7 @@ export const Header: React.FC<HeaderProps> = ({ onMenuClick, title }) => {
           onClick={toggleTheme}
           className={`p-2.5 rounded-xl transition-all active:scale-95 ${
             isDark
-              ? 'text-zinc-400 hover:text-amber-400 hover:bg-zinc-800/80'
+              ? 'text-zinc-400 hover:text-amber-400 hover:bg-white/[0.06]'
               : 'text-slate-500 hover:text-brand-600 hover:bg-slate-100'
           }`}
           title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
@@ -52,7 +52,7 @@ export const Header: React.FC<HeaderProps> = ({ onMenuClick, title }) => {
         {/* Notifications */}
         <button className={`relative p-2.5 rounded-xl transition-all active:scale-95 ${
           isDark
-            ? 'text-zinc-400 hover:text-white hover:bg-zinc-800/80'
+            ? 'text-zinc-400 hover:text-white hover:bg-white/[0.06]'
             : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100'
         }`}>
           <Bell className="w-[18px] h-[18px]" />
@@ -62,7 +62,7 @@ export const Header: React.FC<HeaderProps> = ({ onMenuClick, title }) => {
         {/* User avatar */}
         {user && (
           <div className={`flex items-center gap-2.5 ml-2 pl-3 border-l ${
-            isDark ? 'border-zinc-800' : 'border-slate-200'
+            isDark ? 'border-white/[0.06]' : 'border-slate-200'
           }`}>
             <div className={`w-8 h-8 rounded-xl flex items-center justify-center text-sm font-bold transition-transform hover:scale-105 ${
               isDark

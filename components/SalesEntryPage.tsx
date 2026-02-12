@@ -1,16 +1,19 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
-  Plus, Search, Filter, Edit2, Trash2, X, ChevronLeft, ChevronRight,
+  Plus, Search, Trash2, X, ChevronLeft, ChevronRight,
   IndianRupee, ShoppingCart, Clock, CheckCircle, Loader2, AlertCircle,
-  Calendar, FileText, Package, User as UserIcon
+  Download, Upload
 } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
-import { salesApi, productsApi, partnersApi, formatINR } from '../services/api';
+import { useNavigation } from '../contexts/NavigationContext';
+import { salesApi, productsApi, partnersApi, masterDataApi, formatINR } from '../services/api';
+import { exportToCsv } from '../utils/exportCsv';
 import { SalesEntry, Product, Partner, PaginatedResponse } from '../types';
+import { BulkImportModal } from './BulkImportModal';
 
 // ---------------------------------------------------------------------------
-// Types local to this page
+// Types
 // ---------------------------------------------------------------------------
 
 interface SalesSummary {
@@ -54,14 +57,14 @@ const PAYMENT_STATUSES = [
   { value: 'cancelled', label: 'Cancelled' },
 ];
 
-const PAGE_SIZE = 10;
+const PAGE_SIZE = 20;
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
 function paymentBadge(status: string, isDark: boolean): string {
-  const base = 'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium';
+  const base = 'inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium';
   switch (status) {
     case 'paid':
       return `${base} ${isDark ? 'bg-emerald-900/30 text-emerald-400' : 'bg-emerald-50 text-emerald-700'}`;
@@ -77,7 +80,7 @@ function paymentBadge(status: string, isDark: boolean): string {
 }
 
 function formatDate(dateStr: string): string {
-  if (!dateStr) return '-';
+  if (!dateStr) return '';
   try {
     return new Intl.DateTimeFormat('en-IN', {
       day: '2-digit',
@@ -96,9 +99,11 @@ function formatDate(dateStr: string): string {
 export const SalesEntryPage: React.FC = () => {
   const { theme } = useTheme();
   const { user } = useAuth();
+  const { setActiveTab: navigate } = useNavigation();
   const isDark = theme === 'dark';
 
-  // Data state
+  // Data
+  const [showBulkImport, setShowBulkImport] = useState(false);
   const [sales, setSales] = useState<SalesEntry[]>([]);
   const [summary, setSummary] = useState<SalesSummary | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
@@ -114,21 +119,29 @@ export const SalesEntryPage: React.FC = () => {
   const [filterProduct, setFilterProduct] = useState('');
   const [filterPaymentStatus, setFilterPaymentStatus] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
+  const [filterFromDate, setFilterFromDate] = useState('');
+  const [filterToDate, setFilterToDate] = useState('');
+  const [filterVertical, setFilterVertical] = useState('');
+  const [filterLocation, setFilterLocation] = useState('');
+  const [verticals, setVerticals] = useState<any[]>([]);
+  const [locations, setLocations] = useState<any[]>([]);
 
-  // UI state
+  // Loading
   const [isLoading, setIsLoading] = useState(true);
   const [isSummaryLoading, setIsSummaryLoading] = useState(true);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [tableError, setTableError] = useState('');
+  const [successMsg, setSuccessMsg] = useState('');
+
+  // Modal
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState<SalesFormData>({ ...EMPTY_FORM });
   const [formError, setFormError] = useState('');
-  const [tableError, setTableError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Delete
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
-  // Detail modal
-  const [showDetailModal, setShowDetailModal] = useState(false);
-  const [detailEntry, setDetailEntry] = useState<SalesEntry | null>(null);
 
   // ---------------------------------------------------------------------------
   // Data fetching
@@ -146,6 +159,10 @@ export const SalesEntryPage: React.FC = () => {
       if (filterProduct) params.productId = filterProduct;
       if (filterPaymentStatus) params.paymentStatus = filterPaymentStatus;
       if (searchTerm) params.search = searchTerm;
+      if (filterFromDate) params.fromDate = filterFromDate;
+      if (filterToDate) params.toDate = filterToDate;
+      if (filterVertical) params.verticalId = filterVertical;
+      if (filterLocation) params.locationId = filterLocation;
 
       const response: PaginatedResponse<SalesEntry> = await salesApi.list(params);
       setSales(response.data);
@@ -157,7 +174,7 @@ export const SalesEntryPage: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [page, filterPartner, filterProduct, filterPaymentStatus, searchTerm]);
+  }, [page, filterPartner, filterProduct, filterPaymentStatus, searchTerm, filterFromDate, filterToDate, filterVertical, filterLocation]);
 
   const fetchSummary = useCallback(async () => {
     setIsSummaryLoading(true);
@@ -165,7 +182,6 @@ export const SalesEntryPage: React.FC = () => {
       const data = await salesApi.summary();
       setSummary(data);
     } catch {
-      // Summary is non-critical, fail silently
       setSummary(null);
     } finally {
       setIsSummaryLoading(false);
@@ -174,37 +190,45 @@ export const SalesEntryPage: React.FC = () => {
 
   const fetchDropdownData = useCallback(async () => {
     try {
-      const [productsList, partnersResponse] = await Promise.all([
+      const [productsList, partnersResponse, verticalsList, locationsList] = await Promise.all([
         productsApi.list(),
         partnersApi.list({ limit: '100', status: 'approved' }),
+        masterDataApi.list('verticals'),
+        masterDataApi.list('locations'),
       ]);
       setProducts(Array.isArray(productsList) ? productsList : []);
-      // partnersApi.list returns paginated
       const partnerData = partnersResponse?.data ?? partnersResponse;
       setPartners(Array.isArray(partnerData) ? partnerData : []);
+      setVerticals(Array.isArray(verticalsList) ? verticalsList : []);
+      setLocations(Array.isArray(locationsList) ? locationsList : []);
     } catch {
       // Dropdown data failure is non-critical
     }
   }, []);
 
-  // Initial load
   useEffect(() => {
     fetchDropdownData();
     fetchSummary();
   }, [fetchDropdownData, fetchSummary]);
 
-  // Re-fetch on pagination / filter change
   useEffect(() => {
     fetchSales();
   }, [fetchSales]);
 
-  // Reset to page 1 when filters change
   useEffect(() => {
     setPage(1);
-  }, [filterPartner, filterProduct, filterPaymentStatus, searchTerm]);
+  }, [filterPartner, filterProduct, filterPaymentStatus, searchTerm, filterFromDate, filterToDate, filterVertical, filterLocation]);
+
+  // Auto-clear success message
+  useEffect(() => {
+    if (successMsg) {
+      const t = setTimeout(() => setSuccessMsg(''), 3000);
+      return () => clearTimeout(t);
+    }
+  }, [successMsg]);
 
   // ---------------------------------------------------------------------------
-  // Form handlers
+  // Modal handlers
   // ---------------------------------------------------------------------------
 
   const openCreateModal = () => {
@@ -216,14 +240,14 @@ export const SalesEntryPage: React.FC = () => {
 
   const openEditModal = (entry: SalesEntry) => {
     setFormData({
-      partnerId: entry.partnerId,
-      productId: entry.productId,
+      partnerId: entry.partnerId || '',
+      productId: entry.productId || '',
       customerName: entry.customerName || '',
-      quantity: entry.quantity,
-      amount: entry.amount,
+      quantity: entry.quantity || 1,
+      amount: entry.amount || 0,
       poNumber: entry.poNumber || '',
       invoiceNo: entry.invoiceNo || '',
-      paymentStatus: entry.paymentStatus,
+      paymentStatus: entry.paymentStatus || 'pending',
       saleDate: entry.saleDate ? entry.saleDate.split('T')[0] : '',
       notes: entry.notes || '',
     });
@@ -252,804 +276,445 @@ export const SalesEntryPage: React.FC = () => {
     e.preventDefault();
     setFormError('');
 
-    // Validation
-    if (!formData.partnerId) {
-      setFormError('Please select a partner');
-      return;
-    }
-    if (!formData.productId) {
-      setFormError('Please select a product');
-      return;
-    }
-    if (formData.quantity <= 0) {
-      setFormError('Quantity must be greater than 0');
+    if (!formData.partnerId || !formData.productId || !formData.saleDate) {
+      setFormError('Partner, Product, and Date are required');
       return;
     }
     if (formData.amount <= 0) {
       setFormError('Amount must be greater than 0');
       return;
     }
-    if (!formData.saleDate) {
-      setFormError('Please enter the sale date');
-      return;
-    }
 
     setIsSubmitting(true);
     try {
-      const payload = {
-        ...formData,
-        salespersonId: user?.id,
-      };
-
       if (editingId) {
-        await salesApi.update(editingId, payload);
+        await salesApi.update(editingId, { ...formData, salespersonId: user?.id });
+        setSuccessMsg('Entry updated');
       } else {
-        await salesApi.create(payload);
+        await salesApi.create({ ...formData, salespersonId: user?.id });
+        setSuccessMsg('Entry added');
       }
-
       closeModal();
       fetchSales();
       fetchSummary();
     } catch (err: any) {
-      setFormError(err.message || 'Failed to save sales entry');
+      setFormError(err.message || 'Failed to save');
     } finally {
       setIsSubmitting(false);
     }
   };
 
+  // ---------------------------------------------------------------------------
+  // Delete
+  // ---------------------------------------------------------------------------
+
   const handleDelete = async (id: string) => {
     try {
       await salesApi.delete(id);
       setDeleteConfirmId(null);
+      setSuccessMsg('Entry deleted');
       fetchSales();
       fetchSummary();
     } catch (err: any) {
-      setTableError(err.message || 'Failed to delete entry');
+      setTableError(err.message || 'Failed to delete');
     }
   };
+
+  // ---------------------------------------------------------------------------
+  // Filter helpers
+  // ---------------------------------------------------------------------------
 
   const clearFilters = () => {
     setFilterPartner('');
     setFilterProduct('');
     setFilterPaymentStatus('');
     setSearchTerm('');
+    setFilterFromDate('');
+    setFilterToDate('');
+    setFilterVertical('');
+    setFilterLocation('');
   };
 
-  const hasActiveFilters = filterPartner || filterProduct || filterPaymentStatus || searchTerm;
+  const hasActiveFilters = filterPartner || filterProduct || filterPaymentStatus || searchTerm || filterFromDate || filterToDate || filterVertical || filterLocation;
 
   // ---------------------------------------------------------------------------
-  // Detail modal handlers
+  // Lookup helpers
   // ---------------------------------------------------------------------------
 
-  const openDetailModal = (entry: SalesEntry) => {
-    setDetailEntry(entry);
-    setShowDetailModal(true);
-  };
-
-  const closeDetailModal = () => {
-    setShowDetailModal(false);
-    setDetailEntry(null);
-  };
 
   // ---------------------------------------------------------------------------
-  // Styling helpers
+  // Styles
   // ---------------------------------------------------------------------------
 
-  const cardClass = `premium-card ${isDark ? 'bg-dark-50 border border-zinc-800' : 'bg-white shadow-soft'}`;
-  const inputClass = `w-full px-3 py-2.5 rounded-xl border text-sm transition-all ${
+  const cardClass = `${isDark ? 'bg-dark-50 border border-zinc-800' : 'bg-white shadow-soft'} rounded-xl`;
+  const selectFilterClass = `w-full px-3 py-2 rounded-xl border text-sm transition-all appearance-none cursor-pointer ${
     isDark
-      ? 'bg-dark-100 border-zinc-700 text-white placeholder-zinc-500 focus:border-brand-500'
-      : 'bg-white border-slate-200 text-slate-900 placeholder-slate-400 focus:border-brand-500'
+      ? 'bg-dark-100 border-zinc-700 text-white focus:border-brand-500'
+      : 'bg-white border-slate-200 text-slate-900 focus:border-brand-500'
   } focus:outline-none focus:ring-1 focus:ring-brand-500`;
-  const labelClass = `block text-sm font-medium mb-1.5 ${isDark ? 'text-slate-300' : 'text-slate-700'}`;
-  const selectClass = `${inputClass} appearance-none cursor-pointer`;
 
   // ---------------------------------------------------------------------------
   // Render
   // ---------------------------------------------------------------------------
 
   return (
-    <div className="p-3 sm:p-4 lg:p-6 space-y-6 animate-fade-in-up">
-      {/* Summary Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Total Sales Amount */}
-        <div className={`${cardClass} p-4 hover-lift animate-fade-in-up stagger-1`}>
-          <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-3 ${
-            isDark ? 'bg-brand-900/20' : 'bg-brand-50'
-          }`}>
-            <IndianRupee className={`w-5 h-5 ${isDark ? 'text-brand-400' : 'text-brand-600'}`} />
-          </div>
-          <p className={`text-xs ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>Total Sales Amount</p>
-          {isSummaryLoading ? (
-            <div className="h-7 mt-0.5 flex items-center">
-              <div className={`w-24 h-5 rounded animate-pulse ${isDark ? 'bg-zinc-800' : 'bg-slate-100'}`} />
+    <div className="p-3 sm:p-4 lg:p-6 space-y-4 animate-fade-in-up">
+      {/* Compact Summary Bar */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        {[
+          { label: 'Total Sales', value: formatINR(summary?.totalAmount ?? 0), icon: IndianRupee, color: 'brand', nav: 'sales-entry' as const },
+          { label: 'Entries', value: String(summary?.totalCount ?? 0), icon: ShoppingCart, color: 'emerald', nav: 'sales-entry' as const },
+          { label: 'Pending', value: String(summary?.pendingPayments ?? 0), icon: Clock, color: 'amber', nav: 'sales-entry' as const },
+          { label: 'Paid', value: String(summary?.paidCount ?? 0), icon: CheckCircle, color: 'green', nav: 'sales-entry' as const },
+        ].map(({ label, value, icon: Icon, color, nav }) => (
+          <div
+            key={label}
+            onClick={() => navigate(nav)}
+            className={`${cardClass} p-3 flex items-center gap-3 cursor-pointer hover:scale-[1.02] transition-transform`}
+          >
+            <div className={`w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 ${
+              isDark ? `bg-${color}-900/20` : `bg-${color}-50`
+            }`}>
+              <Icon className={`w-4 h-4 ${isDark ? `text-${color}-400` : `text-${color}-600`}`} />
             </div>
-          ) : (
-            <p className={`text-xl font-bold mt-0.5 ${isDark ? 'text-white' : 'text-slate-900'}`}>
-              {formatINR(summary?.totalAmount ?? 0)}
-            </p>
-          )}
-        </div>
-
-        {/* Total Entries */}
-        <div className={`${cardClass} p-4 hover-lift animate-fade-in-up stagger-2`}>
-          <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-3 ${
-            isDark ? 'bg-emerald-900/20' : 'bg-emerald-50'
-          }`}>
-            <ShoppingCart className={`w-5 h-5 ${isDark ? 'text-emerald-400' : 'text-emerald-600'}`} />
-          </div>
-          <p className={`text-xs ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>Total Entries</p>
-          {isSummaryLoading ? (
-            <div className="h-7 mt-0.5 flex items-center">
-              <div className={`w-16 h-5 rounded animate-pulse ${isDark ? 'bg-zinc-800' : 'bg-slate-100'}`} />
+            <div className="min-w-0">
+              <p className={`text-[11px] ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>{label}</p>
+              {isSummaryLoading ? (
+                <div className={`w-16 h-4 rounded animate-pulse mt-0.5 ${isDark ? 'bg-zinc-800' : 'bg-slate-100'}`} />
+              ) : (
+                <p className={`text-lg font-bold leading-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>{value}</p>
+              )}
             </div>
-          ) : (
-            <p className={`text-xl font-bold mt-0.5 ${isDark ? 'text-white' : 'text-slate-900'}`}>
-              {summary?.totalCount ?? 0}
-            </p>
-          )}
-        </div>
-
-        {/* Pending Payments */}
-        <div className={`${cardClass} p-4 hover-lift animate-fade-in-up stagger-3`}>
-          <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-3 ${
-            isDark ? 'bg-amber-900/20' : 'bg-amber-50'
-          }`}>
-            <Clock className={`w-5 h-5 ${isDark ? 'text-amber-400' : 'text-amber-600'}`} />
           </div>
-          <p className={`text-xs ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>Pending Payments</p>
-          {isSummaryLoading ? (
-            <div className="h-7 mt-0.5 flex items-center">
-              <div className={`w-12 h-5 rounded animate-pulse ${isDark ? 'bg-zinc-800' : 'bg-slate-100'}`} />
-            </div>
-          ) : (
-            <p className={`text-xl font-bold mt-0.5 ${isDark ? 'text-white' : 'text-slate-900'}`}>
-              {summary?.pendingPayments ?? 0}
-            </p>
-          )}
-        </div>
-
-        {/* Paid Count */}
-        <div className={`${cardClass} p-4 hover-lift animate-fade-in-up stagger-4`}>
-          <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-3 ${
-            isDark ? 'bg-green-900/20' : 'bg-green-50'
-          }`}>
-            <CheckCircle className={`w-5 h-5 ${isDark ? 'text-green-400' : 'text-green-600'}`} />
-          </div>
-          <p className={`text-xs ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>Paid</p>
-          {isSummaryLoading ? (
-            <div className="h-7 mt-0.5 flex items-center">
-              <div className={`w-12 h-5 rounded animate-pulse ${isDark ? 'bg-zinc-800' : 'bg-slate-100'}`} />
-            </div>
-          ) : (
-            <p className={`text-xl font-bold mt-0.5 ${isDark ? 'text-white' : 'text-slate-900'}`}>
-              {summary?.paidCount ?? 0}
-            </p>
-          )}
-        </div>
+        ))}
       </div>
 
-      {/* Toolbar: Search + Filters + New Entry */}
-      <div className={`${cardClass} p-4`}>
-        <div className="flex flex-col lg:flex-row lg:items-center gap-3">
-          {/* Search */}
+      {/* Toolbar */}
+      <div className={`${cardClass} px-3 py-2.5 space-y-2`}>
+        {/* Row 1: Search + Quick Filters + Export */}
+        <div className="flex flex-col lg:flex-row lg:items-center gap-2">
           <div className="relative flex-1 min-w-0">
-            <Search className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${
-              isDark ? 'text-zinc-500' : 'text-slate-400'
-            }`} />
+            <Search className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`} />
             <input
               type="text"
-              placeholder="Search by customer name..."
+              placeholder="Search customer..."
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
-              className={`w-full pl-10 pr-4 py-2.5 rounded-xl border text-sm transition-all ${
+              className={`w-full pl-10 pr-4 py-2.5 rounded-xl border text-sm ${
                 isDark
                   ? 'bg-dark-100 border-zinc-700 text-white placeholder-zinc-500 focus:border-brand-500'
                   : 'bg-white border-slate-200 text-slate-900 placeholder-slate-400 focus:border-brand-500'
-              } focus:outline-none focus:ring-1 focus:ring-brand-500`}
+              } focus:outline-none`}
             />
           </div>
+          <select value={filterPartner} onChange={e => setFilterPartner(e.target.value)} className={`${selectFilterClass} lg:w-44`}>
+            <option value="">All Partners</option>
+            {partners.map(p => <option key={p.id} value={p.id}>{p.companyName}</option>)}
+          </select>
+          <select value={filterProduct} onChange={e => setFilterProduct(e.target.value)} className={`${selectFilterClass} lg:w-40`}>
+            <option value="">All Products</option>
+            {products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+          </select>
+          <select value={filterPaymentStatus} onChange={e => setFilterPaymentStatus(e.target.value)} className={`${selectFilterClass} lg:w-36`}>
+            <option value="">All Status</option>
+            {PAYMENT_STATUSES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+          </select>
+        </div>
 
-          {/* Filter: Partner */}
-          <div className="w-full lg:w-48">
-            <select
-              value={filterPartner}
-              onChange={e => setFilterPartner(e.target.value)}
-              className={selectClass}
-            >
-              <option value="">All Partners</option>
-              {partners.map(p => (
-                <option key={p.id} value={p.id}>{p.companyName}</option>
-              ))}
-            </select>
+        {/* Row 2: Date Range + Vertical + Location + Clear + Export */}
+        <div className="flex flex-col lg:flex-row lg:items-center gap-2">
+          <div className="flex items-center gap-2 flex-1">
+            <div className="relative">
+              <input
+                type="date"
+                value={filterFromDate}
+                onChange={e => setFilterFromDate(e.target.value)}
+                className={`${selectFilterClass} w-[150px]`}
+                title="From date"
+              />
+            </div>
+            <span className={`text-xs ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>to</span>
+            <div className="relative">
+              <input
+                type="date"
+                value={filterToDate}
+                onChange={e => setFilterToDate(e.target.value)}
+                className={`${selectFilterClass} w-[150px]`}
+                title="To date"
+              />
+            </div>
           </div>
-
-          {/* Filter: Product */}
-          <div className="w-full lg:w-48">
-            <select
-              value={filterProduct}
-              onChange={e => setFilterProduct(e.target.value)}
-              className={selectClass}
-            >
-              <option value="">All Products</option>
-              {products.map(p => (
-                <option key={p.id} value={p.id}>{p.name}</option>
-              ))}
-            </select>
-          </div>
-
-          {/* Filter: Payment Status */}
-          <div className="w-full lg:w-44">
-            <select
-              value={filterPaymentStatus}
-              onChange={e => setFilterPaymentStatus(e.target.value)}
-              className={selectClass}
-            >
-              <option value="">All Statuses</option>
-              {PAYMENT_STATUSES.map(s => (
-                <option key={s.value} value={s.value}>{s.label}</option>
-              ))}
-            </select>
-          </div>
-
-          {/* Clear Filters */}
+          <select value={filterVertical} onChange={e => setFilterVertical(e.target.value)} className={`${selectFilterClass} lg:w-40`}>
+            <option value="">All Verticals</option>
+            {verticals.map((v: any) => <option key={v.id} value={v.id}>{v.name}</option>)}
+          </select>
+          <select value={filterLocation} onChange={e => setFilterLocation(e.target.value)} className={`${selectFilterClass} lg:w-40`}>
+            <option value="">All Locations</option>
+            {locations.map((l: any) => <option key={l.id} value={l.id}>{l.city}{l.state ? `, ${l.state}` : ''}</option>)}
+          </select>
           {hasActiveFilters && (
-            <button
-              onClick={clearFilters}
-              className={`flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${
-                isDark
-                  ? 'text-zinc-400 hover:text-white hover:bg-zinc-800'
-                  : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100'
-              }`}
-            >
-              <X className="w-3.5 h-3.5" />
-              Clear
+            <button onClick={clearFilters} className={`flex items-center gap-1 px-3 py-2 rounded-lg text-xs font-medium ${
+              isDark ? 'text-zinc-400 hover:text-white hover:bg-zinc-800' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100'
+            }`}>
+              <X className="w-3 h-3" /> Clear Filters
             </button>
           )}
-
-          {/* New Entry */}
+          <button
+            onClick={() => setShowBulkImport(true)}
+            title="Import from CSV"
+            className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-colors whitespace-nowrap ${
+              isDark
+                ? 'text-zinc-400 border border-zinc-700 hover:bg-zinc-800'
+                : 'text-slate-500 border border-slate-200 hover:bg-slate-50'
+            }`}
+          >
+            <Upload className="w-3.5 h-3.5" />
+            Import
+          </button>
+          <button
+            onClick={() => exportToCsv('sales_entries', [
+              { header: 'Date', accessor: (r: SalesEntry) => r.saleDate ? r.saleDate.split('T')[0] : '' },
+              { header: 'Partner', accessor: (r: SalesEntry) => r.partnerName },
+              { header: 'Product', accessor: (r: SalesEntry) => r.productName },
+              { header: 'Customer', accessor: (r: SalesEntry) => r.customerName },
+              { header: 'Quantity', accessor: (r: SalesEntry) => r.quantity },
+              { header: 'Amount', accessor: (r: SalesEntry) => r.amount },
+              { header: 'PO Number', accessor: (r: SalesEntry) => r.poNumber },
+              { header: 'Invoice No', accessor: (r: SalesEntry) => r.invoiceNo },
+              { header: 'Payment Status', accessor: (r: SalesEntry) => r.paymentStatus },
+              { header: 'Notes', accessor: (r: SalesEntry) => r.notes },
+            ], sales)}
+            disabled={sales.length === 0}
+            title="Export to CSV"
+            className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-colors whitespace-nowrap ${
+              isDark
+                ? 'text-zinc-400 border border-zinc-700 hover:bg-zinc-800 disabled:opacity-30'
+                : 'text-slate-500 border border-slate-200 hover:bg-slate-50 disabled:opacity-30'
+            }`}
+          >
+            <Download className="w-3.5 h-3.5" />
+            Export
+          </button>
           <button
             onClick={openCreateModal}
-            className="flex items-center gap-2 px-4 py-2.5 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-sm font-medium transition-all btn-premium whitespace-nowrap"
+            className="flex items-center gap-2 px-4 py-2 bg-brand-600 text-white rounded-xl text-sm font-medium hover:bg-brand-700 transition-all whitespace-nowrap"
           >
             <Plus className="w-4 h-4" />
-            New Entry
+            Add Entry
           </button>
         </div>
       </div>
 
+      {/* Status messages */}
+      {tableError && (
+        <div className={`px-3 py-2 rounded-lg flex items-center gap-2 text-sm ${
+          isDark ? 'bg-red-900/20 border border-red-800 text-red-400' : 'bg-red-50 border border-red-200 text-red-700'
+        }`}>
+          <AlertCircle className="w-4 h-4 flex-shrink-0" />
+          {tableError}
+          <button onClick={() => setTableError('')} className="ml-auto"><X className="w-3.5 h-3.5" /></button>
+        </div>
+      )}
+      {successMsg && (
+        <div className={`px-3 py-2 rounded-lg flex items-center gap-2 text-sm ${
+          isDark ? 'bg-emerald-900/20 border border-emerald-800 text-emerald-400' : 'bg-emerald-50 border border-emerald-200 text-emerald-700'
+        }`}>
+          <CheckCircle className="w-4 h-4 flex-shrink-0" />
+          {successMsg}
+        </div>
+      )}
+
       {/* Data Table */}
       <div className={`${cardClass} overflow-hidden`}>
-        {/* Table Error */}
-        {tableError && (
-          <div className={`m-4 p-3 rounded-xl flex items-center gap-2 text-sm ${
-            isDark
-              ? 'bg-red-900/20 border border-red-800 text-red-400'
-              : 'bg-red-50 border border-red-200 text-red-700'
-          }`}>
-            <AlertCircle className="w-4 h-4 flex-shrink-0" />
-            {tableError}
-          </div>
-        )}
-
         {isLoading ? (
-          <div className="flex flex-col items-center justify-center py-20">
-            <Loader2 className="w-8 h-8 text-brand-600 animate-spin" />
-            <p className={`mt-3 text-sm ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>
-              Loading sales entries...
-            </p>
+          <div className="flex flex-col items-center justify-center py-16">
+            <Loader2 className="w-6 h-6 text-brand-600 animate-spin" />
+            <p className={`mt-2 text-sm ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>Loading...</p>
           </div>
         ) : sales.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20">
-            <div className={`w-16 h-16 rounded-2xl flex items-center justify-center mb-4 ${
-              isDark ? 'bg-zinc-800' : 'bg-slate-100'
-            }`}>
-              <ShoppingCart className={`w-7 h-7 ${isDark ? 'text-zinc-600' : 'text-slate-300'}`} />
-            </div>
-            <p className={`text-sm font-medium ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>
-              {hasActiveFilters ? 'No sales entries match your filters' : 'No sales entries yet'}
+          <div className="flex flex-col items-center justify-center py-16">
+            <ShoppingCart className={`w-8 h-8 ${isDark ? 'text-zinc-700' : 'text-slate-300'}`} />
+            <p className={`mt-2 text-sm ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
+              {hasActiveFilters ? 'No entries match filters' : 'No entries yet'}
             </p>
-            <p className={`text-xs mt-1 ${isDark ? 'text-zinc-600' : 'text-slate-400'}`}>
-              {hasActiveFilters ? 'Try adjusting your filters' : 'Click "New Entry" to create one'}
-            </p>
+            {!hasActiveFilters && (
+              <button
+                onClick={openCreateModal}
+                className="mt-3 flex items-center gap-2 px-4 py-2 bg-brand-600 text-white rounded-xl text-sm font-medium hover:bg-brand-700 transition-colors"
+              >
+                <Plus className="w-4 h-4" />
+                Add Entry
+              </button>
+            )}
           </div>
         ) : (
-          <>
-            {/* Desktop table */}
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className={`border-b ${isDark ? 'border-zinc-800' : 'border-slate-100'}`}>
-                    {['Sale Date', 'Partner', 'Product', 'Customer', 'Qty', 'Amount', 'Payment', 'Actions'].map(h => (
-                      <th
-                        key={h}
-                        className={`px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider ${
-                          isDark ? 'text-zinc-500' : 'text-slate-400'
-                        }`}
-                      >
-                        {h}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {sales.map((entry, idx) => (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className={`border-b ${isDark ? 'border-zinc-800' : 'border-slate-100'}`}>
+                  {['#', 'Date', 'Partner', 'Product', 'Customer', 'Qty', 'Amount', 'PO #', 'Invoice #', 'Status', 'Actions'].map(h => (
+                    <th
+                      key={h}
+                      className={`px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider ${
+                        isDark ? 'text-zinc-500' : 'text-slate-400'
+                      }`}
+                    >
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {sales.map((entry, idx) => {
+                  const rowNum = (page - 1) * PAGE_SIZE + idx + 1;
+                  const isDeleting = deleteConfirmId === entry.id;
+
+                  return (
                     <tr
                       key={entry.id}
-                      onClick={() => openDetailModal(entry)}
+                      onClick={() => !isDeleting && openEditModal(entry)}
                       className={`border-b transition-colors cursor-pointer ${
                         isDark
                           ? 'border-zinc-800/50 hover:bg-zinc-800/30'
                           : 'border-slate-50 hover:bg-slate-50/80'
                       }`}
                     >
-                      {/* Sale Date */}
+                      <td className={`px-4 py-3 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>{rowNum}</td>
                       <td className={`px-4 py-3 whitespace-nowrap ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
-                        <div className="flex items-center gap-2">
-                          <Calendar className={`w-3.5 h-3.5 flex-shrink-0 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`} />
-                          {formatDate(entry.saleDate)}
-                        </div>
+                        {formatDate(entry.saleDate)}
                       </td>
-
-                      {/* Partner */}
-                      <td className={`px-4 py-3 ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                        <span className="font-medium">{entry.partnerName || '-'}</span>
+                      <td className={`px-4 py-3 font-medium ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                        {entry.partnerName || '-'}
                       </td>
-
-                      {/* Product */}
                       <td className={`px-4 py-3 ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
                         {entry.productName || '-'}
                       </td>
-
-                      {/* Customer */}
                       <td className={`px-4 py-3 ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
                         {entry.customerName || '-'}
                       </td>
-
-                      {/* Quantity */}
                       <td className={`px-4 py-3 text-center ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
                         {entry.quantity}
                       </td>
-
-                      {/* Amount */}
-                      <td className={`px-4 py-3 whitespace-nowrap font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                      <td className={`px-4 py-3 font-semibold whitespace-nowrap ${isDark ? 'text-white' : 'text-slate-900'}`}>
                         {formatINR(entry.amount)}
                       </td>
-
-                      {/* Payment Status */}
+                      <td className={`px-4 py-3 ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
+                        {entry.poNumber || '-'}
+                      </td>
+                      <td className={`px-4 py-3 ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
+                        {entry.invoiceNo || '-'}
+                      </td>
                       <td className="px-4 py-3">
                         <span className={paymentBadge(entry.paymentStatus, isDark)}>
                           {entry.paymentStatus.charAt(0).toUpperCase() + entry.paymentStatus.slice(1)}
                         </span>
                       </td>
-
-                      {/* Actions */}
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-1">
-                          <button
-                            onClick={(e) => { e.stopPropagation(); openEditModal(entry); }}
-                            title="Edit"
-                            className={`p-1.5 rounded-lg transition-colors ${
-                              isDark
-                                ? 'text-zinc-400 hover:text-brand-400 hover:bg-brand-900/20'
-                                : 'text-slate-400 hover:text-brand-600 hover:bg-brand-50'
-                            }`}
-                          >
-                            <Edit2 className="w-4 h-4" />
-                          </button>
-
-                          {deleteConfirmId === entry.id ? (
-                            <div className="flex items-center gap-1">
-                              <button
-                                onClick={(e) => { e.stopPropagation(); handleDelete(entry.id); }}
-                                className="px-2 py-1 rounded-lg text-xs font-medium bg-red-600 text-white hover:bg-red-700 transition-colors"
-                              >
-                                Confirm
-                              </button>
-                              <button
-                                onClick={(e) => { e.stopPropagation(); setDeleteConfirmId(null); }}
-                                className={`px-2 py-1 rounded-lg text-xs font-medium transition-colors ${
-                                  isDark
-                                    ? 'text-zinc-400 hover:bg-zinc-800'
-                                    : 'text-slate-500 hover:bg-slate-100'
-                                }`}
-                              >
-                                Cancel
-                              </button>
-                            </div>
-                          ) : (
+                      <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
+                        {isDeleting ? (
+                          <div className="flex items-center gap-1">
                             <button
-                              onClick={(e) => { e.stopPropagation(); setDeleteConfirmId(entry.id); }}
-                              title="Delete"
-                              className={`p-1.5 rounded-lg transition-colors ${
-                                isDark
-                                  ? 'text-zinc-400 hover:text-red-400 hover:bg-red-900/20'
-                                  : 'text-slate-400 hover:text-red-600 hover:bg-red-50'
+                              onClick={() => handleDelete(entry.id)}
+                              className="px-2 py-1 rounded-lg text-xs font-medium bg-red-600 text-white hover:bg-red-700 transition-colors"
+                            >
+                              Confirm
+                            </button>
+                            <button
+                              onClick={() => setDeleteConfirmId(null)}
+                              className={`px-2 py-1 rounded-lg text-xs font-medium transition-colors ${
+                                isDark ? 'text-zinc-400 hover:bg-zinc-800' : 'text-slate-500 hover:bg-slate-100'
                               }`}
                             >
-                              <Trash2 className="w-4 h-4" />
+                              Cancel
                             </button>
-                          )}
-                        </div>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => setDeleteConfirmId(entry.id)}
+                            title="Delete"
+                            className={`p-1.5 rounded-lg transition-colors ${
+                              isDark
+                                ? 'text-zinc-400 hover:text-red-400 hover:bg-red-900/20'
+                                : 'text-slate-400 hover:text-red-600 hover:bg-red-50'
+                            }`}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
                       </td>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className={`flex items-center justify-between px-4 py-3 border-t text-xs ${
+            isDark ? 'border-zinc-800 text-zinc-500' : 'border-slate-100 text-slate-400'
+          }`}>
+            <span>
+              {(page - 1) * PAGE_SIZE + 1}&ndash;{Math.min(page * PAGE_SIZE, totalRecords)} of {totalRecords}
+            </span>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => setPage(p => Math.max(1, p - 1))}
+                disabled={page <= 1}
+                className={`p-1.5 rounded transition-colors disabled:opacity-30 ${
+                  isDark ? 'hover:bg-zinc-800' : 'hover:bg-slate-100'
+                }`}
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              {Array.from({ length: totalPages }, (_, i) => i + 1)
+                .filter(p => p === 1 || p === totalPages || Math.abs(p - page) <= 1)
+                .reduce<(number | 'dots')[]>((acc, p, idx, arr) => {
+                  if (idx > 0 && p - (arr[idx - 1]) > 1) acc.push('dots');
+                  acc.push(p);
+                  return acc;
+                }, [])
+                .map((item, idx) =>
+                  item === 'dots' ? (
+                    <span key={`d-${idx}`} className="px-1">...</span>
+                  ) : (
+                    <button
+                      key={item}
+                      onClick={() => setPage(item as number)}
+                      className={`min-w-[28px] h-7 rounded text-xs font-medium transition-colors ${
+                        page === item
+                          ? 'bg-brand-600 text-white'
+                          : isDark
+                            ? 'hover:bg-zinc-800 text-zinc-400'
+                            : 'hover:bg-slate-100 text-slate-500'
+                      }`}
+                    >
+                      {item}
+                    </button>
+                  )
+                )}
+              <button
+                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                disabled={page >= totalPages}
+                className={`p-1.5 rounded transition-colors disabled:opacity-30 ${
+                  isDark ? 'hover:bg-zinc-800' : 'hover:bg-slate-100'
+                }`}
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
             </div>
-
-            {/* Pagination */}
-            <div className={`flex flex-col sm:flex-row items-center justify-between gap-3 px-4 py-3 border-t ${
-              isDark ? 'border-zinc-800' : 'border-slate-100'
-            }`}>
-              <p className={`text-xs ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
-                Showing {(page - 1) * PAGE_SIZE + 1}
-                {' '}&ndash;{' '}
-                {Math.min(page * PAGE_SIZE, totalRecords)} of {totalRecords} entries
-              </p>
-
-              <div className="flex items-center gap-1">
-                <button
-                  onClick={() => setPage(p => Math.max(1, p - 1))}
-                  disabled={page <= 1}
-                  className={`p-2 rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed ${
-                    isDark
-                      ? 'text-zinc-400 hover:text-white hover:bg-zinc-800'
-                      : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100'
-                  }`}
-                >
-                  <ChevronLeft className="w-4 h-4" />
-                </button>
-
-                {/* Page numbers */}
-                {Array.from({ length: totalPages }, (_, i) => i + 1)
-                  .filter(p => {
-                    // Show first, last, current and adjacent pages
-                    if (p === 1 || p === totalPages) return true;
-                    if (Math.abs(p - page) <= 1) return true;
-                    return false;
-                  })
-                  .reduce<(number | 'ellipsis')[]>((acc, p, idx, arr) => {
-                    if (idx > 0) {
-                      const prev = arr[idx - 1];
-                      if (p - prev > 1) acc.push('ellipsis');
-                    }
-                    acc.push(p);
-                    return acc;
-                  }, [])
-                  .map((item, idx) =>
-                    item === 'ellipsis' ? (
-                      <span
-                        key={`ellipsis-${idx}`}
-                        className={`px-1 text-xs ${isDark ? 'text-zinc-600' : 'text-slate-300'}`}
-                      >
-                        ...
-                      </span>
-                    ) : (
-                      <button
-                        key={item}
-                        onClick={() => setPage(item as number)}
-                        className={`min-w-[32px] h-8 rounded-lg text-xs font-medium transition-colors ${
-                          page === item
-                            ? 'bg-brand-600 text-white'
-                            : isDark
-                              ? 'text-zinc-400 hover:text-white hover:bg-zinc-800'
-                              : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100'
-                        }`}
-                      >
-                        {item}
-                      </button>
-                    )
-                  )}
-
-                <button
-                  onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                  disabled={page >= totalPages}
-                  className={`p-2 rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed ${
-                    isDark
-                      ? 'text-zinc-400 hover:text-white hover:bg-zinc-800'
-                      : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100'
-                  }`}
-                >
-                  <ChevronRight className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-          </>
+          </div>
         )}
       </div>
 
-      {/* Create / Edit Modal */}
-      {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          {/* Backdrop */}
-          <div
-            className="absolute inset-0 bg-black/50 animate-backdrop"
-            onClick={closeModal}
-          />
-
-          {/* Modal content */}
-          <div
-            className={`relative w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl animate-fade-in-up ${
-              isDark
-                ? 'bg-dark-50 border border-zinc-800'
-                : 'bg-white shadow-premium'
-            }`}
-          >
-            {/* Header */}
-            <div className={`sticky top-0 z-10 flex items-center justify-between px-6 py-4 border-b ${
-              isDark ? 'bg-dark-50 border-zinc-800' : 'bg-white border-slate-200'
-            }`}>
-              <h2 className={`text-lg font-semibold font-display ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                {editingId ? 'Edit Sales Entry' : 'New Sales Entry'}
-              </h2>
-              <button
-                onClick={closeModal}
-                className={`p-2 rounded-lg transition-colors ${
-                  isDark
-                    ? 'text-zinc-400 hover:text-white hover:bg-zinc-800'
-                    : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100'
-                }`}
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            {/* Form */}
-            <form onSubmit={handleSubmit} className="p-6 space-y-5">
-              {/* Form Error */}
-              {formError && (
-                <div className={`p-3 rounded-xl flex items-center gap-2 text-sm ${
-                  isDark
-                    ? 'bg-red-900/20 border border-red-800 text-red-400'
-                    : 'bg-red-50 border border-red-200 text-red-700'
-                }`}>
-                  <AlertCircle className="w-4 h-4 flex-shrink-0" />
-                  {formError}
-                </div>
-              )}
-
-              {/* Row 1: Partner + Product */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label htmlFor="partnerId" className={labelClass}>
-                    Partner <span className="text-red-500">*</span>
-                  </label>
-                  <select
-                    id="partnerId"
-                    name="partnerId"
-                    value={formData.partnerId}
-                    onChange={handleFormChange}
-                    className={selectClass}
-                    required
-                  >
-                    <option value="">Select Partner</option>
-                    {partners.map(p => (
-                      <option key={p.id} value={p.id}>{p.companyName}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label htmlFor="productId" className={labelClass}>
-                    Product <span className="text-red-500">*</span>
-                  </label>
-                  <select
-                    id="productId"
-                    name="productId"
-                    value={formData.productId}
-                    onChange={handleFormChange}
-                    className={selectClass}
-                    required
-                  >
-                    <option value="">Select Product</option>
-                    {products.map(p => (
-                      <option key={p.id} value={p.id}>{p.name}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              {/* Row 2: Customer Name + Sale Date */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label htmlFor="customerName" className={labelClass}>Customer Name</label>
-                  <div className="relative">
-                    <UserIcon className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${
-                      isDark ? 'text-zinc-500' : 'text-slate-400'
-                    }`} />
-                    <input
-                      id="customerName"
-                      name="customerName"
-                      type="text"
-                      placeholder="Enter customer name"
-                      value={formData.customerName}
-                      onChange={handleFormChange}
-                      className={`${inputClass} pl-10`}
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label htmlFor="saleDate" className={labelClass}>
-                    Sale Date <span className="text-red-500">*</span>
-                  </label>
-                  <div className="relative">
-                    <Calendar className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${
-                      isDark ? 'text-zinc-500' : 'text-slate-400'
-                    }`} />
-                    <input
-                      id="saleDate"
-                      name="saleDate"
-                      type="date"
-                      value={formData.saleDate}
-                      onChange={handleFormChange}
-                      className={`${inputClass} pl-10`}
-                      required
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Row 3: Quantity + Amount */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label htmlFor="quantity" className={labelClass}>
-                    Quantity <span className="text-red-500">*</span>
-                  </label>
-                  <div className="relative">
-                    <Package className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${
-                      isDark ? 'text-zinc-500' : 'text-slate-400'
-                    }`} />
-                    <input
-                      id="quantity"
-                      name="quantity"
-                      type="number"
-                      min="1"
-                      step="1"
-                      placeholder="1"
-                      value={formData.quantity || ''}
-                      onChange={handleFormChange}
-                      className={`${inputClass} pl-10`}
-                      required
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label htmlFor="amount" className={labelClass}>
-                    Amount (INR) <span className="text-red-500">*</span>
-                  </label>
-                  <div className="relative">
-                    <IndianRupee className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${
-                      isDark ? 'text-zinc-500' : 'text-slate-400'
-                    }`} />
-                    <input
-                      id="amount"
-                      name="amount"
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      placeholder="0.00"
-                      value={formData.amount || ''}
-                      onChange={handleFormChange}
-                      className={`${inputClass} pl-10`}
-                      required
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Row 4: PO Number + Invoice No */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label htmlFor="poNumber" className={labelClass}>PO Number</label>
-                  <div className="relative">
-                    <FileText className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${
-                      isDark ? 'text-zinc-500' : 'text-slate-400'
-                    }`} />
-                    <input
-                      id="poNumber"
-                      name="poNumber"
-                      type="text"
-                      placeholder="PO-XXXX"
-                      value={formData.poNumber}
-                      onChange={handleFormChange}
-                      className={`${inputClass} pl-10`}
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label htmlFor="invoiceNo" className={labelClass}>Invoice No</label>
-                  <div className="relative">
-                    <FileText className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${
-                      isDark ? 'text-zinc-500' : 'text-slate-400'
-                    }`} />
-                    <input
-                      id="invoiceNo"
-                      name="invoiceNo"
-                      type="text"
-                      placeholder="INV-XXXX"
-                      value={formData.invoiceNo}
-                      onChange={handleFormChange}
-                      className={`${inputClass} pl-10`}
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Row 5: Payment Status */}
-              <div>
-                <label htmlFor="paymentStatus" className={labelClass}>
-                  Payment Status <span className="text-red-500">*</span>
-                </label>
-                <select
-                  id="paymentStatus"
-                  name="paymentStatus"
-                  value={formData.paymentStatus}
-                  onChange={handleFormChange}
-                  className={selectClass}
-                  required
-                >
-                  {PAYMENT_STATUSES.map(s => (
-                    <option key={s.value} value={s.value}>{s.label}</option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Row 6: Notes */}
-              <div>
-                <label htmlFor="notes" className={labelClass}>Notes</label>
-                <textarea
-                  id="notes"
-                  name="notes"
-                  rows={3}
-                  placeholder="Any additional notes..."
-                  value={formData.notes}
-                  onChange={handleFormChange}
-                  className={`${inputClass} resize-none`}
-                />
-              </div>
-
-              {/* Footer actions */}
-              <div className={`flex items-center justify-end gap-3 pt-4 border-t ${
-                isDark ? 'border-zinc-800' : 'border-slate-200'
-              }`}>
-                <button
-                  type="button"
-                  onClick={closeModal}
-                  disabled={isSubmitting}
-                  className={`px-4 py-2.5 rounded-xl text-sm font-medium transition-colors ${
-                    isDark
-                      ? 'text-zinc-400 hover:text-white hover:bg-zinc-800'
-                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                  } disabled:opacity-50`}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="flex items-center gap-2 px-5 py-2.5 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-sm font-medium transition-all btn-premium disabled:opacity-50"
-                >
-                  {isSubmitting ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      Saving...
-                    </>
-                  ) : (
-                    <>
-                      <CheckCircle className="w-4 h-4" />
-                      {editingId ? 'Update Entry' : 'Create Entry'}
-                    </>
-                  )}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      <BulkImportModal
+        isOpen={showBulkImport}
+        onClose={() => setShowBulkImport(false)}
+        entity="sales_entries"
+        entityLabel="Sales Entries"
+        isDark={isDark}
+        onSuccess={() => fetchSales()}
+      />
     </div>
   );
 };

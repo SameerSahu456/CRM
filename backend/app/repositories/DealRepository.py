@@ -4,8 +4,10 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.Account import Account
+from app.models.ActivityLog import ActivityLog
 from app.models.Contact import Contact
 from app.models.Deal import Deal
+from app.models.DealActivity import DealActivity
 from app.models.DealLineItem import DealLineItem
 from app.models.User import User
 from app.repositories.base import BaseRepository
@@ -71,8 +73,8 @@ class DealRepository(BaseRepository[Deal]):
 
     async def get_pipeline_stats(self, filters: list | None = None) -> dict:
         stages = [
-            "Qualification", "Needs Analysis", "Proposal",
-            "Negotiation", "Closed Won", "Closed Lost",
+            "Cold", "Proposal", "Negotiation",
+            "Closed Won", "Closed Lost",
         ]
         stats = {}
         for stage in stages:
@@ -162,3 +164,30 @@ class DealRepository(BaseRepository[Deal]):
             "owner_name": row[3],
             "line_items": items,
         }
+
+    async def get_activities(self, deal_id) -> list:
+        stmt = (
+            select(DealActivity, User.name.label("created_by_name"))
+            .outerjoin(User, DealActivity.created_by == User.id)
+            .where(DealActivity.deal_id == deal_id)
+            .order_by(DealActivity.created_at.desc())
+        )
+        result = await self.db.execute(stmt)
+        return result.all()
+
+    async def create_activity(self, data: dict) -> DealActivity:
+        activity = DealActivity(**data)
+        self.db.add(activity)
+        await self.db.flush()
+        await self.db.refresh(activity)
+        return activity
+
+    async def get_audit_logs(self, deal_id: str) -> list:
+        stmt = (
+            select(ActivityLog)
+            .where(ActivityLog.entity_type == "deal")
+            .where(ActivityLog.entity_id == str(deal_id))
+            .order_by(ActivityLog.created_at.desc())
+        )
+        result = await self.db.execute(stmt)
+        return list(result.scalars().all())

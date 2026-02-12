@@ -2,6 +2,34 @@
    Comprint CRM - Premium Styles
    ============================================ */
 
+/* ========== COMPRINT LOGO ========== */
+
+@keyframes comprintPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+.comprint-logo {
+  display: flex;
+  align-items: baseline;
+  font-family: 'Chakra Petch', sans-serif;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: -0.03em;
+  line-height: 1;
+  user-select: none;
+  cursor: default;
+}
+
+.comprint-dot {
+  width: 0.25em;
+  height: 0.25em;
+  margin-left: 2px;
+  border-radius: 1px;
+  display: inline-block;
+  animation: comprintPulse 1.5s ease-in-out infinite;
+}
+
 /* Smooth scrolling for modal content */
 .overflow-y-auto {
   scroll-behavior: smooth;
@@ -45,11 +73,6 @@
 
 /* ========== SMOOTH TRANSITIONS ========== */
 
-/* Page content transitions */
-main > * {
-  will-change: opacity, transform;
-}
-
 /* Smooth transitions for interactive elements */
 button, a, input, select, textarea {
   transition-property: background-color, border-color, color, box-shadow, transform, opacity;
@@ -68,27 +91,52 @@ select {
 }
 
 html.dark select {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2352525b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23455468' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
 }
 
 /* ========== FOCUS STYLES ========== */
 
-input:focus-visible,
-select:focus-visible,
-textarea:focus-visible,
+/* Keyboard focus ring for accessibility */
 button:focus-visible {
   outline: 2px solid #4f46e5;
   outline-offset: 2px;
 }
 
-html.dark input:focus-visible,
-html.dark select:focus-visible,
-html.dark textarea:focus-visible,
 html.dark button:focus-visible {
-  outline-color: #818cf8;
+  outline-color: #6366f1;
+}
+
+/* Premium focus ring for all form inputs */
+input:focus,
+select:focus,
+textarea:focus {
+  outline: none !important;
+  border-color: #4f46e5 !important;
+  box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.15), 0 1px 2px rgba(0, 0, 0, 0.05) !important;
+}
+
+html.dark input:focus,
+html.dark select:focus,
+html.dark textarea:focus {
+  border-color: #6366f1 !important;
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2), 0 1px 2px rgba(0, 10, 30, 0.3) !important;
+}
+
+/* ========== DISABLED STATES ========== */
+
+button:disabled,
+button[disabled] {
+  cursor: not-allowed !important;
+  opacity: 0.5;
 }
 
 /* ========== MODAL STYLES ========== */
+
+/* Premium backdrop blur on modal overlays */
+.animate-backdrop {
+  backdrop-filter: blur(4px) !important;
+  -webkit-backdrop-filter: blur(4px) !important;
+}
 
 /* Ensure sticky footer in modals gets proper background */
 .sticky.bottom-0 {
@@ -119,7 +167,110 @@ table thead tr::after {
 }
 
 html.dark table thead tr::after {
-  background: linear-gradient(90deg, transparent, rgba(99, 102, 241, 0.1), transparent);
+  background: linear-gradient(90deg, transparent, rgba(16, 185, 129, 0.08), transparent);
+}
+
+/* ========== TABLE HEADER NORMALIZATION ========== */
+
+/* Consistent uppercase headers across all tables */
+table thead th {
+  font-size: 11px !important;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+}
+
+/* ========== CARD HOVER ELEVATION ========== */
+
+.premium-card {
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .premium-card:hover {
+    box-shadow: 0 8px 30px -4px rgba(0, 0, 0, 0.08);
+  }
+  html.dark .premium-card:hover {
+    box-shadow: 0 8px 30px -4px rgba(0, 10, 30, 0.5);
+  }
+}
+
+/* ========== EMPTY STATE UTILITY ========== */
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem 1.5rem;
+  text-align: center;
+}
+
+.empty-icon {
+  width: 48px;
+  height: 48px;
+  margin-bottom: 1rem;
+  color: #94a3b8;
+}
+
+html.dark .empty-icon {
+  color: #455468;
+}
+
+.empty-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #334155;
+  margin-bottom: 0.25rem;
+}
+
+html.dark .empty-title {
+  color: #e4e4e7;
+}
+
+.empty-sub {
+  font-size: 0.875rem;
+  color: #94a3b8;
+}
+
+html.dark .empty-sub {
+  color: #64748b;
+}
+
+/* ========== SKELETON LOADING ========== */
+
+@keyframes skeletonShimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.skeleton-base {
+  background: linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 50%, #e2e8f0 75%);
+  background-size: 200% 100%;
+  animation: skeletonShimmer 1.5s ease-in-out infinite;
+  border-radius: 0.375rem;
+}
+
+html.dark .skeleton-base {
+  background: linear-gradient(90deg, #1a2535 25%, #293545 50%, #1a2535 75%);
+  background-size: 200% 100%;
+}
+
+.skeleton-text {
+  height: 0.875rem;
+  width: 60%;
+}
+
+.skeleton-title {
+  height: 1.25rem;
+  width: 40%;
+}
+
+.skeleton-row {
+  height: 2.5rem;
+  width: 100%;
+  margin-bottom: 0.5rem;
 }
 
 /* ========== PREMIUM BADGE STYLES ========== */
@@ -265,18 +416,234 @@ html.dark table thead tr::after {
   border-radius: 0 1rem 1rem 0;
 }
 html.dark .scroll-fade-right::after {
-  background: linear-gradient(to right, transparent, #121214);
+  background: linear-gradient(to right, transparent, #050a15);
+}
+
+/* ========== PREMIUM DARK GLASS MODE ========== */
+
+/* Deep dark background with dot grid + ambient gradient blobs */
+html.dark body {
+  background-color: #050a15;
+  background-image:
+    radial-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+    radial-gradient(ellipse at 15% 50%, rgba(99, 102, 241, 0.07) 0%, transparent 50%),
+    radial-gradient(ellipse at 85% 20%, rgba(16, 185, 129, 0.05) 0%, transparent 50%),
+    radial-gradient(ellipse at 50% 100%, rgba(139, 92, 246, 0.04) 0%, transparent 50%);
+  background-size: 28px 28px, 100% 100%, 100% 100%, 100% 100%;
+  background-attachment: fixed;
+}
+
+/* Make main content area transparent so body gradient shows */
+html.dark main {
+  background: transparent !important;
+}
+
+/* ---- Glass Card Effect ---- */
+html.dark .premium-card {
+  background: rgba(10, 16, 32, 0.55) !important;
+  backdrop-filter: blur(20px) saturate(1.3);
+  -webkit-backdrop-filter: blur(20px) saturate(1.3);
+  border: 1px solid rgba(255, 255, 255, 0.06) !important;
+  box-shadow:
+    0 4px 30px rgba(0, 0, 0, 0.25),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+/* Top edge glow on glass cards */
+html.dark .premium-card::before {
+  height: 1px;
+  background: linear-gradient(90deg, transparent 5%, rgba(99, 102, 241, 0.25) 30%, rgba(16, 185, 129, 0.2) 70%, transparent 95%) !important;
+}
+
+/* Glass card hover */
+@media (hover: hover) and (pointer: fine) {
+  html.dark .premium-card:hover {
+    background: rgba(10, 16, 32, 0.65) !important;
+    border-color: rgba(255, 255, 255, 0.1) !important;
+    box-shadow:
+      0 8px 40px rgba(0, 0, 0, 0.35),
+      0 0 20px rgba(99, 102, 241, 0.06),
+      inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  }
+}
+
+/* ---- Glass Sidebar ---- */
+html.dark .sidebar-premium {
+  background: rgba(5, 10, 21, 0.88) !important;
+  backdrop-filter: blur(24px) saturate(1.4);
+  -webkit-backdrop-filter: blur(24px) saturate(1.4);
+  border-color: rgba(255, 255, 255, 0.05) !important;
+}
+
+/* ---- Glass Header ---- */
+html.dark header.sticky {
+  background: rgba(5, 10, 21, 0.75) !important;
+  backdrop-filter: blur(24px) saturate(1.5);
+  -webkit-backdrop-filter: blur(24px) saturate(1.5);
+  border-color: rgba(255, 255, 255, 0.05) !important;
+}
+
+/* ---- Glass Form Inputs ---- */
+html.dark input,
+html.dark select,
+html.dark textarea {
+  background: rgba(10, 16, 32, 0.5) !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+html.dark input::placeholder,
+html.dark textarea::placeholder {
+  color: rgba(148, 163, 184, 0.5);
+}
+
+/* ---- Glass Table Rows ---- */
+html.dark table tbody tr:hover {
+  background: rgba(99, 102, 241, 0.04);
+}
+
+html.dark table thead tr::after {
+  background: linear-gradient(90deg, transparent, rgba(99, 102, 241, 0.12), rgba(16, 185, 129, 0.08), transparent);
+}
+
+/* ---- Glass Modal ---- */
+html.dark .animate-modal {
+  background: rgba(8, 13, 27, 0.9);
+  backdrop-filter: blur(24px) saturate(1.3);
+  -webkit-backdrop-filter: blur(24px) saturate(1.3);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+html.dark .animate-backdrop {
+  backdrop-filter: blur(8px) saturate(1.2) !important;
+  -webkit-backdrop-filter: blur(8px) saturate(1.2) !important;
+}
+
+/* ---- Glass Buttons ---- */
+html.dark .btn-premium {
+  background: rgba(99, 102, 241, 0.15);
+  border: 1px solid rgba(99, 102, 241, 0.25);
+  box-shadow: 0 0 15px rgba(99, 102, 241, 0.1);
+}
+
+html.dark .btn-premium:hover {
+  background: rgba(99, 102, 241, 0.25);
+  border-color: rgba(99, 102, 241, 0.4);
+  box-shadow: 0 0 25px rgba(99, 102, 241, 0.15);
+}
+
+/* ---- Dark Scrollbar Glass ---- */
+html.dark ::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, rgba(99, 102, 241, 0.2), rgba(16, 185, 129, 0.15)) !important;
+  border-radius: 10px;
+}
+html.dark ::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, rgba(99, 102, 241, 0.35), rgba(16, 185, 129, 0.25)) !important;
+}
+
+/* ---- Glass Containers (modals, forms, dropdowns) ---- */
+html.dark .fixed [class*="bg-dark-50"],
+html.dark .absolute [class*="bg-dark-50"] {
+  background: rgba(8, 13, 27, 0.92) !important;
+  backdrop-filter: blur(24px) saturate(1.3);
+  -webkit-backdrop-filter: blur(24px) saturate(1.3);
+  border-color: rgba(255, 255, 255, 0.06) !important;
+}
+
+/* ---- Glass Borders Globally ---- */
+html.dark [class*="border-zinc-800"],
+html.dark [class*="border-zinc-700"] {
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+/* ---- Glass hover states ---- */
+html.dark [class*="hover\:bg-zinc-800"]:hover,
+html.dark [class*="hover\:bg-dark-100"]:hover,
+html.dark [class*="hover\:bg-dark-200"]:hover {
+  background-color: rgba(255, 255, 255, 0.05) !important;
+}
+
+/* ---- Glass Status Badges ---- */
+html.dark .rounded-full[class*="bg-emerald"],
+html.dark .rounded-full[class*="bg-amber"],
+html.dark .rounded-full[class*="bg-red"],
+html.dark .rounded-full[class*="bg-blue"] {
+  backdrop-filter: blur(8px);
+}
+
+/* ---- Selection Color ---- */
+html.dark ::selection {
+  background: rgba(99, 102, 241, 0.25);
+  color: inherit;
+}
+
+/* ---- Ambient glow on active nav items ---- */
+html.dark aside button[class*="bg-brand"] {
+  box-shadow: 0 0 12px rgba(99, 102, 241, 0.15);
+}
+
+/* ========== SCREENSHOT & SCREEN RECORDING PROTECTION ========== */
+
+/* Prevent text/image selection for screenshot protection */
+body.screen-protected {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+
+/* Allow selection in form inputs */
+body.screen-protected input,
+body.screen-protected textarea,
+body.screen-protected select {
+  -webkit-user-select: text;
+  -moz-user-select: text;
+  -ms-user-select: text;
+  user-select: text;
+}
+
+/* When screenshot detected, show black overlay */
+.screenshot-overlay {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: #000;
+  z-index: 99999;
+  justify-content: center;
+  align-items: center;
+  color: #fff;
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.screenshot-overlay.active {
+  display: flex;
 }
 
 /* Print-friendly styles */
 @media print {
-  header, aside, .btn-premium, button {
+  /* Block printing entirely - show blank page */
+  body * {
     display: none !important;
+    visibility: hidden !important;
   }
+  body::after {
+    display: block !important;
+    visibility: visible !important;
+    content: 'Printing is not allowed for this application.';
+    font-size: 1.5rem;
+    text-align: center;
+    padding: 4rem;
+    color: #333;
+  }
+}
 
-  .premium-card {
-    break-inside: avoid;
-    box-shadow: none !important;
-    border: 1px solid #e2e8f0 !important;
+/* Specifically for quote PDF printing - allow printing from quote iframe */
+@media print {
+  .quote-pdf-print * {
+    display: initial !important;
+    visibility: visible !important;
   }
 }

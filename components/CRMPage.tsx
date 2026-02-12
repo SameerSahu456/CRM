@@ -3,14 +3,18 @@ import {
   Plus, Search, X, ChevronLeft, ChevronRight, Edit2, Trash2,
   IndianRupee, Loader2, AlertCircle, CheckCircle, Calendar,
   Phone, Mail, MessageSquare, Users, Target, TrendingUp,
-  ArrowRightCircle, Eye, BarChart3, LayoutGrid, List,
-  Clock, StickyNote, Video, FileText, Zap, XCircle,
-  ChevronDown, Award, Building2, User as UserIcon, Tags
+  Eye, BarChart3, LayoutGrid, List,
+  Clock, StickyNote, FileText, Zap, XCircle,
+  ChevronDown, Award, Building2, User as UserIcon, Tags,
+  Download, Upload
 } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
+import { useNavigation } from '../contexts/NavigationContext';
 import { leadsApi, partnersApi, productsApi, adminApi, formatINR } from '../services/api';
-import { Lead, LeadStage, LeadActivity, PaginatedResponse, Partner, Product, User } from '../types';
+import { exportToCsv } from '../utils/exportCsv';
+import { Lead, LeadStage, PaginatedResponse, Partner, Product, User, ActivityLog } from '../types';
+import { BulkImportModal } from './BulkImportModal';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -18,9 +22,9 @@ import { Lead, LeadStage, LeadActivity, PaginatedResponse, Partner, Product, Use
 
 const PAGE_SIZE = 10;
 
-const LEAD_STAGES: LeadStage[] = ['New', 'Contacted', 'Qualified', 'Proposal', 'Negotiation', 'Converted', 'Won', 'Lost'];
-const PIPELINE_STAGES: LeadStage[] = ['New', 'Contacted', 'Qualified', 'Proposal', 'Negotiation'];
-const TERMINAL_STAGES: LeadStage[] = ['Converted', 'Won', 'Lost'];
+const LEAD_STAGES: LeadStage[] = ['Cold', 'Proposal', 'Negotiation', 'Closed Won', 'Closed Lost'];
+const PIPELINE_STAGES: LeadStage[] = ['Cold', 'Proposal', 'Negotiation'];
+const TERMINAL_STAGES: LeadStage[] = ['Closed Won', 'Closed Lost'];
 
 const PRIORITIES = ['Low', 'Medium', 'High'] as const;
 
@@ -33,22 +37,13 @@ const SOURCES = [
   { value: 'other', label: 'Other' },
 ];
 
-const ACTIVITY_TYPES = [
-  { value: 'call', label: 'Call' },
-  { value: 'email', label: 'Email' },
-  { value: 'meeting', label: 'Meeting' },
-  { value: 'note', label: 'Note' },
-];
 
 const STAGE_COLORS: Record<LeadStage, { bg: string; text: string; darkBg: string; darkText: string; iconBg: string; darkIconBg: string }> = {
-  New:         { bg: 'bg-blue-50', text: 'text-blue-700', darkBg: 'bg-blue-900/30', darkText: 'text-blue-400', iconBg: 'bg-blue-100', darkIconBg: 'bg-blue-900/20' },
-  Contacted:   { bg: 'bg-cyan-50', text: 'text-cyan-700', darkBg: 'bg-cyan-900/30', darkText: 'text-cyan-400', iconBg: 'bg-cyan-100', darkIconBg: 'bg-cyan-900/20' },
-  Qualified:   { bg: 'bg-amber-50', text: 'text-amber-700', darkBg: 'bg-amber-900/30', darkText: 'text-amber-400', iconBg: 'bg-amber-100', darkIconBg: 'bg-amber-900/20' },
-  Proposal:    { bg: 'bg-purple-50', text: 'text-purple-700', darkBg: 'bg-purple-900/30', darkText: 'text-purple-400', iconBg: 'bg-purple-100', darkIconBg: 'bg-purple-900/20' },
-  Negotiation: { bg: 'bg-orange-50', text: 'text-orange-700', darkBg: 'bg-orange-900/30', darkText: 'text-orange-400', iconBg: 'bg-orange-100', darkIconBg: 'bg-orange-900/20' },
-  Converted:   { bg: 'bg-teal-50', text: 'text-teal-700', darkBg: 'bg-teal-900/30', darkText: 'text-teal-400', iconBg: 'bg-teal-100', darkIconBg: 'bg-teal-900/20' },
-  Won:         { bg: 'bg-emerald-50', text: 'text-emerald-700', darkBg: 'bg-emerald-900/30', darkText: 'text-emerald-400', iconBg: 'bg-emerald-100', darkIconBg: 'bg-emerald-900/20' },
-  Lost:        { bg: 'bg-red-50', text: 'text-red-700', darkBg: 'bg-red-900/30', darkText: 'text-red-400', iconBg: 'bg-red-100', darkIconBg: 'bg-red-900/20' },
+  Cold:          { bg: 'bg-blue-50', text: 'text-blue-700', darkBg: 'bg-blue-900/30', darkText: 'text-blue-400', iconBg: 'bg-blue-100', darkIconBg: 'bg-blue-900/20' },
+  Proposal:      { bg: 'bg-purple-50', text: 'text-purple-700', darkBg: 'bg-purple-900/30', darkText: 'text-purple-400', iconBg: 'bg-purple-100', darkIconBg: 'bg-purple-900/20' },
+  Negotiation:   { bg: 'bg-orange-50', text: 'text-orange-700', darkBg: 'bg-orange-900/30', darkText: 'text-orange-400', iconBg: 'bg-orange-100', darkIconBg: 'bg-orange-900/20' },
+  'Closed Won':  { bg: 'bg-emerald-50', text: 'text-emerald-700', darkBg: 'bg-emerald-900/30', darkText: 'text-emerald-400', iconBg: 'bg-emerald-100', darkIconBg: 'bg-emerald-900/20' },
+  'Closed Lost': { bg: 'bg-red-50', text: 'text-red-700', darkBg: 'bg-red-900/30', darkText: 'text-red-400', iconBg: 'bg-red-100', darkIconBg: 'bg-red-900/20' },
 };
 
 const PRIORITY_COLORS: Record<string, { bg: string; text: string; darkBg: string; darkText: string }> = {
@@ -56,6 +51,7 @@ const PRIORITY_COLORS: Record<string, { bg: string; text: string; darkBg: string
   Medium: { bg: 'bg-amber-50', text: 'text-amber-700', darkBg: 'bg-amber-900/30', darkText: 'text-amber-400' },
   Low:    { bg: 'bg-green-50', text: 'text-green-700', darkBg: 'bg-green-900/30', darkText: 'text-green-400' },
 };
+
 
 // ---------------------------------------------------------------------------
 // Form types
@@ -76,6 +72,9 @@ interface LeadFormData {
   notes: string;
   assignedTo: string;
   partnerId: string;
+  tag: string;
+  designation: string;
+  location: string;
 
   // Lead Information (Extended)
   firstName: string;
@@ -144,11 +143,6 @@ interface ConvertFormData {
   customerName: string;
 }
 
-interface ActivityFormData {
-  activityType: string;
-  title: string;
-  description: string;
-}
 
 const EMPTY_LEAD_FORM: LeadFormData = {
   companyName: '',
@@ -156,7 +150,7 @@ const EMPTY_LEAD_FORM: LeadFormData = {
   email: '',
   phone: '',
   source: '',
-  stage: 'New',
+  stage: 'Cold',
   priority: 'Medium',
   estimatedValue: 0,
   productInterest: '',
@@ -165,6 +159,9 @@ const EMPTY_LEAD_FORM: LeadFormData = {
   notes: '',
   assignedTo: '',
   partnerId: '',
+  tag: '',
+  designation: '',
+  location: '',
 
   // Lead Information (Extended)
   firstName: '',
@@ -233,11 +230,6 @@ const EMPTY_CONVERT_FORM: ConvertFormData = {
   customerName: '',
 };
 
-const EMPTY_ACTIVITY_FORM: ActivityFormData = {
-  activityType: 'call',
-  title: '',
-  description: '',
-};
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -290,21 +282,10 @@ function relativeTime(dateStr?: string): string {
   }
 }
 
-function getActivityIcon(type: string) {
-  switch (type) {
-    case 'call': return Phone;
-    case 'email': return Mail;
-    case 'meeting': return Video;
-    case 'note': return StickyNote;
-    case 'stage_change': return ArrowRightCircle;
-    case 'converted': return Award;
-    default: return FileText;
-  }
-}
 
 function stageBadge(stage: LeadStage, isDark: boolean): string {
   const base = 'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium';
-  const c = STAGE_COLORS[stage] || STAGE_COLORS.New;
+  const c = STAGE_COLORS[stage] || STAGE_COLORS.Cold;
   return `${base} ${isDark ? `${c.darkBg} ${c.darkText}` : `${c.bg} ${c.text}`}`;
 }
 
@@ -321,9 +302,12 @@ function priorityBadge(priority: string, isDark: boolean): string {
 export const CRMPage: React.FC = () => {
   const { theme } = useTheme();
   const { user } = useAuth();
+  const { setActiveTab: navigate } = useNavigation();
   const isDark = theme === 'dark';
 
   // Data state
+  const [showBulkImport, setShowBulkImport] = useState(false);
+  const [showSummary, setShowSummary] = useState(false);
   const [leads, setLeads] = useState<Lead[]>([]);
   const [stageStats, setStageStats] = useState<Record<string, number>>({});
   const [partners, setPartners] = useState<Partner[]>([]);
@@ -373,11 +357,8 @@ export const CRMPage: React.FC = () => {
   // Lead detail modal
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [detailLead, setDetailLead] = useState<Lead | null>(null);
-  const [activities, setActivities] = useState<LeadActivity[]>([]);
-  const [isActivitiesLoading, setIsActivitiesLoading] = useState(false);
-  const [activityForm, setActivityForm] = useState<ActivityFormData>({ ...EMPTY_ACTIVITY_FORM });
-  const [isAddingActivity, setIsAddingActivity] = useState(false);
-  const [activityError, setActivityError] = useState('');
+  const [auditLogs, setAuditLogs] = useState<ActivityLog[]>([]);
+  const [isAuditLoading, setIsAuditLoading] = useState(false);
   const [isUpdatingStage, setIsUpdatingStage] = useState(false);
 
   // Convert modal
@@ -389,6 +370,11 @@ export const CRMPage: React.FC = () => {
 
   // Delete confirmation
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+
+  // Summarise modal
+  const [showSummariseModal, setShowSummariseModal] = useState(false);
+  const [summariseLead, setSummariseLead] = useState<Lead | null>(null);
+
 
   // ---------------------------------------------------------------------------
   // Styling helpers
@@ -512,6 +498,7 @@ export const CRMPage: React.FC = () => {
 
   const openEditLeadModal = (lead: Lead) => {
     setLeadFormData({
+      ...EMPTY_LEAD_FORM,
       companyName: lead.companyName || '',
       contactPerson: lead.contactPerson || '',
       email: lead.email || '',
@@ -526,6 +513,9 @@ export const CRMPage: React.FC = () => {
       notes: lead.notes || '',
       assignedTo: lead.assignedTo || '',
       partnerId: lead.partnerId || '',
+      tag: (lead as any).tag || '',
+      designation: (lead as any).designation || '',
+      location: (lead as any).location || '',
     });
     setEditingLeadId(lead.id);
     setLeadFormError('');
@@ -592,45 +582,22 @@ export const CRMPage: React.FC = () => {
 
   const openDetailModal = async (lead: Lead) => {
     setDetailLead(lead);
-    setActivities([]);
-    setActivityForm({ ...EMPTY_ACTIVITY_FORM });
-    setActivityError('');
+    setAuditLogs([]);
     setShowDetailModal(true);
-    setIsActivitiesLoading(true);
+    setIsAuditLoading(true);
     try {
-      const acts = await leadsApi.getActivities(lead.id);
-      setActivities(Array.isArray(acts) ? acts : []);
+      const auditData = await leadsApi.getAuditLog(lead.id);
+      setAuditLogs(Array.isArray(auditData) ? auditData : []);
     } catch {
-      setActivities([]);
+      setAuditLogs([]);
     } finally {
-      setIsActivitiesLoading(false);
+      setIsAuditLoading(false);
     }
   };
 
   const closeDetailModal = () => {
     setShowDetailModal(false);
     setDetailLead(null);
-    setActivities([]);
-  };
-
-  const handleAddActivity = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!detailLead) return;
-    if (!activityForm.title.trim()) {
-      setActivityError('Title is required');
-      return;
-    }
-    setIsAddingActivity(true);
-    setActivityError('');
-    try {
-      const newActivity = await leadsApi.addActivity(detailLead.id, activityForm);
-      setActivities(prev => [newActivity, ...prev]);
-      setActivityForm({ ...EMPTY_ACTIVITY_FORM });
-    } catch (err: any) {
-      setActivityError(err.message || 'Failed to add activity');
-    } finally {
-      setIsAddingActivity(false);
-    }
   };
 
   const handleUpdateStage = async (newStage: LeadStage) => {
@@ -764,8 +731,9 @@ export const CRMPage: React.FC = () => {
   const hasActiveFilters = filterStage || filterPriority || filterSource || searchTerm;
 
   const canConvert = (stage: LeadStage) => {
-    return stage === 'Qualified' || stage === 'Proposal' || stage === 'Negotiation';
+    return stage === 'Proposal' || stage === 'Negotiation';
   };
+
 
   // ---------------------------------------------------------------------------
   // Render: Stats Bar
@@ -779,19 +747,18 @@ export const CRMPage: React.FC = () => {
         return (
           <div
             key={stage}
-            className={`${cardClass} p-3 hover-lift animate-fade-in-up`}
+            onClick={() => navigate('crm')}
+            className={`${cardClass} p-3 hover-lift animate-fade-in-up cursor-pointer`}
             style={{ animationDelay: `${idx * 50}ms` }}
           >
             <div className={`w-8 h-8 rounded-lg flex items-center justify-center mb-2 ${
               isDark ? c.darkIconBg : c.iconBg
             }`}>
-              {stage === 'New' && <Zap className={`w-4 h-4 ${isDark ? c.darkText : c.text}`} />}
-              {stage === 'Contacted' && <Phone className={`w-4 h-4 ${isDark ? c.darkText : c.text}`} />}
-              {stage === 'Qualified' && <Target className={`w-4 h-4 ${isDark ? c.darkText : c.text}`} />}
+              {stage === 'Cold' && <Zap className={`w-4 h-4 ${isDark ? c.darkText : c.text}`} />}
               {stage === 'Proposal' && <FileText className={`w-4 h-4 ${isDark ? c.darkText : c.text}`} />}
               {stage === 'Negotiation' && <TrendingUp className={`w-4 h-4 ${isDark ? c.darkText : c.text}`} />}
-              {stage === 'Won' && <CheckCircle className={`w-4 h-4 ${isDark ? c.darkText : c.text}`} />}
-              {stage === 'Lost' && <XCircle className={`w-4 h-4 ${isDark ? c.darkText : c.text}`} />}
+              {stage === 'Closed Won' && <CheckCircle className={`w-4 h-4 ${isDark ? c.darkText : c.text}`} />}
+              {stage === 'Closed Lost' && <XCircle className={`w-4 h-4 ${isDark ? c.darkText : c.text}`} />}
             </div>
             <p className={`text-[11px] font-medium ${isDark ? 'text-zinc-500' : 'text-slate-500'}`}>{stage}</p>
             {isStatsLoading ? (
@@ -915,6 +882,65 @@ export const CRMPage: React.FC = () => {
           </button>
         )}
 
+        {/* Bulk Import */}
+        <button
+          onClick={() => setShowBulkImport(true)}
+          title="Import from CSV"
+          className={`flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-normal transition-colors whitespace-nowrap ${
+            isDark
+              ? 'text-zinc-400 border border-zinc-700 hover:bg-zinc-800'
+              : 'text-slate-500 border border-slate-200 hover:bg-slate-50'
+          }`}
+        >
+          <Upload className="w-4 h-4" />
+          Import
+        </button>
+
+        {/* Export CSV */}
+        <button
+          onClick={() => exportToCsv('leads', [
+            { header: 'Company', accessor: (r: Lead) => r.companyName },
+            { header: 'Contact Person', accessor: (r: Lead) => r.contactPerson },
+            { header: 'Email', accessor: (r: Lead) => r.email },
+            { header: 'Phone', accessor: (r: Lead) => r.phone },
+            { header: 'Designation', accessor: (r: Lead) => (r as any).designation },
+            { header: 'Location', accessor: (r: Lead) => (r as any).location },
+            { header: 'Stage', accessor: (r: Lead) => r.stage },
+            { header: 'Estimated Value', accessor: (r: Lead) => r.estimatedValue },
+            { header: 'Source', accessor: (r: Lead) => r.source },
+            { header: 'Tag', accessor: (r: Lead) => (r as any).tag },
+            { header: 'Product Interest', accessor: (r: Lead) => r.productInterest },
+            { header: 'Next Follow-up', accessor: (r: Lead) => r.nextFollowUp },
+            { header: 'Expected Close', accessor: (r: Lead) => r.expectedCloseDate },
+            { header: 'Assigned To', accessor: (r: Lead) => r.assignedTo },
+            { header: 'Notes', accessor: (r: Lead) => r.notes },
+          ], leads)}
+          disabled={leads.length === 0}
+          title="Export to Excel"
+          className={`flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-normal transition-colors whitespace-nowrap ${
+            isDark
+              ? 'text-zinc-400 border border-zinc-700 hover:bg-zinc-800 disabled:opacity-30'
+              : 'text-slate-500 border border-slate-200 hover:bg-slate-50 disabled:opacity-30'
+          }`}
+        >
+          <Download className="w-4 h-4" />
+          Export
+        </button>
+
+        {/* Summarise */}
+        <button
+          onClick={() => setShowSummary(true)}
+          disabled={leads.length === 0}
+          className={`flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-normal transition-colors whitespace-nowrap ${
+            isDark
+              ? 'text-zinc-400 border border-zinc-700 hover:bg-zinc-800 disabled:opacity-30'
+              : 'text-slate-500 border border-slate-200 hover:bg-slate-50 disabled:opacity-30'
+          }`}
+        >
+          <BarChart3 className="w-4 h-4" />
+          Summarise
+        </button>
+
         {/* New Lead */}
         <button
           onClick={openCreateLeadModal}
@@ -931,6 +957,9 @@ export const CRMPage: React.FC = () => {
   // Render: Table View
   // ---------------------------------------------------------------------------
 
+  const hdrCell = `px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider ${isDark ? 'text-zinc-400' : 'text-slate-500'}`;
+  const cellBase = `px-4 py-3 text-sm whitespace-nowrap ${isDark ? 'border-zinc-800' : 'border-slate-100'}`;
+
   const renderTableView = () => (
     <div className={`${cardClass} overflow-hidden`}>
       {tableError && (
@@ -944,6 +973,13 @@ export const CRMPage: React.FC = () => {
         </div>
       )}
 
+      {/* Record count bar */}
+      {totalRecords > 0 && (
+        <div className={`px-4 py-2 text-xs border-b ${isDark ? 'text-zinc-500 border-zinc-800' : 'text-slate-400 border-slate-100'}`}>
+          {totalRecords} lead{totalRecords !== 1 ? 's' : ''} found
+        </div>
+      )}
+
       {isLoading ? (
         <div className="flex flex-col items-center justify-center py-20">
           <Loader2 className="w-8 h-8 text-brand-600 animate-spin" />
@@ -951,102 +987,109 @@ export const CRMPage: React.FC = () => {
             Loading leads...
           </p>
         </div>
-      ) : leads.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-20">
-          <div className={`w-16 h-16 rounded-2xl flex items-center justify-center mb-4 ${
-            isDark ? 'bg-zinc-800' : 'bg-slate-100'
-          }`}>
-            <Users className={`w-7 h-7 ${isDark ? 'text-zinc-600' : 'text-slate-300'}`} />
-          </div>
-          <p className={`text-sm font-medium ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>
-            {hasActiveFilters ? 'No leads match your filters' : 'No leads yet'}
-          </p>
-          <p className={`text-xs mt-1 ${isDark ? 'text-zinc-600' : 'text-slate-400'}`}>
-            {hasActiveFilters ? 'Try adjusting your filters' : 'Click "New Lead" to create one'}
-          </p>
-        </div>
       ) : (
         <>
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="w-full text-sm border-collapse">
               <thead>
-                <tr className={`border-b ${isDark ? 'border-zinc-800' : 'border-slate-100'}`}>
-                  {['Company', 'Contact', 'Stage', 'Priority', 'Value', 'Source', 'Next Follow-up', 'Actions'].map(h => (
-                    <th
-                      key={h}
-                      className={`px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider ${
-                        isDark ? 'text-zinc-500' : 'text-slate-400'
-                      }`}
-                    >
-                      {h}
-                    </th>
-                  ))}
+                <tr className={`border-b ${isDark ? 'border-zinc-700' : 'border-slate-200'}`}>
+                  <th className={`${hdrCell} w-[40px] text-center`}>#</th>
+                  <th className={`${hdrCell} w-[150px]`}>Company</th>
+                  <th className={`${hdrCell} w-[130px]`}>Contact Name</th>
+                  <th className={`${hdrCell} w-[110px]`}>Contact No</th>
+                  <th className={`${hdrCell} w-[110px]`}>Designation</th>
+                  <th className={`${hdrCell} w-[160px]`}>Email</th>
+                  <th className={`${hdrCell} w-[110px]`}>Location</th>
+                  <th className={`${hdrCell} w-[110px]`}>Stage</th>
+                  <th className={`${hdrCell} w-[100px]`}>Value</th>
+                  <th className={`${hdrCell} w-[100px]`}>Source</th>
+                  <th className={`${hdrCell} w-[100px]`}>Tag</th>
+                  <th className={`${hdrCell} w-[110px]`}>Follow-up Date</th>
+                  <th className={`${hdrCell} w-[80px] text-center`}>Summarise</th>
+                  <th className={`${hdrCell} w-[100px] text-center`}>Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {leads.map(lead => (
+                {leads.length === 0 ? (
+                  <tr>
+                    <td colSpan={14} className="py-16 text-center">
+                      <Users className={`w-8 h-8 mx-auto ${isDark ? 'text-zinc-700' : 'text-slate-300'}`} />
+                      <p className={`mt-2 text-sm ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
+                        {hasActiveFilters ? 'No leads match filters' : 'No leads yet'}
+                      </p>
+                    </td>
+                  </tr>
+                ) : leads.map((lead, idx) => (
                   <tr
                     key={lead.id}
                     onClick={() => openDetailModal(lead)}
-                    className={`border-b transition-colors cursor-pointer ${
+                    className={`border-b cursor-pointer transition-colors ${
                       isDark
-                        ? 'border-zinc-800/50 hover:bg-zinc-800/30'
-                        : 'border-slate-50 hover:bg-slate-50/80'
+                        ? 'border-zinc-800 hover:bg-zinc-800/50'
+                        : 'border-slate-100 hover:bg-slate-50'
                     }`}
                   >
-                    {/* Company */}
-                    <td className={`px-4 py-3 ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                      <div className="flex items-center gap-2">
-                        <Building2 className={`w-3.5 h-3.5 flex-shrink-0 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`} />
-                        <span className="font-medium">{lead.companyName}</span>
-                      </div>
+                    <td className={`${cellBase} text-center ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
+                      {(page - 1) * PAGE_SIZE + idx + 1}
                     </td>
-
-                    {/* Contact */}
-                    <td className={`px-4 py-3 ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
-                      <div>
-                        <p className="text-sm">{lead.contactPerson || '-'}</p>
-                        {lead.email && (
-                          <p className={`text-xs ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>{lead.email}</p>
-                        )}
-                      </div>
+                    <td className={`${cellBase} ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
+                      <span className="font-medium">{lead.companyName}</span>
                     </td>
-
-                    {/* Stage */}
-                    <td className="px-4 py-3">
+                    <td className={`${cellBase} ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
+                      {lead.contactPerson || '-'}
+                    </td>
+                    <td className={`${cellBase} ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
+                      {lead.phone || '-'}
+                    </td>
+                    <td className={`${cellBase} ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
+                      {(lead as any).designation || '-'}
+                    </td>
+                    <td className={`${cellBase} ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
+                      <span className="truncate block max-w-[150px]">{lead.email || '-'}</span>
+                    </td>
+                    <td className={`${cellBase} ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
+                      {(lead as any).location || '-'}
+                    </td>
+                    <td className={`${cellBase} ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
                       <span className={stageBadge(lead.stage, isDark)}>{lead.stage}</span>
                     </td>
-
-                    {/* Priority */}
-                    <td className="px-4 py-3">
-                      <span className={priorityBadge(lead.priority, isDark)}>{lead.priority}</span>
-                    </td>
-
-                    {/* Value */}
-                    <td className={`px-4 py-3 whitespace-nowrap font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                    <td className={`${cellBase} ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
                       {lead.estimatedValue ? formatINR(lead.estimatedValue) : '-'}
                     </td>
-
-                    {/* Source */}
-                    <td className={`px-4 py-3 capitalize ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
-                      {lead.source || '-'}
+                    <td className={`${cellBase} ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
+                      <span className="capitalize">{lead.source || '-'}</span>
                     </td>
-
-                    {/* Next Follow-up */}
-                    <td className={`px-4 py-3 whitespace-nowrap ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
-                      {lead.nextFollowUp ? (
-                        <div className="flex items-center gap-1.5">
-                          <Clock className={`w-3.5 h-3.5 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`} />
-                          {formatDate(lead.nextFollowUp)}
-                        </div>
+                    <td className={`${cellBase} ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
+                      {(lead as any).tag ? (
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                          (lead as any).tag === 'Channel'
+                            ? (isDark ? 'bg-cyan-900/30 text-cyan-400' : 'bg-cyan-50 text-cyan-700')
+                            : (isDark ? 'bg-violet-900/30 text-violet-400' : 'bg-violet-50 text-violet-700')
+                        }`}>
+                          {(lead as any).tag}
+                        </span>
                       ) : '-'}
                     </td>
-
-                    {/* Actions */}
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
+                    <td className={`${cellBase} ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
+                      {lead.nextFollowUp ? formatDate(lead.nextFollowUp) : '-'}
+                    </td>
+                    <td className={`${cellBase} text-center`}>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setSummariseLead(lead); setShowSummariseModal(true); }}
+                        title="Summarise"
+                        className={`p-1.5 rounded-lg transition-colors ${
+                          isDark
+                            ? 'text-zinc-400 hover:text-brand-400 hover:bg-brand-900/20'
+                            : 'text-slate-400 hover:text-brand-600 hover:bg-brand-50'
+                        }`}
+                      >
+                        <FileText className="w-4 h-4" />
+                      </button>
+                    </td>
+                    <td className={`${cellBase} text-center`}>
+                      <div className="flex items-center justify-center gap-1">
                         <button
-                          onClick={() => openDetailModal(lead)}
+                          onClick={(e) => { e.stopPropagation(); openDetailModal(lead); }}
                           title="View"
                           className={`p-1.5 rounded-lg transition-colors ${
                             isDark
@@ -1056,50 +1099,6 @@ export const CRMPage: React.FC = () => {
                         >
                           <Eye className="w-4 h-4" />
                         </button>
-                        <button
-                          onClick={() => openEditLeadModal(lead)}
-                          title="Edit"
-                          className={`p-1.5 rounded-lg transition-colors ${
-                            isDark
-                              ? 'text-zinc-400 hover:text-brand-400 hover:bg-brand-900/20'
-                              : 'text-slate-400 hover:text-brand-600 hover:bg-brand-50'
-                          }`}
-                        >
-                          <Edit2 className="w-4 h-4" />
-                        </button>
-
-                        {deleteConfirmId === lead.id ? (
-                          <div className="flex items-center gap-1">
-                            <button
-                              onClick={() => handleDelete(lead.id)}
-                              className="px-2 py-1 rounded-lg text-xs font-medium bg-red-600 text-white hover:bg-red-700 transition-colors"
-                            >
-                              Confirm
-                            </button>
-                            <button
-                              onClick={() => setDeleteConfirmId(null)}
-                              className={`px-2 py-1 rounded-lg text-xs font-medium transition-colors ${
-                                isDark
-                                  ? 'text-zinc-400 hover:bg-zinc-800'
-                                  : 'text-slate-500 hover:bg-slate-100'
-                              }`}
-                            >
-                              Cancel
-                            </button>
-                          </div>
-                        ) : (
-                          <button
-                            onClick={() => setDeleteConfirmId(lead.id)}
-                            title="Delete"
-                            className={`p-1.5 rounded-lg transition-colors ${
-                              isDark
-                                ? 'text-zinc-400 hover:text-red-400 hover:bg-red-900/20'
-                                : 'text-slate-400 hover:text-red-600 hover:bg-red-50'
-                            }`}
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        )}
                       </div>
                     </td>
                   </tr>
@@ -1109,6 +1108,7 @@ export const CRMPage: React.FC = () => {
           </div>
 
           {/* Pagination */}
+          {totalRecords > 0 && (
           <div className={`flex flex-col sm:flex-row items-center justify-between gap-3 px-4 py-3 border-t ${
             isDark ? 'border-zinc-800' : 'border-slate-100'
           }`}>
@@ -1183,6 +1183,7 @@ export const CRMPage: React.FC = () => {
               </button>
             </div>
           </div>
+          )}
         </>
       )}
     </div>
@@ -1319,7 +1320,7 @@ export const CRMPage: React.FC = () => {
           {TERMINAL_STAGES.map(stage => {
             const stageLeads = (pipelineLeads[stage] || []).filter(filterLead);
             const c = STAGE_COLORS[stage];
-            const isWon = stage === 'Won';
+            const isWon = stage === 'Closed Won';
             return (
               <div key={stage} className={`${cardClass} p-4`}>
                 <div className="flex items-center justify-between mb-3">
@@ -1392,12 +1393,10 @@ export const CRMPage: React.FC = () => {
   const renderDetailModal = () => {
     if (!showDetailModal || !detailLead) return null;
     const lead = detailLead;
-    const ActivityIcon = getActivityIcon('');
-
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
         <div className="absolute inset-0 bg-black/50 animate-backdrop" onClick={closeDetailModal} />
-        <div className={`relative w-full max-w-3xl max-h-[90vh] rounded-2xl animate-fade-in-up flex flex-col overflow-hidden ${
+        <div className={`relative w-full max-w-2xl max-h-[80vh] rounded-2xl animate-fade-in-up flex flex-col overflow-hidden ${
           isDark ? 'bg-dark-50 border border-zinc-800' : 'bg-white shadow-premium'
         }`}>
           {/* Header */}
@@ -1495,7 +1494,7 @@ export const CRMPage: React.FC = () => {
             </div>
 
             {/* Lost reason */}
-            {lead.stage === 'Lost' && lead.lostReason && (
+            {lead.stage === 'Closed Lost' && lead.lostReason && (
               <div className={`p-3 rounded-xl border ${
                 isDark ? 'bg-red-900/10 border-red-800/50' : 'bg-red-50 border-red-200'
               }`}>
@@ -1505,7 +1504,7 @@ export const CRMPage: React.FC = () => {
             )}
 
             {/* Won reference */}
-            {lead.stage === 'Won' && lead.wonSaleId && (
+            {lead.stage === 'Closed Won' && lead.wonSaleId && (
               <div className={`p-3 rounded-xl border ${
                 isDark ? 'bg-emerald-900/10 border-emerald-800/50' : 'bg-emerald-50 border-emerald-200'
               }`}>
@@ -1514,118 +1513,52 @@ export const CRMPage: React.FC = () => {
               </div>
             )}
 
-            {/* Activity Timeline */}
+            {/* Audit Trail */}
             <div>
               <h4 className={`text-xs font-semibold uppercase tracking-wider mb-3 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
-                Activity Timeline
+                Audit Trail
               </h4>
-
-              {isActivitiesLoading ? (
-                <div className="flex items-center justify-center py-8">
+              {isAuditLoading ? (
+                <div className="flex items-center justify-center py-4">
                   <Loader2 className="w-5 h-5 text-brand-600 animate-spin" />
                 </div>
-              ) : activities.length === 0 ? (
+              ) : auditLogs.length === 0 ? (
                 <p className={`text-sm py-4 text-center ${isDark ? 'text-zinc-600' : 'text-slate-400'}`}>
-                  No activities yet
+                  No audit history
                 </p>
               ) : (
-                <div className="space-y-3 max-h-[300px] overflow-y-auto pr-1">
-                  {activities.map(activity => {
-                    const Icon = getActivityIcon(activity.activityType);
-                    return (
-                      <div
-                        key={activity.id}
-                        className={`flex gap-3 p-3 rounded-xl border transition-colors ${
-                          isDark ? 'border-zinc-800 hover:bg-zinc-800/30' : 'border-slate-100 hover:bg-slate-50'
-                        }`}
-                      >
-                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
-                          isDark ? 'bg-zinc-800' : 'bg-slate-100'
-                        }`}>
-                          <Icon className={`w-4 h-4 ${isDark ? 'text-zinc-400' : 'text-slate-500'}`} />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center justify-between gap-2">
-                            <p className={`text-sm font-medium ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                              {activity.title}
-                            </p>
-                            <span className={`text-[11px] whitespace-nowrap ${isDark ? 'text-zinc-600' : 'text-slate-400'}`}>
-                              {relativeTime(activity.createdAt)}
-                            </span>
-                          </div>
-                          {activity.description && (
-                            <p className={`text-xs mt-0.5 ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>
-                              {activity.description}
-                            </p>
-                          )}
-                          {activity.createdBy && (
-                            <p className={`text-[11px] mt-1 ${isDark ? 'text-zinc-600' : 'text-slate-400'}`}>
-                              by {activity.createdBy}
-                            </p>
-                          )}
-                        </div>
+                <div className="space-y-2 max-h-[200px] overflow-y-auto pr-1">
+                  {auditLogs.map(log => (
+                    <div
+                      key={log.id}
+                      className={`p-3 rounded-xl border text-xs ${
+                        isDark ? 'border-zinc-800 bg-zinc-900/50' : 'border-slate-100 bg-slate-50'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-1">
+                        <span className={`font-medium ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
+                          {log.action}
+                        </span>
+                        <span className={isDark ? 'text-zinc-600' : 'text-slate-400'}>
+                          {log.createdAt ? new Date(log.createdAt).toLocaleDateString() : ''}
+                        </span>
                       </div>
-                    );
-                  })}
+                      {log.userName && (
+                        <p className={isDark ? 'text-zinc-500' : 'text-slate-400'}>
+                          by {log.userName}
+                        </p>
+                      )}
+                      {log.changes && log.changes.length > 0 && (
+                        <div className={`mt-1 space-y-0.5 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
+                          {log.changes.map((c, i) => (
+                            <p key={i}>{c.field}: {c.old || '(empty)'} → {c.new || '(empty)'}</p>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ))}
                 </div>
               )}
-
-              {/* Add Activity form */}
-              <form onSubmit={handleAddActivity} className={`mt-4 p-4 rounded-xl border ${
-                isDark ? 'border-zinc-800 bg-dark-100' : 'border-slate-200 bg-slate-50'
-              }`}>
-                <h5 className={`text-xs font-semibold mb-3 ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>
-                  Add Activity
-                </h5>
-
-                {activityError && (
-                  <div className={`mb-3 p-2 rounded-lg flex items-center gap-2 text-xs ${
-                    isDark ? 'bg-red-900/20 border border-red-800 text-red-400' : 'bg-red-50 border border-red-200 text-red-700'
-                  }`}>
-                    <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
-                    {activityError}
-                  </div>
-                )}
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
-                  <select
-                    value={activityForm.activityType}
-                    onChange={e => setActivityForm(prev => ({ ...prev, activityType: e.target.value }))}
-                    className={selectClass}
-                  >
-                    {ACTIVITY_TYPES.map(t => (
-                      <option key={t.value} value={t.value}>{t.label}</option>
-                    ))}
-                  </select>
-                  <input
-                    type="text"
-                    placeholder="Activity title*"
-                    value={activityForm.title}
-                    onChange={e => setActivityForm(prev => ({ ...prev, title: e.target.value }))}
-                    className={inputClass}
-                  />
-                </div>
-                <textarea
-                  placeholder="Description (optional)"
-                  value={activityForm.description}
-                  onChange={e => setActivityForm(prev => ({ ...prev, description: e.target.value }))}
-                  rows={2}
-                  className={`${inputClass} resize-none mb-3`}
-                />
-                <div className="flex justify-end">
-                  <button
-                    type="submit"
-                    disabled={isAddingActivity}
-                    className="flex items-center gap-2 px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-sm font-medium transition-all btn-premium disabled:opacity-50"
-                  >
-                    {isAddingActivity ? (
-                      <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Adding...</>
-                    ) : (
-                      <><Plus className="w-3.5 h-3.5" /> Add Activity</>
-                    )}
-                  </button>
-                </div>
-              </form>
             </div>
 
             {/* Timestamps */}
@@ -1652,7 +1585,7 @@ export const CRMPage: React.FC = () => {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
         <div className="absolute inset-0 bg-black/50 animate-backdrop" onClick={closeLeadModal} />
-        <div className={`relative w-full max-w-2xl max-h-[90vh] rounded-2xl animate-fade-in-up flex flex-col overflow-hidden ${
+        <div className={`relative w-full max-w-xl max-h-[80vh] rounded-2xl animate-fade-in-up flex flex-col overflow-hidden ${
           isDark ? 'bg-dark-50 border border-zinc-800' : 'bg-white shadow-premium'
         }`}>
           {/* Header */}
@@ -2320,6 +2253,45 @@ export const CRMPage: React.FC = () => {
                       </select>
                     </div>
                   </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label htmlFor="tag" className={labelClass}>Tag</label>
+                      <select id="tag" name="tag" value={leadFormData.tag} onChange={handleLeadFormChange} className={selectClass}>
+                        <option value="">Select Tag</option>
+                        <option value="Channel">Channel</option>
+                        <option value="End Customer">End Customer</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {/* Designation */}
+                    <div>
+                      <label htmlFor="lead-designation" className={labelClass}>Designation</label>
+                      <input
+                        id="lead-designation"
+                        name="designation"
+                        type="text"
+                        className={inputClass}
+                        placeholder="e.g. Manager, Director"
+                        value={(leadFormData as any).designation || ''}
+                        onChange={handleLeadFormChange}
+                      />
+                    </div>
+
+                    {/* Location */}
+                    <div>
+                      <label htmlFor="lead-location" className={labelClass}>Location</label>
+                      <input
+                        id="lead-location"
+                        name="location"
+                        type="text"
+                        className={inputClass}
+                        placeholder="e.g. Mumbai, Delhi"
+                        value={(leadFormData as any).location || ''}
+                        onChange={handleLeadFormChange}
+                      />
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
@@ -2373,7 +2345,7 @@ export const CRMPage: React.FC = () => {
     return (
       <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
         <div className="absolute inset-0 bg-black/50 animate-backdrop" onClick={closeConvertModal} />
-        <div className={`relative w-full max-w-lg max-h-[90vh] rounded-2xl animate-fade-in-up flex flex-col overflow-hidden ${
+        <div className={`relative w-full max-w-md max-h-[80vh] rounded-2xl animate-fade-in-up flex flex-col overflow-hidden ${
           isDark ? 'bg-dark-50 border border-zinc-800' : 'bg-white shadow-premium'
         }`}>
           {/* Header */}
@@ -2540,6 +2512,135 @@ export const CRMPage: React.FC = () => {
   };
 
   // ---------------------------------------------------------------------------
+  // Render: Summary Modal
+  // ---------------------------------------------------------------------------
+
+  const renderSummaryModal = () => {
+    if (!showSummary) return null;
+
+    const totalLeads = leads.length;
+    const totalEstimatedValue = leads.reduce((sum, l) => sum + (l.estimatedValue || 0), 0);
+    const avgEstimatedValue = totalLeads > 0 ? totalEstimatedValue / totalLeads : 0;
+
+    // Group by stage
+    const byStage: Record<string, { count: number; value: number }> = {};
+    LEAD_STAGES.forEach(s => { byStage[s] = { count: 0, value: 0 }; });
+    leads.forEach(lead => {
+      if (byStage[lead.stage]) {
+        byStage[lead.stage].count += 1;
+        byStage[lead.stage].value += lead.estimatedValue || 0;
+      }
+    });
+
+    // Group by priority
+    const byPriority: Record<string, number> = {};
+    PRIORITIES.forEach(p => { byPriority[p] = 0; });
+    leads.forEach(lead => {
+      if (byPriority[lead.priority] !== undefined) {
+        byPriority[lead.priority] += 1;
+      }
+    });
+
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="absolute inset-0 bg-black/50 animate-backdrop" onClick={() => setShowSummary(false)} />
+        <div className={`relative w-full max-w-lg max-h-[80vh] rounded-2xl animate-fade-in-up flex flex-col overflow-hidden ${
+          isDark ? 'bg-dark-50 border border-zinc-800' : 'bg-white shadow-premium'
+        }`}>
+          {/* Header */}
+          <div className={`flex-shrink-0 flex items-center justify-between px-6 py-4 border-b ${
+            isDark ? 'bg-dark-50 border-zinc-800' : 'bg-white border-slate-200'
+          }`}>
+            <div className="flex items-center gap-2">
+              <BarChart3 className={`w-5 h-5 ${isDark ? 'text-brand-400' : 'text-brand-600'}`} />
+              <h2 className={`text-lg font-semibold font-display ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                Leads Summary
+              </h2>
+            </div>
+            <button
+              onClick={() => setShowSummary(false)}
+              className={`p-2 rounded-lg transition-colors ${
+                isDark ? 'text-zinc-400 hover:text-white hover:bg-zinc-800' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100'
+              }`}
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+
+          <div className="flex-1 overflow-y-auto p-6 space-y-5">
+            {/* Top-level stats */}
+            <div className="grid grid-cols-3 gap-3">
+              <div className={`p-3 rounded-xl border text-center ${isDark ? 'border-zinc-800 bg-dark-100' : 'border-slate-200 bg-slate-50'}`}>
+                <p className={`text-[11px] font-medium ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Total Leads</p>
+                <p className={`text-xl font-bold mt-1 ${isDark ? 'text-white' : 'text-slate-900'}`}>{totalLeads}</p>
+              </div>
+              <div className={`p-3 rounded-xl border text-center ${isDark ? 'border-zinc-800 bg-dark-100' : 'border-slate-200 bg-slate-50'}`}>
+                <p className={`text-[11px] font-medium ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Total Value</p>
+                <p className={`text-xl font-bold mt-1 ${isDark ? 'text-emerald-400' : 'text-emerald-600'}`}>{formatINR(totalEstimatedValue)}</p>
+              </div>
+              <div className={`p-3 rounded-xl border text-center ${isDark ? 'border-zinc-800 bg-dark-100' : 'border-slate-200 bg-slate-50'}`}>
+                <p className={`text-[11px] font-medium ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Avg Value</p>
+                <p className={`text-xl font-bold mt-1 ${isDark ? 'text-brand-400' : 'text-brand-600'}`}>{formatINR(Math.round(avgEstimatedValue))}</p>
+              </div>
+            </div>
+
+            {/* By Stage */}
+            <div>
+              <h4 className={`text-xs font-semibold uppercase tracking-wider mb-3 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
+                By Stage
+              </h4>
+              <div className="space-y-2">
+                {LEAD_STAGES.map(stage => {
+                  const info = byStage[stage];
+                  const c = STAGE_COLORS[stage];
+                  return (
+                    <div
+                      key={stage}
+                      className={`flex items-center justify-between p-2.5 rounded-lg ${isDark ? 'bg-dark-100' : 'bg-slate-50'}`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className={stageBadge(stage, isDark)}>{stage}</span>
+                      </div>
+                      <div className="flex items-center gap-4">
+                        <span className={`text-xs font-medium ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>
+                          {info.count} lead{info.count !== 1 ? 's' : ''}
+                        </span>
+                        <span className={`text-xs font-semibold min-w-[80px] text-right ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
+                          {formatINR(info.value)}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* By Priority */}
+            <div>
+              <h4 className={`text-xs font-semibold uppercase tracking-wider mb-3 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
+                By Priority
+              </h4>
+              <div className="space-y-2">
+                {PRIORITIES.map(priority => (
+                  <div
+                    key={priority}
+                    className={`flex items-center justify-between p-2.5 rounded-lg ${isDark ? 'bg-dark-100' : 'bg-slate-50'}`}
+                  >
+                    <span className={priorityBadge(priority, isDark)}>{priority}</span>
+                    <span className={`text-xs font-medium ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>
+                      {byPriority[priority]} lead{byPriority[priority] !== 1 ? 's' : ''}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // ---------------------------------------------------------------------------
   // Main render
   // ---------------------------------------------------------------------------
 
@@ -2570,6 +2671,64 @@ export const CRMPage: React.FC = () => {
       {renderLeadModal()}
       {renderDetailModal()}
       {renderConvertModal()}
+      {renderSummaryModal()}
+
+      <BulkImportModal
+        isOpen={showBulkImport}
+        onClose={() => setShowBulkImport(false)}
+        entity="leads"
+        entityLabel="Leads"
+        isDark={isDark}
+        onSuccess={() => fetchLeads()}
+      />
+
+      {/* Summarise Modal */}
+      {showSummariseModal && summariseLead && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={() => setShowSummariseModal(false)}>
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
+          <div
+            className={`relative w-full max-w-lg rounded-2xl shadow-2xl border p-6 ${
+              isDark ? 'bg-zinc-900 border-zinc-700' : 'bg-white border-slate-200'
+            }`}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h3 className={`text-lg font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                Lead Summary
+              </h3>
+              <button
+                onClick={() => setShowSummariseModal(false)}
+                className={`p-1.5 rounded-lg transition-colors ${
+                  isDark ? 'text-zinc-400 hover:text-white hover:bg-zinc-800' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100'
+                }`}
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="space-y-3">
+              {[
+                { label: 'Company', value: summariseLead.companyName },
+                { label: 'Contact Name', value: summariseLead.contactPerson },
+                { label: 'Contact No', value: summariseLead.phone },
+                { label: 'Designation', value: (summariseLead as any).designation },
+                { label: 'Email', value: summariseLead.email },
+                { label: 'Location', value: (summariseLead as any).location },
+                { label: 'Stage', value: summariseLead.stage },
+                { label: 'Value', value: summariseLead.estimatedValue ? formatINR(summariseLead.estimatedValue) : undefined },
+                { label: 'Source', value: summariseLead.source },
+                { label: 'Tag', value: (summariseLead as any).tag },
+                { label: 'Follow-up Date', value: summariseLead.nextFollowUp ? formatDate(summariseLead.nextFollowUp) : undefined },
+                { label: 'Notes', value: summariseLead.notes },
+              ].filter(item => item.value).map(item => (
+                <div key={item.label} className="flex justify-between">
+                  <span className={`text-sm font-medium ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>{item.label}</span>
+                  <span className={`text-sm text-right max-w-[60%] ${isDark ? 'text-zinc-200' : 'text-slate-700'}`}>{item.value}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

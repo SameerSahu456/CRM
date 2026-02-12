@@ -1,38 +1,48 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   Plus, Search, Edit2, Trash2, X, Loader2, AlertCircle, CheckCircle,
-  Users, Package, MapPin, Layers, Building2, Tags, Handshake,
-  Shield, Key, ToggleLeft, ToggleRight,
+  Users, Package, Layers, Building2, Tags,
+  Shield, Key, ToggleLeft, ToggleRight, History,
 } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
 import { adminApi, masterDataApi, productsApi, formatINR } from '../services/api';
-import { User, UserRole, Product, MasterItem, MasterLocation, MasterCategory } from '../types';
+import { User, UserRole, Product, MasterItem, MasterCategory } from '../types';
+import { ActivityLogTab } from './admin/ActivityLogTab';
+import { RolesTab } from './admin/RolesTab';
+import { ProductManagersTab } from './admin/ProductManagersTab';
 
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
 
-type AdminTab = 'users' | 'products' | 'locations' | 'verticals' | 'oems' | 'categories' | 'partner-types';
+type AdminTab = 'users' | 'products' | 'oems' | 'categories' | 'product-managers' | 'roles' | 'activity-log';
 
-const TABS: { key: AdminTab; label: string; icon: React.ElementType }[] = [
+const TABS: { key: AdminTab; label: string; icon: React.ElementType; superadminOnly?: boolean }[] = [
   { key: 'users', label: 'Users', icon: Users },
   { key: 'products', label: 'Products', icon: Package },
-  { key: 'locations', label: 'Locations', icon: MapPin },
-  { key: 'verticals', label: 'Verticals', icon: Layers },
   { key: 'oems', label: 'OEMs', icon: Building2 },
   { key: 'categories', label: 'Categories', icon: Tags },
-  { key: 'partner-types', label: 'Partner Types', icon: Handshake },
+  { key: 'product-managers', label: 'Product Managers', icon: Layers },
+  { key: 'roles', label: 'Roles & Permissions', icon: Shield },
+  { key: 'activity-log', label: 'Activity Log', icon: History, superadminOnly: true },
 ];
 
 const USER_ROLES: { value: UserRole; label: string }[] = [
   { value: 'admin', label: 'Admin' },
   { value: 'superadmin', label: 'Super Admin' },
-  { value: 'salesperson', label: 'Salesperson' },
-  { value: 'branchhead', label: 'Branch Head' },
-  { value: 'producthead', label: 'Product Head' },
-  { value: 'businesshead', label: 'Business Head' },
-  { value: 'salesmanager', label: 'Sales Manager' },
+  { value: 'sales', label: 'Sales' },
+  { value: 'businesshead', label: 'Business Unit' },
+  { value: 'productmanager', label: 'Product Manager' },
+];
+
+const DEPARTMENTS = ['Product Manager', 'Sales', 'Business Unit', 'Admin', 'Super Admin'];
+
+const USER_TAGS: { value: string; label: string }[] = [
+  { value: '', label: 'None' },
+  { value: 'channel', label: 'Channel' },
+  { value: 'endcustomer', label: 'End Customer' },
+  { value: 'both', label: 'Both (Channel + End Customer)' },
 ];
 
 interface UserFormData {
@@ -46,19 +56,21 @@ interface UserFormData {
   monthlyTarget: number | '';
   isActive: boolean;
   viewAccess: 'presales' | 'postsales' | 'both';
+  tag: string;
 }
 
 const EMPTY_USER_FORM: UserFormData = {
   name: '',
   email: '',
   password: '',
-  role: 'salesperson',
+  role: 'sales',
   department: '',
   phone: '',
   employeeId: '',
   monthlyTarget: '',
   isActive: true,
   viewAccess: 'presales',
+  tag: '',
 };
 
 interface ProductFormData {
@@ -87,16 +99,12 @@ function roleBadge(role: UserRole, isDark: boolean): string {
     case 'admin':
     case 'superadmin':
       return `${base} ${isDark ? 'bg-red-900/30 text-red-400' : 'bg-red-50 text-red-700'}`;
-    case 'salesperson':
+    case 'sales':
       return `${base} ${isDark ? 'bg-blue-900/30 text-blue-400' : 'bg-blue-50 text-blue-700'}`;
-    case 'branchhead':
-      return `${base} ${isDark ? 'bg-emerald-900/30 text-emerald-400' : 'bg-emerald-50 text-emerald-700'}`;
-    case 'producthead':
-      return `${base} ${isDark ? 'bg-purple-900/30 text-purple-400' : 'bg-purple-50 text-purple-700'}`;
     case 'businesshead':
       return `${base} ${isDark ? 'bg-amber-900/30 text-amber-400' : 'bg-amber-50 text-amber-700'}`;
-    case 'salesmanager':
-      return `${base} ${isDark ? 'bg-cyan-900/30 text-cyan-400' : 'bg-cyan-50 text-cyan-700'}`;
+    case 'productmanager':
+      return `${base} ${isDark ? 'bg-purple-900/30 text-purple-400' : 'bg-purple-50 text-purple-700'}`;
     default:
       return `${base} ${isDark ? 'bg-zinc-800 text-zinc-400' : 'bg-slate-100 text-slate-500'}`;
   }
@@ -139,13 +147,13 @@ interface ModalProps {
   maxWidth?: string;
 }
 
-const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, isDark, children, maxWidth = 'max-w-2xl' }) => {
+const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, isDark, children, maxWidth = 'max-w-xl' }) => {
   if (!isOpen) return null;
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/50 animate-backdrop" onClick={onClose} />
       <div
-        className={`relative w-full ${maxWidth} max-h-[90vh] overflow-y-auto rounded-2xl animate-fade-in-up ${
+        className={`relative w-full ${maxWidth} max-h-[80vh] overflow-y-auto rounded-2xl animate-fade-in-up ${
           isDark ? 'bg-dark-50 border border-zinc-800' : 'bg-white shadow-premium'
         }`}
       >
@@ -196,7 +204,7 @@ const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/50 animate-backdrop" onClick={onClose} />
       <div
-        className={`relative w-full max-w-md rounded-2xl animate-fade-in-up p-6 ${
+        className={`relative w-full max-w-sm rounded-2xl animate-fade-in-up p-6 ${
           isDark ? 'bg-dark-50 border border-zinc-800' : 'bg-white shadow-premium'
         }`}
       >
@@ -473,7 +481,7 @@ const MasterDataTab: React.FC<MasterDataTabProps> = ({
         onClose={closeModal}
         title={editingItem ? `Edit ${entityLabel.replace(/s$/, '')}` : `Add ${entityLabel.replace(/s$/, '')}`}
         isDark={isDark}
-        maxWidth="max-w-md"
+        maxWidth="max-w-sm"
       >
         <form onSubmit={handleSubmit} className="p-6 space-y-5">
           {formError && (
@@ -794,7 +802,7 @@ const CategoriesTab: React.FC<CategoriesTabProps> = ({
         onClose={closeModal}
         title={editingItem ? 'Edit Category' : 'Add Category'}
         isDark={isDark}
-        maxWidth="max-w-md"
+        maxWidth="max-w-sm"
       >
         <form onSubmit={handleSubmit} className="p-6 space-y-5">
           {formError && (
@@ -856,350 +864,6 @@ const CategoriesTab: React.FC<CategoriesTabProps> = ({
         onConfirm={handleDelete}
         title="Delete Category"
         message={`Are you sure you want to delete "${deleteTarget?.name}"? This action cannot be undone.`}
-        isDark={isDark}
-        isLoading={isDeleting}
-      />
-    </div>
-  );
-};
-
-// ---------------------------------------------------------------------------
-// LocationsTab
-// ---------------------------------------------------------------------------
-
-interface LocationsTabProps {
-  isDark: boolean;
-  cardClass: string;
-  inputClass: string;
-  labelClass: string;
-}
-
-interface LocationFormData {
-  city: string;
-  state: string;
-  region: string;
-}
-
-const EMPTY_LOCATION_FORM: LocationFormData = { city: '', state: '', region: '' };
-
-const LocationsTab: React.FC<LocationsTabProps> = ({ isDark, cardClass, inputClass, labelClass }) => {
-  const [items, setItems] = useState<MasterLocation[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [searchTerm, setSearchTerm] = useState('');
-
-  // Modal
-  const [showModal, setShowModal] = useState(false);
-  const [editingItem, setEditingItem] = useState<MasterLocation | null>(null);
-  const [formData, setFormData] = useState<LocationFormData>({ ...EMPTY_LOCATION_FORM });
-  const [formError, setFormError] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-  // Delete
-  const [deleteTarget, setDeleteTarget] = useState<MasterLocation | null>(null);
-  const [isDeleting, setIsDeleting] = useState(false);
-
-  const fetchItems = useCallback(async () => {
-    setIsLoading(true);
-    setError('');
-    try {
-      const data = await masterDataApi.list('locations');
-      setItems(Array.isArray(data) ? data : []);
-    } catch (err: any) {
-      setError(err.message || 'Failed to load locations');
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchItems();
-  }, [fetchItems]);
-
-  const openCreate = () => {
-    setEditingItem(null);
-    setFormData({ ...EMPTY_LOCATION_FORM });
-    setFormError('');
-    setShowModal(true);
-  };
-
-  const openEdit = (item: MasterLocation) => {
-    setEditingItem(item);
-    setFormData({ city: item.city, state: item.state, region: item.region || '' });
-    setFormError('');
-    setShowModal(true);
-  };
-
-  const closeModal = () => {
-    setShowModal(false);
-    setEditingItem(null);
-    setFormError('');
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!formData.city.trim()) {
-      setFormError('City is required');
-      return;
-    }
-    if (!formData.state.trim()) {
-      setFormError('State is required');
-      return;
-    }
-    setIsSubmitting(true);
-    setFormError('');
-    try {
-      const payload = {
-        city: formData.city.trim(),
-        state: formData.state.trim(),
-        region: formData.region.trim() || null,
-      };
-      if (editingItem) {
-        await masterDataApi.update('locations', editingItem.id, payload);
-      } else {
-        await masterDataApi.create('locations', payload);
-      }
-      closeModal();
-      fetchItems();
-    } catch (err: any) {
-      setFormError(err.message || 'Failed to save');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const handleDelete = async () => {
-    if (!deleteTarget) return;
-    setIsDeleting(true);
-    try {
-      await masterDataApi.delete('locations', deleteTarget.id);
-      setDeleteTarget(null);
-      fetchItems();
-    } catch (err: any) {
-      setError(err.message || 'Failed to delete');
-      setDeleteTarget(null);
-    } finally {
-      setIsDeleting(false);
-    }
-  };
-
-  const toggleActive = async (item: MasterLocation) => {
-    try {
-      await masterDataApi.update('locations', item.id, { is_active: !item.isActive });
-      fetchItems();
-    } catch (err: any) {
-      setError(err.message || 'Failed to update status');
-    }
-  };
-
-  const filtered = items.filter(item => {
-    const term = searchTerm.toLowerCase();
-    return (
-      item.city.toLowerCase().includes(term) ||
-      item.state.toLowerCase().includes(term) ||
-      (item.region || '').toLowerCase().includes(term)
-    );
-  });
-
-  return (
-    <div className="space-y-4">
-      {/* Toolbar */}
-      <div className={`${cardClass} p-4`}>
-        <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-          <div className="relative flex-1 min-w-0">
-            <Search className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`} />
-            <input
-              type="text"
-              placeholder="Search locations..."
-              value={searchTerm}
-              onChange={e => setSearchTerm(e.target.value)}
-              className={`w-full pl-10 pr-4 py-2.5 rounded-xl border text-sm transition-all ${
-                isDark
-                  ? 'bg-dark-100 border-zinc-700 text-white placeholder-zinc-500 focus:border-brand-500'
-                  : 'bg-white border-slate-200 text-slate-900 placeholder-slate-400 focus:border-brand-500'
-              } focus:outline-none focus:ring-1 focus:ring-brand-500`}
-            />
-          </div>
-          <button
-            onClick={openCreate}
-            className="flex items-center gap-2 px-4 py-2.5 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-sm font-medium transition-all btn-premium whitespace-nowrap"
-          >
-            <Plus className="w-4 h-4" />
-            Add Location
-          </button>
-        </div>
-      </div>
-
-      {/* Table */}
-      <div className={`${cardClass} overflow-hidden`}>
-        {error && (
-          <div className={`m-4 p-3 rounded-xl flex items-center gap-2 text-sm ${
-            isDark ? 'bg-red-900/20 border border-red-800 text-red-400' : 'bg-red-50 border border-red-200 text-red-700'
-          }`}>
-            <AlertCircle className="w-4 h-4 flex-shrink-0" />
-            {error}
-          </div>
-        )}
-
-        {isLoading ? (
-          <div className="flex flex-col items-center justify-center py-20">
-            <Loader2 className="w-8 h-8 text-brand-600 animate-spin" />
-            <p className={`mt-3 text-sm ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>Loading locations...</p>
-          </div>
-        ) : filtered.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20">
-            <div className={`w-16 h-16 rounded-2xl flex items-center justify-center mb-4 ${isDark ? 'bg-zinc-800' : 'bg-slate-100'}`}>
-              <MapPin className={`w-7 h-7 ${isDark ? 'text-zinc-600' : 'text-slate-300'}`} />
-            </div>
-            <p className={`text-sm font-medium ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>
-              {searchTerm ? 'No locations match your search' : 'No locations yet'}
-            </p>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className={`border-b ${isDark ? 'border-zinc-800' : 'border-slate-100'}`}>
-                  {['City', 'State', 'Region', 'Status', 'Actions'].map(h => (
-                    <th key={h} className={`px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
-                      {h}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map(item => (
-                  <tr
-                    key={item.id}
-                    className={`border-b transition-colors ${
-                      isDark ? 'border-zinc-800/50 hover:bg-zinc-800/30' : 'border-slate-50 hover:bg-slate-50/80'
-                    }`}
-                  >
-                    <td className={`px-4 py-3 font-medium ${isDark ? 'text-white' : 'text-slate-900'}`}>{item.city}</td>
-                    <td className={`px-4 py-3 ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>{item.state}</td>
-                    <td className={`px-4 py-3 ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>{item.region || '-'}</td>
-                    <td className="px-4 py-3">
-                      <span className={statusBadge(item.isActive, isDark)}>{item.isActive ? 'Active' : 'Inactive'}</span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-1">
-                        <button
-                          onClick={() => toggleActive(item)}
-                          title={item.isActive ? 'Deactivate' : 'Activate'}
-                          className={`p-1.5 rounded-lg transition-colors ${
-                            isDark ? 'text-zinc-400 hover:text-amber-400 hover:bg-amber-900/20' : 'text-slate-400 hover:text-amber-600 hover:bg-amber-50'
-                          }`}
-                        >
-                          {item.isActive ? <ToggleRight className="w-4 h-4" /> : <ToggleLeft className="w-4 h-4" />}
-                        </button>
-                        <button
-                          onClick={() => openEdit(item)}
-                          title="Edit"
-                          className={`p-1.5 rounded-lg transition-colors ${
-                            isDark ? 'text-zinc-400 hover:text-brand-400 hover:bg-brand-900/20' : 'text-slate-400 hover:text-brand-600 hover:bg-brand-50'
-                          }`}
-                        >
-                          <Edit2 className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => setDeleteTarget(item)}
-                          title="Delete"
-                          className={`p-1.5 rounded-lg transition-colors ${
-                            isDark ? 'text-zinc-400 hover:text-red-400 hover:bg-red-900/20' : 'text-slate-400 hover:text-red-600 hover:bg-red-50'
-                          }`}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-
-      {/* Create/Edit Modal */}
-      <Modal
-        isOpen={showModal}
-        onClose={closeModal}
-        title={editingItem ? 'Edit Location' : 'Add Location'}
-        isDark={isDark}
-        maxWidth="max-w-md"
-      >
-        <form onSubmit={handleSubmit} className="p-6 space-y-5">
-          {formError && (
-            <div className={`p-3 rounded-xl flex items-center gap-2 text-sm ${
-              isDark ? 'bg-red-900/20 border border-red-800 text-red-400' : 'bg-red-50 border border-red-200 text-red-700'
-            }`}>
-              <AlertCircle className="w-4 h-4 flex-shrink-0" />
-              {formError}
-            </div>
-          )}
-          <div>
-            <label className={labelClass}>City <span className="text-red-500">*</span></label>
-            <input
-              type="text"
-              value={formData.city}
-              onChange={e => setFormData(prev => ({ ...prev, city: e.target.value }))}
-              placeholder="Enter city"
-              className={inputClass}
-              autoFocus
-              required
-            />
-          </div>
-          <div>
-            <label className={labelClass}>State <span className="text-red-500">*</span></label>
-            <input
-              type="text"
-              value={formData.state}
-              onChange={e => setFormData(prev => ({ ...prev, state: e.target.value }))}
-              placeholder="Enter state"
-              className={inputClass}
-              required
-            />
-          </div>
-          <div>
-            <label className={labelClass}>Region</label>
-            <input
-              type="text"
-              value={formData.region}
-              onChange={e => setFormData(prev => ({ ...prev, region: e.target.value }))}
-              placeholder="Enter region (e.g. North, South, West, East)"
-              className={inputClass}
-            />
-          </div>
-          <div className={`flex items-center justify-end gap-3 pt-4 border-t ${isDark ? 'border-zinc-800' : 'border-slate-200'}`}>
-            <button
-              type="button"
-              onClick={closeModal}
-              disabled={isSubmitting}
-              className={`px-4 py-2.5 rounded-xl text-sm font-medium transition-colors ${
-                isDark ? 'text-zinc-400 hover:text-white hover:bg-zinc-800' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-              } disabled:opacity-50`}
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="flex items-center gap-2 px-5 py-2.5 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-sm font-medium transition-all btn-premium disabled:opacity-50"
-            >
-              {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
-              {editingItem ? 'Update' : 'Create'}
-            </button>
-          </div>
-        </form>
-      </Modal>
-
-      {/* Delete Confirmation */}
-      <ConfirmDialog
-        isOpen={!!deleteTarget}
-        onClose={() => setDeleteTarget(null)}
-        onConfirm={handleDelete}
-        title="Delete Location"
-        message={`Are you sure you want to delete "${deleteTarget?.city}, ${deleteTarget?.state}"? This action cannot be undone.`}
         isDark={isDark}
         isLoading={isDeleting}
       />
@@ -1335,6 +999,7 @@ export const AdminPage: React.FC = () => {
       monthlyTarget: u.monthlyTarget ?? '',
       isActive: u.isActive,
       viewAccess: u.viewAccess || 'presales',
+      tag: u.tag || '',
     });
     setUserFormError('');
     setShowUserModal(true);
@@ -1373,10 +1038,12 @@ export const AdminPage: React.FC = () => {
         role: userForm.role,
         isActive: userForm.isActive,
       };
-      if (userForm.department.trim()) payload.department = userForm.department.trim();
+      if (userForm.department) payload.department = userForm.department;
       if (userForm.phone.trim()) payload.phone = userForm.phone.trim();
       if (userForm.employeeId.trim()) payload.employeeId = userForm.employeeId.trim();
       if (userForm.monthlyTarget !== '' && userForm.monthlyTarget !== 0) payload.monthlyTarget = Number(userForm.monthlyTarget);
+      payload.viewAccess = userForm.viewAccess;
+      if (userForm.tag) payload.tag = userForm.tag;
 
       if (editingUser) {
         await adminApi.updateUser(editingUser.id, payload);
@@ -1604,7 +1271,7 @@ export const AdminPage: React.FC = () => {
             <table className="w-full text-sm">
               <thead>
                 <tr className={`border-b ${isDark ? 'border-zinc-800' : 'border-slate-100'}`}>
-                  {['Name', 'Email', 'Role', 'Department', 'Status', 'Last Login', 'Actions'].map(h => (
+                  {['Name', 'Email', 'Role', 'Department', 'Tag', 'Status', 'Last Login', 'Actions'].map(h => (
                     <th key={h} className={`px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
                       {h}
                     </th>
@@ -1625,6 +1292,9 @@ export const AdminPage: React.FC = () => {
                       <span className={roleBadge(u.role, isDark)}>{roleLabel(u.role)}</span>
                     </td>
                     <td className={`px-4 py-3 ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>{u.department || '-'}</td>
+                    <td className={`px-4 py-3 ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
+                      {u.tag === 'channel' ? 'Channel' : u.tag === 'endcustomer' ? 'End Customer' : u.tag === 'both' ? 'Both' : '-'}
+                    </td>
                     <td className="px-4 py-3">
                       <span className={statusBadge(u.isActive, isDark)}>{u.isActive ? 'Active' : 'Inactive'}</span>
                     </td>
@@ -1749,19 +1419,29 @@ export const AdminPage: React.FC = () => {
             </div>
           </div>
 
-          {/* Department + Phone */}
+          {/* Department + Tag */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className={labelClass}>Department</label>
-              <input
-                type="text"
-                name="department"
-                value={userForm.department}
-                onChange={handleUserFormChange}
-                placeholder="e.g. Sales, Engineering"
-                className={inputClass}
-              />
+              <select name="department" value={userForm.department} onChange={handleUserFormChange} className={selectClass}>
+                <option value="">Select Department</option>
+                {DEPARTMENTS.map(d => (
+                  <option key={d} value={d}>{d}</option>
+                ))}
+              </select>
             </div>
+            <div>
+              <label className={labelClass}>Tag</label>
+              <select name="tag" value={userForm.tag} onChange={handleUserFormChange} className={selectClass}>
+                {USER_TAGS.map(t => (
+                  <option key={t.value} value={t.value}>{t.label}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Phone */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className={labelClass}>Phone</label>
               <input
@@ -1991,7 +1671,7 @@ export const AdminPage: React.FC = () => {
         onClose={closeProductModal}
         title={editingProduct ? 'Edit Product' : 'Add Product'}
         isDark={isDark}
-        maxWidth="max-w-lg"
+        maxWidth="max-w-md"
       >
         <form onSubmit={handleProductSubmit} className="p-6 space-y-5">
           {productFormError && (
@@ -2121,16 +1801,16 @@ export const AdminPage: React.FC = () => {
         return renderUsersTab();
       case 'products':
         return renderProductsTab();
-      case 'locations':
-        return <LocationsTab isDark={isDark} cardClass={cardClass} inputClass={inputClass} labelClass={labelClass} />;
-      case 'verticals':
-        return <MasterDataTab entity="verticals" entityLabel="Verticals" isDark={isDark} cardClass={cardClass} inputClass={inputClass} labelClass={labelClass} />;
       case 'oems':
         return <MasterDataTab entity="oems" entityLabel="OEMs" isDark={isDark} cardClass={cardClass} inputClass={inputClass} labelClass={labelClass} />;
       case 'categories':
         return <CategoriesTab isDark={isDark} cardClass={cardClass} inputClass={inputClass} labelClass={labelClass} selectClass={selectClass} />;
-      case 'partner-types':
-        return <MasterDataTab entity="partner-types" entityLabel="Partner Types" isDark={isDark} cardClass={cardClass} inputClass={inputClass} labelClass={labelClass} />;
+      case 'product-managers':
+        return <ProductManagersTab isDark={isDark} cardClass={cardClass} selectClass={selectClass} />;
+      case 'roles':
+        return <RolesTab isDark={isDark} cardClass={cardClass} inputClass={inputClass} />;
+      case 'activity-log':
+        return <ActivityLogTab isDark={isDark} cardClass={cardClass} inputClass={inputClass} selectClass={selectClass} />;
       default:
         return null;
     }
@@ -2151,7 +1831,7 @@ export const AdminPage: React.FC = () => {
       {/* Tab Navigation */}
       <div className={`${cardClass} p-1.5`}>
         <div className="flex overflow-x-auto gap-1 scrollbar-hide">
-          {TABS.map(tab => {
+          {TABS.filter(tab => !tab.superadminOnly || user?.role === 'superadmin').map(tab => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.key;
             return (

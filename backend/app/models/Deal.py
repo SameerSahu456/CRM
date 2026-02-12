@@ -24,7 +24,7 @@ class Deal(TimestampMixin, Base):
     value: Mapped[Optional[Decimal]] = mapped_column(
         Numeric(15, 2), nullable=True
     )
-    stage: Mapped[str] = mapped_column(String(50), server_default="Qualification")
+    stage: Mapped[str] = mapped_column(String(50), server_default="Cold")
     probability: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     owner_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         UUID(as_uuid=True), nullable=True
@@ -73,6 +73,16 @@ class Deal(TimestampMixin, Base):
     additional_information: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     da: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     delivery_address: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    # Tag: Channel or End Customer
+    tag: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+
+    # Contact/Display fields
+    contact_no: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    designation: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
+    email: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    location: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    next_follow_up: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
 
     # Billing Address
     billing_street: Mapped[Optional[str]] = mapped_column(Text, nullable=True)

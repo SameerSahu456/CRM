@@ -362,7 +362,7 @@ export const EnhancedAccountForm: React.FC<Props> = ({
                 </div>
 
                 {/* Account Information Section */}
-                <div className="pt-4 border-t border-dashed" style={{ borderColor: isDark ? '#27272a' : '#e2e8f0' }}>
+                <div className="pt-4 border-t border-dashed" style={{ borderColor: isDark ? '#1a2535' : '#e2e8f0' }}>
                   <h3 className={`text-sm font-semibold mb-4 ${isDark ? 'text-white' : 'text-slate-900'}`}>
                     Account Information
                   </h3>
@@ -626,7 +626,7 @@ export const EnhancedAccountForm: React.FC<Props> = ({
                 </div>
 
                 {/* Other Info Section */}
-                <div className="pt-4 border-t border-dashed" style={{ borderColor: isDark ? '#27272a' : '#e2e8f0' }}>
+                <div className="pt-4 border-t border-dashed" style={{ borderColor: isDark ? '#1a2535' : '#e2e8f0' }}>
                   <h3 className={`text-sm font-semibold mb-4 ${isDark ? 'text-white' : 'text-slate-900'}`}>
                     Other Info
                   </h3>

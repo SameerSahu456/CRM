@@ -11,34 +11,23 @@ import { ViewProvider } from './contexts/ViewContext';
 // Lazy load all page components for code splitting
 const Dashboard = lazy(() => import('./components/Dashboard').then(m => ({ default: m.Dashboard })));
 const SalesEntryPage = lazy(() => import('./components/SalesEntryPage').then(m => ({ default: m.SalesEntryPage })));
-const PartnersPage = lazy(() => import('./components/PartnersPage').then(m => ({ default: m.PartnersPage })));
 const CRMPage = lazy(() => import('./components/CRMPage').then(m => ({ default: m.CRMPage })));
 const AdminPage = lazy(() => import('./components/AdminPage').then(m => ({ default: m.AdminPage })));
-const QuoteBuilderPage = lazy(() => import('./components/QuoteBuilderPage').then(m => ({ default: m.QuoteBuilderPage })));
-const CarepackPage = lazy(() => import('./components/CarepackPage').then(m => ({ default: m.CarepackPage })));
 const SettingsPage = lazy(() => import('./components/SettingsPage').then(m => ({ default: m.SettingsPage })));
 const AccountsPage = lazy(() => import('./components/AccountsPage').then(m => ({ default: m.AccountsPage })));
 const ContactsPage = lazy(() => import('./components/ContactsPage').then(m => ({ default: m.ContactsPage })));
 const DealsPage = lazy(() => import('./components/DealsPage').then(m => ({ default: m.DealsPage })));
-const TasksPage = lazy(() => import('./components/TasksPage').then(m => ({ default: m.TasksPage })));
-const CalendarPage = lazy(() => import('./components/CalendarPage').then(m => ({ default: m.CalendarPage })));
-const EmailsPage = lazy(() => import('./components/EmailsPage').then(m => ({ default: m.EmailsPage })));
 const ReportsPage = lazy(() => import('./components/ReportsPage').then(m => ({ default: m.ReportsPage })));
 const LoginPage = lazy(() => import('./components/LoginPage'));
 
 const pageTitles: Record<NavigationItem, string> = {
   'dashboard': 'Dashboard',
   'sales-entry': 'Sales Entry',
-  'partners': 'Partners',
-  'crm': 'CRM / Leads',
+  'crm': 'Leads',
   'accounts': 'Accounts',
   'contacts': 'Contacts',
   'deals': 'Deals',
   'quote-builder': 'Quote Builder',
-  'carepacks': 'Carepack Tracker',
-  'tasks': 'Tasks',
-  'calendar': 'Calendar',
-  'emails': 'Emails',
   'reports': 'Reports',
   'admin': 'Admin Panel',
   'settings': 'Settings',
@@ -46,7 +35,17 @@ const pageTitles: Record<NavigationItem, string> = {
 
 const AppContent: React.FC = () => {
   const { isAuthenticated, isLoading } = useAuth();
-  const [activeTab, setActiveTab] = useState<NavigationItem>('dashboard');
+  const [activeTab, setActiveTab] = useState<NavigationItem>(() => {
+    const saved = localStorage.getItem('zenith-active-tab');
+    if (saved && saved in pageTitles) return saved as NavigationItem;
+    return 'dashboard';
+  });
+
+  // Persist active tab to localStorage
+  const handleSetActiveTab = (tab: NavigationItem) => {
+    setActiveTab(tab);
+    localStorage.setItem('zenith-active-tab', tab);
+  };
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   if (isLoading) {
@@ -94,14 +93,8 @@ const AppContent: React.FC = () => {
       case 'sales-entry':
         PageComponent = SalesEntryPage;
         break;
-      case 'partners':
-        PageComponent = PartnersPage;
-        break;
       case 'crm':
         PageComponent = CRMPage;
-        break;
-      case 'quote-builder':
-        PageComponent = QuoteBuilderPage;
         break;
       case 'accounts':
         PageComponent = AccountsPage;
@@ -111,18 +104,6 @@ const AppContent: React.FC = () => {
         break;
       case 'deals':
         PageComponent = DealsPage;
-        break;
-      case 'carepacks':
-        PageComponent = CarepackPage;
-        break;
-      case 'tasks':
-        PageComponent = TasksPage;
-        break;
-      case 'calendar':
-        PageComponent = CalendarPage;
-        break;
-      case 'emails':
-        PageComponent = EmailsPage;
         break;
       case 'reports':
         PageComponent = ReportsPage;
@@ -145,15 +126,15 @@ const AppContent: React.FC = () => {
   };
 
   return (
-    <NavigationProvider activeTab={activeTab} setActiveTab={setActiveTab}>
-      <div className="flex h-screen overflow-hidden">
+    <NavigationProvider activeTab={activeTab} setActiveTab={handleSetActiveTab}>
+      <div className="flex h-screen overflow-clip">
         <Sidebar
           activeTab={activeTab}
-          setActiveTab={setActiveTab}
+          setActiveTab={handleSetActiveTab}
           isOpen={sidebarOpen}
           onClose={() => setSidebarOpen(false)}
         />
-        <div className="flex-1 flex flex-col lg:ml-64 min-h-screen overflow-hidden">
+        <div className="flex-1 flex flex-col lg:ml-64 min-h-screen overflow-clip">
           <Header
             onMenuClick={() => setSidebarOpen(true)}
             title={pageTitles[activeTab] || 'Dashboard'}

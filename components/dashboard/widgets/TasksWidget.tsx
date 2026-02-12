@@ -39,7 +39,7 @@ export const TasksWidget: React.FC<WidgetProps> = ({ isDark, navigate, onDetailC
       <div className="flex items-center justify-center gap-5 mb-4">
         <div className="relative w-20 h-20">
           <svg className="w-full h-full -rotate-90" viewBox="0 0 80 80">
-            <circle cx="40" cy="40" r="32" fill="none" stroke={isDark ? '#27272a' : '#f1f5f9'} strokeWidth="6" />
+            <circle cx="40" cy="40" r="32" fill="none" stroke={isDark ? '#1a2535' : '#f1f5f9'} strokeWidth="6" />
             <circle cx="40" cy="40" r="32" fill="none" stroke={isDark ? '#10b981' : '#059669'} strokeWidth="6"
               strokeLinecap="round" strokeDasharray={`${2 * Math.PI * 32}`}
               strokeDashoffset={`${2 * Math.PI * 32 * (1 - tasksCompletionPct / 100)}`}

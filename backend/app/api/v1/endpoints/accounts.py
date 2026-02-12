@@ -16,6 +16,8 @@ from app.repositories.DealRepository import DealRepository
 from app.schemas.AccountSchema import AccountOut, AccountCreate, AccountUpdate
 from app.schemas.ContactSchema import ContactOut
 from app.schemas.DealSchema import DealOut
+from app.utils.activity_logger import compute_changes, log_activity, model_to_dict
+from app.utils.scoping import get_scoped_user_ids, enforce_scope
 
 router = APIRouter()
 
@@ -39,8 +41,10 @@ async def list_accounts(
     if search:
         filters.append(Account.name.ilike(f"%{search}%"))
 
-    if user.role == "salesperson":
-        filters.append(Account.owner_id == user.id)
+    # Scope: non-admin users only see accounts owned by them/their team
+    scoped_ids = await get_scoped_user_ids(user, db)
+    if scoped_ids is not None:
+        filters.append(Account.owner_id.in_(scoped_ids))
 
     result = await repo.get_with_owner(page=page, limit=limit, filters=filters or None)
 
@@ -63,6 +67,7 @@ async def get_account(
     account = await repo.get_by_id(account_id)
     if not account:
         raise NotFoundException("Account not found")
+    await enforce_scope(account, "owner_id", user, db, resource_name="account")
     return AccountOut.model_validate(account).model_dump(by_alias=True)
 
 
@@ -77,6 +82,7 @@ async def create_account(
     if "owner_id" not in data or data["owner_id"] is None:
         data["owner_id"] = user.id
     account = await repo.create(data)
+    await log_activity(db, user, "create", "account", str(account.id), account.name)
     return AccountOut.model_validate(account).model_dump(by_alias=True)
 
 
@@ -88,9 +94,14 @@ async def update_account(
     db: AsyncSession = Depends(get_db),
 ):
     repo = AccountRepository(db)
-    account = await repo.update(account_id, body.model_dump(exclude_unset=True))
-    if not account:
+    old = await repo.get_by_id(account_id)
+    if not old:
         raise NotFoundException("Account not found")
+    await enforce_scope(old, "owner_id", user, db, resource_name="account")
+    old_data = model_to_dict(old)
+    account = await repo.update(account_id, body.model_dump(exclude_unset=True))
+    changes = compute_changes(old_data, model_to_dict(account))
+    await log_activity(db, user, "update", "account", str(account.id), account.name, changes)
     return AccountOut.model_validate(account).model_dump(by_alias=True)
 
 
@@ -101,9 +112,13 @@ async def delete_account(
     db: AsyncSession = Depends(get_db),
 ):
     repo = AccountRepository(db)
-    deleted = await repo.delete(account_id)
-    if not deleted:
+    account = await repo.get_by_id(account_id)
+    if not account:
         raise NotFoundException("Account not found")
+    await enforce_scope(account, "owner_id", user, db, resource_name="account")
+    account_name = account.name
+    await repo.delete(account_id)
+    await log_activity(db, user, "delete", "account", account_id, account_name)
     return {"success": True}
 
 

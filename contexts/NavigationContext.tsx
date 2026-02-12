@@ -1,9 +1,12 @@
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext, useCallback, useRef } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { NavigationItem } from '../types';
+import { navigationItemToPath, pathToNavigationItem } from '../utils/navigation';
 
 interface NavigationContextType {
   activeTab: NavigationItem;
-  setActiveTab: (tab: NavigationItem) => void;
+  setActiveTab: (tab: NavigationItem, params?: Record<string, string>) => void;
+  consumeNavParams: () => Record<string, string> | null;
 }
 
 const NavigationContext = createContext<NavigationContextType | null>(null);
@@ -16,19 +19,26 @@ export const useNavigation = () => {
   return context;
 };
 
-interface NavigationProviderProps {
-  children: React.ReactNode;
-  activeTab: NavigationItem;
-  setActiveTab: (tab: NavigationItem) => void;
-}
+export const NavigationProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const nav = useNavigate();
+  const location = useLocation();
+  const navParamsRef = useRef<Record<string, string> | null>(null);
 
-export const NavigationProvider: React.FC<NavigationProviderProps> = ({
-  children,
-  activeTab,
-  setActiveTab,
-}) => {
+  const activeTab = pathToNavigationItem(location.pathname);
+
+  const setActiveTab = useCallback((tab: NavigationItem, params?: Record<string, string>) => {
+    navParamsRef.current = params || null;
+    nav(navigationItemToPath(tab));
+  }, [nav]);
+
+  const consumeNavParams = useCallback((): Record<string, string> | null => {
+    const params = navParamsRef.current;
+    navParamsRef.current = null;
+    return params;
+  }, []);
+
   return (
-    <NavigationContext.Provider value={{ activeTab, setActiveTab }}>
+    <NavigationContext.Provider value={{ activeTab, setActiveTab, consumeNavParams }}>
       {children}
     </NavigationContext.Provider>
   );

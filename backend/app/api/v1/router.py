@@ -2,8 +2,10 @@ from fastapi import APIRouter
 
 from app.api.v1.endpoints import (
     accounts,
+    activity_logs,
     admin,
     auth,
+    bulk_import,
     calendar_events,
     carepacks,
     contacts,
@@ -17,6 +19,7 @@ from app.api.v1.endpoints import (
     partners,
     products,
     quotes,
+    roles,
     sales_entries,
     settings,
     tasks,
@@ -43,3 +46,6 @@ api_router.include_router(tasks.router, prefix="/tasks", tags=["Tasks"])
 api_router.include_router(calendar_events.router, prefix="/calendar-events", tags=["Calendar Events"])
 api_router.include_router(email_templates.router, prefix="/email-templates", tags=["Email Templates"])
 api_router.include_router(emails.router, prefix="/emails", tags=["Emails"])
+api_router.include_router(activity_logs.router, prefix="/admin/activity-logs", tags=["Activity Logs"])
+api_router.include_router(roles.router, prefix="/admin/roles", tags=["Roles"])
+api_router.include_router(bulk_import.router, prefix="/bulk", tags=["Bulk Import"])

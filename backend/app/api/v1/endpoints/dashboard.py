@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import date, timedelta
 
 from fastapi import APIRouter, Depends
-from sqlalchemy import case, extract, func, literal, select, union_all
+from sqlalchemy import case, extract, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -15,15 +15,39 @@ from app.models.Product import Product
 from app.models.SalesEntry import SalesEntry
 from app.models.Task import Task
 from app.models.User import User
+from app.utils.scoping import get_scoped_user_ids
 
 router = APIRouter()
 
 
-def _scope_filters(user: User) -> list:
-    """Return data-scope filters based on role."""
-    if user.role == "salesperson":
-        return [SalesEntry.salesperson_id == user.id]
-    return []
+def _apply_sales_scope(stmt, scoped_ids):
+    if scoped_ids is not None:
+        return stmt.where(SalesEntry.salesperson_id.in_(scoped_ids))
+    return stmt
+
+
+def _apply_lead_scope(stmt, scoped_ids):
+    if scoped_ids is not None:
+        return stmt.where(Lead.assigned_to.in_(scoped_ids))
+    return stmt
+
+
+def _apply_deal_scope(stmt, scoped_ids):
+    if scoped_ids is not None:
+        return stmt.where(Deal.owner_id.in_(scoped_ids))
+    return stmt
+
+
+def _apply_task_scope(stmt, scoped_ids):
+    if scoped_ids is not None:
+        return stmt.where(Task.assigned_to.in_(scoped_ids))
+    return stmt
+
+
+def _apply_partner_scope(stmt, scoped_ids):
+    if scoped_ids is not None:
+        return stmt.where(Partner.assigned_to.in_(scoped_ids))
+    return stmt
 
 
 @router.get("/")
@@ -33,11 +57,11 @@ async def dashboard_stats(
 ):
     today = date.today()
     month_start = today.replace(day=1)
+    scoped_ids = await get_scoped_user_ids(user, db)
 
     # Total sales amount (all time, scoped)
     sales_stmt = select(func.coalesce(func.sum(SalesEntry.amount), 0))
-    if user.role == "salesperson":
-        sales_stmt = sales_stmt.where(SalesEntry.salesperson_id == user.id)
+    sales_stmt = _apply_sales_scope(sales_stmt, scoped_ids)
     total_sales = (await db.execute(sales_stmt)).scalar_one()
 
     # Monthly revenue
@@ -45,30 +69,29 @@ async def dashboard_stats(
         select(func.coalesce(func.sum(SalesEntry.amount), 0))
         .where(SalesEntry.sale_date >= month_start)
     )
-    if user.role == "salesperson":
-        monthly_stmt = monthly_stmt.where(SalesEntry.salesperson_id == user.id)
+    monthly_stmt = _apply_sales_scope(monthly_stmt, scoped_ids)
     monthly_revenue = (await db.execute(monthly_stmt)).scalar_one()
 
     # Total sales count
     count_stmt = select(func.count()).select_from(SalesEntry)
-    if user.role == "salesperson":
-        count_stmt = count_stmt.where(SalesEntry.salesperson_id == user.id)
+    count_stmt = _apply_sales_scope(count_stmt, scoped_ids)
     total_count = (await db.execute(count_stmt)).scalar_one()
 
     # Total partners
     partner_stmt = select(func.count()).select_from(Partner).where(Partner.status == "approved")
+    partner_stmt = _apply_partner_scope(partner_stmt, scoped_ids)
     total_partners = (await db.execute(partner_stmt)).scalar_one()
 
     # Pending partners
     pending_stmt = select(func.count()).select_from(Partner).where(Partner.status == "pending")
+    pending_stmt = _apply_partner_scope(pending_stmt, scoped_ids)
     pending_partners = (await db.execute(pending_stmt)).scalar_one()
 
     # Active leads
     lead_stmt = select(func.count()).select_from(Lead).where(
         Lead.stage.notin_(["Won", "Lost"])
     )
-    if user.role == "salesperson":
-        lead_stmt = lead_stmt.where(Lead.assigned_to == user.id)
+    lead_stmt = _apply_lead_scope(lead_stmt, scoped_ids)
     active_leads = (await db.execute(lead_stmt)).scalar_one()
 
     # Pending payments
@@ -77,8 +100,7 @@ async def dashboard_stats(
         .select_from(SalesEntry)
         .where(SalesEntry.payment_status == "pending")
     )
-    if user.role == "salesperson":
-        pending_pay_stmt = pending_pay_stmt.where(SalesEntry.salesperson_id == user.id)
+    pending_pay_stmt = _apply_sales_scope(pending_pay_stmt, scoped_ids)
     pending_payments = (await db.execute(pending_pay_stmt)).scalar_one()
 
     return {
@@ -100,6 +122,7 @@ async def monthly_stats(
     """Return last 12 months of sales data."""
     today = date.today()
     twelve_months_ago = (today.replace(day=1) - timedelta(days=365)).replace(day=1)
+    scoped_ids = await get_scoped_user_ids(user, db)
 
     stmt = (
         select(
@@ -112,19 +135,17 @@ async def monthly_stats(
         .group_by("year", "month")
         .order_by("year", "month")
     )
-
-    if user.role == "salesperson":
-        stmt = stmt.where(SalesEntry.salesperson_id == user.id)
+    stmt = _apply_sales_scope(stmt, scoped_ids)
 
     result = await db.execute(stmt)
     rows = result.all()
 
+    month_names = [
+        "", "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+        "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+    ]
     months = []
     for row in rows:
-        month_names = [
-            "", "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-            "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
-        ]
         months.append({
             "month": f"{month_names[int(row.month)]} {int(row.year)}",
             "revenue": float(row.revenue),
@@ -144,6 +165,7 @@ async def growth_stats(
     this_month_start = today.replace(day=1)
     last_month_end = this_month_start - timedelta(days=1)
     last_month_start = last_month_end.replace(day=1)
+    scoped_ids = await get_scoped_user_ids(user, db)
 
     async def _month_sum(start: date, end: date) -> float:
         stmt = (
@@ -151,8 +173,7 @@ async def growth_stats(
             .where(SalesEntry.sale_date >= start)
             .where(SalesEntry.sale_date <= end)
         )
-        if user.role == "salesperson":
-            stmt = stmt.where(SalesEntry.salesperson_id == user.id)
+        stmt = _apply_sales_scope(stmt, scoped_ids)
         return float((await db.execute(stmt)).scalar_one())
 
     this_month = await _month_sum(this_month_start, today)
@@ -175,8 +196,7 @@ async def growth_stats(
         .order_by(SalesEntry.created_at.desc())
         .limit(5)
     )
-    if user.role == "salesperson":
-        recent_stmt = recent_stmt.where(SalesEntry.salesperson_id == user.id)
+    recent_stmt = _apply_sales_scope(recent_stmt, scoped_ids)
 
     result = await db.execute(recent_stmt)
     recent_rows = result.all()
@@ -207,18 +227,14 @@ async def dashboard_all(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Single combined endpoint returning ALL dashboard data in one request.
-
-    Replaces 7 separate API calls (stats, growth, monthly, leads, deals, tasks, breakdown)
-    with a single round-trip — critical for serverless cold-start performance.
-    """
+    """Single combined endpoint returning ALL dashboard data in one request."""
     today = date.today()
     month_start = today.replace(day=1)
     last_month_end = month_start - timedelta(days=1)
     last_month_start = last_month_end.replace(day=1)
     twelve_months_ago = (month_start - timedelta(days=365)).replace(day=1)
 
-    is_sp = user.role == "salesperson"
+    scoped_ids = await get_scoped_user_ids(user, db)
 
     # ── 1. Sales aggregates (single query) ──────────────────────
     sales_agg = select(
@@ -241,8 +257,7 @@ async def dashboard_all(
         ).label("last_month_revenue"),
         func.count().filter(SalesEntry.payment_status == "pending").label("pending_payments"),
     )
-    if is_sp:
-        sales_agg = sales_agg.where(SalesEntry.salesperson_id == user.id)
+    sales_agg = _apply_sales_scope(sales_agg, scoped_ids)
     sr = (await db.execute(sales_agg)).one()
 
     total_sales = float(sr.total_sales)
@@ -261,32 +276,31 @@ async def dashboard_all(
         func.count().filter(Partner.status == "approved").label("approved"),
         func.count().filter(Partner.status == "pending").label("pending"),
     ).select_from(Partner)
+    partner_agg = _apply_partner_scope(partner_agg, scoped_ids)
     pr = (await db.execute(partner_agg)).one()
 
     # ── 3. Active leads (single query) ──────────────────────────
     lead_count_stmt = select(func.count()).select_from(Lead).where(
-        Lead.stage.notin_(["Won", "Lost"])
+        Lead.stage.notin_(["Closed Won", "Closed Lost"])
     )
-    if is_sp:
-        lead_count_stmt = lead_count_stmt.where(Lead.assigned_to == user.id)
+    lead_count_stmt = _apply_lead_scope(lead_count_stmt, scoped_ids)
     active_leads = (await db.execute(lead_count_stmt)).scalar_one()
 
     # ── 4. Lead stats by stage (single query with CASE) ─────────
-    lead_stages = ["New", "Contacted", "Qualified", "Proposal", "Negotiation", "Won", "Lost"]
+    lead_stages = ["Cold", "Proposal", "Negotiation", "Closed Won", "Closed Lost"]
     lead_cases = [
-        func.count().filter(Lead.stage == s).label(s.lower())
+        func.count().filter(Lead.stage == s).label(s.lower().replace(" ", "_"))
         for s in lead_stages
     ]
     lead_stmt = select(*lead_cases).select_from(Lead)
-    if is_sp:
-        lead_stmt = lead_stmt.where(Lead.assigned_to == user.id)
+    lead_stmt = _apply_lead_scope(lead_stmt, scoped_ids)
     lr = (await db.execute(lead_stmt)).one()
-    lead_stats = {s: getattr(lr, s.lower()) for s in lead_stages}
+    lead_stats = {s: getattr(lr, s.lower().replace(" ", "_")) for s in lead_stages}
 
     # ── 5. Deal pipeline stats (single query with CASE) ─────────
     deal_stages = [
-        "Qualification", "Needs Analysis", "Proposal",
-        "Negotiation", "Closed Won", "Closed Lost",
+        "Cold", "Proposal", "Negotiation",
+        "Closed Won", "Closed Lost",
     ]
     deal_cases = []
     for ds in deal_stages:
@@ -298,8 +312,7 @@ async def dashboard_all(
             )
         )
     deal_stmt = select(*deal_cases).select_from(Deal)
-    if is_sp:
-        deal_stmt = deal_stmt.where(Deal.owner_id == user.id)
+    deal_stmt = _apply_deal_scope(deal_stmt, scoped_ids)
     dr = (await db.execute(deal_stmt)).one()
     deal_stats = {}
     for ds in deal_stages:
@@ -315,8 +328,7 @@ async def dashboard_all(
         func.count().filter(Task.status == s).label(s) for s in task_statuses
     ]
     task_stmt = select(*task_cases).select_from(Task)
-    if is_sp:
-        task_stmt = task_stmt.where(Task.assigned_to == user.id)
+    task_stmt = _apply_task_scope(task_stmt, scoped_ids)
     tr = (await db.execute(task_stmt)).one()
     task_stats = {s: getattr(tr, s) for s in task_statuses}
 
@@ -332,8 +344,7 @@ async def dashboard_all(
         .group_by("year", "month")
         .order_by("year", "month")
     )
-    if is_sp:
-        monthly_stmt = monthly_stmt.where(SalesEntry.salesperson_id == user.id)
+    monthly_stmt = _apply_sales_scope(monthly_stmt, scoped_ids)
     month_names = ["", "Jan", "Feb", "Mar", "Apr", "May", "Jun",
                    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
     monthly_data = [
@@ -353,8 +364,7 @@ async def dashboard_all(
         .order_by(SalesEntry.created_at.desc())
         .limit(5)
     )
-    if is_sp:
-        recent_stmt = recent_stmt.where(SalesEntry.salesperson_id == user.id)
+    recent_stmt = _apply_sales_scope(recent_stmt, scoped_ids)
     recent_sales = []
     for row in (await db.execute(recent_stmt)).all():
         sale = row[0]
@@ -370,9 +380,7 @@ async def dashboard_all(
 
     # ── 9. Breakdown: by product, partner, salesperson ─────────
     def _scope(stmt):
-        if is_sp:
-            return stmt.where(SalesEntry.salesperson_id == user.id)
-        return stmt
+        return _apply_sales_scope(stmt, scoped_ids)
 
     by_product = [
         {"productName": r.name or "Unknown", "totalAmount": float(r.total), "count": r.cnt}
@@ -414,6 +422,95 @@ async def dashboard_all(
         ))).all()
     ]
 
+    # ── Assignee Summary ────────────────────────────────────────
+    # Partners per assignee
+    assignee_partner_stmt = _apply_partner_scope(
+        select(
+            Partner.assigned_to,
+            func.count().label("cnt"),
+        ).where(Partner.is_active.is_(True))
+        .group_by(Partner.assigned_to),
+        scoped_ids,
+    )
+    assignee_partners = {
+        str(r[0]): r.cnt
+        for r in (await db.execute(assignee_partner_stmt)).all()
+        if r[0] is not None
+    }
+
+    # Leads per assignee
+    assignee_lead_stmt = _apply_lead_scope(
+        select(
+            Lead.assigned_to,
+            func.count().label("cnt"),
+        ).where(Lead.stage.notin_(["Won", "Lost"]))
+        .group_by(Lead.assigned_to),
+        scoped_ids,
+    )
+    assignee_leads = {
+        str(r[0]): r.cnt
+        for r in (await db.execute(assignee_lead_stmt)).all()
+        if r[0] is not None
+    }
+
+    # Deals per assignee
+    assignee_deal_stmt = _apply_deal_scope(
+        select(
+            Deal.owner_id,
+            func.count().label("cnt"),
+            func.coalesce(func.sum(Deal.value), 0).label("val"),
+        ).where(Deal.stage.notin_(["Closed Won", "Closed Lost"]))
+        .group_by(Deal.owner_id),
+        scoped_ids,
+    )
+    assignee_deals = {
+        str(r[0]): {"count": r.cnt, "value": float(r.val)}
+        for r in (await db.execute(assignee_deal_stmt)).all()
+        if r[0] is not None
+    }
+
+    # Sales per assignee (salesperson)
+    assignee_sales_stmt = _apply_sales_scope(
+        select(
+            SalesEntry.salesperson_id,
+            func.count().label("cnt"),
+            func.coalesce(func.sum(SalesEntry.amount), 0).label("total"),
+        ).group_by(SalesEntry.salesperson_id),
+        scoped_ids,
+    )
+    assignee_sales = {
+        str(r[0]): {"count": r.cnt, "amount": float(r.total)}
+        for r in (await db.execute(assignee_sales_stmt)).all()
+        if r[0] is not None
+    }
+
+    # Collect all user IDs and fetch names
+    all_assignee_ids = set(assignee_partners.keys()) | set(assignee_leads.keys()) | set(assignee_deals.keys()) | set(assignee_sales.keys())
+    user_name_map = {}
+    if all_assignee_ids:
+        name_rows = (await db.execute(
+            select(User.id, User.name).where(User.id.in_(list(all_assignee_ids)))
+        )).all()
+        user_name_map = {str(r[0]): r[1] for r in name_rows}
+
+    assignee_summary = sorted(
+        [
+            {
+                "userId": uid,
+                "userName": user_name_map.get(uid, "Unknown"),
+                "partners": assignee_partners.get(uid, 0),
+                "leads": assignee_leads.get(uid, 0),
+                "deals": assignee_deals.get(uid, {}).get("count", 0),
+                "dealValue": assignee_deals.get(uid, {}).get("value", 0),
+                "salesCount": assignee_sales.get(uid, {}).get("count", 0),
+                "salesAmount": assignee_sales.get(uid, {}).get("amount", 0),
+            }
+            for uid in all_assignee_ids
+        ],
+        key=lambda x: x["salesAmount"],
+        reverse=True,
+    )
+
     # ── Return everything ──────────────────────────────────────
     return {
         "stats": {
@@ -440,4 +537,146 @@ async def dashboard_all(
             "byPartner": by_partner,
             "bySalesperson": by_salesperson,
         },
+        "assigneeSummary": assignee_summary,
+    }
+
+
+@router.get("/assignee/{user_id}")
+async def assignee_detail(
+    user_id: str,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Detailed analytics for a single assignee."""
+    scoped_ids = await get_scoped_user_ids(user, db)
+    if scoped_ids is not None and user_id not in scoped_ids:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    # Fetch assignee name
+    name_row = (await db.execute(
+        select(User.name).where(User.id == user_id)
+    )).first()
+    user_name = name_row[0] if name_row else "Unknown"
+
+    target_ids = [user_id]
+
+    # ── Summary counts ────────────────────────────────────────
+    partner_cnt = (await db.execute(
+        select(func.count()).select_from(Partner)
+        .where(Partner.assigned_to.in_(target_ids), Partner.is_active.is_(True))
+    )).scalar_one()
+
+    lead_cnt = (await db.execute(
+        select(func.count()).select_from(Lead)
+        .where(Lead.assigned_to.in_(target_ids), Lead.stage.notin_(["Won", "Lost"]))
+    )).scalar_one()
+
+    deal_agg = (await db.execute(
+        select(func.count().label("cnt"), func.coalesce(func.sum(Deal.value), 0).label("val"))
+        .select_from(Deal)
+        .where(Deal.owner_id.in_(target_ids), Deal.stage.notin_(["Closed Won", "Closed Lost"]))
+    )).one()
+
+    sales_agg = (await db.execute(
+        select(func.count().label("cnt"), func.coalesce(func.sum(SalesEntry.amount), 0).label("total"))
+        .select_from(SalesEntry)
+        .where(SalesEntry.salesperson_id.in_(target_ids))
+    )).one()
+
+    # ── Leads by stage ────────────────────────────────────────
+    lead_stages = ["Cold", "Proposal", "Negotiation", "Closed Won", "Closed Lost"]
+    lead_cases = [
+        func.count().filter(Lead.stage == s).label(s.lower().replace(" ", "_"))
+        for s in lead_stages
+    ]
+    lr = (await db.execute(
+        select(*lead_cases).select_from(Lead)
+        .where(Lead.assigned_to.in_(target_ids))
+    )).one()
+    leads_by_stage = {s: getattr(lr, s.lower().replace(" ", "_")) for s in lead_stages}
+
+    # ── Deals by stage ────────────────────────────────────────
+    deal_stages = [
+        "Cold", "Proposal", "Negotiation",
+        "Closed Won", "Closed Lost",
+    ]
+    deal_cases = []
+    for ds in deal_stages:
+        safe = ds.lower().replace(" ", "_")
+        deal_cases.append(func.count().filter(Deal.stage == ds).label(f"{safe}_cnt"))
+        deal_cases.append(
+            func.coalesce(func.sum(case((Deal.stage == ds, Deal.value), else_=0)), 0).label(f"{safe}_val")
+        )
+    dr = (await db.execute(
+        select(*deal_cases).select_from(Deal)
+        .where(Deal.owner_id.in_(target_ids))
+    )).one()
+    deals_by_stage = {}
+    for ds in deal_stages:
+        safe = ds.lower().replace(" ", "_")
+        cnt = getattr(dr, f"{safe}_cnt")
+        val = float(getattr(dr, f"{safe}_val"))
+        if cnt > 0:
+            deals_by_stage[ds] = {"count": cnt, "value": val}
+
+    # ── Monthly sales (last 12 months) ────────────────────────
+    today = date.today()
+    twelve_months_ago = (today.replace(day=1) - timedelta(days=365)).replace(day=1)
+    month_names = ["", "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+                   "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+    monthly_data = [
+        {"month": f"{month_names[int(r.month)]} {int(r.year)}", "revenue": float(r.revenue), "count": r.count}
+        for r in (await db.execute(
+            select(
+                extract("year", SalesEntry.sale_date).label("year"),
+                extract("month", SalesEntry.sale_date).label("month"),
+                func.coalesce(func.sum(SalesEntry.amount), 0).label("revenue"),
+                func.count().label("count"),
+            )
+            .where(SalesEntry.salesperson_id.in_(target_ids))
+            .where(SalesEntry.sale_date >= twelve_months_ago)
+            .group_by("year", "month")
+            .order_by("year", "month")
+        )).all()
+    ]
+
+    # ── Recent sales (last 10) ────────────────────────────────
+    recent_rows = (await db.execute(
+        select(
+            SalesEntry,
+            Partner.company_name.label("partner_name"),
+        )
+        .outerjoin(Partner, SalesEntry.partner_id == Partner.id)
+        .where(SalesEntry.salesperson_id.in_(target_ids))
+        .order_by(SalesEntry.created_at.desc())
+        .limit(10)
+    )).all()
+    recent_sales = [
+        {
+            "id": str(row[0].id),
+            "customerName": row[0].customer_name,
+            "amount": float(row[0].amount),
+            "saleDate": str(row[0].sale_date) if row[0].sale_date else None,
+            "partnerName": row[1],
+            "paymentStatus": row[0].payment_status,
+        }
+        for row in recent_rows
+    ]
+
+    return {
+        "userId": user_id,
+        "userName": user_name,
+        "summary": {
+            "partners": partner_cnt,
+            "leads": lead_cnt,
+            "deals": deal_agg.cnt,
+            "dealValue": float(deal_agg.val),
+            "salesCount": sales_agg.cnt,
+            "salesAmount": float(sales_agg.total),
+        },
+        "leadsByStage": leads_by_stage,
+        "dealsByStage": deals_by_stage,
+        "monthlySales": monthly_data,
+        "recentSales": recent_sales,
     }

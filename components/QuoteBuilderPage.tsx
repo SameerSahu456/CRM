@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import {
   Plus, Search, X, ChevronLeft, ChevronRight, Edit2, Trash2,
   IndianRupee, Loader2, AlertCircle, CheckCircle, Calendar,
-  FileText, Eye, Package, Send, ArrowLeft, Copy,
+  FileText, Eye, Package, Send, ArrowLeft, Copy, Download,
   User as UserIcon, Building2, Percent, Hash
 } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
@@ -490,6 +490,276 @@ export const QuoteBuilderPage: React.FC = () => {
   };
 
   const hasActiveFilters = filterStatus || searchTerm;
+
+  // ---------------------------------------------------------------------------
+  // PDF Download handler (detail view)
+  // ---------------------------------------------------------------------------
+
+  const handleDownloadPDF = () => {
+    if (!detailQuote) return;
+    const q = detailQuote;
+
+    const lineItemsRows = (q.lineItems || [])
+      .map(
+        (li, idx) => `
+        <tr>
+          <td style="padding:10px 12px;text-align:center;border-bottom:1px solid #e2e8f0;color:#64748b;">${idx + 1}</td>
+          <td style="padding:10px 12px;border-bottom:1px solid #e2e8f0;">
+            <div style="font-weight:600;color:#1e293b;">${li.productName || '-'}</div>
+            ${li.description && li.description !== li.productName ? `<div style="font-size:12px;color:#64748b;margin-top:2px;">${li.description}</div>` : ''}
+          </td>
+          <td style="padding:10px 12px;text-align:center;border-bottom:1px solid #e2e8f0;color:#334155;">${li.quantity}</td>
+          <td style="padding:10px 12px;text-align:right;border-bottom:1px solid #e2e8f0;color:#334155;">${formatINR(li.unitPrice)}</td>
+          <td style="padding:10px 12px;text-align:right;border-bottom:1px solid #e2e8f0;color:#334155;">${li.discountPct > 0 ? `${li.discountPct}%` : '-'}</td>
+          <td style="padding:10px 12px;text-align:right;border-bottom:1px solid #e2e8f0;font-weight:600;color:#1e293b;">${formatINR(li.lineTotal)}</td>
+        </tr>`
+      )
+      .join('');
+
+    const htmlContent = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Quote - ${q.quoteNumber || q.id.slice(0, 8)}</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      color: #1e293b;
+      background: #fff;
+      padding: 40px;
+      font-size: 14px;
+      line-height: 1.6;
+    }
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 32px;
+      padding-bottom: 24px;
+      border-bottom: 2px solid #e2e8f0;
+    }
+    .header h1 {
+      font-size: 28px;
+      font-weight: 700;
+      color: #0f172a;
+      margin-bottom: 4px;
+    }
+    .header .quote-number {
+      font-size: 15px;
+      color: #64748b;
+    }
+    .header .status {
+      display: inline-block;
+      padding: 4px 14px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .status-draft { background: #f1f5f9; color: #475569; }
+    .status-sent { background: #dbeafe; color: #1d4ed8; }
+    .status-accepted { background: #d1fae5; color: #047857; }
+    .status-rejected { background: #fee2e2; color: #dc2626; }
+    .info-grid {
+      display: flex;
+      gap: 40px;
+      margin-bottom: 32px;
+    }
+    .info-block { flex: 1; }
+    .info-block .label {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: #94a3b8;
+      margin-bottom: 4px;
+    }
+    .info-block .value {
+      font-size: 14px;
+      color: #1e293b;
+      font-weight: 500;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 24px;
+    }
+    thead th {
+      padding: 10px 12px;
+      text-align: left;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: #64748b;
+      background: #f8fafc;
+      border-bottom: 2px solid #e2e8f0;
+    }
+    thead th.right { text-align: right; }
+    thead th.center { text-align: center; }
+    .totals-section {
+      display: flex;
+      justify-content: flex-end;
+      margin-bottom: 32px;
+    }
+    .totals-table {
+      width: 280px;
+    }
+    .totals-table .row {
+      display: flex;
+      justify-content: space-between;
+      padding: 6px 0;
+      font-size: 14px;
+    }
+    .totals-table .row .label { color: #64748b; }
+    .totals-table .row .value { font-weight: 500; color: #1e293b; }
+    .totals-table .row.discount .value { color: #dc2626; }
+    .totals-table .total-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 12px 0 0;
+      margin-top: 8px;
+      border-top: 2px solid #e2e8f0;
+      font-size: 18px;
+      font-weight: 700;
+      color: #0f172a;
+    }
+    .terms-section {
+      margin-top: 32px;
+      padding-top: 24px;
+      border-top: 1px solid #e2e8f0;
+    }
+    .terms-section h3 {
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: #64748b;
+      margin-bottom: 8px;
+    }
+    .terms-section p {
+      font-size: 13px;
+      color: #475569;
+      white-space: pre-wrap;
+      line-height: 1.7;
+    }
+    .terms-grid {
+      display: flex;
+      gap: 40px;
+    }
+    .terms-grid > div { flex: 1; }
+    @media print {
+      body { padding: 20px; }
+      @page { margin: 20mm; }
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div>
+      <h1>Quotation</h1>
+      <div class="quote-number">${q.quoteNumber || `#${q.id.slice(0, 8)}`}</div>
+    </div>
+    <span class="status status-${q.status}">
+      ${q.status.charAt(0).toUpperCase() + q.status.slice(1)}
+    </span>
+  </div>
+
+  <div class="info-grid">
+    <div class="info-block">
+      <div class="label">Customer</div>
+      <div class="value">${q.customerName || '-'}</div>
+    </div>
+    ${q.partnerName ? `
+    <div class="info-block">
+      <div class="label">Partner</div>
+      <div class="value">${q.partnerName}</div>
+    </div>` : ''}
+    <div class="info-block">
+      <div class="label">Date</div>
+      <div class="value">${formatDate(q.createdAt)}</div>
+    </div>
+    ${q.validUntil ? `
+    <div class="info-block">
+      <div class="label">Valid Until</div>
+      <div class="value">${formatDate(q.validUntil)}</div>
+    </div>` : ''}
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th class="center" style="width:40px;">#</th>
+        <th>Product / Description</th>
+        <th class="center" style="width:60px;">Qty</th>
+        <th class="right" style="width:120px;">Unit Price</th>
+        <th class="right" style="width:80px;">Disc %</th>
+        <th class="right" style="width:120px;">Total</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${lineItemsRows || '<tr><td colspan="6" style="padding:20px;text-align:center;color:#94a3b8;">No line items</td></tr>'}
+    </tbody>
+  </table>
+
+  <div class="totals-section">
+    <div class="totals-table">
+      <div class="row">
+        <span class="label">Subtotal</span>
+        <span class="value">${formatINR(q.subtotal)}</span>
+      </div>
+      ${q.discountAmount > 0 ? `
+      <div class="row discount">
+        <span class="label">Discount</span>
+        <span class="value">-${formatINR(q.discountAmount)}</span>
+      </div>` : ''}
+      <div class="row">
+        <span class="label">Tax (${q.taxRate}%)</span>
+        <span class="value">${formatINR(q.taxAmount)}</span>
+      </div>
+      <div class="total-row">
+        <span>Total</span>
+        <span>${formatINR(q.totalAmount)}</span>
+      </div>
+    </div>
+  </div>
+
+  ${q.terms || q.notes ? `
+  <div class="terms-section">
+    <div class="terms-grid">
+      ${q.terms ? `
+      <div>
+        <h3>Terms &amp; Conditions</h3>
+        <p>${q.terms}</p>
+      </div>` : ''}
+      ${q.notes ? `
+      <div>
+        <h3>Notes</h3>
+        <p>${q.notes}</p>
+      </div>` : ''}
+    </div>
+  </div>` : ''}
+</body>
+</html>`;
+
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      alert('Please allow popups to download the PDF.');
+      return;
+    }
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
+    printWindow.onload = () => {
+      printWindow.focus();
+      printWindow.print();
+      printWindow.onafterprint = () => {
+        printWindow.close();
+      };
+    };
+  };
 
   // ---------------------------------------------------------------------------
   // Render: List View
@@ -1326,6 +1596,19 @@ export const QuoteBuilderPage: React.FC = () => {
             >
               <Edit2 className="w-4 h-4" />
               Edit
+            </button>
+
+            {/* Download PDF */}
+            <button
+              onClick={handleDownloadPDF}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-colors ${
+                isDark
+                  ? 'bg-emerald-900/30 hover:bg-emerald-900/50 text-emerald-400 border border-emerald-800'
+                  : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200'
+              }`}
+            >
+              <Download className="w-4 h-4" />
+              Download PDF
             </button>
 
             {/* Delete */}

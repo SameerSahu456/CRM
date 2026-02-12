@@ -21,7 +21,7 @@ class Lead(TimestampMixin, Base):
     email: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     phone: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
     source: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
-    stage: Mapped[str] = mapped_column(String(50), server_default="New")
+    stage: Mapped[str] = mapped_column(String(50), server_default="Cold")
     priority: Mapped[str] = mapped_column(String(20), server_default="Medium")
     estimated_value: Mapped[Optional[Decimal]] = mapped_column(
         Numeric(15, 2), nullable=True
@@ -95,6 +95,13 @@ class Lead(TimestampMixin, Base):
     lead_type: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
     query_id: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     mcat_name: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+
+    # Tag: Channel or End Customer
+    tag: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+
+    # Designation and Location
+    designation: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
+    location: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
 
     # Lead Image
     lead_image: Mapped[Optional[str]] = mapped_column(Text, nullable=True)

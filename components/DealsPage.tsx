@@ -4,13 +4,18 @@ import {
   IndianRupee, Loader2, AlertCircle, CheckCircle, Calendar,
   Target, TrendingUp, ArrowRight, Eye, LayoutGrid, List,
   XCircle, ChevronDown, Building2, User as UserIcon,
-  Handshake, Percent, FileText, Briefcase, DollarSign,
-  BarChart3, Layers
+  Handshake, FileText, Briefcase, DollarSign,
+  BarChart3, Layers,
+  Download, Upload,
+  MapPin, Phone, Mail
 } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
-import { dealsApi, accountsApi, contactsApi, formatINR } from '../services/api';
-import { Deal, DealStage, Account, Contact, PaginatedResponse } from '../types';
+import { useNavigation } from '../contexts/NavigationContext';
+import { dealsApi, accountsApi, contactsApi, partnersApi, productsApi, salesApi, quotesApi, formatINR } from '../services/api';
+import { exportToCsv } from '../utils/exportCsv';
+import { BulkImportModal } from './BulkImportModal';
+import { Deal, DealStage, Account, Contact, Partner, Product, PaginatedResponse, ActivityLog } from '../types';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -19,18 +24,17 @@ import { Deal, DealStage, Account, Contact, PaginatedResponse } from '../types';
 const PAGE_SIZE = 10;
 
 const DEAL_STAGES: DealStage[] = [
-  'Qualification', 'Discovery', 'Proposal', 'Negotiation', 'Closed Won', 'Closed Lost',
+  'Cold', 'Proposal', 'Negotiation', 'Closed Won', 'Closed Lost',
 ];
 
-const PIPELINE_STAGES: DealStage[] = ['Qualification', 'Discovery', 'Proposal', 'Negotiation'];
+const PIPELINE_STAGES: DealStage[] = ['Cold', 'Proposal', 'Negotiation'];
 const TERMINAL_STAGES: DealStage[] = ['Closed Won', 'Closed Lost'];
 
 const STAGE_COLORS: Record<DealStage, {
   bg: string; text: string; darkBg: string; darkText: string;
   iconBg: string; darkIconBg: string; border: string; darkBorder: string;
 }> = {
-  Qualification:  { bg: 'bg-blue-50', text: 'text-blue-700', darkBg: 'bg-blue-900/30', darkText: 'text-blue-400', iconBg: 'bg-blue-100', darkIconBg: 'bg-blue-900/20', border: 'border-blue-200', darkBorder: 'border-blue-800' },
-  Discovery:      { bg: 'bg-cyan-50', text: 'text-cyan-700', darkBg: 'bg-cyan-900/30', darkText: 'text-cyan-400', iconBg: 'bg-cyan-100', darkIconBg: 'bg-cyan-900/20', border: 'border-cyan-200', darkBorder: 'border-cyan-800' },
+  Cold:           { bg: 'bg-blue-50', text: 'text-blue-700', darkBg: 'bg-blue-900/30', darkText: 'text-blue-400', iconBg: 'bg-blue-100', darkIconBg: 'bg-blue-900/20', border: 'border-blue-200', darkBorder: 'border-blue-800' },
   Proposal:       { bg: 'bg-amber-50', text: 'text-amber-700', darkBg: 'bg-amber-900/30', darkText: 'text-amber-400', iconBg: 'bg-amber-100', darkIconBg: 'bg-amber-900/20', border: 'border-amber-200', darkBorder: 'border-amber-800' },
   Negotiation:    { bg: 'bg-purple-50', text: 'text-purple-700', darkBg: 'bg-purple-900/30', darkText: 'text-purple-400', iconBg: 'bg-purple-100', darkIconBg: 'bg-purple-900/20', border: 'border-purple-200', darkBorder: 'border-purple-800' },
   'Closed Won':   { bg: 'bg-emerald-50', text: 'text-emerald-700', darkBg: 'bg-emerald-900/30', darkText: 'text-emerald-400', iconBg: 'bg-emerald-100', darkIconBg: 'bg-emerald-900/20', border: 'border-emerald-200', darkBorder: 'border-emerald-800' },
@@ -38,8 +42,7 @@ const STAGE_COLORS: Record<DealStage, {
 };
 
 const NEXT_STAGE: Record<string, DealStage> = {
-  Qualification: 'Discovery',
-  Discovery: 'Proposal',
+  Cold: 'Proposal',
   Proposal: 'Negotiation',
   Negotiation: 'Closed Won',
 };
@@ -67,17 +70,33 @@ const FORECAST_OPTIONS = [
   { value: 'Omitted', label: 'Omitted' },
 ];
 
+
+// ---------------------------------------------------------------------------
+// Helper functions
+// ---------------------------------------------------------------------------
+
+
+function relativeTime(dateStr?: string) {
+  if (!dateStr) return '';
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  const days = Math.floor(hrs / 24);
+  if (days < 30) return `${days}d ago`;
+  return new Date(dateStr).toLocaleDateString();
+}
+
 // ---------------------------------------------------------------------------
 // Form types
 // ---------------------------------------------------------------------------
 
 interface DealFormData {
-  title: string;
-  company: string;
   accountId: string;
   value: number;
   stage: DealStage;
-  probability: number;
   closingDate: string;
   description: string;
   contactId: string;
@@ -85,15 +104,19 @@ interface DealFormData {
   forecast: string;
   type: string;
   leadSource: string;
+  tag: string;
+  contactNo: string;
+  designation: string;
+  email: string;
+  location: string;
+  nextFollowUp: string;
+  probability: number;
 }
 
 const EMPTY_DEAL_FORM: DealFormData = {
-  title: '',
-  company: '',
   accountId: '',
   value: 0,
-  stage: 'Qualification',
-  probability: 20,
+  stage: 'Cold',
   closingDate: '',
   description: '',
   contactId: '',
@@ -101,6 +124,13 @@ const EMPTY_DEAL_FORM: DealFormData = {
   forecast: 'Pipeline',
   type: 'New Business',
   leadSource: '',
+  tag: '',
+  contactNo: '',
+  designation: '',
+  email: '',
+  location: '',
+  nextFollowUp: '',
+  probability: 0,
 };
 
 // ---------------------------------------------------------------------------
@@ -137,20 +167,8 @@ function formatDateTime(dateStr?: string): string {
 
 function stageBadge(stage: DealStage, isDark: boolean): string {
   const base = 'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium';
-  const c = STAGE_COLORS[stage] || STAGE_COLORS['Qualification']; // Fallback to Qualification if stage not found
+  const c = STAGE_COLORS[stage] || STAGE_COLORS['Cold']; // Fallback to Cold if stage not found
   return `${base} ${isDark ? `${c.darkBg} ${c.darkText}` : `${c.bg} ${c.text}`}`;
-}
-
-function getDefaultProbability(stage: DealStage): number {
-  switch (stage) {
-    case 'Qualification': return 20;
-    case 'Discovery': return 40;
-    case 'Proposal': return 60;
-    case 'Negotiation': return 80;
-    case 'Closed Won': return 100;
-    case 'Closed Lost': return 0;
-    default: return 20;
-  }
 }
 
 // ---------------------------------------------------------------------------
@@ -160,9 +178,11 @@ function getDefaultProbability(stage: DealStage): number {
 export const DealsPage: React.FC = () => {
   const { theme } = useTheme();
   const { user } = useAuth();
+  const { setActiveTab: navigate } = useNavigation();
   const isDark = theme === 'dark';
 
   // Data state
+  const [showBulkImport, setShowBulkImport] = useState(false);
   const [deals, setDeals] = useState<Deal[]>([]);
   const [pipelineDeals, setPipelineDeals] = useState<Deal[]>([]);
   const [pipelineStats, setPipelineStats] = useState<Record<string, { count: number; totalValue: number }>>({});
@@ -202,12 +222,45 @@ export const DealsPage: React.FC = () => {
   // Delete confirmation
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
+  // Summary modal
+  const [showSummary, setShowSummary] = useState(false);
+
+  // Summarise (per-deal) modal
+  const [showSummariseModal, setShowSummariseModal] = useState(false);
+  const [summariseDeal, setSummariseDeal] = useState<Deal | null>(null);
+
+  // Audit state
+  const [auditLogs, setAuditLogs] = useState<ActivityLog[]>([]);
+  const [isAuditLoading, setIsAuditLoading] = useState(false);
+
+  // Closed Won modal state
+  const [showClosedWonModal, setShowClosedWonModal] = useState(false);
+  const [closedWonDealId, setClosedWonDealId] = useState<string | null>(null);
+  const [closedWonPayload, setClosedWonPayload] = useState<any>(null);
+  const [closedWonDescription, setClosedWonDescription] = useState('');
+  const [closedWonPartnerId, setClosedWonPartnerId] = useState('');
+  const [closedWonProductId, setClosedWonProductId] = useState('');
+  const [closedWonSaving, setClosedWonSaving] = useState(false);
+  const [closedWonError, setClosedWonError] = useState('');
+
+  // Quote modal state
+  const [showQuoteModal, setShowQuoteModal] = useState(false);
+  const [quoteDeal, setQuoteDeal] = useState<Deal | null>(null);
+  const [quoteNotes, setQuoteNotes] = useState('');
+  const [quoteTerms, setQuoteTerms] = useState('');
+  const [quoteSaving, setQuoteSaving] = useState(false);
+  const [quoteError, setQuoteError] = useState('');
+
+  // Partner/Product data for Closed Won modal
+  const [partners, setPartners] = useState<Partner[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
+
   // ---------------------------------------------------------------------------
   // Styling helpers
   // ---------------------------------------------------------------------------
 
   const cardClass = `premium-card ${isDark ? 'bg-dark-50 border border-zinc-800' : 'bg-white shadow-soft'}`;
-  const inputClass = `w-full px-3 py-2 rounded-xl border text-sm transition-all ${
+  const inputClass = `w-full px-3 py-2.5 rounded-xl border text-sm transition-all ${
     isDark
       ? 'bg-dark-100 border-zinc-700 text-white placeholder-zinc-500 focus:border-brand-500'
       : 'bg-white border-slate-200 text-slate-900 placeholder-slate-400 focus:border-brand-500'
@@ -270,14 +323,19 @@ export const DealsPage: React.FC = () => {
 
   const fetchDropdownData = useCallback(async () => {
     try {
-      const [accountsResponse, contactsResponse] = await Promise.all([
+      const [accountsResponse, contactsResponse, partnersResponse, productsResponse] = await Promise.all([
         accountsApi.list({ limit: '100' }),
         contactsApi.list({ limit: '100' }),
+        partnersApi.list({ limit: '100' }),
+        productsApi.list(),
       ]);
       const acctData = accountsResponse?.data ?? accountsResponse;
       setAccounts(Array.isArray(acctData) ? acctData : []);
       const contData = contactsResponse?.data ?? contactsResponse;
       setContacts(Array.isArray(contData) ? contData : []);
+      const partData = partnersResponse?.data ?? partnersResponse;
+      setPartners(Array.isArray(partData) ? partData : []);
+      setProducts(Array.isArray(productsResponse) ? productsResponse : []);
     } catch {
       // Dropdown data failure is non-critical
     }
@@ -316,12 +374,9 @@ export const DealsPage: React.FC = () => {
 
   const openEditDealModal = (deal: Deal) => {
     setDealFormData({
-      title: deal.title || '',
-      company: deal.company || '',
       accountId: deal.accountId || '',
       value: deal.value || 0,
       stage: deal.stage,
-      probability: deal.probability ?? getDefaultProbability(deal.stage),
       closingDate: deal.closingDate ? deal.closingDate.split('T')[0] : '',
       description: deal.description || '',
       contactId: deal.contactId || '',
@@ -329,6 +384,13 @@ export const DealsPage: React.FC = () => {
       forecast: deal.forecast || 'Pipeline',
       type: deal.type || 'New Business',
       leadSource: deal.leadSource || '',
+      tag: deal.tag || '',
+      contactNo: deal.contactNo || '',
+      designation: deal.designation || '',
+      email: deal.email || '',
+      location: deal.location || '',
+      nextFollowUp: deal.nextFollowUp ? deal.nextFollowUp.split('T')[0] : '',
+      probability: deal.probability ?? 0,
     });
     setEditingDealId(deal.id);
     setDealFormError('');
@@ -341,15 +403,25 @@ export const DealsPage: React.FC = () => {
     setDealFormError('');
   };
 
-  const openDealDetailModal = (deal: Deal) => {
+  const openDealDetailModal = async (deal: Deal) => {
     setDetailDeal(deal);
     setShowDetailModal(true);
+    setAuditLogs([]);
+
+    // Fetch audit logs
+    setIsAuditLoading(true);
+    try {
+      const data = await dealsApi.getAuditLog(deal.id);
+      setAuditLogs(Array.isArray(data) ? data : []);
+    } catch (err) { console.error('Failed to load audit logs', err); }
+    setIsAuditLoading(false);
   };
 
   const closeDealDetailModal = () => {
     setShowDetailModal(false);
     setDetailDeal(null);
   };
+
 
   const handleDealFormChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
@@ -358,14 +430,10 @@ export const DealsPage: React.FC = () => {
     setDealFormData(prev => {
       const updated = {
         ...prev,
-        [name]: name === 'value' || name === 'probability'
+        [name]: name === 'value'
           ? Number(value) || 0
           : value,
       };
-      // Auto-adjust probability when stage changes
-      if (name === 'stage') {
-        updated.probability = getDefaultProbability(value as DealStage);
-      }
       return updated;
     });
   };
@@ -374,18 +442,39 @@ export const DealsPage: React.FC = () => {
     e.preventDefault();
     setDealFormError('');
 
-    if (!dealFormData.title.trim()) {
-      setDealFormError('Deal title is required');
+    if (!dealFormData.value) {
+      setDealFormError('Deal value is required');
       return;
+    }
+
+    // Intercept Closed Won stage change → show popup
+    if (dealFormData.stage === 'Closed Won') {
+      const isAlreadyClosedWon = editingDealId && deals.find(d => d.id === editingDealId)?.stage === 'Closed Won';
+      if (!isAlreadyClosedWon) {
+        const acct = accounts.find(a => a.id === dealFormData.accountId);
+        const payload: any = { ...dealFormData, title: acct?.name || 'Deal' };
+        if (!payload.accountId) delete payload.accountId;
+        if (!payload.contactId) delete payload.contactId;
+        if (!payload.closingDate) delete payload.closingDate;
+        setClosedWonDealId(editingDealId);
+        setClosedWonPayload(payload);
+        setClosedWonDescription(dealFormData.description || '');
+        setShowClosedWonModal(true);
+        closeDealModal();
+        return;
+      }
     }
 
     setIsSubmitting(true);
     try {
-      const payload: any = { ...dealFormData };
+      const acct = accounts.find(a => a.id === dealFormData.accountId);
+      const payload: any = {
+        ...dealFormData,
+        title: acct?.name || 'Deal',
+      };
       if (!payload.accountId) delete payload.accountId;
       if (!payload.contactId) delete payload.contactId;
       if (!payload.closingDate) delete payload.closingDate;
-      if (!payload.company) delete payload.company;
 
       if (editingDealId) {
         await dealsApi.update(editingDealId, payload);
@@ -407,10 +496,19 @@ export const DealsPage: React.FC = () => {
 
   const handleMoveStage = async (deal: Deal, newStage: DealStage) => {
     if (deal.stage === newStage) return;
+
+    // Intercept Closed Won → show popup
+    if (newStage === 'Closed Won') {
+      setClosedWonDealId(deal.id);
+      setClosedWonPayload({ stage: 'Closed Won', value: deal.value, accountId: deal.accountId, title: deal.accountName || 'Deal' });
+      setClosedWonDescription(deal.description || '');
+      setShowClosedWonModal(true);
+      return;
+    }
+
     try {
       await dealsApi.update(deal.id, {
         stage: newStage,
-        probability: getDefaultProbability(newStage),
       });
       refreshData();
     } catch {
@@ -445,6 +543,97 @@ export const DealsPage: React.FC = () => {
     }
   };
 
+  // ---------------------------------------------------------------------------
+  // Closed Won modal handlers
+  // ---------------------------------------------------------------------------
+
+  const closeClosedWonModal = () => {
+    setShowClosedWonModal(false);
+    setClosedWonDealId(null);
+    setClosedWonPayload(null);
+    setClosedWonDescription('');
+    setClosedWonPartnerId('');
+    setClosedWonProductId('');
+    setClosedWonError('');
+  };
+
+  const handleClosedWonSubmit = async () => {
+    if (!closedWonDescription.trim()) {
+      setClosedWonError('Description is required');
+      return;
+    }
+
+    setClosedWonSaving(true);
+    setClosedWonError('');
+
+    try {
+      const updatedPayload = {
+        ...closedWonPayload,
+        stage: 'Closed Won',
+        description: closedWonDescription,
+      };
+
+      if (closedWonDealId) {
+        await dealsApi.update(closedWonDealId, updatedPayload);
+      } else {
+        await dealsApi.create({ ...updatedPayload, ownerId: user?.id });
+      }
+
+      // Auto-create Sales Entry
+      const acct = accounts.find(a => a.id === closedWonPayload?.accountId);
+      await salesApi.create({
+        partnerId: closedWonPartnerId || undefined,
+        productId: closedWonProductId || undefined,
+        salespersonId: user?.id,
+        customerName: acct?.name || closedWonPayload?.title || 'Deal',
+        quantity: 1,
+        amount: closedWonPayload?.value || 0,
+        paymentStatus: 'pending',
+        saleDate: new Date().toISOString().split('T')[0],
+        notes: `Auto-created from deal: ${closedWonDescription}`,
+      });
+
+      closeClosedWonModal();
+      refreshData();
+    } catch (err: any) {
+      setClosedWonError(err.message || 'Failed to complete deal');
+    } finally {
+      setClosedWonSaving(false);
+    }
+  };
+
+
+  const renderReadCell = (deal: Deal, colKey: string) => {
+    switch (colKey) {
+      case 'accountId':
+        return <span className="font-medium truncate block max-w-[200px]">{deal.accountName || '-'}</span>;
+      case 'value':
+        return <span className="font-semibold whitespace-nowrap">{deal.value ? formatINR(deal.value) : '-'}</span>;
+      case 'stage':
+        return <span className={stageBadge(deal.stage, isDark)}>{deal.stage}</span>;
+      case 'closingDate':
+        return <span className="whitespace-nowrap">{deal.closingDate ? formatDate(deal.closingDate) : '-'}</span>;
+      case 'type':
+        return deal.type || '-';
+      case 'tag':
+        if (!deal.tag) return '-';
+        return (
+          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+            deal.tag === 'Channel'
+              ? (isDark ? 'bg-indigo-900/30 text-indigo-400' : 'bg-indigo-50 text-indigo-700')
+              : (isDark ? 'bg-teal-900/30 text-teal-400' : 'bg-teal-50 text-teal-700')
+          }`}>
+            {deal.tag}
+          </span>
+        );
+      default: return '-';
+    }
+  };
+
+  // ---------------------------------------------------------------------------
+  // Misc helpers
+  // ---------------------------------------------------------------------------
+
   const clearFilters = () => {
     setFilterStage('');
     setFilterAccount('');
@@ -460,21 +649,21 @@ export const DealsPage: React.FC = () => {
   const renderStatsBar = () => (
     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
       {DEAL_STAGES.map((stage, idx) => {
-        const c = STAGE_COLORS[stage] || STAGE_COLORS['Qualification']; // Fallback to Qualification if stage not found
+        const c = STAGE_COLORS[stage] || STAGE_COLORS['Cold']; // Fallback to Cold if stage not found
         const stats = pipelineStats[stage];
         const count = stats?.count ?? 0;
         const totalValue = stats?.totalValue ?? 0;
         return (
           <div
             key={stage}
-            className={`${cardClass} p-3 hover-lift animate-fade-in-up`}
+            onClick={() => navigate('deals')}
+            className={`${cardClass} p-3 hover-lift animate-fade-in-up cursor-pointer`}
             style={{ animationDelay: `${idx * 50}ms` }}
           >
             <div className={`w-8 h-8 rounded-lg flex items-center justify-center mb-2 ${
               isDark ? c.darkIconBg : c.iconBg
             }`}>
-              {stage === 'Qualification' && <Target className={`w-4 h-4 ${isDark ? c.darkText : c.text}`} />}
-              {stage === 'Discovery' && <Search className={`w-4 h-4 ${isDark ? c.darkText : c.text}`} />}
+              {stage === 'Cold' && <Target className={`w-4 h-4 ${isDark ? c.darkText : c.text}`} />}
               {stage === 'Proposal' && <FileText className={`w-4 h-4 ${isDark ? c.darkText : c.text}`} />}
               {stage === 'Negotiation' && <Handshake className={`w-4 h-4 ${isDark ? c.darkText : c.text}`} />}
               {stage === 'Closed Won' && <CheckCircle className={`w-4 h-4 ${isDark ? c.darkText : c.text}`} />}
@@ -539,10 +728,10 @@ export const DealsPage: React.FC = () => {
           }`} />
           <input
             type="text"
-            placeholder="Search deals by title or company..."
+            placeholder="Search deals..."
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
-            className={`w-full pl-10 pr-4 py-2 rounded-xl border text-sm transition-all ${
+            className={`w-full pl-10 pr-4 py-2.5 rounded-xl border text-sm transition-all ${
               isDark
                 ? 'bg-dark-100 border-zinc-700 text-white placeholder-zinc-500 focus:border-brand-500'
                 : 'bg-white border-slate-200 text-slate-900 placeholder-slate-400 focus:border-brand-500'
@@ -593,6 +782,66 @@ export const DealsPage: React.FC = () => {
           </button>
         )}
 
+        {/* Bulk Import */}
+        <button
+          onClick={() => setShowBulkImport(true)}
+          title="Import from CSV"
+          className={`flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-normal transition-colors whitespace-nowrap ${
+            isDark
+              ? 'text-zinc-400 border border-zinc-700 hover:bg-zinc-800'
+              : 'text-slate-500 border border-slate-200 hover:bg-slate-50'
+          }`}
+        >
+          <Upload className="w-4 h-4" />
+          Import
+        </button>
+
+        {/* Export CSV */}
+        <button
+          onClick={() => exportToCsv('deals', [
+            { header: 'Company', accessor: (r: Deal) => r.company || r.accountName },
+            { header: 'Contact Name', accessor: (r: Deal) => r.contactName },
+            { header: 'Contact No', accessor: (r: Deal) => r.contactNo },
+            { header: 'Designation', accessor: (r: Deal) => r.designation },
+            { header: 'Email', accessor: (r: Deal) => r.email },
+            { header: 'Location', accessor: (r: Deal) => r.location },
+            { header: 'Stage', accessor: (r: Deal) => r.stage },
+            { header: 'Value', accessor: (r: Deal) => r.value },
+            { header: 'Tag', accessor: (r: Deal) => r.tag },
+            { header: 'Follow-up Date', accessor: (r: Deal) => r.nextFollowUp },
+            { header: 'Closing Date', accessor: (r: Deal) => r.closingDate },
+            { header: 'Type', accessor: (r: Deal) => r.type },
+            { header: 'Forecast', accessor: (r: Deal) => r.forecast },
+            { header: 'Lead Source', accessor: (r: Deal) => r.leadSource },
+            { header: 'Owner', accessor: (r: Deal) => r.ownerName },
+            { header: 'Next Step', accessor: (r: Deal) => r.nextStep },
+            { header: 'Description', accessor: (r: Deal) => r.description },
+          ], deals)}
+          disabled={deals.length === 0}
+          title="Export to Excel"
+          className={`flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-normal transition-colors whitespace-nowrap ${
+            isDark
+              ? 'text-zinc-400 border border-zinc-700 hover:bg-zinc-800 disabled:opacity-30'
+              : 'text-slate-500 border border-slate-200 hover:bg-slate-50 disabled:opacity-30'
+          }`}
+        >
+          <Download className="w-4 h-4" />
+          Export
+        </button>
+
+        {/* Summarise */}
+        <button
+          onClick={() => setShowSummary(true)}
+          className={`flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-normal transition-colors whitespace-nowrap ${
+            isDark
+              ? 'text-zinc-400 border border-zinc-700 hover:bg-zinc-800'
+              : 'text-slate-500 border border-slate-200 hover:bg-slate-50'
+          }`}
+        >
+          <BarChart3 className="w-4 h-4" />
+          Summarise
+        </button>
+
         {/* New Deal */}
         <button
           onClick={openCreateDealModal}
@@ -609,274 +858,290 @@ export const DealsPage: React.FC = () => {
   // Render: Table View
   // ---------------------------------------------------------------------------
 
-  const renderTableView = () => (
-    <div className={`${cardClass} overflow-hidden`}>
-      {tableError && (
-        <div className={`m-4 p-3 rounded-xl flex items-center gap-2 text-sm ${
-          isDark
-            ? 'bg-red-900/20 border border-red-800 text-red-400'
-            : 'bg-red-50 border border-red-200 text-red-700'
-        }`}>
-          <AlertCircle className="w-4 h-4 flex-shrink-0" />
-          {tableError}
-        </div>
-      )}
+  const renderTableView = () => {
+    const cellBase = `px-3 py-2.5 text-sm ${isDark ? 'border-zinc-800' : 'border-slate-100'}`;
+    const hdrCell = `px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wider ${isDark ? 'text-zinc-400 bg-dark-100' : 'text-slate-500 bg-slate-50'}`;
 
-      {isLoading ? (
-        <div className="flex flex-col items-center justify-center py-20">
-          <Loader2 className="w-8 h-8 text-brand-600 animate-spin" />
-          <p className={`mt-3 text-sm ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>
-            Loading deals...
-          </p>
-        </div>
-      ) : deals.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-20">
-          <div className={`w-16 h-16 rounded-2xl flex items-center justify-center mb-4 ${
-            isDark ? 'bg-zinc-800' : 'bg-slate-100'
+    return (
+      <div className={`${cardClass} overflow-hidden`}>
+        {tableError && (
+          <div className={`m-4 p-3 rounded-xl flex items-center gap-2 text-sm ${
+            isDark
+              ? 'bg-red-900/20 border border-red-800 text-red-400'
+              : 'bg-red-50 border border-red-200 text-red-700'
           }`}>
-            <Briefcase className={`w-7 h-7 ${isDark ? 'text-zinc-600' : 'text-slate-300'}`} />
+            <AlertCircle className="w-4 h-4 flex-shrink-0" />
+            {tableError}
           </div>
-          <p className={`text-sm font-medium ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>
-            {hasActiveFilters ? 'No deals match your filters' : 'No deals yet'}
-          </p>
-          <p className={`text-xs mt-1 ${isDark ? 'text-zinc-600' : 'text-slate-400'}`}>
-            {hasActiveFilters ? 'Try adjusting your filters' : 'Click "New Deal" to create one'}
-          </p>
-        </div>
-      ) : (
-        <>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className={`border-b ${isDark ? 'border-zinc-800' : 'border-slate-100'}`}>
-                  {['Title', 'Company', 'Account', 'Value', 'Stage', 'Probability', 'Closing Date', 'Owner', 'Actions'].map(h => (
-                    <th
-                      key={h}
-                      className={`px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider ${
-                        isDark ? 'text-zinc-500' : 'text-slate-400'
+        )}
+
+        {/* Record count */}
+        {totalRecords > 0 && (
+          <div className={`px-4 py-2 text-xs ${isDark ? 'text-zinc-500 border-b border-zinc-800' : 'text-slate-400 border-b border-slate-100'}`}>
+            {totalRecords} deal{totalRecords !== 1 ? 's' : ''} total
+          </div>
+        )}
+
+        {isLoading ? (
+          <div className="flex flex-col items-center justify-center py-20">
+            <Loader2 className="w-8 h-8 text-brand-600 animate-spin" />
+            <p className={`mt-3 text-sm ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>
+              Loading deals...
+            </p>
+          </div>
+        ) : (
+          <>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm border-collapse">
+                <thead>
+                  <tr className={`border-b ${isDark ? 'border-zinc-700' : 'border-slate-200'}`}>
+                    <th className={`${hdrCell} w-[40px] text-center`}>#</th>
+                    <th className={`${hdrCell} w-[140px]`}>Company</th>
+                    <th className={`${hdrCell} w-[120px]`}>Contact Name</th>
+                    <th className={`${hdrCell} w-[110px]`}>Contact No</th>
+                    <th className={`${hdrCell} w-[100px]`}>Designation</th>
+                    <th className={`${hdrCell} w-[150px]`}>Email</th>
+                    <th className={`${hdrCell} w-[100px]`}>Location</th>
+                    <th className={`${hdrCell} w-[100px]`}>Stage</th>
+                    <th className={`${hdrCell} w-[100px]`}>Value</th>
+                    <th className={`${hdrCell} w-[90px]`}>Tag</th>
+                    <th className={`${hdrCell} w-[110px]`}>Follow-up Date</th>
+                    <th className={`${hdrCell} w-[80px] text-center`}>Summarise</th>
+                    <th className={`${hdrCell} w-[90px] text-center`}>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {deals.length === 0 ? (
+                    <tr>
+                      <td colSpan={13} className="py-16 text-center">
+                        <Briefcase className={`w-8 h-8 mx-auto ${isDark ? 'text-zinc-700' : 'text-slate-300'}`} />
+                        <p className={`mt-2 text-sm ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
+                          {hasActiveFilters ? 'No deals match filters' : 'No deals yet'}
+                        </p>
+                      </td>
+                    </tr>
+                  ) : deals.map((deal, idx) => (
+                    <tr
+                      key={deal.id}
+                      onClick={() => openDealDetailModal(deal)}
+                      className={`border-b cursor-pointer transition-colors ${
+                        isDark
+                          ? 'border-zinc-800 hover:bg-zinc-800/50'
+                          : 'border-slate-100 hover:bg-slate-50'
                       }`}
                     >
-                      {h}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {deals.map(deal => (
-                  <tr
-                    key={deal.id}
-                    onClick={() => openDealDetailModal(deal)}
-                    className={`border-b transition-colors cursor-pointer ${
-                      isDark
-                        ? 'border-zinc-800/50 hover:bg-gray-800/50'
-                        : 'border-slate-50 hover:bg-gray-50'
-                    }`}
-                  >
-                    {/* Title */}
-                    <td className={`px-4 py-3 ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                      <div className="flex items-center gap-2">
-                        <Briefcase className={`w-3.5 h-3.5 flex-shrink-0 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`} />
-                        <span className="font-medium truncate max-w-[180px]">{deal.title}</span>
-                      </div>
-                    </td>
-
-                    {/* Company */}
-                    <td className={`px-4 py-3 ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
-                      {deal.company || '-'}
-                    </td>
-
-                    {/* Account */}
-                    <td className={`px-4 py-3 ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
-                      <div className="flex items-center gap-1.5">
-                        {deal.accountName && <Building2 className={`w-3 h-3 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`} />}
-                        <span className="truncate max-w-[120px]">{deal.accountName || '-'}</span>
-                      </div>
-                    </td>
-
-                    {/* Value */}
-                    <td className={`px-4 py-3 whitespace-nowrap font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                      {deal.value ? formatINR(deal.value) : '-'}
-                    </td>
-
-                    {/* Stage */}
-                    <td className="px-4 py-3">
-                      <span className={stageBadge(deal.stage, isDark)}>{deal.stage}</span>
-                    </td>
-
-                    {/* Probability */}
-                    <td className={`px-4 py-3 ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
-                      <div className="flex items-center gap-2">
-                        <div className={`w-16 h-1.5 rounded-full overflow-hidden ${isDark ? 'bg-zinc-800' : 'bg-slate-200'}`}>
-                          <div
-                            className="h-full rounded-full bg-brand-500 transition-all"
-                            style={{ width: `${Math.min(100, deal.probability ?? 0)}%` }}
-                          />
-                        </div>
-                        <span className="text-xs font-medium">{deal.probability ?? 0}%</span>
-                      </div>
-                    </td>
-
-                    {/* Closing Date */}
-                    <td className={`px-4 py-3 whitespace-nowrap ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
-                      {deal.closingDate ? (
-                        <div className="flex items-center gap-1.5">
-                          <Calendar className={`w-3.5 h-3.5 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`} />
-                          {formatDate(deal.closingDate)}
-                        </div>
-                      ) : '-'}
-                    </td>
-
-                    {/* Owner */}
-                    <td className={`px-4 py-3 ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
-                      {deal.ownerName ? (
-                        <div className="flex items-center gap-1.5">
-                          <UserIcon className={`w-3 h-3 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`} />
-                          <span className="truncate max-w-[100px]">{deal.ownerName}</span>
-                        </div>
-                      ) : '-'}
-                    </td>
-
-                    {/* Actions */}
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-1">
+                      {/* # */}
+                      <td className={`${cellBase} text-center ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
+                        {(page - 1) * PAGE_SIZE + idx + 1}
+                      </td>
+                      {/* Company */}
+                      <td className={`${cellBase} ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
+                        <span className="font-medium">{deal.company || deal.accountName || '-'}</span>
+                      </td>
+                      {/* Contact Name */}
+                      <td className={`${cellBase} ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
+                        {deal.contactName || '-'}
+                      </td>
+                      {/* Contact No */}
+                      <td className={`${cellBase} ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
+                        {deal.contactNo || '-'}
+                      </td>
+                      {/* Designation */}
+                      <td className={`${cellBase} ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
+                        {deal.designation || '-'}
+                      </td>
+                      {/* Email */}
+                      <td className={`${cellBase} ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
+                        <span className="truncate block max-w-[140px]">{deal.email || '-'}</span>
+                      </td>
+                      {/* Location */}
+                      <td className={`${cellBase} ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
+                        {deal.location || '-'}
+                      </td>
+                      {/* Stage */}
+                      <td className={`${cellBase}`}>
+                        {renderReadCell(deal, 'stage')}
+                      </td>
+                      {/* Value */}
+                      <td className={`${cellBase}`}>
+                        {renderReadCell(deal, 'value')}
+                      </td>
+                      {/* Tag */}
+                      <td className={`${cellBase}`}>
+                        {renderReadCell(deal, 'tag')}
+                      </td>
+                      {/* Follow-up Date */}
+                      <td className={`${cellBase} ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
+                        {deal.nextFollowUp ? formatDate(deal.nextFollowUp) : '-'}
+                      </td>
+                      {/* Summarise */}
+                      <td className={`${cellBase} text-center`}>
                         <button
-                          onClick={(e) => { e.stopPropagation(); openEditDealModal(deal); }}
-                          title="Edit"
+                          onClick={(e) => { e.stopPropagation(); setSummariseDeal(deal); setShowSummariseModal(true); }}
+                          title="Summarise"
                           className={`p-1.5 rounded-lg transition-colors ${
                             isDark
                               ? 'text-zinc-400 hover:text-brand-400 hover:bg-brand-900/20'
                               : 'text-slate-400 hover:text-brand-600 hover:bg-brand-50'
                           }`}
                         >
-                          <Edit2 className="w-4 h-4" />
+                          <FileText className="w-4 h-4" />
                         </button>
-
-                        {deleteConfirmId === deal.id ? (
-                          <div className="flex items-center gap-1">
-                            <button
-                              onClick={(e) => { e.stopPropagation(); handleDelete(deal.id); }}
-                              className="px-2 py-1 rounded-lg text-xs font-medium bg-red-600 text-white hover:bg-red-700 transition-colors"
-                            >
-                              Confirm
-                            </button>
-                            <button
-                              onClick={(e) => { e.stopPropagation(); setDeleteConfirmId(null); }}
-                              className={`px-2 py-1 rounded-lg text-xs font-medium transition-colors ${
-                                isDark
-                                  ? 'text-zinc-400 hover:bg-zinc-800'
-                                  : 'text-slate-500 hover:bg-slate-100'
-                              }`}
-                            >
-                              Cancel
-                            </button>
-                          </div>
-                        ) : (
+                      </td>
+                      {/* Actions */}
+                      <td className={`${cellBase} text-center`}>
+                        <div className="flex items-center justify-center gap-1">
                           <button
-                            onClick={(e) => { e.stopPropagation(); setDeleteConfirmId(deal.id); }}
-                            title="Delete"
+                            onClick={(e) => { e.stopPropagation(); openDealDetailModal(deal); }}
+                            title="View"
                             className={`p-1.5 rounded-lg transition-colors ${
                               isDark
-                                ? 'text-zinc-400 hover:text-red-400 hover:bg-red-900/20'
-                                : 'text-slate-400 hover:text-red-600 hover:bg-red-50'
+                                ? 'text-zinc-400 hover:text-brand-400 hover:bg-brand-900/20'
+                                : 'text-slate-400 hover:text-brand-600 hover:bg-brand-50'
                             }`}
                           >
-                            <Trash2 className="w-4 h-4" />
+                            <Eye className="w-4 h-4" />
                           </button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Pagination */}
-          <div className={`flex flex-col sm:flex-row items-center justify-between gap-3 px-4 py-3 border-t ${
-            isDark ? 'border-zinc-800' : 'border-slate-100'
-          }`}>
-            <p className={`text-xs ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
-              Showing {(page - 1) * PAGE_SIZE + 1}
-              {' '}&ndash;{' '}
-              {Math.min(page * PAGE_SIZE, totalRecords)} of {totalRecords} deals
-            </p>
-
-            <div className="flex items-center gap-1">
-              <button
-                onClick={() => setPage(p => Math.max(1, p - 1))}
-                disabled={page <= 1}
-                className={`p-2 rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed ${
-                  isDark
-                    ? 'text-zinc-400 hover:text-white hover:bg-zinc-800'
-                    : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100'
-                }`}
-              >
-                <ChevronLeft className="w-4 h-4" />
-              </button>
-
-              {Array.from({ length: totalPages }, (_, i) => i + 1)
-                .filter(p => {
-                  if (p === 1 || p === totalPages) return true;
-                  if (Math.abs(p - page) <= 1) return true;
-                  return false;
-                })
-                .reduce<(number | 'ellipsis')[]>((acc, p, idx, arr) => {
-                  if (idx > 0) {
-                    const prev = arr[idx - 1];
-                    if (p - prev > 1) acc.push('ellipsis');
-                  }
-                  acc.push(p);
-                  return acc;
-                }, [])
-                .map((item, idx) =>
-                  item === 'ellipsis' ? (
-                    <span
-                      key={`ellipsis-${idx}`}
-                      className={`px-1 text-xs ${isDark ? 'text-zinc-600' : 'text-slate-300'}`}
-                    >
-                      ...
-                    </span>
-                  ) : (
-                    <button
-                      key={item}
-                      onClick={() => setPage(item as number)}
-                      className={`min-w-[32px] h-8 rounded-lg text-xs font-medium transition-colors ${
-                        page === item
-                          ? 'bg-brand-600 text-white'
-                          : isDark
-                            ? 'text-zinc-400 hover:text-white hover:bg-zinc-800'
-                            : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100'
-                      }`}
-                    >
-                      {item}
-                    </button>
-                  )
-                )}
-
-              <button
-                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                disabled={page >= totalPages}
-                className={`p-2 rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed ${
-                  isDark
-                    ? 'text-zinc-400 hover:text-white hover:bg-zinc-800'
-                    : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100'
-                }`}
-              >
-                <ChevronRight className="w-4 h-4" />
-              </button>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); openEditDealModal(deal); }}
+                            title="Edit"
+                            className={`p-1.5 rounded-lg transition-colors ${
+                              isDark
+                                ? 'text-zinc-400 hover:text-brand-400 hover:bg-brand-900/20'
+                                : 'text-slate-400 hover:text-brand-600 hover:bg-brand-50'
+                            }`}
+                          >
+                            <Edit2 className="w-4 h-4" />
+                          </button>
+                          {deleteConfirmId === deal.id ? (
+                            <div className="flex items-center gap-1">
+                              <button
+                                onClick={(e) => { e.stopPropagation(); handleDelete(deal.id); }}
+                                className="px-2 py-1 rounded-lg text-xs font-medium bg-red-600 text-white hover:bg-red-700 transition-colors"
+                              >
+                                Confirm
+                              </button>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); setDeleteConfirmId(null); }}
+                                className={`px-2 py-1 rounded-lg text-xs font-medium transition-colors ${
+                                  isDark
+                                    ? 'text-zinc-400 hover:bg-zinc-800'
+                                    : 'text-slate-500 hover:bg-slate-100'
+                                }`}
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={(e) => { e.stopPropagation(); setDeleteConfirmId(deal.id); }}
+                              title="Delete"
+                              className={`p-1.5 rounded-lg transition-colors ${
+                                isDark
+                                  ? 'text-zinc-400 hover:text-red-400 hover:bg-red-900/20'
+                                  : 'text-slate-400 hover:text-red-600 hover:bg-red-50'
+                              }`}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
-          </div>
-        </>
-      )}
-    </div>
-  );
+
+            {/* Pagination */}
+            {deals.length > 0 && (
+              <div className={`flex flex-col sm:flex-row items-center justify-between gap-3 px-4 py-3 border-t ${
+                isDark ? 'border-zinc-800' : 'border-slate-100'
+              }`}>
+                <p className={`text-xs ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
+                  Showing {(page - 1) * PAGE_SIZE + 1}
+                  {' '}&ndash;{' '}
+                  {Math.min(page * PAGE_SIZE, totalRecords)} of {totalRecords} deals
+                </p>
+
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => setPage(p => Math.max(1, p - 1))}
+                    disabled={page <= 1}
+                    className={`p-2 rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed ${
+                      isDark
+                        ? 'text-zinc-400 hover:text-white hover:bg-zinc-800'
+                        : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100'
+                    }`}
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </button>
+
+                  {Array.from({ length: totalPages }, (_, i) => i + 1)
+                    .filter(p => {
+                      if (p === 1 || p === totalPages) return true;
+                      if (Math.abs(p - page) <= 1) return true;
+                      return false;
+                    })
+                    .reduce<(number | 'ellipsis')[]>((acc, p, idx, arr) => {
+                      if (idx > 0) {
+                        const prev = arr[idx - 1];
+                        if (p - prev > 1) acc.push('ellipsis');
+                      }
+                      acc.push(p);
+                      return acc;
+                    }, [])
+                    .map((item, idx) =>
+                      item === 'ellipsis' ? (
+                        <span
+                          key={`ellipsis-${idx}`}
+                          className={`px-1 text-xs ${isDark ? 'text-zinc-600' : 'text-slate-300'}`}
+                        >
+                          ...
+                        </span>
+                      ) : (
+                        <button
+                          key={item}
+                          onClick={() => setPage(item as number)}
+                          className={`min-w-[32px] h-8 rounded-lg text-xs font-medium transition-colors ${
+                            page === item
+                              ? 'bg-brand-600 text-white'
+                              : isDark
+                                ? 'text-zinc-400 hover:text-white hover:bg-zinc-800'
+                                : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100'
+                          }`}
+                        >
+                          {item}
+                        </button>
+                      )
+                    )}
+
+                  <button
+                    onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                    disabled={page >= totalPages}
+                    className={`p-2 rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed ${
+                      isDark
+                        ? 'text-zinc-400 hover:text-white hover:bg-zinc-800'
+                        : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100'
+                    }`}
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    );
+  };
 
   // ---------------------------------------------------------------------------
   // Render: Pipeline / Kanban View
   // ---------------------------------------------------------------------------
 
   const renderPipelineCard = (deal: Deal) => {
-    const c = STAGE_COLORS[deal.stage] || STAGE_COLORS['Qualification']; // Fallback to Qualification if stage not found
+    const c = STAGE_COLORS[deal.stage] || STAGE_COLORS['Cold']; // Fallback to Cold if stage not found
     const nextStage = NEXT_STAGE[deal.stage];
 
     return (
@@ -888,10 +1153,10 @@ export const DealsPage: React.FC = () => {
             : 'bg-white border-slate-200 hover:border-slate-300'
         }`}
       >
-        {/* Title & Edit */}
+        {/* Account & Edit */}
         <div className="flex items-start justify-between gap-2 mb-2">
           <h4 className={`text-sm font-semibold truncate ${isDark ? 'text-white' : 'text-slate-900'}`}>
-            {deal.title}
+            {deal.accountName || 'Untitled Deal'}
           </h4>
           <button
             onClick={(e) => { e.stopPropagation(); openEditDealModal(deal); }}
@@ -903,33 +1168,12 @@ export const DealsPage: React.FC = () => {
           </button>
         </div>
 
-        {/* Company */}
-        {deal.company && (
-          <p className={`text-xs mb-1.5 flex items-center gap-1 ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>
-            <Building2 className="w-3 h-3" />
-            {deal.company}
-          </p>
-        )}
-
         {/* Value */}
         {deal.value ? (
           <p className={`text-xs font-semibold mb-1.5 ${isDark ? 'text-emerald-400' : 'text-emerald-600'}`}>
             {formatINR(deal.value)}
           </p>
         ) : null}
-
-        {/* Probability */}
-        <div className="flex items-center gap-2 mb-1.5">
-          <div className={`flex-1 h-1.5 rounded-full overflow-hidden ${isDark ? 'bg-zinc-800' : 'bg-slate-200'}`}>
-            <div
-              className="h-full rounded-full bg-brand-500 transition-all"
-              style={{ width: `${Math.min(100, deal.probability ?? 0)}%` }}
-            />
-          </div>
-          <span className={`text-[11px] font-medium ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>
-            {deal.probability ?? 0}%
-          </span>
-        </div>
 
         {/* Closing Date */}
         {deal.closingDate && (
@@ -984,10 +1228,7 @@ export const DealsPage: React.FC = () => {
     const filterDeal = (deal: Deal): boolean => {
       if (searchTerm) {
         const q = searchTerm.toLowerCase();
-        if (
-          !deal.title.toLowerCase().includes(q) &&
-          !(deal.company || '').toLowerCase().includes(q)
-        ) return false;
+        if (!(deal.accountName || '').toLowerCase().includes(q)) return false;
       }
       if (filterAccount && deal.accountId !== filterAccount) return false;
       return true;
@@ -999,7 +1240,7 @@ export const DealsPage: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {PIPELINE_STAGES.map(stage => {
             const stageDeals = (groupedDeals[stage] || []).filter(filterDeal);
-            const c = STAGE_COLORS[stage] || STAGE_COLORS['Qualification']; // Fallback to Qualification if stage not found
+            const c = STAGE_COLORS[stage] || STAGE_COLORS['Cold']; // Fallback to Cold if stage not found
             const stageTotal = stageDeals.reduce((sum, d) => sum + (d.value || 0), 0);
             return (
               <div key={stage} className={`${cardClass} p-3 min-h-[200px]`}>
@@ -1042,7 +1283,7 @@ export const DealsPage: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {TERMINAL_STAGES.map(stage => {
             const stageDeals = (groupedDeals[stage] || []).filter(filterDeal);
-            const c = STAGE_COLORS[stage] || STAGE_COLORS['Qualification']; // Fallback to Qualification if stage not found
+            const c = STAGE_COLORS[stage] || STAGE_COLORS['Cold']; // Fallback to Cold if stage not found
             const isWon = stage === 'Closed Won';
             const stageTotal = stageDeals.reduce((sum, d) => sum + (d.value || 0), 0);
             return (
@@ -1088,13 +1329,8 @@ export const DealsPage: React.FC = () => {
                         }`}
                       >
                         <p className={`text-xs font-medium truncate ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                          {deal.title}
+                          {deal.accountName || 'Untitled Deal'}
                         </p>
-                        {deal.company && (
-                          <p className={`text-[11px] truncate ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
-                            {deal.company}
-                          </p>
-                        )}
                         {deal.value ? (
                           <p className={`text-[11px] font-semibold ${
                             isWon
@@ -1130,12 +1366,12 @@ export const DealsPage: React.FC = () => {
   const renderDealDetailModal = () => {
     if (!showDetailModal || !detailDeal) return null;
     const deal = detailDeal;
-    const stageColor = STAGE_COLORS[deal.stage] || STAGE_COLORS['Qualification'];
+    const stageColor = STAGE_COLORS[deal.stage] || STAGE_COLORS['Cold'];
 
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
         <div className="absolute inset-0 bg-black/50 animate-backdrop" onClick={closeDealDetailModal} />
-        <div className={`relative w-full max-w-2xl max-h-[85vh] rounded-2xl animate-fade-in-up flex flex-col overflow-hidden ${
+        <div className={`relative w-full max-w-xl max-h-[75vh] rounded-2xl animate-fade-in-up flex flex-col overflow-hidden ${
           isDark ? 'bg-dark-50 border border-zinc-800' : 'bg-white shadow-premium'
         }`}>
           {/* Header */}
@@ -1144,7 +1380,7 @@ export const DealsPage: React.FC = () => {
           }`}>
             <div className="flex items-center gap-3 min-w-0">
               <h2 className={`text-lg font-semibold font-display truncate ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                {deal.title}
+                {deal.accountName || 'Deal Details'}
               </h2>
               <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                 isDark ? `${stageColor.darkBg} ${stageColor.darkText}` : `${stageColor.bg} ${stageColor.text}`
@@ -1153,6 +1389,15 @@ export const DealsPage: React.FC = () => {
               </span>
             </div>
             <div className="flex items-center gap-2 flex-shrink-0">
+              <button
+                onClick={() => { closeDealDetailModal(); setQuoteDeal(deal); setShowQuoteModal(true); }}
+                className={`p-2 rounded-lg transition-colors ${
+                  isDark ? 'text-zinc-400 hover:text-white hover:bg-zinc-800' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100'
+                }`}
+                title="Create Quote"
+              >
+                <FileText className="w-4 h-4" />
+              </button>
               <button
                 onClick={() => { closeDealDetailModal(); openEditDealModal(deal); }}
                 className={`p-2 rounded-lg transition-colors ${
@@ -1186,23 +1431,17 @@ export const DealsPage: React.FC = () => {
                     <p className={`text-xs font-medium ${isDark ? 'text-emerald-400/70' : 'text-emerald-600/70'}`}>Deal Value</p>
                     <p className={`text-xl font-bold ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`}>{formatINR(deal.value)}</p>
                   </div>
-                  {deal.probability !== undefined && deal.probability !== null && (
-                    <div className="ml-auto text-right">
-                      <p className={`text-xs font-medium ${isDark ? 'text-emerald-400/70' : 'text-emerald-600/70'}`}>Probability</p>
-                      <p className={`text-lg font-bold ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`}>{deal.probability}%</p>
-                    </div>
-                  )}
                 </div>
               ) : null}
 
               {/* Info Grid */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <DetailInfoRow label="Company" value={deal.company} isDark={isDark} icon={<Building2 className="w-3.5 h-3.5" />} />
                 <DetailInfoRow label="Account" value={deal.accountName} isDark={isDark} icon={<Building2 className="w-3.5 h-3.5" />} />
                 <DetailInfoRow label="Contact" value={deal.contactName} isDark={isDark} icon={<UserIcon className="w-3.5 h-3.5" />} />
                 <DetailInfoRow label="Owner" value={deal.ownerName} isDark={isDark} icon={<UserIcon className="w-3.5 h-3.5" />} />
                 <DetailInfoRow label="Closing Date" value={deal.closingDate ? formatDate(deal.closingDate) : undefined} isDark={isDark} icon={<Calendar className="w-3.5 h-3.5" />} />
                 <DetailInfoRow label="Type" value={deal.type} isDark={isDark} icon={<Briefcase className="w-3.5 h-3.5" />} />
+                <DetailInfoRow label="Tag" value={deal.tag} isDark={isDark} icon={<Layers className="w-3.5 h-3.5" />} />
                 <DetailInfoRow label="Forecast" value={deal.forecast} isDark={isDark} icon={<Target className="w-3.5 h-3.5" />} />
                 <DetailInfoRow label="Lead Source" value={deal.leadSource} isDark={isDark} icon={<TrendingUp className="w-3.5 h-3.5" />} />
               </div>
@@ -1226,6 +1465,54 @@ export const DealsPage: React.FC = () => {
                   <p className={`text-sm whitespace-pre-wrap ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>{deal.description}</p>
                 </div>
               )}
+
+              {/* Audit Trail */}
+              <div>
+                <h4 className={`text-xs font-semibold uppercase tracking-wider mb-3 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
+                  Audit Trail
+                </h4>
+                {isAuditLoading ? (
+                  <div className="flex items-center justify-center py-4">
+                    <Loader2 className="w-5 h-5 text-brand-600 animate-spin" />
+                  </div>
+                ) : auditLogs.length === 0 ? (
+                  <p className={`text-sm py-4 text-center ${isDark ? 'text-zinc-600' : 'text-slate-400'}`}>
+                    No audit history
+                  </p>
+                ) : (
+                  <div className="space-y-2 max-h-[200px] overflow-y-auto pr-1">
+                    {auditLogs.map(log => (
+                      <div
+                        key={log.id}
+                        className={`p-3 rounded-xl border text-xs ${
+                          isDark ? 'border-zinc-800 bg-zinc-900/50' : 'border-slate-100 bg-slate-50'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between mb-1">
+                          <span className={`font-medium ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
+                            {log.action}
+                          </span>
+                          <span className={isDark ? 'text-zinc-600' : 'text-slate-400'}>
+                            {log.createdAt ? new Date(log.createdAt).toLocaleDateString() : ''}
+                          </span>
+                        </div>
+                        {log.userName && (
+                          <p className={isDark ? 'text-zinc-500' : 'text-slate-400'}>
+                            by {log.userName}
+                          </p>
+                        )}
+                        {log.changes && log.changes.length > 0 && (
+                          <div className={`mt-1 space-y-0.5 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
+                            {log.changes.map((c, i) => (
+                              <p key={i}>{c.field}: {c.old || '(empty)'} → {c.new || '(empty)'}</p>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
 
               {/* Timestamps */}
               <div className={`flex items-center gap-4 text-[11px] pt-2 border-t ${
@@ -1251,7 +1538,7 @@ export const DealsPage: React.FC = () => {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
         <div className="absolute inset-0 bg-black/50 animate-backdrop" onClick={closeDealModal} />
-        <div className={`relative w-full max-w-2xl max-h-[85vh] rounded-2xl animate-fade-in-up flex flex-col overflow-hidden ${
+        <div className={`relative w-full max-w-xl max-h-[75vh] rounded-2xl animate-fade-in-up flex flex-col overflow-hidden ${
           isDark ? 'bg-dark-50 border border-zinc-800' : 'bg-white shadow-premium'
         }`}>
           {/* Header */}
@@ -1272,7 +1559,7 @@ export const DealsPage: React.FC = () => {
           </div>
 
           {/* Form */}
-          <form onSubmit={handleDealSubmit} className="flex-1 overflow-y-auto pb-20">
+          <form onSubmit={handleDealSubmit} className="flex-1 overflow-y-auto pb-6">
             <div className="p-6 space-y-5">
             {dealFormError && (
               <div className={`p-3 rounded-xl flex items-center gap-2 text-sm ${
@@ -1283,47 +1570,7 @@ export const DealsPage: React.FC = () => {
               </div>
             )}
 
-            {/* Row 1: Title (full width) */}
-            <div>
-              <label htmlFor="deal-title" className={labelClass}>
-                Title <span className="text-red-500">*</span>
-              </label>
-              <div className="relative">
-                <Briefcase className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`} />
-                <input
-                  id="deal-title"
-                  name="title"
-                  type="text"
-                  placeholder="Deal title"
-                  value={dealFormData.title}
-                  onChange={handleDealFormChange}
-                  className={`${inputClass} pl-10`}
-                  required
-                />
-              </div>
-            </div>
-
-            {/* Row 2: Company (full width) */}
-            <div>
-              <label htmlFor="deal-company" className={labelClass}>
-                Company <span className="text-red-500">*</span>
-              </label>
-              <div className="relative">
-                <Building2 className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`} />
-                <input
-                  id="deal-company"
-                  name="company"
-                  type="text"
-                  placeholder="Company name"
-                  value={dealFormData.company}
-                  onChange={handleDealFormChange}
-                  className={`${inputClass} pl-10`}
-                  required
-                />
-              </div>
-            </div>
-
-            {/* Row 3: Value + Stage */}
+            {/* Row 1: Value + Stage */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label htmlFor="deal-value" className={labelClass}>
@@ -1395,7 +1642,7 @@ export const DealsPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Row 5: Closing Date + Probability */}
+            {/* Row 5: Closing Date + Next Follow-up */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label htmlFor="deal-closingDate" className={labelClass}>Closing Date</label>
@@ -1412,17 +1659,79 @@ export const DealsPage: React.FC = () => {
                 </div>
               </div>
               <div>
-                <label htmlFor="deal-probability" className={labelClass}>Probability (%)</label>
+                <label htmlFor="deal-nextFollowUp" className={labelClass}>Next Follow-up</label>
                 <div className="relative">
-                  <Percent className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`} />
+                  <Calendar className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`} />
                   <input
-                    id="deal-probability"
-                    name="probability"
-                    type="number"
-                    min="0"
-                    max="100"
-                    step="5"
-                    value={dealFormData.probability}
+                    id="deal-nextFollowUp"
+                    name="nextFollowUp"
+                    type="date"
+                    value={dealFormData.nextFollowUp}
+                    onChange={handleDealFormChange}
+                    className={`${inputClass} pl-10`}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Row 5b: Contact No + Designation */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label htmlFor="deal-contactNo" className={labelClass}>Contact No</label>
+                <div className="relative">
+                  <Phone className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`} />
+                  <input
+                    id="deal-contactNo"
+                    name="contactNo"
+                    type="text"
+                    placeholder="Phone number"
+                    value={dealFormData.contactNo}
+                    onChange={handleDealFormChange}
+                    className={`${inputClass} pl-10`}
+                  />
+                </div>
+              </div>
+              <div>
+                <label htmlFor="deal-designation" className={labelClass}>Designation</label>
+                <input
+                  id="deal-designation"
+                  name="designation"
+                  type="text"
+                  placeholder="e.g. Manager, Director"
+                  value={dealFormData.designation}
+                  onChange={handleDealFormChange}
+                  className={inputClass}
+                />
+              </div>
+            </div>
+
+            {/* Row 5c: Email + Location */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label htmlFor="deal-email" className={labelClass}>Email</label>
+                <div className="relative">
+                  <Mail className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`} />
+                  <input
+                    id="deal-email"
+                    name="email"
+                    type="email"
+                    placeholder="email@example.com"
+                    value={dealFormData.email}
+                    onChange={handleDealFormChange}
+                    className={`${inputClass} pl-10`}
+                  />
+                </div>
+              </div>
+              <div>
+                <label htmlFor="deal-location" className={labelClass}>Location</label>
+                <div className="relative">
+                  <MapPin className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`} />
+                  <input
+                    id="deal-location"
+                    name="location"
+                    type="text"
+                    placeholder="City, State"
+                    value={dealFormData.location}
                     onChange={handleDealFormChange}
                     className={`${inputClass} pl-10`}
                   />
@@ -1464,8 +1773,22 @@ export const DealsPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Row 7: Lead Source + Next Step */}
+            {/* Row 7: Tag + Lead Source */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label htmlFor="deal-tag" className={labelClass}>Tag</label>
+                <select
+                  id="deal-tag"
+                  name="tag"
+                  value={dealFormData.tag}
+                  onChange={handleDealFormChange}
+                  className={selectClass}
+                >
+                  <option value="">Select tag...</option>
+                  <option value="Channel">Channel</option>
+                  <option value="End Customer">End Customer</option>
+                </select>
+              </div>
               <div>
                 <label htmlFor="deal-leadSource" className={labelClass}>Lead Source</label>
                 <select
@@ -1484,18 +1807,20 @@ export const DealsPage: React.FC = () => {
                   <option value="Other">Other</option>
                 </select>
               </div>
-              <div>
-                <label htmlFor="deal-nextStep" className={labelClass}>Next Step</label>
-                <input
-                  id="deal-nextStep"
-                  name="nextStep"
-                  type="text"
-                  placeholder="Next action to take"
-                  value={dealFormData.nextStep}
-                  onChange={handleDealFormChange}
-                  className={inputClass}
-                />
-              </div>
+            </div>
+
+            {/* Row 8: Next Step */}
+            <div>
+              <label htmlFor="deal-nextStep" className={labelClass}>Next Step</label>
+              <input
+                id="deal-nextStep"
+                name="nextStep"
+                type="text"
+                placeholder="Next action to take"
+                value={dealFormData.nextStep}
+                onChange={handleDealFormChange}
+                className={inputClass}
+              />
             </div>
 
             {/* Row 8: Description */}
@@ -1546,6 +1871,301 @@ export const DealsPage: React.FC = () => {
   };
 
   // ---------------------------------------------------------------------------
+  // Render: Closed Won Modal
+  // ---------------------------------------------------------------------------
+
+  const renderClosedWonModal = () => {
+    if (!showClosedWonModal) return null;
+
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="absolute inset-0 bg-black/50 animate-backdrop" onClick={closeClosedWonModal} />
+        <div className={`relative w-full max-w-md rounded-2xl animate-fade-in-up flex flex-col overflow-hidden ${
+          isDark ? 'bg-dark-50 border border-zinc-800' : 'bg-white shadow-premium'
+        }`}>
+          {/* Header */}
+          <div className={`flex items-center justify-between px-6 py-4 border-b ${
+            isDark ? 'border-zinc-800' : 'border-slate-200'
+          }`}>
+            <div className="flex items-center gap-2">
+              <CheckCircle className="w-5 h-5 text-emerald-500" />
+              <h2 className={`text-lg font-semibold font-display ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                Close Deal as Won
+              </h2>
+            </div>
+            <button onClick={closeClosedWonModal} className={`p-2 rounded-lg transition-colors ${
+              isDark ? 'text-zinc-400 hover:text-white hover:bg-zinc-800' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100'
+            }`}>
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+
+          {/* Body */}
+          <div className="p-6 space-y-4">
+            {closedWonError && (
+              <div className={`p-3 rounded-xl flex items-center gap-2 text-sm ${
+                isDark ? 'bg-red-900/20 border border-red-800 text-red-400' : 'bg-red-50 border border-red-200 text-red-700'
+              }`}>
+                <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                {closedWonError}
+              </div>
+            )}
+
+            <p className={`text-sm ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>
+              A sales entry will be automatically created for this deal.
+            </p>
+
+            {/* Description */}
+            <div>
+              <label className={labelClass}>
+                Description <span className="text-red-500">*</span>
+              </label>
+              <textarea
+                rows={3}
+                placeholder="Describe the deal outcome..."
+                value={closedWonDescription}
+                onChange={e => setClosedWonDescription(e.target.value)}
+                className={inputClass}
+                autoFocus
+              />
+            </div>
+
+            {/* Partner */}
+            <div>
+              <label className={labelClass}>Partner</label>
+              <select
+                value={closedWonPartnerId}
+                onChange={e => setClosedWonPartnerId(e.target.value)}
+                className={selectClass}
+              >
+                <option value="">Select partner...</option>
+                {partners.map(p => (
+                  <option key={p.id} value={p.id}>{p.companyName}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Product */}
+            <div>
+              <label className={labelClass}>Product</label>
+              <select
+                value={closedWonProductId}
+                onChange={e => setClosedWonProductId(e.target.value)}
+                className={selectClass}
+              >
+                <option value="">Select product...</option>
+                {products.map(p => (
+                  <option key={p.id} value={p.id}>{p.name}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Footer */}
+          <div className={`flex items-center justify-end gap-3 px-6 py-4 border-t ${
+            isDark ? 'border-zinc-800' : 'border-slate-200'
+          }`}>
+            <button
+              onClick={closeClosedWonModal}
+              disabled={closedWonSaving}
+              className={`px-4 py-2.5 rounded-xl text-sm font-medium transition-colors ${
+                isDark ? 'text-zinc-400 hover:text-white hover:bg-zinc-800' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+              } disabled:opacity-50`}
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleClosedWonSubmit}
+              disabled={closedWonSaving}
+              className="flex items-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-medium transition-all disabled:opacity-50"
+            >
+              {closedWonSaving ? (
+                <><Loader2 className="w-4 h-4 animate-spin" /> Saving...</>
+              ) : (
+                <><CheckCircle className="w-4 h-4" /> Close Deal & Create Sale</>
+              )}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // ---------------------------------------------------------------------------
+  // Render: Summary Modal
+  // ---------------------------------------------------------------------------
+
+  const renderSummaryModal = () => {
+    if (!showSummary) return null;
+
+    // Compute summary stats from pipelineStats (all stages)
+    const allStages = DEAL_STAGES;
+    let totalDeals = 0;
+    let totalPipelineValue = 0;
+    const stageBreakdown: { stage: string; count: number; value: number }[] = [];
+
+    allStages.forEach(stage => {
+      const s = pipelineStats[stage];
+      const count = s?.count ?? 0;
+      const value = s?.totalValue ?? 0;
+      totalDeals += count;
+      totalPipelineValue += value;
+      stageBreakdown.push({ stage, count, value });
+    });
+
+    const avgDealValue = totalDeals > 0 ? totalPipelineValue / totalDeals : 0;
+
+    // Deals by type breakdown from loaded deals array
+    const typeMap: Record<string, { count: number; value: number }> = {};
+    deals.forEach(d => {
+      const t = d.type || 'Unspecified';
+      if (!typeMap[t]) typeMap[t] = { count: 0, value: 0 };
+      typeMap[t].count += 1;
+      typeMap[t].value += d.value || 0;
+    });
+
+    // Win / Lost ratio
+    const wonStats = pipelineStats['Closed Won'];
+    const lostStats = pipelineStats['Closed Lost'];
+    const wonCount = wonStats?.count ?? 0;
+    const lostCount = lostStats?.count ?? 0;
+    const totalClosed = wonCount + lostCount;
+    const winRatio = totalClosed > 0 ? ((wonCount / totalClosed) * 100).toFixed(1) : '0.0';
+    const lostRatio = totalClosed > 0 ? ((lostCount / totalClosed) * 100).toFixed(1) : '0.0';
+
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="absolute inset-0 bg-black/50 animate-backdrop" onClick={() => setShowSummary(false)} />
+        <div className={`relative w-full max-w-2xl max-h-[80vh] rounded-2xl animate-fade-in-up flex flex-col overflow-hidden ${
+          isDark ? 'bg-dark-50 border border-zinc-800' : 'bg-white shadow-premium'
+        }`}>
+          {/* Header */}
+          <div className={`flex-shrink-0 flex items-center justify-between px-6 py-4 border-b ${
+            isDark ? 'bg-dark-50 border-zinc-800' : 'bg-white border-slate-200'
+          }`}>
+            <div className="flex items-center gap-2">
+              <BarChart3 className={`w-5 h-5 ${isDark ? 'text-brand-400' : 'text-brand-600'}`} />
+              <h2 className={`text-lg font-semibold font-display ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                Deals Summary
+              </h2>
+            </div>
+            <button
+              onClick={() => setShowSummary(false)}
+              className={`p-2 rounded-lg transition-colors ${
+                isDark ? 'text-zinc-400 hover:text-white hover:bg-zinc-800' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100'
+              }`}
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+
+          {/* Body */}
+          <div className="flex-1 overflow-y-auto p-6 space-y-6">
+            {/* Win / Lost Ratio Bar */}
+            <div className={`p-4 rounded-xl border ${isDark ? 'border-zinc-700 bg-dark-100' : 'border-slate-200 bg-slate-50'}`}>
+              <h3 className={`text-sm font-semibold mb-3 ${isDark ? 'text-white' : 'text-slate-900'}`}>Win / Lost Ratio</h3>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div className={`p-3 rounded-lg text-center ${isDark ? 'bg-emerald-900/20 border border-emerald-900/30' : 'bg-emerald-50 border border-emerald-100'}`}>
+                  <p className={`text-2xl font-bold ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`}>{wonCount}</p>
+                  <p className={`text-xs font-medium ${isDark ? 'text-emerald-400/70' : 'text-emerald-600/70'}`}>Won</p>
+                </div>
+                <div className={`p-3 rounded-lg text-center ${isDark ? 'bg-red-900/20 border border-red-900/30' : 'bg-red-50 border border-red-100'}`}>
+                  <p className={`text-2xl font-bold ${isDark ? 'text-red-400' : 'text-red-700'}`}>{lostCount}</p>
+                  <p className={`text-xs font-medium ${isDark ? 'text-red-400/70' : 'text-red-600/70'}`}>Lost</p>
+                </div>
+                <div className={`p-3 rounded-lg text-center ${isDark ? 'bg-emerald-900/20 border border-emerald-900/30' : 'bg-emerald-50 border border-emerald-100'}`}>
+                  <p className={`text-2xl font-bold ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`}>{winRatio}%</p>
+                  <p className={`text-xs font-medium ${isDark ? 'text-emerald-400/70' : 'text-emerald-600/70'}`}>Win Rate</p>
+                </div>
+                <div className={`p-3 rounded-lg text-center ${isDark ? 'bg-red-900/20 border border-red-900/30' : 'bg-red-50 border border-red-100'}`}>
+                  <p className={`text-2xl font-bold ${isDark ? 'text-red-400' : 'text-red-700'}`}>{lostRatio}%</p>
+                  <p className={`text-xs font-medium ${isDark ? 'text-red-400/70' : 'text-red-600/70'}`}>Loss Rate</p>
+                </div>
+              </div>
+              {totalClosed > 0 && (
+                <div className={`mt-3 h-3 rounded-full overflow-hidden flex ${isDark ? 'bg-zinc-800' : 'bg-slate-200'}`}>
+                  <div className="h-full bg-emerald-500 transition-all" style={{ width: `${winRatio}%` }} />
+                  <div className="h-full bg-red-500 transition-all" style={{ width: `${lostRatio}%` }} />
+                </div>
+              )}
+            </div>
+
+            {/* Overview Stats */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className={`p-4 rounded-xl ${isDark ? 'bg-dark-100 border border-zinc-700' : 'bg-slate-50 border border-slate-200'}`}>
+                <p className={`text-xs font-medium ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Total Deals</p>
+                <p className={`text-2xl font-bold mt-1 ${isDark ? 'text-white' : 'text-slate-900'}`}>{totalDeals}</p>
+              </div>
+              <div className={`p-4 rounded-xl ${isDark ? 'bg-dark-100 border border-zinc-700' : 'bg-slate-50 border border-slate-200'}`}>
+                <p className={`text-xs font-medium ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Total Pipeline Value</p>
+                <p className={`text-2xl font-bold mt-1 ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`}>{formatINR(totalPipelineValue)}</p>
+              </div>
+              <div className={`p-4 rounded-xl ${isDark ? 'bg-dark-100 border border-zinc-700' : 'bg-slate-50 border border-slate-200'}`}>
+                <p className={`text-xs font-medium ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Average Deal Value</p>
+                <p className={`text-2xl font-bold mt-1 ${isDark ? 'text-brand-400' : 'text-brand-700'}`}>{formatINR(avgDealValue)}</p>
+              </div>
+            </div>
+
+            {/* Deals by Stage */}
+            <div>
+              <h3 className={`text-sm font-semibold mb-3 ${isDark ? 'text-white' : 'text-slate-900'}`}>Deals by Stage</h3>
+              <div className={`rounded-xl border overflow-hidden ${isDark ? 'border-zinc-700' : 'border-slate-200'}`}>
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className={`border-b ${isDark ? 'border-zinc-700 bg-dark-100' : 'border-slate-200 bg-slate-50'}`}>
+                      <th className={`text-left px-4 py-2.5 text-xs font-semibold ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>Stage</th>
+                      <th className={`text-right px-4 py-2.5 text-xs font-semibold ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>Count</th>
+                      <th className={`text-right px-4 py-2.5 text-xs font-semibold ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>Total Value</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {stageBreakdown.map(row => (
+                      <tr key={row.stage} className={`border-b last:border-0 ${isDark ? 'border-zinc-800' : 'border-slate-100'}`}>
+                        <td className={`px-4 py-2.5 ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
+                          <span className={stageBadge(row.stage as DealStage, isDark)}>{row.stage}</span>
+                        </td>
+                        <td className={`px-4 py-2.5 text-right font-medium ${isDark ? 'text-white' : 'text-slate-900'}`}>{row.count}</td>
+                        <td className={`px-4 py-2.5 text-right font-medium ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`}>{formatINR(row.value)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Deals by Type */}
+            {Object.keys(typeMap).length > 0 && (
+              <div>
+                <h3 className={`text-sm font-semibold mb-3 ${isDark ? 'text-white' : 'text-slate-900'}`}>Deals by Type</h3>
+                <div className={`rounded-xl border overflow-hidden ${isDark ? 'border-zinc-700' : 'border-slate-200'}`}>
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className={`border-b ${isDark ? 'border-zinc-700 bg-dark-100' : 'border-slate-200 bg-slate-50'}`}>
+                        <th className={`text-left px-4 py-2.5 text-xs font-semibold ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>Type</th>
+                        <th className={`text-right px-4 py-2.5 text-xs font-semibold ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>Count</th>
+                        <th className={`text-right px-4 py-2.5 text-xs font-semibold ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>Total Value</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {Object.entries(typeMap).map(([type, info]) => (
+                        <tr key={type} className={`border-b last:border-0 ${isDark ? 'border-zinc-800' : 'border-slate-100'}`}>
+                          <td className={`px-4 py-2.5 font-medium ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>{type}</td>
+                          <td className={`px-4 py-2.5 text-right font-medium ${isDark ? 'text-white' : 'text-slate-900'}`}>{info.count}</td>
+                          <td className={`px-4 py-2.5 text-right font-medium ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`}>{formatINR(info.value)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // ---------------------------------------------------------------------------
   // Main render
   // ---------------------------------------------------------------------------
 
@@ -1575,6 +2195,65 @@ export const DealsPage: React.FC = () => {
       {/* Modals */}
       {renderDealModal()}
       {renderDealDetailModal()}
+      {renderClosedWonModal()}
+      {renderSummaryModal()}
+
+      <BulkImportModal
+        isOpen={showBulkImport}
+        onClose={() => setShowBulkImport(false)}
+        entity="deals"
+        entityLabel="Deals"
+        isDark={isDark}
+        onSuccess={() => fetchDeals()}
+      />
+
+      {/* Summarise Modal */}
+      {showSummariseModal && summariseDeal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={() => setShowSummariseModal(false)}>
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
+          <div
+            className={`relative w-full max-w-lg rounded-2xl shadow-2xl border p-6 ${
+              isDark ? 'bg-zinc-900 border-zinc-700' : 'bg-white border-slate-200'
+            }`}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h3 className={`text-lg font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                Deal Summary
+              </h3>
+              <button
+                onClick={() => setShowSummariseModal(false)}
+                className={`p-1.5 rounded-lg transition-colors ${
+                  isDark ? 'text-zinc-400 hover:text-white hover:bg-zinc-800' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100'
+                }`}
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="space-y-3">
+              {[
+                { label: 'Company', value: summariseDeal.company || summariseDeal.accountName },
+                { label: 'Contact Name', value: summariseDeal.contactName },
+                { label: 'Contact No', value: summariseDeal.contactNo },
+                { label: 'Designation', value: summariseDeal.designation },
+                { label: 'Email', value: summariseDeal.email },
+                { label: 'Location', value: summariseDeal.location },
+                { label: 'Stage', value: summariseDeal.stage },
+                { label: 'Value', value: summariseDeal.value ? formatINR(summariseDeal.value) : undefined },
+                { label: 'Tag', value: summariseDeal.tag },
+                { label: 'Follow-up Date', value: summariseDeal.nextFollowUp ? formatDate(summariseDeal.nextFollowUp) : undefined },
+                { label: 'Description', value: summariseDeal.description },
+                { label: 'Next Step', value: summariseDeal.nextStep },
+              ].filter(item => item.value).map(item => (
+                <div key={item.label} className="flex justify-between">
+                  <span className={`text-sm font-medium ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>{item.label}</span>
+                  <span className={`text-sm text-right max-w-[60%] ${isDark ? 'text-zinc-200' : 'text-slate-700'}`}>{item.value}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

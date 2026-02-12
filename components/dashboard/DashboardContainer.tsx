@@ -1,7 +1,7 @@
 import React, { useState, Suspense } from 'react';
 import { DndContext, closestCenter, DragEndEvent, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { SortableContext, rectSortingStrategy } from '@dnd-kit/sortable';
-import { Settings, Loader2 } from 'lucide-react';
+import { Settings, Loader2, ArrowRight } from 'lucide-react';
 import { useDashboardLayout } from '../../hooks/useDashboardLayout';
 import { WidgetWrapper } from './WidgetWrapper';
 import { WidgetLibrary } from '../WidgetLibrary';
@@ -11,6 +11,23 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useView } from '../../contexts/ViewContext';
 import { useNavigation } from '../../contexts/NavigationContext';
+
+const PAGE_LABELS: Record<string, string> = {
+  'dashboard': 'Dashboard',
+  'sales-entry': 'Sales Entry',
+  'partners': 'Partners',
+  'crm': 'CRM / Leads',
+  'accounts': 'Accounts',
+  'contacts': 'Contacts',
+  'deals': 'Deals',
+  'tasks': 'Tasks',
+  'calendar': 'Calendar',
+  'emails': 'Emails',
+  'reports': 'Reports',
+  'admin': 'Admin',
+  'settings': 'Settings',
+  'carepacks': 'Carepacks',
+};
 
 export const DashboardContainer: React.FC = () => {
   const { theme } = useTheme();
@@ -90,24 +107,49 @@ export const DashboardContainer: React.FC = () => {
 
               const WidgetComponent = meta.component;
 
+              const navigateTo = meta.navigateTo;
+
               return (
                 <WidgetWrapper key={widget.id} id={widget.id}>
                   <Suspense
                     fallback={
                       <div className={`rounded-2xl p-5 flex items-center justify-center h-32 ${
-                        isDark ? 'bg-dark-100' : 'bg-white'
+                        isDark ? 'bg-[rgba(10,16,32,0.55)] border border-white/[0.06]' : 'bg-white'
                       }`}>
                         <Loader2 className="w-6 h-6 animate-spin text-brand-600" />
                       </div>
                     }
                   >
-                    <WidgetComponent
-                      isDark={isDark}
-                      user={user}
-                      currentView={currentView}
-                      navigate={navigate}
-                      onDetailClick={() => setSelectedWidgetId(widget.id)}
-                    />
+                    <div className="relative">
+                      <WidgetComponent
+                        isDark={isDark}
+                        user={user}
+                        currentView={currentView}
+                        navigate={navigate}
+                        onDetailClick={() => {
+                          if (navigateTo) {
+                            navigate(navigateTo);
+                          }
+                        }}
+                      />
+                      {navigateTo && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigate(navigateTo);
+                          }}
+                          className={`absolute bottom-3 right-4 flex items-center gap-1 text-[11px] font-medium rounded-md px-2 py-1 transition-all opacity-70 hover:opacity-100 z-10 ${
+                            isDark
+                              ? 'text-brand-400 hover:bg-white/[0.06]'
+                              : 'text-brand-600 hover:bg-slate-100/80'
+                          }`}
+                          title={`Go to ${PAGE_LABELS[navigateTo] || navigateTo}`}
+                        >
+                          View {PAGE_LABELS[navigateTo] || navigateTo}
+                          <ArrowRight className="w-3 h-3" />
+                        </button>
+                      )}
+                    </div>
                   </Suspense>
                 </WidgetWrapper>
               );

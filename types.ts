@@ -2,16 +2,11 @@
 export type NavigationItem =
   | 'dashboard'
   | 'sales-entry'
-  | 'partners'
   | 'crm'
   | 'accounts'
   | 'contacts'
   | 'deals'
   | 'quote-builder'
-  | 'carepacks'
-  | 'tasks'
-  | 'calendar'
-  | 'emails'
   | 'reports'
   | 'admin'
   | 'settings';
@@ -30,6 +25,7 @@ export interface User {
   lastLogin?: string;
   createdAt?: string;
   viewAccess?: 'presales' | 'postsales' | 'both';
+  tag?: 'channel' | 'endcustomer' | 'both';
   dashboardPreferences?: DashboardPreferences;
 }
 
@@ -38,11 +34,9 @@ export type ViewAccess = 'presales' | 'postsales' | 'both';
 export type UserRole =
   | 'admin'
   | 'superadmin'
-  | 'salesperson'
-  | 'branchhead'
-  | 'producthead'
+  | 'sales'
   | 'businesshead'
-  | 'salesmanager';
+  | 'productmanager';
 
 // Dashboard Widget Types
 export interface WidgetMetadata {
@@ -56,6 +50,7 @@ export interface WidgetMetadata {
   defaultVisible: boolean;
   defaultOrder: number;
   component: React.ComponentType<WidgetProps>;
+  navigateTo?: NavigationItem;
 }
 
 export interface WidgetPlacement {
@@ -75,6 +70,7 @@ export interface WidgetProps {
   user: User | null;
   currentView: ViewAccess;
   navigate: (tab: NavigationItem) => void;
+  onDetailClick?: () => void;
 }
 
 // Products
@@ -107,6 +103,7 @@ export interface Partner {
   status: 'pending' | 'approved' | 'rejected';
   tier: 'elite' | 'growth' | 'new';
   assignedTo?: string;
+  assignedToName?: string;
   approvedBy?: string;
   approvedAt?: string;
   rejectionReason?: string;
@@ -216,6 +213,13 @@ export interface Lead {
   queryId?: string;
   mcatName?: string;
 
+  // Tag
+  tag?: 'Channel' | 'End Customer';
+
+  // Designation and Location
+  designation?: string;
+  location?: string;
+
   // Lead Image
   leadImage?: string;
 
@@ -223,7 +227,7 @@ export interface Lead {
   updatedAt?: string;
 }
 
-export type LeadStage = 'New' | 'Contacted' | 'Qualified' | 'Proposal' | 'Negotiation' | 'Converted' | 'Won' | 'Lost';
+export type LeadStage = 'Cold' | 'Proposal' | 'Negotiation' | 'Closed Won' | 'Closed Lost';
 
 export interface LeadActivity {
   id: string;
@@ -233,6 +237,7 @@ export interface LeadActivity {
   description?: string;
   createdBy?: string;
   createdAt?: string;
+  createdByName?: string;
 }
 
 // Quotes
@@ -422,6 +427,7 @@ export interface Deal {
   value?: number;
   stage: DealStage;
   probability?: number;
+  tag?: 'Channel' | 'End Customer';
   ownerId?: string;
   closingDate?: string;
   description?: string;
@@ -435,9 +441,26 @@ export interface Deal {
   accountName?: string;
   contactName?: string;
   ownerName?: string;
+  // New display fields
+  contactNo?: string;
+  designation?: string;
+  email?: string;
+  location?: string;
+  nextFollowUp?: string;
 }
 
-export type DealStage = 'Qualification' | 'Discovery' | 'Proposal' | 'Negotiation' | 'Closed Won' | 'Closed Lost';
+export type DealStage = 'Cold' | 'Proposal' | 'Negotiation' | 'Closed Won' | 'Closed Lost';
+
+export interface DealActivity {
+  id: string;
+  dealId: string;
+  activityType: string;
+  title: string;
+  description?: string;
+  createdBy?: string;
+  createdAt?: string;
+  createdByName?: string;
+}
 
 // Tasks
 export interface Task {
@@ -582,6 +605,61 @@ export interface MonthlyStat {
   month: string;
   revenue: number;
   count: number;
+}
+
+// Roles & Permissions
+export interface Role {
+  id: string;
+  name: string;
+  label: string;
+  description?: string;
+  isSystem: boolean;
+  isActive: boolean;
+  permissions: RolePermission[];
+  createdAt?: string;
+}
+
+export interface RolePermission {
+  id: string;
+  roleId: string;
+  entity: string;
+  canView: boolean;
+  canCreate: boolean;
+  canEdit: boolean;
+  canDelete: boolean;
+}
+
+// Activity Logs
+export interface ActivityLog {
+  id: string;
+  userId?: string;
+  userName?: string;
+  action: string;
+  entityType: string;
+  entityId?: string;
+  entityName?: string;
+  changes?: ActivityChange[];
+  ipAddress?: string;
+  createdAt?: string;
+}
+
+export interface ActivityChange {
+  field: string;
+  old?: string;
+  new?: string;
+}
+
+// Bulk Import
+export interface BulkImportResult {
+  total: number;
+  imported: number;
+  errors: BulkImportError[];
+}
+
+export interface BulkImportError {
+  row: number;
+  field: string;
+  message: string;
 }
 
 // Pagination

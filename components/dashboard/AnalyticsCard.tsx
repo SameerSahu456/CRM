@@ -31,7 +31,7 @@ export const AnalyticsCard: React.FC<AnalyticsCardProps> = ({
   className = ''
 }) => {
   const [collapsed, setCollapsed] = useState(false);
-  const cardClass = `premium-card ${isDark ? 'bg-dark-50 border border-zinc-800' : 'bg-white shadow-soft'}`;
+  const cardClass = `premium-card ${isDark ? 'bg-[rgba(10,16,32,0.55)] border border-white/[0.06]' : 'bg-white shadow-soft'}`;
 
   return (
     <div className={`${cardClass} p-4 sm:p-5 ${className} ${onClick ? 'cursor-pointer hover:ring-2 hover:ring-brand-500/30 transition-shadow' : ''}`} onClick={onClick}>
@@ -63,7 +63,7 @@ export const AnalyticsCard: React.FC<AnalyticsCardProps> = ({
           <button
             onClick={(e) => { e.stopPropagation(); setCollapsed(!collapsed); }}
             className={`w-6 h-6 rounded-lg flex items-center justify-center transition-colors ${
-              isDark ? 'hover:bg-zinc-800 text-zinc-500' : 'hover:bg-slate-100 text-slate-400'
+              isDark ? 'hover:bg-white/[0.06] text-zinc-500' : 'hover:bg-slate-100 text-slate-400'
             }`}
           >
             <Minus className="w-3.5 h-3.5" />

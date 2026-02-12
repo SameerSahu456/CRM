@@ -14,7 +14,7 @@ class LeadOut(CamelModel):
     email: Optional[str] = None
     phone: Optional[str] = None
     source: Optional[str] = None
-    stage: str = "New"
+    stage: str = "Cold"
     priority: str = "Medium"
     estimated_value: Optional[float] = None
     product_interest: Optional[str] = None
@@ -81,6 +81,13 @@ class LeadOut(CamelModel):
     query_id: Optional[str] = None
     mcat_name: Optional[str] = None
 
+    # Tag
+    tag: Optional[str] = None
+
+    # Designation and Location
+    designation: Optional[str] = None
+    location: Optional[str] = None
+
     # Lead Image
     lead_image: Optional[str] = None
 
@@ -95,7 +102,7 @@ class LeadCreate(CamelModel):
     email: Optional[str] = None
     phone: Optional[str] = None
     source: Optional[str] = None
-    stage: str = "New"
+    stage: str = "Cold"
     priority: str = "Medium"
     estimated_value: Optional[float] = None
     product_interest: Optional[str] = None
@@ -159,6 +166,13 @@ class LeadCreate(CamelModel):
     lead_type: Optional[str] = None
     query_id: Optional[str] = None
     mcat_name: Optional[str] = None
+
+    # Tag
+    tag: Optional[str] = None
+
+    # Designation and Location
+    designation: Optional[str] = None
+    location: Optional[str] = None
 
     # Lead Image
     lead_image: Optional[str] = None
@@ -235,6 +249,13 @@ class LeadUpdate(CamelModel):
     lead_type: Optional[str] = None
     query_id: Optional[str] = None
     mcat_name: Optional[str] = None
+
+    # Tag
+    tag: Optional[str] = None
+
+    # Designation and Location
+    designation: Optional[str] = None
+    location: Optional[str] = None
 
     # Lead Image
     lead_image: Optional[str] = None

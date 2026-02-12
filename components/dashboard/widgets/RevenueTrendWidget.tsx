@@ -48,10 +48,10 @@ export const RevenueTrendWidget: React.FC<WidgetProps> = ({ isDark, navigate, on
                 <stop offset="95%" stopColor={isDark ? '#818cf8' : '#6366f1'} stopOpacity={0} />
               </linearGradient>
             </defs>
-            <CartesianGrid strokeDasharray="3 3" stroke={isDark ? '#27272a' : '#f1f5f9'} vertical={false} />
-            <XAxis dataKey="month" tick={{ fontSize: 10, fill: isDark ? '#71717a' : '#94a3b8' }} tickLine={false} axisLine={false}
+            <CartesianGrid strokeDasharray="3 3" stroke={isDark ? '#1a2535' : '#f1f5f9'} vertical={false} />
+            <XAxis dataKey="month" tick={{ fontSize: 10, fill: isDark ? '#64748b' : '#94a3b8' }} tickLine={false} axisLine={false}
               tickFormatter={(v: string) => v.split(' ')[0]?.slice(0, 3) || v} />
-            <YAxis tick={{ fontSize: 10, fill: isDark ? '#71717a' : '#94a3b8' }} tickLine={false} axisLine={false}
+            <YAxis tick={{ fontSize: 10, fill: isDark ? '#64748b' : '#94a3b8' }} tickLine={false} axisLine={false}
               tickFormatter={(v: number) => v >= 100000 ? `${(v / 100000).toFixed(1)}L` : v >= 1000 ? `${(v / 1000).toFixed(0)}K` : String(v)} />
             <Tooltip content={({ active, payload, label }: any) => {
               if (!active || !payload?.length) return null;
@@ -64,7 +64,7 @@ export const RevenueTrendWidget: React.FC<WidgetProps> = ({ isDark, navigate, on
             }} />
             <Area type="monotone" dataKey="revenue" stroke={isDark ? '#818cf8' : '#6366f1'} strokeWidth={2.5} fill="url(#dashGrad)"
               dot={{ fill: isDark ? '#818cf8' : '#6366f1', strokeWidth: 0, r: 3 }}
-              activeDot={{ r: 5, fill: isDark ? '#818cf8' : '#6366f1', stroke: isDark ? '#18181b' : '#fff', strokeWidth: 2 }} />
+              activeDot={{ r: 5, fill: isDark ? '#818cf8' : '#6366f1', stroke: isDark ? '#111a2e' : '#fff', strokeWidth: 2 }} />
           </AreaChart>
         </ResponsiveContainer>
       )}

@@ -8,7 +8,7 @@ class Settings(BaseSettings):
 
     DATABASE_URL: str = "postgresql+asyncpg://localhost:5432/zenith_crm"
     SECRET_KEY: str = "change-me-in-production"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 525600  # 1 year — effectively never expires
     # Allow configuration via environment variable (comma-separated URLs)
     # Default includes localhost and common Vercel pattern
     CORS_ORIGINS_STR: Optional[str] = None

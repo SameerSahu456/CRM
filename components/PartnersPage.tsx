@@ -3,12 +3,16 @@ import {
   Plus, Search, X, ChevronLeft, ChevronRight, Edit2, Trash2,
   Loader2, AlertCircle, CheckCircle, XCircle, Building2,
   Clock, Shield, Phone, Mail, MapPin, FileText, Hash,
-  User as UserIcon
+  User as UserIcon,
+  Download, Upload, Target
 } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
-import { partnersApi } from '../services/api';
-import { Partner, PaginatedResponse } from '../types';
+import { partnersApi, masterDataApi, adminApi } from '../services/api';
+import { exportToCsv } from '../utils/exportCsv';
+import { Partner, PaginatedResponse, User } from '../types';
+import { BulkImportModal } from './BulkImportModal';
+import { useNavigation } from '../contexts/NavigationContext';
 
 // ---------------------------------------------------------------------------
 // Types local to this page
@@ -32,6 +36,7 @@ interface PartnerFormData {
   vertical: string;
   tier: 'elite' | 'growth' | 'new';
   notes: string;
+  assignedTo: string;
 }
 
 const EMPTY_FORM: PartnerFormData = {
@@ -50,6 +55,7 @@ const EMPTY_FORM: PartnerFormData = {
   vertical: '',
   tier: 'new',
   notes: '',
+  assignedTo: '',
 };
 
 const PARTNER_TYPES = [
@@ -72,6 +78,7 @@ const STATUSES = [
 ];
 
 const PAGE_SIZE = 10;
+
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -130,11 +137,13 @@ function capitalize(s: string): string {
 export const PartnersPage: React.FC = () => {
   const { theme } = useTheme();
   const { user, isAdmin, hasRole } = useAuth();
+  const { setActiveTab: navigate } = useNavigation();
   const isDark = theme === 'dark';
 
   const canApprove = isAdmin() || hasRole('businesshead');
 
   // Tab state
+  const [showBulkImport, setShowBulkImport] = useState(false);
   const [activeTab, setActiveTab] = useState<TabKey>('all');
 
   // All Partners tab state
@@ -170,16 +179,32 @@ export const PartnersPage: React.FC = () => {
   const [formError, setFormError] = useState('');
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
+
   // Detail panel state
   const [selectedPartner, setSelectedPartner] = useState<Partner | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [showDetail, setShowDetail] = useState(false);
+
+  // Locations dropdown data
+  const [locations, setLocations] = useState<any[]>([]);
+
+  // Users list for assignee dropdown
+  const [usersList, setUsersList] = useState<User[]>([]);
 
   // Summary counts
   const [totalCount, setTotalCount] = useState(0);
   const [approvedCount, setApprovedCount] = useState(0);
   const [pendingCount, setPendingCount] = useState(0);
   const [eliteCount, setEliteCount] = useState(0);
+  const [activeCount, setActiveCount] = useState(0);
+  const [inactiveCount, setInactiveCount] = useState(0);
+  const [ghostCount, setGhostCount] = useState(0);
+
+
+  // Set Targets modal
+  const [showTargetsModal, setShowTargetsModal] = useState(false);
+  const [targets, setTargets] = useState({ elite: '', growth: '', new: '' });
+  const [isSavingTargets, setIsSavingTargets] = useState(false);
 
   // ---------------------------------------------------------------------------
   // Data fetching
@@ -223,6 +248,18 @@ export const PartnersPage: React.FC = () => {
 
       const eliteRes: PaginatedResponse<Partner> = await partnersApi.list({ limit: '1', tier: 'elite' });
       setEliteCount(eliteRes.pagination.total);
+
+      // Fetch active partners (isActive=true AND status=approved)
+      const activeRes: PaginatedResponse<Partner> = await partnersApi.list({ limit: '1', status: 'approved', is_active: 'true' });
+      setActiveCount(activeRes.pagination.total);
+
+      // Fetch inactive partners (isActive=false)
+      const inactiveRes: PaginatedResponse<Partner> = await partnersApi.list({ limit: '1', is_active: 'false' });
+      setInactiveCount(inactiveRes.pagination.total);
+
+      // Ghost partners proxy: tier=new AND status=approved
+      const ghostRes: PaginatedResponse<Partner> = await partnersApi.list({ limit: '1', tier: 'new', status: 'approved' });
+      setGhostCount(ghostRes.pagination.total);
     } catch {
       // Summary counts are non-critical
     }
@@ -256,10 +293,42 @@ export const PartnersPage: React.FC = () => {
     }
   }, []);
 
+  // Fetch saved tier targets
+  const fetchTargets = useCallback(async () => {
+    try {
+      const data = await partnersApi.getTargets();
+      setTargets({ elite: data.elite || '', growth: data.growth || '', new: data.new || '' });
+    } catch {
+      // ignore – targets are optional
+    }
+  }, []);
+
+
+  // Save tier targets
+  const saveTargets = async () => {
+    setIsSavingTargets(true);
+    try {
+      await partnersApi.saveTargets(targets);
+      setShowTargetsModal(false);
+    } catch {
+      alert('Failed to save targets. Please try again.');
+    } finally {
+      setIsSavingTargets(false);
+    }
+  };
+
   // Initial load
   useEffect(() => {
     fetchSummaryCounts();
-  }, [fetchSummaryCounts]);
+    fetchTargets();
+    masterDataApi.list('locations').then(setLocations).catch(() => {});
+    if (isAdmin()) {
+      adminApi.listUsers().then((data: any) => {
+        const list = Array.isArray(data) ? data : (data as any)?.data ?? [];
+        setUsersList(list);
+      }).catch(() => {});
+    }
+  }, [fetchSummaryCounts, fetchTargets]);
 
   // Fetch data when tab changes
   useEffect(() => {
@@ -305,6 +374,7 @@ export const PartnersPage: React.FC = () => {
       vertical: partner.vertical || '',
       tier: partner.tier || 'new',
       notes: partner.notes || '',
+      assignedTo: partner.assignedTo || '',
     });
     setEditingId(partner.id);
     setFormError('');
@@ -449,6 +519,7 @@ export const PartnersPage: React.FC = () => {
       setApproveSubmitting(null);
     }
   };
+
 
   const clearFilters = () => {
     setFilterStatus('');
@@ -805,15 +876,20 @@ export const PartnersPage: React.FC = () => {
             </select>
           </div>
 
-          {/* Filter: City */}
+          {/* Filter: Location */}
           <div className="w-full lg:w-44">
-            <input
-              type="text"
-              placeholder="Filter by city..."
+            <select
               value={filterCity}
-              onChange={e => setFilterCity(e.target.value)}
-              className={inputClass}
-            />
+              onChange={e => { setFilterCity(e.target.value); setPage(1); }}
+              className={selectClass}
+            >
+              <option value="">All Locations</option>
+              {locations.map(loc => (
+                <option key={loc.id} value={loc.city}>
+                  {loc.city}{loc.state ? `, ${loc.state}` : ''}
+                </option>
+              ))}
+            </select>
           </div>
 
           {/* Clear Filters */}
@@ -830,6 +906,64 @@ export const PartnersPage: React.FC = () => {
               Clear
             </button>
           )}
+
+          {/* Bulk Import */}
+          <button
+            onClick={() => setShowBulkImport(true)}
+            title="Import from CSV"
+            className={`flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-normal transition-colors whitespace-nowrap ${
+              isDark
+                ? 'text-zinc-400 border border-zinc-700 hover:bg-zinc-800'
+                : 'text-slate-500 border border-slate-200 hover:bg-slate-50'
+            }`}
+          >
+            <Upload className="w-4 h-4" />
+            Import
+          </button>
+
+          {/* Export CSV */}
+          <button
+            onClick={() => exportToCsv('partners', [
+              { header: 'Company Name', accessor: (r: Partner) => r.companyName },
+              { header: 'Contact Person', accessor: (r: Partner) => r.contactPerson },
+              { header: 'Email', accessor: (r: Partner) => r.email },
+              { header: 'Phone', accessor: (r: Partner) => r.phone },
+              { header: 'Mobile', accessor: (r: Partner) => r.mobile },
+              { header: 'City', accessor: (r: Partner) => r.city },
+              { header: 'State', accessor: (r: Partner) => r.state },
+              { header: 'Pincode', accessor: (r: Partner) => r.pincode },
+              { header: 'Partner Type', accessor: (r: Partner) => r.partnerType },
+              { header: 'Tier', accessor: (r: Partner) => r.tier },
+              { header: 'Status', accessor: (r: Partner) => r.status },
+              { header: 'GST Number', accessor: (r: Partner) => r.gstNumber },
+              { header: 'PAN Number', accessor: (r: Partner) => r.panNumber },
+              { header: 'Vertical', accessor: (r: Partner) => r.vertical },
+              { header: 'Notes', accessor: (r: Partner) => r.notes },
+            ], partners)}
+            disabled={partners.length === 0}
+            title="Export to Excel"
+            className={`flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-normal transition-colors whitespace-nowrap ${
+              isDark
+                ? 'text-zinc-400 border border-zinc-700 hover:bg-zinc-800 disabled:opacity-30'
+                : 'text-slate-500 border border-slate-200 hover:bg-slate-50 disabled:opacity-30'
+            }`}
+          >
+            <Download className="w-4 h-4" />
+            Export
+          </button>
+
+          {/* Set Targets */}
+          <button
+            onClick={() => setShowTargetsModal(true)}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-colors whitespace-nowrap border ${
+              isDark
+                ? 'text-zinc-300 border-zinc-700 hover:bg-zinc-800 hover:text-white'
+                : 'text-slate-600 border-slate-200 hover:bg-slate-50 hover:text-slate-900'
+            }`}
+          >
+            <Target className="w-4 h-4" />
+            Set Targets
+          </button>
 
           {/* New Partner */}
           <button
@@ -850,23 +984,21 @@ export const PartnersPage: React.FC = () => {
           renderLoadingState('Loading partners...')
         ) : partners.length === 0 ? (
           renderEmptyState(
-            hasActiveFilters ? 'No partners match your filters' : 'No partners yet',
-            hasActiveFilters ? 'Try adjusting your filters' : 'Click "New Partner" to create one'
+            hasActiveFilters ? 'No partners match filters' : 'No partners yet',
+            hasActiveFilters ? 'Try adjusting your search or filters' : 'Click "New Partner" to add your first partner'
           )
         ) : (
-          <>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                {renderTableHeader(true)}
-                <tbody>
-                  {partners.map(p => renderPartnerRow(p, true))}
-                </tbody>
-              </table>
-            </div>
-
-            {renderPagination()}
-          </>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              {renderTableHeader(true)}
+              <tbody>
+                {partners.map(p => renderPartnerRow(p, true))}
+              </tbody>
+            </table>
+          </div>
         )}
+
+        {renderPagination()}
       </div>
     </>
   );
@@ -1059,9 +1191,12 @@ export const PartnersPage: React.FC = () => {
   return (
     <div className="p-3 sm:p-4 lg:p-6 space-y-6 animate-fade-in-up">
       {/* Summary Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
         {/* Total Partners */}
-        <div className={`${cardClass} p-4 hover-lift animate-fade-in-up stagger-1`}>
+        <div
+          onClick={() => { clearFilters(); navigate('partners'); }}
+          className={`${cardClass} p-4 hover-lift animate-fade-in-up stagger-1 cursor-pointer`}
+        >
           <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-3 ${
             isDark ? 'bg-brand-900/20' : 'bg-brand-50'
           }`}>
@@ -1073,21 +1208,59 @@ export const PartnersPage: React.FC = () => {
           </p>
         </div>
 
-        {/* Approved */}
-        <div className={`${cardClass} p-4 hover-lift animate-fade-in-up stagger-2`}>
+        {/* Active */}
+        <div
+          onClick={() => { setFilterStatus('approved'); setActiveTab('all'); navigate('partners'); }}
+          className={`${cardClass} p-4 hover-lift animate-fade-in-up stagger-2 cursor-pointer`}
+        >
           <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-3 ${
             isDark ? 'bg-emerald-900/20' : 'bg-emerald-50'
           }`}>
             <CheckCircle className={`w-5 h-5 ${isDark ? 'text-emerald-400' : 'text-emerald-600'}`} />
           </div>
-          <p className={`text-xs ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>Approved</p>
+          <p className={`text-xs ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>Active</p>
           <p className={`text-xl font-bold mt-0.5 ${isDark ? 'text-white' : 'text-slate-900'}`}>
-            {approvedCount}
+            {activeCount}
+          </p>
+        </div>
+
+        {/* Inactive */}
+        <div
+          onClick={() => { setFilterStatus('rejected'); setActiveTab('all'); navigate('partners'); }}
+          className={`${cardClass} p-4 hover-lift animate-fade-in-up stagger-3 cursor-pointer`}
+        >
+          <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-3 ${
+            isDark ? 'bg-slate-800/50' : 'bg-red-50'
+          }`}>
+            <XCircle className={`w-5 h-5 ${isDark ? 'text-slate-400' : 'text-red-500'}`} />
+          </div>
+          <p className={`text-xs ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>Inactive</p>
+          <p className={`text-xl font-bold mt-0.5 ${isDark ? 'text-white' : 'text-slate-900'}`}>
+            {inactiveCount}
+          </p>
+        </div>
+
+        {/* Ghost */}
+        <div
+          onClick={() => { setFilterTier('new'); setFilterStatus('approved'); setActiveTab('all'); navigate('partners'); }}
+          className={`${cardClass} p-4 hover-lift animate-fade-in-up stagger-4 cursor-pointer`}
+        >
+          <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-3 ${
+            isDark ? 'bg-orange-900/20' : 'bg-orange-50'
+          }`}>
+            <AlertCircle className={`w-5 h-5 ${isDark ? 'text-orange-400' : 'text-orange-500'}`} />
+          </div>
+          <p className={`text-xs ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>Ghost</p>
+          <p className={`text-xl font-bold mt-0.5 ${isDark ? 'text-white' : 'text-slate-900'}`}>
+            {ghostCount}
           </p>
         </div>
 
         {/* Pending Approval */}
-        <div className={`${cardClass} p-4 hover-lift animate-fade-in-up stagger-3`}>
+        <div
+          onClick={() => { setActiveTab('pending'); navigate('partners'); }}
+          className={`${cardClass} p-4 hover-lift animate-fade-in-up stagger-5 cursor-pointer`}
+        >
           <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-3 ${
             isDark ? 'bg-amber-900/20' : 'bg-amber-50'
           }`}>
@@ -1100,7 +1273,10 @@ export const PartnersPage: React.FC = () => {
         </div>
 
         {/* Elite Partners */}
-        <div className={`${cardClass} p-4 hover-lift animate-fade-in-up stagger-4`}>
+        <div
+          onClick={() => { setFilterTier('elite'); setActiveTab('all'); navigate('partners'); }}
+          className={`${cardClass} p-4 hover-lift animate-fade-in-up stagger-6 cursor-pointer`}
+        >
           <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-3 ${
             isDark ? 'bg-purple-900/20' : 'bg-purple-50'
           }`}>
@@ -1170,7 +1346,7 @@ export const PartnersPage: React.FC = () => {
 
           {/* Modal content */}
           <div
-            className={`relative w-full max-w-3xl max-h-[90vh] overflow-y-auto rounded-2xl animate-fade-in-up ${
+            className={`relative w-full max-w-2xl max-h-[80vh] overflow-y-auto rounded-2xl animate-fade-in-up ${
               isDark
                 ? 'bg-dark-50 border border-zinc-800'
                 : 'bg-white shadow-premium'
@@ -1262,6 +1438,24 @@ export const PartnersPage: React.FC = () => {
                       ))}
                     </select>
                   </div>
+
+                  {isAdmin() && (
+                    <div>
+                      <label htmlFor="assignedTo" className={labelClass}>Assigned To</label>
+                      <select
+                        id="assignedTo"
+                        name="assignedTo"
+                        value={formData.assignedTo}
+                        onChange={handleFormChange}
+                        className={selectClass}
+                      >
+                        <option value="">Select Salesperson</option>
+                        {usersList.filter(u => u.isActive).map(u => (
+                          <option key={u.id} value={u.id}>{u.name} ({u.role})</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
 
                   <div>
                     <label htmlFor="vertical" className={labelClass}>Vertical</label>
@@ -1678,6 +1872,13 @@ export const PartnersPage: React.FC = () => {
                   </h4>
 
                   <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <p className={`text-xs ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Assigned To</p>
+                      <p className={`text-sm font-medium mt-0.5 ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
+                        {selectedPartner.assignedToName || '-'}
+                      </p>
+                    </div>
+
                     {selectedPartner.gstNumber && (
                       <div>
                         <p className={`text-xs ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>GST Number</p>
@@ -1897,6 +2098,145 @@ export const PartnersPage: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Set Targets Modal */}
+      {showTargetsModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          {/* Backdrop */}
+          <div
+            className="absolute inset-0 bg-black/50 animate-backdrop"
+            onClick={() => setShowTargetsModal(false)}
+          />
+
+          {/* Modal content */}
+          <div
+            className={`relative w-full max-w-sm rounded-2xl animate-fade-in-up ${
+              isDark
+                ? 'bg-dark-50 border border-zinc-800'
+                : 'bg-white shadow-premium'
+            }`}
+          >
+            {/* Header */}
+            <div className={`flex items-center justify-between px-6 py-4 border-b ${
+              isDark ? 'border-zinc-800' : 'border-slate-200'
+            }`}>
+              <h2 className={`text-lg font-semibold font-display flex items-center gap-2 ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                <Target className={`w-5 h-5 ${isDark ? 'text-brand-400' : 'text-brand-600'}`} />
+                Set Revenue Targets
+              </h2>
+              <button
+                onClick={() => setShowTargetsModal(false)}
+                className={`p-2 rounded-lg transition-colors ${
+                  isDark
+                    ? 'text-zinc-400 hover:text-white hover:bg-zinc-800'
+                    : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100'
+                }`}
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="p-6 space-y-4">
+              <p className={`text-sm ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>
+                Set monthly revenue targets per partner tier.
+              </p>
+
+              {/* Elite Tier Target */}
+              <div>
+                <label className={labelClass}>
+                  <span className="flex items-center gap-2">
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                      isDark ? 'bg-purple-900/30 text-purple-400' : 'bg-purple-50 text-purple-700'
+                    }`}>Elite</span>
+                    Tier Target
+                  </span>
+                </label>
+                <input
+                  type="number"
+                  placeholder="e.g. 500000"
+                  value={targets.elite}
+                  onChange={e => setTargets(prev => ({ ...prev, elite: e.target.value }))}
+                  className={inputClass}
+                />
+              </div>
+
+              {/* Growth Tier Target */}
+              <div>
+                <label className={labelClass}>
+                  <span className="flex items-center gap-2">
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                      isDark ? 'bg-blue-900/30 text-blue-400' : 'bg-blue-50 text-blue-700'
+                    }`}>Growth</span>
+                    Tier Target
+                  </span>
+                </label>
+                <input
+                  type="number"
+                  placeholder="e.g. 200000"
+                  value={targets.growth}
+                  onChange={e => setTargets(prev => ({ ...prev, growth: e.target.value }))}
+                  className={inputClass}
+                />
+              </div>
+
+              {/* New Tier Target */}
+              <div>
+                <label className={labelClass}>
+                  <span className="flex items-center gap-2">
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                      isDark ? 'bg-zinc-800 text-zinc-400' : 'bg-slate-100 text-slate-600'
+                    }`}>New</span>
+                    Tier Target
+                  </span>
+                </label>
+                <input
+                  type="number"
+                  placeholder="e.g. 50000"
+                  value={targets.new}
+                  onChange={e => setTargets(prev => ({ ...prev, new: e.target.value }))}
+                  className={inputClass}
+                />
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className={`flex items-center justify-end gap-3 px-6 py-4 border-t ${
+              isDark ? 'border-zinc-800' : 'border-slate-200'
+            }`}>
+              <button
+                type="button"
+                onClick={() => setShowTargetsModal(false)}
+                className={`px-4 py-2.5 rounded-xl text-sm font-medium transition-colors ${
+                  isDark
+                    ? 'text-zinc-400 hover:text-white hover:bg-zinc-800'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                }`}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={saveTargets}
+                disabled={isSavingTargets}
+                className="flex items-center gap-2 px-5 py-2.5 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-sm font-medium transition-all btn-premium disabled:opacity-50"
+              >
+                {isSavingTargets ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
+                {isSavingTargets ? 'Saving...' : 'Save Targets'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <BulkImportModal
+        isOpen={showBulkImport}
+        onClose={() => setShowBulkImport(false)}
+        entity="partners"
+        entityLabel="Partners"
+        isDark={isDark}
+        onSuccess={() => fetchPartners()}
+      />
     </div>
   );
 };

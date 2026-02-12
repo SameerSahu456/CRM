@@ -52,6 +52,7 @@ class PartnerCreate(CamelModel):
     vertical: Optional[str] = None
     tier: str = "new"
     notes: Optional[str] = None
+    assigned_to: Optional[UUID] = None
 
 
 class PartnerUpdate(CamelModel):
@@ -71,6 +72,7 @@ class PartnerUpdate(CamelModel):
     tier: Optional[str] = None
     notes: Optional[str] = None
     is_active: Optional[bool] = None
+    assigned_to: Optional[UUID] = None
 
 
 class PartnerApproveRequest(CamelModel):
