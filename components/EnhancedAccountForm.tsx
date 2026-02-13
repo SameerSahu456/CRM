@@ -68,7 +68,6 @@ export interface EnhancedAccountFormData {
   shippingCountry: string;
 
   location: string;
-  healthScore: number;
 }
 
 export const EMPTY_ENHANCED_FORM: EnhancedAccountFormData = {
@@ -112,7 +111,6 @@ export const EMPTY_ENHANCED_FORM: EnhancedAccountFormData = {
   shippingCode: '',
   shippingCountry: '',
   location: '',
-  healthScore: 100,
 };
 
 const INDUSTRIES = [
@@ -120,7 +118,7 @@ const INDUSTRIES = [
   'Education', 'Real Estate', 'Telecom', 'Energy', 'Media', 'Government', 'Other'
 ];
 
-const ACCOUNT_TYPES = ['Customer', 'Prospect', 'Partner', 'Vendor', 'Competitor'];
+const ACCOUNT_TYPES = ['Hunting', 'Recurring', 'Cold'];
 const ENDCUSTOMER_CATEGORIES = ['Enterprise', 'SMB', 'Startup', 'Government', 'Education'];
 const LEAD_CATEGORIES = ['Hot', 'Warm', 'Cold'];
 const DESIGNATIONS = ['CEO', 'CFO', 'CTO', 'Manager', 'Director', 'VP', 'Other'];
@@ -196,7 +194,6 @@ export const EnhancedAccountForm: React.FC<Props> = ({
         shippingCode: editingAccount.shippingCode || '',
         shippingCountry: editingAccount.shippingCountry || '',
         location: editingAccount.location || '',
-        healthScore: editingAccount.healthScore || 100,
       });
     } else {
       setFormData(EMPTY_ENHANCED_FORM);
@@ -449,9 +446,9 @@ export const EnhancedAccountForm: React.FC<Props> = ({
                           className={selectClass}
                         >
                           <option value="">-None-</option>
-                          {ACCOUNT_TYPES.map(type => (
-                            <option key={type} value={type}>{type}</option>
-                          ))}
+                          <option value="Hunting">Hunting</option>
+                          <option value="Recurring">Recurring</option>
+                          <option value="Cold">Cold</option>
                         </select>
                       </div>
                     </div>

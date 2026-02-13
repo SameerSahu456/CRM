@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import {
   Plus, Search, X, ChevronLeft, ChevronRight, Edit2, Trash2,
   Loader2, AlertCircle, CheckCircle, Building2,
-  Phone, Mail, Eye, Briefcase, User as UserIcon,
+  Phone, Mail, Briefcase, User as UserIcon,
   MessageSquare, Smartphone, Users,
   Download, Upload
 } from 'lucide-react';
@@ -475,13 +475,12 @@ export const ContactsPage: React.FC = () => {
                   <th className={`${hdrCell} w-[130px]`}>Phone</th>
                   <th className={`${hdrCell} w-[140px]`}>Job Title</th>
                   <th className={`${hdrCell} w-[160px]`}>Account</th>
-                  <th className={`${hdrCell} w-[100px] text-center`}>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {contacts.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="py-16 text-center">
+                    <td colSpan={6} className="py-16 text-center">
                       <Users className={`w-8 h-8 mx-auto ${isDark ? 'text-zinc-700' : 'text-slate-300'}`} />
                       <p className={`mt-2 text-sm ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
                         {hasActiveFilters ? 'No contacts match filters' : 'No contacts yet'}
@@ -522,62 +521,6 @@ export const ContactsPage: React.FC = () => {
                           {contact.accountName}
                         </button>
                       ) : '-'}
-                    </td>
-                    <td className={`${cellBase} text-center`}>
-                      <div className="flex items-center justify-center gap-1">
-                        <button
-                          onClick={(e) => { e.stopPropagation(); openDetailModal(contact); }}
-                          title="View"
-                          className={`p-1.5 rounded-lg transition-colors ${
-                            isDark
-                              ? 'text-zinc-400 hover:text-brand-400 hover:bg-brand-900/20'
-                              : 'text-slate-400 hover:text-brand-600 hover:bg-brand-50'
-                          }`}
-                        >
-                          <Eye className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={(e) => { e.stopPropagation(); openEditModal(contact); }}
-                          title="Edit"
-                          className={`p-1.5 rounded-lg transition-colors ${
-                            isDark
-                              ? 'text-zinc-400 hover:text-brand-400 hover:bg-brand-900/20'
-                              : 'text-slate-400 hover:text-brand-600 hover:bg-brand-50'
-                          }`}
-                        >
-                          <Edit2 className="w-4 h-4" />
-                        </button>
-                        {deleteConfirmId === contact.id ? (
-                          <div className="flex items-center gap-1">
-                            <button
-                              onClick={(e) => { e.stopPropagation(); handleDelete(contact.id); }}
-                              className="px-2 py-1 rounded-lg text-xs font-medium bg-red-600 text-white hover:bg-red-700 transition-colors"
-                            >
-                              Yes
-                            </button>
-                            <button
-                              onClick={(e) => { e.stopPropagation(); setDeleteConfirmId(null); }}
-                              className={`px-2 py-1 rounded-lg text-xs font-medium transition-colors ${
-                                isDark ? 'text-zinc-400 hover:bg-zinc-800' : 'text-slate-500 hover:bg-slate-100'
-                              }`}
-                            >
-                              No
-                            </button>
-                          </div>
-                        ) : (
-                          <button
-                            onClick={(e) => { e.stopPropagation(); setDeleteConfirmId(contact.id); }}
-                            title="Delete"
-                            className={`p-1.5 rounded-lg transition-colors ${
-                              isDark
-                                ? 'text-zinc-400 hover:text-red-400 hover:bg-red-900/20'
-                                : 'text-slate-400 hover:text-red-600 hover:bg-red-50'
-                            }`}
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        )}
-                      </div>
                     </td>
                   </tr>
                 ))}
@@ -676,7 +619,7 @@ export const ContactsPage: React.FC = () => {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
         <div className="absolute inset-0 bg-black/50 animate-backdrop" onClick={closeDetailModal} />
-        <div className={`relative w-full max-w-xl max-h-[75vh] rounded-2xl animate-fade-in-up flex flex-col overflow-hidden ${
+        <div className={`relative w-full max-w-xl max-h-[90vh] rounded-2xl animate-fade-in-up flex flex-col overflow-hidden ${
           isDark ? 'bg-dark-50 border border-zinc-800' : 'bg-white shadow-premium'
         }`}>
           {/* Header */}
@@ -698,6 +641,34 @@ export const ContactsPage: React.FC = () => {
               >
                 <Edit2 className="w-4 h-4" />
               </button>
+              {deleteConfirmId === contact.id ? (
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => { handleDelete(contact.id); closeDetailModal(); }}
+                    className="px-2 py-1 rounded-lg text-xs font-medium bg-red-600 text-white hover:bg-red-700 transition-colors"
+                  >
+                    Confirm
+                  </button>
+                  <button
+                    onClick={() => setDeleteConfirmId(null)}
+                    className={`px-2 py-1 rounded-lg text-xs font-medium transition-colors ${
+                      isDark ? 'text-zinc-400 hover:bg-zinc-800' : 'text-slate-500 hover:bg-slate-100'
+                    }`}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setDeleteConfirmId(contact.id)}
+                  className={`p-2 rounded-lg transition-colors ${
+                    isDark ? 'text-zinc-400 hover:text-red-400 hover:bg-red-900/20' : 'text-slate-400 hover:text-red-600 hover:bg-red-50'
+                  }`}
+                  title="Delete"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              )}
               <button
                 onClick={closeDetailModal}
                 className={`p-2 rounded-lg transition-colors ${
@@ -778,7 +749,7 @@ export const ContactsPage: React.FC = () => {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
         <div className="absolute inset-0 bg-black/50 animate-backdrop" onClick={closeFormModal} />
-        <div className={`relative w-full max-w-xl max-h-[75vh] rounded-2xl animate-fade-in-up flex flex-col overflow-hidden ${
+        <div className={`relative w-full max-w-xl max-h-[90vh] rounded-2xl animate-fade-in-up flex flex-col overflow-hidden ${
           isDark ? 'bg-dark-50 border border-zinc-800' : 'bg-white shadow-premium'
         }`}>
           {/* Header */}

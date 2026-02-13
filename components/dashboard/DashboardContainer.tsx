@@ -1,7 +1,7 @@
 import React, { useState, Suspense } from 'react';
 import { DndContext, closestCenter, DragEndEvent, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { SortableContext, rectSortingStrategy } from '@dnd-kit/sortable';
-import { Settings, Loader2, ArrowRight } from 'lucide-react';
+import { Settings, Loader2 } from 'lucide-react';
 import { useDashboardLayout } from '../../hooks/useDashboardLayout';
 import { WidgetWrapper } from './WidgetWrapper';
 import { WidgetLibrary } from '../WidgetLibrary';
@@ -12,22 +12,6 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useView } from '../../contexts/ViewContext';
 import { useNavigation } from '../../contexts/NavigationContext';
 
-const PAGE_LABELS: Record<string, string> = {
-  'dashboard': 'Dashboard',
-  'sales-entry': 'Sales Entry',
-  'partners': 'Partners',
-  'crm': 'CRM / Leads',
-  'accounts': 'Accounts',
-  'contacts': 'Contacts',
-  'deals': 'Deals',
-  'tasks': 'Tasks',
-  'calendar': 'Calendar',
-  'emails': 'Emails',
-  'reports': 'Reports',
-  'admin': 'Admin',
-  'settings': 'Settings',
-  'carepacks': 'Carepacks',
-};
 
 export const DashboardContainer: React.FC = () => {
   const { theme } = useTheme();
@@ -40,11 +24,10 @@ export const DashboardContainer: React.FC = () => {
   const [showLibrary, setShowLibrary] = useState(false);
   const [selectedWidgetId, setSelectedWidgetId] = useState<string | null>(null);
 
-  // Configure sensors for drag interactions
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
-        distance: 8, // 8px movement required before drag starts (prevents accidental drags)
+        distance: 8,
       },
     })
   );
@@ -74,7 +57,6 @@ export const DashboardContainer: React.FC = () => {
     );
   }
 
-  // Get visible widgets
   const visibleWidgets = accessibleWidgets.filter(w => isWidgetVisible(w.id));
 
   return (
@@ -83,7 +65,7 @@ export const DashboardContainer: React.FC = () => {
       <div className="flex justify-end mb-4">
         <button
           onClick={() => setShowLibrary(true)}
-          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-brand-600 text-white hover:bg-brand-700 transition-colors shadow-sm"
+          className="flex items-center gap-2 px-4 py-2 rounded-xl bg-brand-600 text-white hover:bg-brand-700 transition-all shadow-sm hover:shadow-md"
         >
           <Settings className="w-4 h-4" />
           Customize Widgets
@@ -100,27 +82,29 @@ export const DashboardContainer: React.FC = () => {
           items={visibleWidgets.map(w => w.id)}
           strategy={rectSortingStrategy}
         >
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4 sm:gap-5">
-            {visibleWidgets.map(widget => {
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-5 lg:gap-6">
+            {visibleWidgets.map((widget, index) => {
               const meta = WIDGET_REGISTRY[widget.id];
               if (!meta) return null;
 
               const WidgetComponent = meta.component;
-
               const navigateTo = meta.navigateTo;
 
               return (
                 <WidgetWrapper key={widget.id} id={widget.id}>
                   <Suspense
                     fallback={
-                      <div className={`rounded-2xl p-5 flex items-center justify-center h-32 ${
-                        isDark ? 'bg-[rgba(10,16,32,0.55)] border border-white/[0.06]' : 'bg-white'
+                      <div className={`rounded-2xl p-5 flex items-center justify-center h-40 ${
+                        isDark ? 'bg-[rgba(10,16,32,0.55)] border border-white/[0.06]' : 'bg-white shadow-soft'
                       }`}>
                         <Loader2 className="w-6 h-6 animate-spin text-brand-600" />
                       </div>
                     }
                   >
-                    <div className="relative">
+                    <div
+                      className="widget-enter"
+                      style={{ animationDelay: `${index * 60}ms` }}
+                    >
                       <WidgetComponent
                         isDark={isDark}
                         user={user}
@@ -132,23 +116,6 @@ export const DashboardContainer: React.FC = () => {
                           }
                         }}
                       />
-                      {navigateTo && (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            navigate(navigateTo);
-                          }}
-                          className={`absolute bottom-3 right-4 flex items-center gap-1 text-[11px] font-medium rounded-md px-2 py-1 transition-all opacity-70 hover:opacity-100 z-10 ${
-                            isDark
-                              ? 'text-brand-400 hover:bg-white/[0.06]'
-                              : 'text-brand-600 hover:bg-slate-100/80'
-                          }`}
-                          title={`Go to ${PAGE_LABELS[navigateTo] || navigateTo}`}
-                        >
-                          View {PAGE_LABELS[navigateTo] || navigateTo}
-                          <ArrowRight className="w-3 h-3" />
-                        </button>
-                      )}
                     </div>
                   </Suspense>
                 </WidgetWrapper>

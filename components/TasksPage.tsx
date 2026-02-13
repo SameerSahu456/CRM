@@ -189,6 +189,10 @@ export const TasksPage: React.FC = () => {
   const [taskFormData, setTaskFormData] = useState<TaskFormData>({ ...EMPTY_TASK_FORM });
   const [taskFormError, setTaskFormError] = useState('');
 
+  // Detail modal
+  const [showDetailModal, setShowDetailModal] = useState(false);
+  const [detailTask, setDetailTask] = useState<Task | null>(null);
+
   // Delete confirmation
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
@@ -304,6 +308,17 @@ export const TasksPage: React.FC = () => {
     setShowTaskModal(false);
     setEditingTaskId(null);
     setTaskFormError('');
+  };
+
+  const openDetailModal = (task: Task) => {
+    setDetailTask(task);
+    setShowDetailModal(true);
+  };
+
+  const closeDetailModal = () => {
+    setShowDetailModal(false);
+    setDetailTask(null);
+    setDeleteConfirmId(null);
   };
 
   const handleTaskFormChange = (
@@ -549,7 +564,7 @@ export const TasksPage: React.FC = () => {
     return (
       <div
         key={task.id}
-        onClick={() => openEditTaskModal(task)}
+        onClick={() => openDetailModal(task)}
         className={`${cardClass} p-4 transition-all hover-lift cursor-pointer ${
           overdue
             ? isDark
@@ -665,65 +680,6 @@ export const TasksPage: React.FC = () => {
             </div>
           </div>
 
-          {/* Actions */}
-          <div className="flex items-center gap-1 flex-shrink-0">
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                openEditTaskModal(task);
-              }}
-              title="Edit"
-              className={`p-1.5 rounded-lg transition-colors ${
-                isDark
-                  ? 'text-zinc-400 hover:text-brand-400 hover:bg-brand-900/20'
-                  : 'text-slate-400 hover:text-brand-600 hover:bg-brand-50'
-              }`}
-            >
-              <Edit2 className="w-4 h-4" />
-            </button>
-
-            {deleteConfirmId === task.id ? (
-              <div className="flex items-center gap-1">
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleDelete(task.id);
-                  }}
-                  className="px-2 py-1 rounded-lg text-xs font-medium bg-red-600 text-white hover:bg-red-700 transition-colors"
-                >
-                  Confirm
-                </button>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setDeleteConfirmId(null);
-                  }}
-                  className={`px-2 py-1 rounded-lg text-xs font-medium transition-colors ${
-                    isDark
-                      ? 'text-zinc-400 hover:bg-zinc-800'
-                      : 'text-slate-500 hover:bg-slate-100'
-                  }`}
-                >
-                  Cancel
-                </button>
-              </div>
-            ) : (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setDeleteConfirmId(task.id);
-                }}
-                title="Delete"
-                className={`p-1.5 rounded-lg transition-colors ${
-                  isDark
-                    ? 'text-zinc-400 hover:text-red-400 hover:bg-red-900/20'
-                    : 'text-slate-400 hover:text-red-600 hover:bg-red-50'
-                }`}
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
-            )}
-          </div>
         </div>
       </div>
     );
@@ -850,6 +806,184 @@ export const TasksPage: React.FC = () => {
   );
 
   // ---------------------------------------------------------------------------
+  // Render: Task Detail Modal
+  // ---------------------------------------------------------------------------
+
+  const renderDetailModal = () => {
+    if (!showDetailModal || !detailTask) return null;
+    const task = detailTask;
+    const TypeIcon = getTypeIcon(task.type);
+    const overdue = isOverdue(task);
+    const isCompleted = task.status === 'completed';
+    const pColor = PRIORITY_COLORS[task.priority] || PRIORITY_COLORS.Medium;
+    const sColor = STATUS_COLORS[task.status] || STATUS_COLORS.pending;
+
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="absolute inset-0 bg-black/50 animate-backdrop" onClick={closeDetailModal} />
+        <div className={`relative w-full max-w-xl max-h-[90vh] rounded-2xl animate-fade-in-up flex flex-col overflow-hidden ${
+          isDark ? 'bg-dark-50 border border-zinc-800' : 'bg-white shadow-premium'
+        }`}>
+          {/* Header */}
+          <div className={`flex-shrink-0 flex items-center justify-between px-6 py-4 border-b ${
+            isDark ? 'bg-dark-50 border-zinc-800' : 'bg-white border-slate-200'
+          }`}>
+            <div className="flex items-center gap-3 min-w-0">
+              <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                isDark ? 'bg-zinc-800' : 'bg-slate-100'
+              }`}>
+                <TypeIcon className={`w-4 h-4 ${isDark ? 'text-zinc-400' : 'text-slate-500'}`} />
+              </div>
+              <h2 className={`text-lg font-semibold font-display truncate ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                {task.title}
+              </h2>
+            </div>
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <button
+                onClick={() => { closeDetailModal(); openEditTaskModal(task); }}
+                className={`p-2 rounded-lg transition-colors ${
+                  isDark ? 'text-zinc-400 hover:text-white hover:bg-zinc-800' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100'
+                }`}
+                title="Edit"
+              >
+                <Edit2 className="w-4 h-4" />
+              </button>
+              {deleteConfirmId === task.id ? (
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => { handleDelete(task.id); closeDetailModal(); }}
+                    className="px-2 py-1 rounded-lg text-xs font-medium bg-red-600 text-white hover:bg-red-700 transition-colors"
+                  >
+                    Confirm
+                  </button>
+                  <button
+                    onClick={() => setDeleteConfirmId(null)}
+                    className={`px-2 py-1 rounded-lg text-xs font-medium transition-colors ${
+                      isDark ? 'text-zinc-400 hover:bg-zinc-800' : 'text-slate-500 hover:bg-slate-100'
+                    }`}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setDeleteConfirmId(task.id)}
+                  className={`p-2 rounded-lg transition-colors ${
+                    isDark ? 'text-zinc-400 hover:text-red-400 hover:bg-red-900/20' : 'text-slate-400 hover:text-red-600 hover:bg-red-50'
+                  }`}
+                  title="Delete"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              )}
+              <button
+                onClick={closeDetailModal}
+                className={`p-2 rounded-lg transition-colors ${
+                  isDark ? 'text-zinc-400 hover:text-white hover:bg-zinc-800' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100'
+                }`}
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
+
+          <div className="flex-1 overflow-y-auto">
+            <div className="p-6 space-y-6 pb-6">
+              {/* Badges row */}
+              <div className="flex flex-wrap items-center gap-2">
+                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${isDark ? `${pColor.darkBg} ${pColor.darkText}` : `${pColor.bg} ${pColor.text}`}`}>
+                  {task.priority} Priority
+                </span>
+                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${isDark ? `${sColor.darkBg} ${sColor.darkText}` : `${sColor.bg} ${sColor.text}`}`}>
+                  {statusLabel(task.status)}
+                </span>
+                {overdue && (
+                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold ${
+                    isDark ? 'bg-red-900/40 text-red-400' : 'bg-red-100 text-red-600'
+                  }`}>
+                    OVERDUE
+                  </span>
+                )}
+              </div>
+
+              {/* Info grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className={`flex items-start gap-2 p-2.5 rounded-lg ${isDark ? 'bg-dark-100' : 'bg-slate-50'}`}>
+                  <TypeIcon className={`w-3.5 h-3.5 mt-0.5 flex-shrink-0 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`} />
+                  <div className="min-w-0">
+                    <p className={`text-[11px] font-medium ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Type</p>
+                    <p className={`text-sm ${isDark ? 'text-white' : 'text-slate-900'}`}>{task.type || '-'}</p>
+                  </div>
+                </div>
+                {task.dueDate && (
+                  <div className={`flex items-start gap-2 p-2.5 rounded-lg ${isDark ? 'bg-dark-100' : 'bg-slate-50'}`}>
+                    <Calendar className={`w-3.5 h-3.5 mt-0.5 flex-shrink-0 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`} />
+                    <div className="min-w-0">
+                      <p className={`text-[11px] font-medium ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Due Date</p>
+                      <p className={`text-sm ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                        {formatDate(task.dueDate)}{task.dueTime ? ` at ${formatTime(task.dueTime)}` : ''}
+                      </p>
+                    </div>
+                  </div>
+                )}
+                {task.assignedToName && (
+                  <div className={`flex items-start gap-2 p-2.5 rounded-lg ${isDark ? 'bg-dark-100' : 'bg-slate-50'}`}>
+                    <UserIcon className={`w-3.5 h-3.5 mt-0.5 flex-shrink-0 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`} />
+                    <div className="min-w-0">
+                      <p className={`text-[11px] font-medium ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Assigned To</p>
+                      <p className={`text-sm ${isDark ? 'text-white' : 'text-slate-900'}`}>{task.assignedToName}</p>
+                    </div>
+                  </div>
+                )}
+                {task.completedAt && (
+                  <div className={`flex items-start gap-2 p-2.5 rounded-lg ${isDark ? 'bg-dark-100' : 'bg-slate-50'}`}>
+                    <CheckCircle className={`w-3.5 h-3.5 mt-0.5 flex-shrink-0 ${isDark ? 'text-green-500' : 'text-green-600'}`} />
+                    <div className="min-w-0">
+                      <p className={`text-[11px] font-medium ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Completed</p>
+                      <p className={`text-sm ${isDark ? 'text-white' : 'text-slate-900'}`}>{formatDate(task.completedAt)}</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Description */}
+              {task.description && (
+                <div>
+                  <h4 className={`text-xs font-semibold uppercase tracking-wider mb-2 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
+                    Description
+                  </h4>
+                  <p className={`text-sm whitespace-pre-wrap ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
+                    {task.description}
+                  </p>
+                </div>
+              )}
+
+              {/* Quick complete button */}
+              {!isCompleted && (
+                <button
+                  onClick={() => { handleComplete(task.id); closeDetailModal(); }}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-sm font-medium transition-all"
+                >
+                  <CheckCircle className="w-4 h-4" />
+                  Mark as Complete
+                </button>
+              )}
+
+              {/* Timestamps */}
+              <div className={`flex items-center gap-4 text-[11px] pt-2 border-t ${
+                isDark ? 'border-zinc-800 text-zinc-600' : 'border-slate-100 text-slate-400'
+              }`}>
+                {task.createdAt && <span>Created: {formatDate(task.createdAt)}</span>}
+                {task.updatedAt && <span>Updated: {formatDate(task.updatedAt)}</span>}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // ---------------------------------------------------------------------------
   // Render: Create/Edit Task Modal
   // ---------------------------------------------------------------------------
 
@@ -859,7 +993,7 @@ export const TasksPage: React.FC = () => {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
         <div className="absolute inset-0 bg-black/50 animate-backdrop" onClick={closeTaskModal} />
-        <div className={`relative w-full max-w-md max-h-[75vh] rounded-2xl animate-fade-in-up flex flex-col overflow-hidden ${
+        <div className={`relative w-full max-w-md max-h-[90vh] rounded-2xl animate-fade-in-up flex flex-col overflow-hidden ${
           isDark ? 'bg-dark-50 border border-zinc-800' : 'bg-white shadow-premium'
         }`}>
           {/* Header */}
@@ -1081,6 +1215,7 @@ export const TasksPage: React.FC = () => {
       {renderTaskList()}
 
       {/* Modals */}
+      {renderDetailModal()}
       {renderTaskModal()}
     </div>
   );

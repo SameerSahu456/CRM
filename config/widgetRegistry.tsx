@@ -1,7 +1,7 @@
 import React from 'react';
 import {
   Users, Calendar, Building2, Layers, TrendingUp, Package,
-  Target, Award, ShoppingCart, BarChart3, UserCheck
+  Target, Award, ShoppingCart, BarChart3, UserCheck, CheckSquare
 } from 'lucide-react';
 import { WidgetMetadata, DashboardPreferences } from '../types';
 
@@ -163,6 +163,17 @@ export const WIDGET_REGISTRY: Record<string, WidgetMetadata> = {
     defaultOrder: 13,
     component: React.lazy(() => import('../components/dashboard/widgets/LeadsDistributionWidget').then(m => ({ default: m.LeadsDistributionWidget }))),
     navigateTo: 'crm',
+  },
+  'tasks': {
+    id: 'tasks',
+    label: 'Tasks',
+    description: 'Task completion and status overview',
+    category: 'analytics',
+    icon: <CheckSquare className="w-4 h-4" />,
+    defaultVisible: true,
+    defaultOrder: 14,
+    component: React.lazy(() => import('../components/dashboard/widgets/TasksWidget').then(m => ({ default: m.TasksWidget }))),
+    navigateTo: 'tasks',
   },
 };
 

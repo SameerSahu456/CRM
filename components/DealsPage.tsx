@@ -5,17 +5,17 @@ import {
   Target, TrendingUp, ArrowRight, Eye, LayoutGrid, List,
   XCircle, ChevronDown, Building2, User as UserIcon,
   Handshake, FileText, Briefcase, DollarSign,
-  BarChart3, Layers,
+  Layers,
   Download, Upload,
   MapPin, Phone, Mail
 } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigation } from '../contexts/NavigationContext';
-import { dealsApi, accountsApi, contactsApi, partnersApi, productsApi, salesApi, quotesApi, formatINR } from '../services/api';
+import { dealsApi, accountsApi, contactsApi, salesApi, quotesApi, formatINR } from '../services/api';
 import { exportToCsv } from '../utils/exportCsv';
 import { BulkImportModal } from './BulkImportModal';
-import { Deal, DealStage, Account, Contact, Partner, Product, PaginatedResponse, ActivityLog } from '../types';
+import { Deal, DealStage, Account, Contact, PaginatedResponse, ActivityLog } from '../types';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -185,7 +185,6 @@ export const DealsPage: React.FC = () => {
   const [showBulkImport, setShowBulkImport] = useState(false);
   const [deals, setDeals] = useState<Deal[]>([]);
   const [pipelineDeals, setPipelineDeals] = useState<Deal[]>([]);
-  const [pipelineStats, setPipelineStats] = useState<Record<string, { count: number; totalValue: number }>>({});
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [contacts, setContacts] = useState<Contact[]>([]);
 
@@ -204,7 +203,6 @@ export const DealsPage: React.FC = () => {
 
   // UI state
   const [isLoading, setIsLoading] = useState(true);
-  const [isStatsLoading, setIsStatsLoading] = useState(true);
   const [isPipelineLoading, setIsPipelineLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [tableError, setTableError] = useState('');
@@ -222,8 +220,6 @@ export const DealsPage: React.FC = () => {
   // Delete confirmation
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
-  // Summary modal
-  const [showSummary, setShowSummary] = useState(false);
 
   // Summarise (per-deal) modal
   const [showSummariseModal, setShowSummariseModal] = useState(false);
@@ -238,8 +234,6 @@ export const DealsPage: React.FC = () => {
   const [closedWonDealId, setClosedWonDealId] = useState<string | null>(null);
   const [closedWonPayload, setClosedWonPayload] = useState<any>(null);
   const [closedWonDescription, setClosedWonDescription] = useState('');
-  const [closedWonPartnerId, setClosedWonPartnerId] = useState('');
-  const [closedWonProductId, setClosedWonProductId] = useState('');
   const [closedWonSaving, setClosedWonSaving] = useState(false);
   const [closedWonError, setClosedWonError] = useState('');
 
@@ -251,9 +245,6 @@ export const DealsPage: React.FC = () => {
   const [quoteSaving, setQuoteSaving] = useState(false);
   const [quoteError, setQuoteError] = useState('');
 
-  // Partner/Product data for Closed Won modal
-  const [partners, setPartners] = useState<Partner[]>([]);
-  const [products, setProducts] = useState<Product[]>([]);
 
   // ---------------------------------------------------------------------------
   // Styling helpers
@@ -296,18 +287,6 @@ export const DealsPage: React.FC = () => {
     }
   }, [page, filterStage, filterAccount, searchTerm]);
 
-  const fetchPipelineStats = useCallback(async () => {
-    setIsStatsLoading(true);
-    try {
-      const data = await dealsApi.stats();
-      setPipelineStats(data);
-    } catch {
-      setPipelineStats({});
-    } finally {
-      setIsStatsLoading(false);
-    }
-  }, []);
-
   const fetchPipelineDeals = useCallback(async () => {
     setIsPipelineLoading(true);
     try {
@@ -323,19 +302,14 @@ export const DealsPage: React.FC = () => {
 
   const fetchDropdownData = useCallback(async () => {
     try {
-      const [accountsResponse, contactsResponse, partnersResponse, productsResponse] = await Promise.all([
+      const [accountsResponse, contactsResponse] = await Promise.all([
         accountsApi.list({ limit: '100' }),
         contactsApi.list({ limit: '100' }),
-        partnersApi.list({ limit: '100' }),
-        productsApi.list(),
       ]);
       const acctData = accountsResponse?.data ?? accountsResponse;
       setAccounts(Array.isArray(acctData) ? acctData : []);
       const contData = contactsResponse?.data ?? contactsResponse;
       setContacts(Array.isArray(contData) ? contData : []);
-      const partData = partnersResponse?.data ?? partnersResponse;
-      setPartners(Array.isArray(partData) ? partData : []);
-      setProducts(Array.isArray(productsResponse) ? productsResponse : []);
     } catch {
       // Dropdown data failure is non-critical
     }
@@ -344,8 +318,7 @@ export const DealsPage: React.FC = () => {
   // Initial load
   useEffect(() => {
     fetchDropdownData();
-    fetchPipelineStats();
-  }, [fetchDropdownData, fetchPipelineStats]);
+  }, [fetchDropdownData]);
 
   // Fetch based on view mode
   useEffect(() => {
@@ -535,7 +508,6 @@ export const DealsPage: React.FC = () => {
   // ---------------------------------------------------------------------------
 
   const refreshData = () => {
-    fetchPipelineStats();
     if (viewMode === 'table') {
       fetchDeals();
     } else {
@@ -552,8 +524,6 @@ export const DealsPage: React.FC = () => {
     setClosedWonDealId(null);
     setClosedWonPayload(null);
     setClosedWonDescription('');
-    setClosedWonPartnerId('');
-    setClosedWonProductId('');
     setClosedWonError('');
   };
 
@@ -582,8 +552,6 @@ export const DealsPage: React.FC = () => {
       // Auto-create Sales Entry
       const acct = accounts.find(a => a.id === closedWonPayload?.accountId);
       await salesApi.create({
-        partnerId: closedWonPartnerId || undefined,
-        productId: closedWonProductId || undefined,
         salespersonId: user?.id,
         customerName: acct?.name || closedWonPayload?.title || 'Deal',
         quantity: 1,
@@ -641,50 +609,6 @@ export const DealsPage: React.FC = () => {
   };
 
   const hasActiveFilters = filterStage || filterAccount || searchTerm;
-
-  // ---------------------------------------------------------------------------
-  // Render: Pipeline Stats Bar
-  // ---------------------------------------------------------------------------
-
-  const renderStatsBar = () => (
-    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-      {DEAL_STAGES.map((stage, idx) => {
-        const c = STAGE_COLORS[stage] || STAGE_COLORS['Cold']; // Fallback to Cold if stage not found
-        const stats = pipelineStats[stage];
-        const count = stats?.count ?? 0;
-        const totalValue = stats?.totalValue ?? 0;
-        return (
-          <div
-            key={stage}
-            onClick={() => navigate('deals')}
-            className={`${cardClass} p-3 hover-lift animate-fade-in-up cursor-pointer`}
-            style={{ animationDelay: `${idx * 50}ms` }}
-          >
-            <div className={`w-8 h-8 rounded-lg flex items-center justify-center mb-2 ${
-              isDark ? c.darkIconBg : c.iconBg
-            }`}>
-              {stage === 'Cold' && <Target className={`w-4 h-4 ${isDark ? c.darkText : c.text}`} />}
-              {stage === 'Proposal' && <FileText className={`w-4 h-4 ${isDark ? c.darkText : c.text}`} />}
-              {stage === 'Negotiation' && <Handshake className={`w-4 h-4 ${isDark ? c.darkText : c.text}`} />}
-              {stage === 'Closed Won' && <CheckCircle className={`w-4 h-4 ${isDark ? c.darkText : c.text}`} />}
-              {stage === 'Closed Lost' && <XCircle className={`w-4 h-4 ${isDark ? c.darkText : c.text}`} />}
-            </div>
-            <p className={`text-[11px] font-medium ${isDark ? 'text-zinc-500' : 'text-slate-500'}`}>{stage}</p>
-            {isStatsLoading ? (
-              <div className={`w-8 h-5 rounded animate-pulse mt-0.5 ${isDark ? 'bg-zinc-800' : 'bg-slate-100'}`} />
-            ) : (
-              <>
-                <p className={`text-lg font-bold mt-0.5 ${isDark ? 'text-white' : 'text-slate-900'}`}>{count}</p>
-                <p className={`text-[11px] font-medium ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
-                  {formatINR(totalValue)}
-                </p>
-              </>
-            )}
-          </div>
-        );
-      })}
-    </div>
-  );
 
   // ---------------------------------------------------------------------------
   // Render: Toolbar
@@ -829,19 +753,6 @@ export const DealsPage: React.FC = () => {
           Export
         </button>
 
-        {/* Summarise */}
-        <button
-          onClick={() => setShowSummary(true)}
-          className={`flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-normal transition-colors whitespace-nowrap ${
-            isDark
-              ? 'text-zinc-400 border border-zinc-700 hover:bg-zinc-800'
-              : 'text-slate-500 border border-slate-200 hover:bg-slate-50'
-          }`}
-        >
-          <BarChart3 className="w-4 h-4" />
-          Summarise
-        </button>
-
         {/* New Deal */}
         <button
           onClick={openCreateDealModal}
@@ -907,13 +818,12 @@ export const DealsPage: React.FC = () => {
                     <th className={`${hdrCell} w-[90px]`}>Tag</th>
                     <th className={`${hdrCell} w-[110px]`}>Follow-up Date</th>
                     <th className={`${hdrCell} w-[80px] text-center`}>Summarise</th>
-                    <th className={`${hdrCell} w-[90px] text-center`}>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {deals.length === 0 ? (
                     <tr>
-                      <td colSpan={13} className="py-16 text-center">
+                      <td colSpan={12} className="py-16 text-center">
                         <Briefcase className={`w-8 h-8 mx-auto ${isDark ? 'text-zinc-700' : 'text-slate-300'}`} />
                         <p className={`mt-2 text-sm ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
                           {hasActiveFilters ? 'No deals match filters' : 'No deals yet'}
@@ -987,65 +897,6 @@ export const DealsPage: React.FC = () => {
                         >
                           <FileText className="w-4 h-4" />
                         </button>
-                      </td>
-                      {/* Actions */}
-                      <td className={`${cellBase} text-center`}>
-                        <div className="flex items-center justify-center gap-1">
-                          <button
-                            onClick={(e) => { e.stopPropagation(); openDealDetailModal(deal); }}
-                            title="View"
-                            className={`p-1.5 rounded-lg transition-colors ${
-                              isDark
-                                ? 'text-zinc-400 hover:text-brand-400 hover:bg-brand-900/20'
-                                : 'text-slate-400 hover:text-brand-600 hover:bg-brand-50'
-                            }`}
-                          >
-                            <Eye className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={(e) => { e.stopPropagation(); openEditDealModal(deal); }}
-                            title="Edit"
-                            className={`p-1.5 rounded-lg transition-colors ${
-                              isDark
-                                ? 'text-zinc-400 hover:text-brand-400 hover:bg-brand-900/20'
-                                : 'text-slate-400 hover:text-brand-600 hover:bg-brand-50'
-                            }`}
-                          >
-                            <Edit2 className="w-4 h-4" />
-                          </button>
-                          {deleteConfirmId === deal.id ? (
-                            <div className="flex items-center gap-1">
-                              <button
-                                onClick={(e) => { e.stopPropagation(); handleDelete(deal.id); }}
-                                className="px-2 py-1 rounded-lg text-xs font-medium bg-red-600 text-white hover:bg-red-700 transition-colors"
-                              >
-                                Confirm
-                              </button>
-                              <button
-                                onClick={(e) => { e.stopPropagation(); setDeleteConfirmId(null); }}
-                                className={`px-2 py-1 rounded-lg text-xs font-medium transition-colors ${
-                                  isDark
-                                    ? 'text-zinc-400 hover:bg-zinc-800'
-                                    : 'text-slate-500 hover:bg-slate-100'
-                                }`}
-                              >
-                                Cancel
-                              </button>
-                            </div>
-                          ) : (
-                            <button
-                              onClick={(e) => { e.stopPropagation(); setDeleteConfirmId(deal.id); }}
-                              title="Delete"
-                              className={`p-1.5 rounded-lg transition-colors ${
-                                isDark
-                                  ? 'text-zinc-400 hover:text-red-400 hover:bg-red-900/20'
-                                  : 'text-slate-400 hover:text-red-600 hover:bg-red-50'
-                              }`}
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          )}
-                        </div>
                       </td>
                     </tr>
                   ))}
@@ -1371,7 +1222,7 @@ export const DealsPage: React.FC = () => {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
         <div className="absolute inset-0 bg-black/50 animate-backdrop" onClick={closeDealDetailModal} />
-        <div className={`relative w-full max-w-xl max-h-[75vh] rounded-2xl animate-fade-in-up flex flex-col overflow-hidden ${
+        <div className={`relative w-full max-w-xl max-h-[90vh] rounded-2xl animate-fade-in-up flex flex-col overflow-hidden ${
           isDark ? 'bg-dark-50 border border-zinc-800' : 'bg-white shadow-premium'
         }`}>
           {/* Header */}
@@ -1407,6 +1258,34 @@ export const DealsPage: React.FC = () => {
               >
                 <Edit2 className="w-4 h-4" />
               </button>
+              {deleteConfirmId === deal.id ? (
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => { handleDelete(deal.id); closeDealDetailModal(); }}
+                    className="px-2 py-1 rounded-lg text-xs font-medium bg-red-600 text-white hover:bg-red-700 transition-colors"
+                  >
+                    Confirm
+                  </button>
+                  <button
+                    onClick={() => setDeleteConfirmId(null)}
+                    className={`px-2 py-1 rounded-lg text-xs font-medium transition-colors ${
+                      isDark ? 'text-zinc-400 hover:bg-zinc-800' : 'text-slate-500 hover:bg-slate-100'
+                    }`}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setDeleteConfirmId(deal.id)}
+                  className={`p-2 rounded-lg transition-colors ${
+                    isDark ? 'text-zinc-400 hover:text-red-400 hover:bg-red-900/20' : 'text-slate-400 hover:text-red-600 hover:bg-red-50'
+                  }`}
+                  title="Delete"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              )}
               <button
                 onClick={closeDealDetailModal}
                 className={`p-2 rounded-lg transition-colors ${
@@ -1538,7 +1417,7 @@ export const DealsPage: React.FC = () => {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
         <div className="absolute inset-0 bg-black/50 animate-backdrop" onClick={closeDealModal} />
-        <div className={`relative w-full max-w-xl max-h-[75vh] rounded-2xl animate-fade-in-up flex flex-col overflow-hidden ${
+        <div className={`relative w-full max-w-xl max-h-[90vh] rounded-2xl animate-fade-in-up flex flex-col overflow-hidden ${
           isDark ? 'bg-dark-50 border border-zinc-800' : 'bg-white shadow-premium'
         }`}>
           {/* Header */}
@@ -1570,41 +1449,25 @@ export const DealsPage: React.FC = () => {
               </div>
             )}
 
-            {/* Row 1: Value + Stage */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label htmlFor="deal-value" className={labelClass}>
-                  Value (INR) <span className="text-red-500">*</span>
-                </label>
-                <div className="relative">
-                  <IndianRupee className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`} />
-                  <input
-                    id="deal-value"
-                    name="value"
-                    type="number"
-                    min="0"
-                    step="1"
-                    placeholder="0"
-                    value={dealFormData.value || ''}
-                    onChange={handleDealFormChange}
-                    className={`${inputClass} pl-10`}
-                    required
-                  />
-                </div>
-              </div>
-              <div>
-                <label htmlFor="deal-stage" className={labelClass}>Stage</label>
-                <select
-                  id="deal-stage"
-                  name="stage"
-                  value={dealFormData.stage}
+            {/* Value */}
+            <div>
+              <label htmlFor="deal-value" className={labelClass}>
+                Value (INR) <span className="text-red-500">*</span>
+              </label>
+              <div className="relative">
+                <IndianRupee className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`} />
+                <input
+                  id="deal-value"
+                  name="value"
+                  type="number"
+                  min="0"
+                  step="1"
+                  placeholder="0"
+                  value={dealFormData.value || ''}
                   onChange={handleDealFormChange}
-                  className={selectClass}
-                >
-                  {DEAL_STAGES.map(s => (
-                    <option key={s} value={s}>{s}</option>
-                  ))}
-                </select>
+                  className={`${inputClass} pl-10`}
+                  required
+                />
               </div>
             </div>
 
@@ -1880,7 +1743,7 @@ export const DealsPage: React.FC = () => {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
         <div className="absolute inset-0 bg-black/50 animate-backdrop" onClick={closeClosedWonModal} />
-        <div className={`relative w-full max-w-md rounded-2xl animate-fade-in-up flex flex-col overflow-hidden ${
+        <div className={`relative w-full max-w-md max-h-[90vh] rounded-2xl animate-fade-in-up flex flex-col overflow-hidden ${
           isDark ? 'bg-dark-50 border border-zinc-800' : 'bg-white shadow-premium'
         }`}>
           {/* Header */}
@@ -1930,35 +1793,6 @@ export const DealsPage: React.FC = () => {
               />
             </div>
 
-            {/* Partner */}
-            <div>
-              <label className={labelClass}>Partner</label>
-              <select
-                value={closedWonPartnerId}
-                onChange={e => setClosedWonPartnerId(e.target.value)}
-                className={selectClass}
-              >
-                <option value="">Select partner...</option>
-                {partners.map(p => (
-                  <option key={p.id} value={p.id}>{p.companyName}</option>
-                ))}
-              </select>
-            </div>
-
-            {/* Product */}
-            <div>
-              <label className={labelClass}>Product</label>
-              <select
-                value={closedWonProductId}
-                onChange={e => setClosedWonProductId(e.target.value)}
-                className={selectClass}
-              >
-                <option value="">Select product...</option>
-                {products.map(p => (
-                  <option key={p.id} value={p.id}>{p.name}</option>
-                ))}
-              </select>
-            </div>
           </div>
 
           {/* Footer */}
@@ -1992,180 +1826,6 @@ export const DealsPage: React.FC = () => {
   };
 
   // ---------------------------------------------------------------------------
-  // Render: Summary Modal
-  // ---------------------------------------------------------------------------
-
-  const renderSummaryModal = () => {
-    if (!showSummary) return null;
-
-    // Compute summary stats from pipelineStats (all stages)
-    const allStages = DEAL_STAGES;
-    let totalDeals = 0;
-    let totalPipelineValue = 0;
-    const stageBreakdown: { stage: string; count: number; value: number }[] = [];
-
-    allStages.forEach(stage => {
-      const s = pipelineStats[stage];
-      const count = s?.count ?? 0;
-      const value = s?.totalValue ?? 0;
-      totalDeals += count;
-      totalPipelineValue += value;
-      stageBreakdown.push({ stage, count, value });
-    });
-
-    const avgDealValue = totalDeals > 0 ? totalPipelineValue / totalDeals : 0;
-
-    // Deals by type breakdown from loaded deals array
-    const typeMap: Record<string, { count: number; value: number }> = {};
-    deals.forEach(d => {
-      const t = d.type || 'Unspecified';
-      if (!typeMap[t]) typeMap[t] = { count: 0, value: 0 };
-      typeMap[t].count += 1;
-      typeMap[t].value += d.value || 0;
-    });
-
-    // Win / Lost ratio
-    const wonStats = pipelineStats['Closed Won'];
-    const lostStats = pipelineStats['Closed Lost'];
-    const wonCount = wonStats?.count ?? 0;
-    const lostCount = lostStats?.count ?? 0;
-    const totalClosed = wonCount + lostCount;
-    const winRatio = totalClosed > 0 ? ((wonCount / totalClosed) * 100).toFixed(1) : '0.0';
-    const lostRatio = totalClosed > 0 ? ((lostCount / totalClosed) * 100).toFixed(1) : '0.0';
-
-    return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-        <div className="absolute inset-0 bg-black/50 animate-backdrop" onClick={() => setShowSummary(false)} />
-        <div className={`relative w-full max-w-2xl max-h-[80vh] rounded-2xl animate-fade-in-up flex flex-col overflow-hidden ${
-          isDark ? 'bg-dark-50 border border-zinc-800' : 'bg-white shadow-premium'
-        }`}>
-          {/* Header */}
-          <div className={`flex-shrink-0 flex items-center justify-between px-6 py-4 border-b ${
-            isDark ? 'bg-dark-50 border-zinc-800' : 'bg-white border-slate-200'
-          }`}>
-            <div className="flex items-center gap-2">
-              <BarChart3 className={`w-5 h-5 ${isDark ? 'text-brand-400' : 'text-brand-600'}`} />
-              <h2 className={`text-lg font-semibold font-display ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                Deals Summary
-              </h2>
-            </div>
-            <button
-              onClick={() => setShowSummary(false)}
-              className={`p-2 rounded-lg transition-colors ${
-                isDark ? 'text-zinc-400 hover:text-white hover:bg-zinc-800' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100'
-              }`}
-            >
-              <X className="w-5 h-5" />
-            </button>
-          </div>
-
-          {/* Body */}
-          <div className="flex-1 overflow-y-auto p-6 space-y-6">
-            {/* Win / Lost Ratio Bar */}
-            <div className={`p-4 rounded-xl border ${isDark ? 'border-zinc-700 bg-dark-100' : 'border-slate-200 bg-slate-50'}`}>
-              <h3 className={`text-sm font-semibold mb-3 ${isDark ? 'text-white' : 'text-slate-900'}`}>Win / Lost Ratio</h3>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                <div className={`p-3 rounded-lg text-center ${isDark ? 'bg-emerald-900/20 border border-emerald-900/30' : 'bg-emerald-50 border border-emerald-100'}`}>
-                  <p className={`text-2xl font-bold ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`}>{wonCount}</p>
-                  <p className={`text-xs font-medium ${isDark ? 'text-emerald-400/70' : 'text-emerald-600/70'}`}>Won</p>
-                </div>
-                <div className={`p-3 rounded-lg text-center ${isDark ? 'bg-red-900/20 border border-red-900/30' : 'bg-red-50 border border-red-100'}`}>
-                  <p className={`text-2xl font-bold ${isDark ? 'text-red-400' : 'text-red-700'}`}>{lostCount}</p>
-                  <p className={`text-xs font-medium ${isDark ? 'text-red-400/70' : 'text-red-600/70'}`}>Lost</p>
-                </div>
-                <div className={`p-3 rounded-lg text-center ${isDark ? 'bg-emerald-900/20 border border-emerald-900/30' : 'bg-emerald-50 border border-emerald-100'}`}>
-                  <p className={`text-2xl font-bold ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`}>{winRatio}%</p>
-                  <p className={`text-xs font-medium ${isDark ? 'text-emerald-400/70' : 'text-emerald-600/70'}`}>Win Rate</p>
-                </div>
-                <div className={`p-3 rounded-lg text-center ${isDark ? 'bg-red-900/20 border border-red-900/30' : 'bg-red-50 border border-red-100'}`}>
-                  <p className={`text-2xl font-bold ${isDark ? 'text-red-400' : 'text-red-700'}`}>{lostRatio}%</p>
-                  <p className={`text-xs font-medium ${isDark ? 'text-red-400/70' : 'text-red-600/70'}`}>Loss Rate</p>
-                </div>
-              </div>
-              {totalClosed > 0 && (
-                <div className={`mt-3 h-3 rounded-full overflow-hidden flex ${isDark ? 'bg-zinc-800' : 'bg-slate-200'}`}>
-                  <div className="h-full bg-emerald-500 transition-all" style={{ width: `${winRatio}%` }} />
-                  <div className="h-full bg-red-500 transition-all" style={{ width: `${lostRatio}%` }} />
-                </div>
-              )}
-            </div>
-
-            {/* Overview Stats */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div className={`p-4 rounded-xl ${isDark ? 'bg-dark-100 border border-zinc-700' : 'bg-slate-50 border border-slate-200'}`}>
-                <p className={`text-xs font-medium ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Total Deals</p>
-                <p className={`text-2xl font-bold mt-1 ${isDark ? 'text-white' : 'text-slate-900'}`}>{totalDeals}</p>
-              </div>
-              <div className={`p-4 rounded-xl ${isDark ? 'bg-dark-100 border border-zinc-700' : 'bg-slate-50 border border-slate-200'}`}>
-                <p className={`text-xs font-medium ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Total Pipeline Value</p>
-                <p className={`text-2xl font-bold mt-1 ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`}>{formatINR(totalPipelineValue)}</p>
-              </div>
-              <div className={`p-4 rounded-xl ${isDark ? 'bg-dark-100 border border-zinc-700' : 'bg-slate-50 border border-slate-200'}`}>
-                <p className={`text-xs font-medium ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Average Deal Value</p>
-                <p className={`text-2xl font-bold mt-1 ${isDark ? 'text-brand-400' : 'text-brand-700'}`}>{formatINR(avgDealValue)}</p>
-              </div>
-            </div>
-
-            {/* Deals by Stage */}
-            <div>
-              <h3 className={`text-sm font-semibold mb-3 ${isDark ? 'text-white' : 'text-slate-900'}`}>Deals by Stage</h3>
-              <div className={`rounded-xl border overflow-hidden ${isDark ? 'border-zinc-700' : 'border-slate-200'}`}>
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className={`border-b ${isDark ? 'border-zinc-700 bg-dark-100' : 'border-slate-200 bg-slate-50'}`}>
-                      <th className={`text-left px-4 py-2.5 text-xs font-semibold ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>Stage</th>
-                      <th className={`text-right px-4 py-2.5 text-xs font-semibold ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>Count</th>
-                      <th className={`text-right px-4 py-2.5 text-xs font-semibold ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>Total Value</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {stageBreakdown.map(row => (
-                      <tr key={row.stage} className={`border-b last:border-0 ${isDark ? 'border-zinc-800' : 'border-slate-100'}`}>
-                        <td className={`px-4 py-2.5 ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
-                          <span className={stageBadge(row.stage as DealStage, isDark)}>{row.stage}</span>
-                        </td>
-                        <td className={`px-4 py-2.5 text-right font-medium ${isDark ? 'text-white' : 'text-slate-900'}`}>{row.count}</td>
-                        <td className={`px-4 py-2.5 text-right font-medium ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`}>{formatINR(row.value)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            {/* Deals by Type */}
-            {Object.keys(typeMap).length > 0 && (
-              <div>
-                <h3 className={`text-sm font-semibold mb-3 ${isDark ? 'text-white' : 'text-slate-900'}`}>Deals by Type</h3>
-                <div className={`rounded-xl border overflow-hidden ${isDark ? 'border-zinc-700' : 'border-slate-200'}`}>
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className={`border-b ${isDark ? 'border-zinc-700 bg-dark-100' : 'border-slate-200 bg-slate-50'}`}>
-                        <th className={`text-left px-4 py-2.5 text-xs font-semibold ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>Type</th>
-                        <th className={`text-right px-4 py-2.5 text-xs font-semibold ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>Count</th>
-                        <th className={`text-right px-4 py-2.5 text-xs font-semibold ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>Total Value</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {Object.entries(typeMap).map(([type, info]) => (
-                        <tr key={type} className={`border-b last:border-0 ${isDark ? 'border-zinc-800' : 'border-slate-100'}`}>
-                          <td className={`px-4 py-2.5 font-medium ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>{type}</td>
-                          <td className={`px-4 py-2.5 text-right font-medium ${isDark ? 'text-white' : 'text-slate-900'}`}>{info.count}</td>
-                          <td className={`px-4 py-2.5 text-right font-medium ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`}>{formatINR(info.value)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  // ---------------------------------------------------------------------------
   // Main render
   // ---------------------------------------------------------------------------
 
@@ -2183,9 +1843,6 @@ export const DealsPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Stats Bar */}
-      {renderStatsBar()}
-
       {/* Toolbar */}
       {renderToolbar()}
 
@@ -2196,7 +1853,6 @@ export const DealsPage: React.FC = () => {
       {renderDealModal()}
       {renderDealDetailModal()}
       {renderClosedWonModal()}
-      {renderSummaryModal()}
 
       <BulkImportModal
         isOpen={showBulkImport}

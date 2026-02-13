@@ -1,12 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   Plus, Search, Trash2, X, ChevronLeft, ChevronRight,
-  IndianRupee, ShoppingCart, Clock, CheckCircle, Loader2, AlertCircle,
-  Download, Upload
+  IndianRupee, CheckCircle, Loader2, AlertCircle,
+  Download, Upload, Edit2
 } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
-import { useNavigation } from '../contexts/NavigationContext';
 import { salesApi, productsApi, partnersApi, masterDataApi, formatINR } from '../services/api';
 import { exportToCsv } from '../utils/exportCsv';
 import { SalesEntry, Product, Partner, PaginatedResponse } from '../types';
@@ -15,14 +14,6 @@ import { BulkImportModal } from './BulkImportModal';
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
-
-interface SalesSummary {
-  totalAmount: number;
-  totalCount: number;
-  totalCommission: number;
-  pendingPayments: number;
-  paidCount: number;
-}
 
 interface SalesFormData {
   partnerId: string;
@@ -99,13 +90,11 @@ function formatDate(dateStr: string): string {
 export const SalesEntryPage: React.FC = () => {
   const { theme } = useTheme();
   const { user } = useAuth();
-  const { setActiveTab: navigate } = useNavigation();
   const isDark = theme === 'dark';
 
   // Data
   const [showBulkImport, setShowBulkImport] = useState(false);
   const [sales, setSales] = useState<SalesEntry[]>([]);
-  const [summary, setSummary] = useState<SalesSummary | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [partners, setPartners] = useState<Partner[]>([]);
 
@@ -115,20 +104,15 @@ export const SalesEntryPage: React.FC = () => {
   const [totalRecords, setTotalRecords] = useState(0);
 
   // Filters
-  const [filterPartner, setFilterPartner] = useState('');
-  const [filterProduct, setFilterProduct] = useState('');
   const [filterPaymentStatus, setFilterPaymentStatus] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [filterFromDate, setFilterFromDate] = useState('');
   const [filterToDate, setFilterToDate] = useState('');
-  const [filterVertical, setFilterVertical] = useState('');
   const [filterLocation, setFilterLocation] = useState('');
-  const [verticals, setVerticals] = useState<any[]>([]);
   const [locations, setLocations] = useState<any[]>([]);
 
   // Loading
   const [isLoading, setIsLoading] = useState(true);
-  const [isSummaryLoading, setIsSummaryLoading] = useState(true);
   const [tableError, setTableError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
 
@@ -138,6 +122,10 @@ export const SalesEntryPage: React.FC = () => {
   const [formData, setFormData] = useState<SalesFormData>({ ...EMPTY_FORM });
   const [formError, setFormError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Detail modal
+  const [showDetailModal, setShowDetailModal] = useState(false);
+  const [detailEntry, setDetailEntry] = useState<SalesEntry | null>(null);
 
   // Delete
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
@@ -155,13 +143,10 @@ export const SalesEntryPage: React.FC = () => {
         page: String(page),
         limit: String(PAGE_SIZE),
       };
-      if (filterPartner) params.partnerId = filterPartner;
-      if (filterProduct) params.productId = filterProduct;
       if (filterPaymentStatus) params.paymentStatus = filterPaymentStatus;
       if (searchTerm) params.search = searchTerm;
       if (filterFromDate) params.fromDate = filterFromDate;
       if (filterToDate) params.toDate = filterToDate;
-      if (filterVertical) params.verticalId = filterVertical;
       if (filterLocation) params.locationId = filterLocation;
 
       const response: PaginatedResponse<SalesEntry> = await salesApi.list(params);
@@ -174,32 +159,18 @@ export const SalesEntryPage: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [page, filterPartner, filterProduct, filterPaymentStatus, searchTerm, filterFromDate, filterToDate, filterVertical, filterLocation]);
-
-  const fetchSummary = useCallback(async () => {
-    setIsSummaryLoading(true);
-    try {
-      const data = await salesApi.summary();
-      setSummary(data);
-    } catch {
-      setSummary(null);
-    } finally {
-      setIsSummaryLoading(false);
-    }
-  }, []);
+  }, [page, filterPaymentStatus, searchTerm, filterFromDate, filterToDate, filterLocation]);
 
   const fetchDropdownData = useCallback(async () => {
     try {
-      const [productsList, partnersResponse, verticalsList, locationsList] = await Promise.all([
+      const [productsList, partnersResponse, locationsList] = await Promise.all([
         productsApi.list(),
         partnersApi.list({ limit: '100', status: 'approved' }),
-        masterDataApi.list('verticals'),
         masterDataApi.list('locations'),
       ]);
       setProducts(Array.isArray(productsList) ? productsList : []);
       const partnerData = partnersResponse?.data ?? partnersResponse;
       setPartners(Array.isArray(partnerData) ? partnerData : []);
-      setVerticals(Array.isArray(verticalsList) ? verticalsList : []);
       setLocations(Array.isArray(locationsList) ? locationsList : []);
     } catch {
       // Dropdown data failure is non-critical
@@ -208,8 +179,7 @@ export const SalesEntryPage: React.FC = () => {
 
   useEffect(() => {
     fetchDropdownData();
-    fetchSummary();
-  }, [fetchDropdownData, fetchSummary]);
+  }, [fetchDropdownData]);
 
   useEffect(() => {
     fetchSales();
@@ -217,7 +187,7 @@ export const SalesEntryPage: React.FC = () => {
 
   useEffect(() => {
     setPage(1);
-  }, [filterPartner, filterProduct, filterPaymentStatus, searchTerm, filterFromDate, filterToDate, filterVertical, filterLocation]);
+  }, [filterPaymentStatus, searchTerm, filterFromDate, filterToDate, filterLocation]);
 
   // Auto-clear success message
   useEffect(() => {
@@ -262,6 +232,17 @@ export const SalesEntryPage: React.FC = () => {
     setFormError('');
   };
 
+  const openDetailModal = (entry: SalesEntry) => {
+    setDetailEntry(entry);
+    setShowDetailModal(true);
+  };
+
+  const closeDetailModal = () => {
+    setShowDetailModal(false);
+    setDetailEntry(null);
+    setDeleteConfirmId(null);
+  };
+
   const handleFormChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
   ) => {
@@ -296,7 +277,6 @@ export const SalesEntryPage: React.FC = () => {
       }
       closeModal();
       fetchSales();
-      fetchSummary();
     } catch (err: any) {
       setFormError(err.message || 'Failed to save');
     } finally {
@@ -314,7 +294,6 @@ export const SalesEntryPage: React.FC = () => {
       setDeleteConfirmId(null);
       setSuccessMsg('Entry deleted');
       fetchSales();
-      fetchSummary();
     } catch (err: any) {
       setTableError(err.message || 'Failed to delete');
     }
@@ -325,17 +304,14 @@ export const SalesEntryPage: React.FC = () => {
   // ---------------------------------------------------------------------------
 
   const clearFilters = () => {
-    setFilterPartner('');
-    setFilterProduct('');
     setFilterPaymentStatus('');
     setSearchTerm('');
     setFilterFromDate('');
     setFilterToDate('');
-    setFilterVertical('');
     setFilterLocation('');
   };
 
-  const hasActiveFilters = filterPartner || filterProduct || filterPaymentStatus || searchTerm || filterFromDate || filterToDate || filterVertical || filterLocation;
+  const hasActiveFilters = filterPaymentStatus || searchTerm || filterFromDate || filterToDate || filterLocation;
 
   // ---------------------------------------------------------------------------
   // Lookup helpers
@@ -359,39 +335,9 @@ export const SalesEntryPage: React.FC = () => {
 
   return (
     <div className="p-3 sm:p-4 lg:p-6 space-y-4 animate-fade-in-up">
-      {/* Compact Summary Bar */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        {[
-          { label: 'Total Sales', value: formatINR(summary?.totalAmount ?? 0), icon: IndianRupee, color: 'brand', nav: 'sales-entry' as const },
-          { label: 'Entries', value: String(summary?.totalCount ?? 0), icon: ShoppingCart, color: 'emerald', nav: 'sales-entry' as const },
-          { label: 'Pending', value: String(summary?.pendingPayments ?? 0), icon: Clock, color: 'amber', nav: 'sales-entry' as const },
-          { label: 'Paid', value: String(summary?.paidCount ?? 0), icon: CheckCircle, color: 'green', nav: 'sales-entry' as const },
-        ].map(({ label, value, icon: Icon, color, nav }) => (
-          <div
-            key={label}
-            onClick={() => navigate(nav)}
-            className={`${cardClass} p-3 flex items-center gap-3 cursor-pointer hover:scale-[1.02] transition-transform`}
-          >
-            <div className={`w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 ${
-              isDark ? `bg-${color}-900/20` : `bg-${color}-50`
-            }`}>
-              <Icon className={`w-4 h-4 ${isDark ? `text-${color}-400` : `text-${color}-600`}`} />
-            </div>
-            <div className="min-w-0">
-              <p className={`text-[11px] ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>{label}</p>
-              {isSummaryLoading ? (
-                <div className={`w-16 h-4 rounded animate-pulse mt-0.5 ${isDark ? 'bg-zinc-800' : 'bg-slate-100'}`} />
-              ) : (
-                <p className={`text-lg font-bold leading-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>{value}</p>
-              )}
-            </div>
-          </div>
-        ))}
-      </div>
-
       {/* Toolbar */}
       <div className={`${cardClass} px-3 py-2.5 space-y-2`}>
-        {/* Row 1: Search + Quick Filters + Export */}
+        {/* Row 1: Search + Filters */}
         <div className="flex flex-col lg:flex-row lg:items-center gap-2">
           <div className="relative flex-1 min-w-0">
             <Search className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`} />
@@ -407,47 +353,27 @@ export const SalesEntryPage: React.FC = () => {
               } focus:outline-none`}
             />
           </div>
-          <select value={filterPartner} onChange={e => setFilterPartner(e.target.value)} className={`${selectFilterClass} lg:w-44`}>
-            <option value="">All Partners</option>
-            {partners.map(p => <option key={p.id} value={p.id}>{p.companyName}</option>)}
-          </select>
-          <select value={filterProduct} onChange={e => setFilterProduct(e.target.value)} className={`${selectFilterClass} lg:w-40`}>
-            <option value="">All Products</option>
-            {products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-          </select>
           <select value={filterPaymentStatus} onChange={e => setFilterPaymentStatus(e.target.value)} className={`${selectFilterClass} lg:w-36`}>
             <option value="">All Status</option>
             {PAYMENT_STATUSES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
           </select>
-        </div>
-
-        {/* Row 2: Date Range + Vertical + Location + Clear + Export */}
-        <div className="flex flex-col lg:flex-row lg:items-center gap-2">
-          <div className="flex items-center gap-2 flex-1">
-            <div className="relative">
-              <input
-                type="date"
-                value={filterFromDate}
-                onChange={e => setFilterFromDate(e.target.value)}
-                className={`${selectFilterClass} w-[150px]`}
-                title="From date"
-              />
-            </div>
+          <div className="flex items-center gap-2">
+            <input
+              type="date"
+              value={filterFromDate}
+              onChange={e => setFilterFromDate(e.target.value)}
+              className={`${selectFilterClass} w-[150px]`}
+              title="From date"
+            />
             <span className={`text-xs ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>to</span>
-            <div className="relative">
-              <input
-                type="date"
-                value={filterToDate}
-                onChange={e => setFilterToDate(e.target.value)}
-                className={`${selectFilterClass} w-[150px]`}
-                title="To date"
-              />
-            </div>
+            <input
+              type="date"
+              value={filterToDate}
+              onChange={e => setFilterToDate(e.target.value)}
+              className={`${selectFilterClass} w-[150px]`}
+              title="To date"
+            />
           </div>
-          <select value={filterVertical} onChange={e => setFilterVertical(e.target.value)} className={`${selectFilterClass} lg:w-40`}>
-            <option value="">All Verticals</option>
-            {verticals.map((v: any) => <option key={v.id} value={v.id}>{v.name}</option>)}
-          </select>
           <select value={filterLocation} onChange={e => setFilterLocation(e.target.value)} className={`${selectFilterClass} lg:w-40`}>
             <option value="">All Locations</option>
             {locations.map((l: any) => <option key={l.id} value={l.id}>{l.city}{l.state ? `, ${l.state}` : ''}</option>)}
@@ -533,7 +459,7 @@ export const SalesEntryPage: React.FC = () => {
           </div>
         ) : sales.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16">
-            <ShoppingCart className={`w-8 h-8 ${isDark ? 'text-zinc-700' : 'text-slate-300'}`} />
+            <IndianRupee className={`w-8 h-8 ${isDark ? 'text-zinc-700' : 'text-slate-300'}`} />
             <p className={`mt-2 text-sm ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
               {hasActiveFilters ? 'No entries match filters' : 'No entries yet'}
             </p>
@@ -552,7 +478,7 @@ export const SalesEntryPage: React.FC = () => {
             <table className="w-full text-sm">
               <thead>
                 <tr className={`border-b ${isDark ? 'border-zinc-800' : 'border-slate-100'}`}>
-                  {['#', 'Date', 'Partner', 'Product', 'Customer', 'Qty', 'Amount', 'PO #', 'Invoice #', 'Status', 'Actions'].map(h => (
+                  {['#', 'Date', 'Partner', 'Product', 'Customer', 'Qty', 'Amount', 'PO #', 'Invoice #', 'Status'].map(h => (
                     <th
                       key={h}
                       className={`px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider ${
@@ -572,7 +498,7 @@ export const SalesEntryPage: React.FC = () => {
                   return (
                     <tr
                       key={entry.id}
-                      onClick={() => !isDeleting && openEditModal(entry)}
+                      onClick={() => !isDeleting && openDetailModal(entry)}
                       className={`border-b transition-colors cursor-pointer ${
                         isDark
                           ? 'border-zinc-800/50 hover:bg-zinc-800/30'
@@ -608,38 +534,6 @@ export const SalesEntryPage: React.FC = () => {
                         <span className={paymentBadge(entry.paymentStatus, isDark)}>
                           {entry.paymentStatus.charAt(0).toUpperCase() + entry.paymentStatus.slice(1)}
                         </span>
-                      </td>
-                      <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
-                        {isDeleting ? (
-                          <div className="flex items-center gap-1">
-                            <button
-                              onClick={() => handleDelete(entry.id)}
-                              className="px-2 py-1 rounded-lg text-xs font-medium bg-red-600 text-white hover:bg-red-700 transition-colors"
-                            >
-                              Confirm
-                            </button>
-                            <button
-                              onClick={() => setDeleteConfirmId(null)}
-                              className={`px-2 py-1 rounded-lg text-xs font-medium transition-colors ${
-                                isDark ? 'text-zinc-400 hover:bg-zinc-800' : 'text-slate-500 hover:bg-slate-100'
-                              }`}
-                            >
-                              Cancel
-                            </button>
-                          </div>
-                        ) : (
-                          <button
-                            onClick={() => setDeleteConfirmId(entry.id)}
-                            title="Delete"
-                            className={`p-1.5 rounded-lg transition-colors ${
-                              isDark
-                                ? 'text-zinc-400 hover:text-red-400 hover:bg-red-900/20'
-                                : 'text-slate-400 hover:text-red-600 hover:bg-red-50'
-                            }`}
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        )}
                       </td>
                     </tr>
                   );
@@ -707,6 +601,132 @@ export const SalesEntryPage: React.FC = () => {
         )}
       </div>
 
+      {/* Detail Modal */}
+      {showDetailModal && detailEntry && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/50 animate-backdrop" onClick={closeDetailModal} />
+          <div className={`relative w-full max-w-lg max-h-[90vh] rounded-2xl animate-fade-in-up flex flex-col overflow-hidden ${
+            isDark ? 'bg-dark-50 border border-zinc-800' : 'bg-white shadow-premium'
+          }`}>
+            {/* Header */}
+            <div className={`flex-shrink-0 flex items-center justify-between px-6 py-4 border-b ${
+              isDark ? 'bg-dark-50 border-zinc-800' : 'bg-white border-slate-200'
+            }`}>
+              <h2 className={`text-lg font-semibold font-display ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                Sales Entry Details
+              </h2>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => { openEditModal(detailEntry); closeDetailModal(); }}
+                  className={`p-2 rounded-lg transition-colors ${
+                    isDark ? 'text-zinc-400 hover:text-white hover:bg-zinc-800' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100'
+                  }`}
+                  title="Edit"
+                >
+                  <Edit2 className="w-4 h-4" />
+                </button>
+                {deleteConfirmId === detailEntry.id ? (
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => { handleDelete(detailEntry.id); closeDetailModal(); }}
+                      className="px-2 py-1 rounded-lg text-xs font-medium bg-red-600 text-white hover:bg-red-700 transition-colors"
+                    >
+                      Confirm
+                    </button>
+                    <button
+                      onClick={() => setDeleteConfirmId(null)}
+                      className={`px-2 py-1 rounded-lg text-xs font-medium transition-colors ${
+                        isDark ? 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                      }`}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setDeleteConfirmId(detailEntry.id)}
+                    className={`p-2 rounded-lg transition-colors ${
+                      isDark ? 'text-zinc-400 hover:text-red-400 hover:bg-zinc-800' : 'text-slate-400 hover:text-red-600 hover:bg-slate-100'
+                    }`}
+                    title="Delete"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                )}
+                <button
+                  onClick={closeDetailModal}
+                  className={`p-2 rounded-lg transition-colors ${
+                    isDark ? 'text-zinc-400 hover:text-white hover:bg-zinc-800' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100'
+                  }`}
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Body */}
+            <div className="flex-1 overflow-y-auto p-6 space-y-4">
+              {/* Status badge */}
+              <div className="flex items-center gap-2">
+                <span className={paymentBadge(detailEntry.paymentStatus, isDark)}>
+                  {detailEntry.paymentStatus.charAt(0).toUpperCase() + detailEntry.paymentStatus.slice(1)}
+                </span>
+              </div>
+
+              {/* Info grid */}
+              <div className={`grid grid-cols-2 gap-3 text-sm rounded-xl p-4 ${isDark ? 'bg-dark-100' : 'bg-slate-50'}`}>
+                <div>
+                  <p className={`text-xs mb-0.5 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Date</p>
+                  <p className={`font-medium ${isDark ? 'text-white' : 'text-slate-900'}`}>{formatDate(detailEntry.saleDate)}</p>
+                </div>
+                <div>
+                  <p className={`text-xs mb-0.5 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Partner</p>
+                  <p className={`font-medium ${isDark ? 'text-white' : 'text-slate-900'}`}>{detailEntry.partnerName || '-'}</p>
+                </div>
+                <div>
+                  <p className={`text-xs mb-0.5 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Product</p>
+                  <p className={`font-medium ${isDark ? 'text-white' : 'text-slate-900'}`}>{detailEntry.productName || '-'}</p>
+                </div>
+                <div>
+                  <p className={`text-xs mb-0.5 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Customer</p>
+                  <p className={`font-medium ${isDark ? 'text-white' : 'text-slate-900'}`}>{detailEntry.customerName || '-'}</p>
+                </div>
+                <div>
+                  <p className={`text-xs mb-0.5 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Quantity</p>
+                  <p className={`font-medium ${isDark ? 'text-white' : 'text-slate-900'}`}>{detailEntry.quantity}</p>
+                </div>
+                <div>
+                  <p className={`text-xs mb-0.5 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Amount</p>
+                  <p className={`font-medium ${isDark ? 'text-white' : 'text-slate-900'}`}>{formatINR(detailEntry.amount)}</p>
+                </div>
+                <div>
+                  <p className={`text-xs mb-0.5 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>PO #</p>
+                  <p className={`font-medium ${isDark ? 'text-white' : 'text-slate-900'}`}>{detailEntry.poNumber || '-'}</p>
+                </div>
+                <div>
+                  <p className={`text-xs mb-0.5 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Invoice #</p>
+                  <p className={`font-medium ${isDark ? 'text-white' : 'text-slate-900'}`}>{detailEntry.invoiceNo || '-'}</p>
+                </div>
+              </div>
+
+              {/* Notes */}
+              {detailEntry.notes && (
+                <div>
+                  <p className={`text-xs mb-1 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Notes</p>
+                  <p className={`text-sm ${isDark ? 'text-zinc-300' : 'text-slate-600'}`}>{detailEntry.notes}</p>
+                </div>
+              )}
+
+              {/* Timestamps */}
+              <div className={`pt-3 border-t text-xs ${isDark ? 'border-zinc-800 text-zinc-600' : 'border-slate-100 text-slate-400'}`}>
+                {detailEntry.createdAt && <p>Created: {new Date(detailEntry.createdAt).toLocaleString()}</p>}
+                {detailEntry.updatedAt && <p>Updated: {new Date(detailEntry.updatedAt).toLocaleString()}</p>}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <BulkImportModal
         isOpen={showBulkImport}
         onClose={() => setShowBulkImport(false)}
@@ -715,6 +735,242 @@ export const SalesEntryPage: React.FC = () => {
         isDark={isDark}
         onSuccess={() => fetchSales()}
       />
+
+      {/* Create / Edit Modal */}
+      {showModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/50 animate-backdrop" onClick={closeModal} />
+          <div className={`relative w-full max-w-lg max-h-[90vh] rounded-2xl animate-fade-in-up flex flex-col overflow-hidden ${
+            isDark ? 'bg-dark-50 border border-zinc-800' : 'bg-white shadow-premium'
+          }`}>
+            {/* Header */}
+            <div className={`flex-shrink-0 flex items-center justify-between px-6 py-4 border-b ${
+              isDark ? 'bg-dark-50 border-zinc-800' : 'bg-white border-slate-200'
+            }`}>
+              <h2 className={`text-lg font-semibold font-display ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                {editingId ? 'Edit Entry' : 'New Sales Entry'}
+              </h2>
+              <button
+                onClick={closeModal}
+                className={`p-2 rounded-lg transition-colors ${
+                  isDark ? 'text-zinc-400 hover:text-white hover:bg-zinc-800' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100'
+                }`}
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Form */}
+            <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto">
+              <div className="p-6 space-y-4">
+                {formError && (
+                  <div className={`p-3 rounded-xl flex items-center gap-2 text-sm ${
+                    isDark ? 'bg-red-900/20 border border-red-800 text-red-400' : 'bg-red-50 border border-red-200 text-red-700'
+                  }`}>
+                    <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                    {formError}
+                  </div>
+                )}
+
+                {/* Partner + Product */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className={`block text-sm font-medium mb-1.5 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                      Partner <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      name="partnerId"
+                      value={formData.partnerId}
+                      onChange={handleFormChange}
+                      className={selectFilterClass}
+                      required
+                    >
+                      <option value="">Select partner...</option>
+                      {partners.map(p => (
+                        <option key={p.id} value={p.id}>{p.companyName}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className={`block text-sm font-medium mb-1.5 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                      Product <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      name="productId"
+                      value={formData.productId}
+                      onChange={handleFormChange}
+                      className={selectFilterClass}
+                      required
+                    >
+                      <option value="">Select product...</option>
+                      {products.map(p => (
+                        <option key={p.id} value={p.id}>{p.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {/* Customer + Date */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className={`block text-sm font-medium mb-1.5 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>Customer Name</label>
+                    <input
+                      name="customerName"
+                      type="text"
+                      placeholder="Customer name"
+                      value={formData.customerName}
+                      onChange={handleFormChange}
+                      className={`w-full px-3 py-2.5 rounded-xl border text-sm transition-all ${
+                        isDark ? 'bg-dark-100 border-zinc-700 text-white placeholder-zinc-500 focus:border-brand-500' : 'bg-white border-slate-200 text-slate-900 placeholder-slate-400 focus:border-brand-500'
+                      } focus:outline-none focus:ring-1 focus:ring-brand-500`}
+                    />
+                  </div>
+                  <div>
+                    <label className={`block text-sm font-medium mb-1.5 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                      Sale Date <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      name="saleDate"
+                      type="date"
+                      value={formData.saleDate}
+                      onChange={handleFormChange}
+                      className={`w-full px-3 py-2.5 rounded-xl border text-sm transition-all ${
+                        isDark ? 'bg-dark-100 border-zinc-700 text-white focus:border-brand-500' : 'bg-white border-slate-200 text-slate-900 focus:border-brand-500'
+                      } focus:outline-none focus:ring-1 focus:ring-brand-500`}
+                      required
+                    />
+                  </div>
+                </div>
+
+                {/* Quantity + Amount */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className={`block text-sm font-medium mb-1.5 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>Quantity</label>
+                    <input
+                      name="quantity"
+                      type="number"
+                      min="1"
+                      value={formData.quantity}
+                      onChange={handleFormChange}
+                      className={`w-full px-3 py-2.5 rounded-xl border text-sm transition-all ${
+                        isDark ? 'bg-dark-100 border-zinc-700 text-white focus:border-brand-500' : 'bg-white border-slate-200 text-slate-900 focus:border-brand-500'
+                      } focus:outline-none focus:ring-1 focus:ring-brand-500`}
+                    />
+                  </div>
+                  <div>
+                    <label className={`block text-sm font-medium mb-1.5 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                      Amount (INR) <span className="text-red-500">*</span>
+                    </label>
+                    <div className="relative">
+                      <IndianRupee className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`} />
+                      <input
+                        name="amount"
+                        type="number"
+                        min="0"
+                        step="1"
+                        placeholder="0"
+                        value={formData.amount || ''}
+                        onChange={handleFormChange}
+                        className={`w-full pl-10 pr-3 py-2.5 rounded-xl border text-sm transition-all ${
+                          isDark ? 'bg-dark-100 border-zinc-700 text-white focus:border-brand-500' : 'bg-white border-slate-200 text-slate-900 focus:border-brand-500'
+                        } focus:outline-none focus:ring-1 focus:ring-brand-500`}
+                        required
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* PO + Invoice */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className={`block text-sm font-medium mb-1.5 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>PO Number</label>
+                    <input
+                      name="poNumber"
+                      type="text"
+                      placeholder="PO number"
+                      value={formData.poNumber}
+                      onChange={handleFormChange}
+                      className={`w-full px-3 py-2.5 rounded-xl border text-sm transition-all ${
+                        isDark ? 'bg-dark-100 border-zinc-700 text-white placeholder-zinc-500 focus:border-brand-500' : 'bg-white border-slate-200 text-slate-900 placeholder-slate-400 focus:border-brand-500'
+                      } focus:outline-none focus:ring-1 focus:ring-brand-500`}
+                    />
+                  </div>
+                  <div>
+                    <label className={`block text-sm font-medium mb-1.5 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>Invoice No</label>
+                    <input
+                      name="invoiceNo"
+                      type="text"
+                      placeholder="Invoice number"
+                      value={formData.invoiceNo}
+                      onChange={handleFormChange}
+                      className={`w-full px-3 py-2.5 rounded-xl border text-sm transition-all ${
+                        isDark ? 'bg-dark-100 border-zinc-700 text-white placeholder-zinc-500 focus:border-brand-500' : 'bg-white border-slate-200 text-slate-900 placeholder-slate-400 focus:border-brand-500'
+                      } focus:outline-none focus:ring-1 focus:ring-brand-500`}
+                    />
+                  </div>
+                </div>
+
+                {/* Payment Status */}
+                <div>
+                  <label className={`block text-sm font-medium mb-1.5 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>Payment Status</label>
+                  <select
+                    name="paymentStatus"
+                    value={formData.paymentStatus}
+                    onChange={handleFormChange}
+                    className={selectFilterClass}
+                  >
+                    {PAYMENT_STATUSES.map(s => (
+                      <option key={s.value} value={s.value}>{s.label}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Notes */}
+                <div>
+                  <label className={`block text-sm font-medium mb-1.5 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>Notes</label>
+                  <textarea
+                    name="notes"
+                    rows={2}
+                    placeholder="Optional notes..."
+                    value={formData.notes}
+                    onChange={handleFormChange}
+                    className={`w-full px-3 py-2.5 rounded-xl border text-sm transition-all resize-none ${
+                      isDark ? 'bg-dark-100 border-zinc-700 text-white placeholder-zinc-500 focus:border-brand-500' : 'bg-white border-slate-200 text-slate-900 placeholder-slate-400 focus:border-brand-500'
+                    } focus:outline-none focus:ring-1 focus:ring-brand-500`}
+                  />
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div className={`sticky bottom-0 flex items-center justify-end gap-3 px-6 py-4 border-t ${
+                isDark ? 'bg-dark-50 border-zinc-800' : 'bg-white border-slate-200'
+              }`}>
+                <button
+                  type="button"
+                  onClick={closeModal}
+                  disabled={isSubmitting}
+                  className={`px-4 py-2.5 rounded-xl text-sm font-medium transition-colors ${
+                    isDark ? 'text-zinc-400 hover:text-white hover:bg-zinc-800' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                  } disabled:opacity-50`}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="flex items-center gap-2 px-5 py-2.5 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-sm font-medium transition-all btn-premium disabled:opacity-50"
+                >
+                  {isSubmitting ? (
+                    <><Loader2 className="w-4 h-4 animate-spin" /> Saving...</>
+                  ) : (
+                    <><CheckCircle className="w-4 h-4" /> {editingId ? 'Update Entry' : 'Add Entry'}</>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

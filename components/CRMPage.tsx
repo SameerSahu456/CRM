@@ -307,9 +307,7 @@ export const CRMPage: React.FC = () => {
 
   // Data state
   const [showBulkImport, setShowBulkImport] = useState(false);
-  const [showSummary, setShowSummary] = useState(false);
   const [leads, setLeads] = useState<Lead[]>([]);
-  const [stageStats, setStageStats] = useState<Record<string, number>>({});
   const [partners, setPartners] = useState<Partner[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [users, setUsers] = useState<User[]>([]);
@@ -334,7 +332,6 @@ export const CRMPage: React.FC = () => {
 
   // UI state
   const [isLoading, setIsLoading] = useState(true);
-  const [isStatsLoading, setIsStatsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [tableError, setTableError] = useState('');
 
@@ -418,18 +415,6 @@ export const CRMPage: React.FC = () => {
     }
   }, [page, filterStage, filterPriority, filterSource, searchTerm]);
 
-  const fetchStats = useCallback(async () => {
-    setIsStatsLoading(true);
-    try {
-      const data = await leadsApi.stats();
-      setStageStats(data);
-    } catch {
-      setStageStats({});
-    } finally {
-      setIsStatsLoading(false);
-    }
-  }, []);
-
   const fetchPipelineLeads = useCallback(async () => {
     setIsPipelineLoading(true);
     try {
@@ -468,8 +453,7 @@ export const CRMPage: React.FC = () => {
   // Initial load
   useEffect(() => {
     fetchDropdownData();
-    fetchStats();
-  }, [fetchDropdownData, fetchStats]);
+  }, [fetchDropdownData]);
 
   // Fetch based on view mode
   useEffect(() => {
@@ -713,7 +697,6 @@ export const CRMPage: React.FC = () => {
   // ---------------------------------------------------------------------------
 
   const refreshData = () => {
-    fetchStats();
     if (viewMode === 'table') {
       fetchLeads();
     } else {
@@ -738,39 +721,6 @@ export const CRMPage: React.FC = () => {
   // ---------------------------------------------------------------------------
   // Render: Stats Bar
   // ---------------------------------------------------------------------------
-
-  const renderStatsBar = () => (
-    <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
-      {LEAD_STAGES.map((stage, idx) => {
-        const c = STAGE_COLORS[stage];
-        const count = stageStats[stage] ?? 0;
-        return (
-          <div
-            key={stage}
-            onClick={() => navigate('crm')}
-            className={`${cardClass} p-3 hover-lift animate-fade-in-up cursor-pointer`}
-            style={{ animationDelay: `${idx * 50}ms` }}
-          >
-            <div className={`w-8 h-8 rounded-lg flex items-center justify-center mb-2 ${
-              isDark ? c.darkIconBg : c.iconBg
-            }`}>
-              {stage === 'Cold' && <Zap className={`w-4 h-4 ${isDark ? c.darkText : c.text}`} />}
-              {stage === 'Proposal' && <FileText className={`w-4 h-4 ${isDark ? c.darkText : c.text}`} />}
-              {stage === 'Negotiation' && <TrendingUp className={`w-4 h-4 ${isDark ? c.darkText : c.text}`} />}
-              {stage === 'Closed Won' && <CheckCircle className={`w-4 h-4 ${isDark ? c.darkText : c.text}`} />}
-              {stage === 'Closed Lost' && <XCircle className={`w-4 h-4 ${isDark ? c.darkText : c.text}`} />}
-            </div>
-            <p className={`text-[11px] font-medium ${isDark ? 'text-zinc-500' : 'text-slate-500'}`}>{stage}</p>
-            {isStatsLoading ? (
-              <div className={`w-8 h-5 rounded animate-pulse mt-0.5 ${isDark ? 'bg-zinc-800' : 'bg-slate-100'}`} />
-            ) : (
-              <p className={`text-lg font-bold mt-0.5 ${isDark ? 'text-white' : 'text-slate-900'}`}>{count}</p>
-            )}
-          </div>
-        );
-      })}
-    </div>
-  );
 
   // ---------------------------------------------------------------------------
   // Render: Toolbar
@@ -927,20 +877,6 @@ export const CRMPage: React.FC = () => {
           Export
         </button>
 
-        {/* Summarise */}
-        <button
-          onClick={() => setShowSummary(true)}
-          disabled={leads.length === 0}
-          className={`flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-normal transition-colors whitespace-nowrap ${
-            isDark
-              ? 'text-zinc-400 border border-zinc-700 hover:bg-zinc-800 disabled:opacity-30'
-              : 'text-slate-500 border border-slate-200 hover:bg-slate-50 disabled:opacity-30'
-          }`}
-        >
-          <BarChart3 className="w-4 h-4" />
-          Summarise
-        </button>
-
         {/* New Lead */}
         <button
           onClick={openCreateLeadModal}
@@ -1006,13 +942,12 @@ export const CRMPage: React.FC = () => {
                   <th className={`${hdrCell} w-[100px]`}>Tag</th>
                   <th className={`${hdrCell} w-[110px]`}>Follow-up Date</th>
                   <th className={`${hdrCell} w-[80px] text-center`}>Summarise</th>
-                  <th className={`${hdrCell} w-[100px] text-center`}>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {leads.length === 0 ? (
                   <tr>
-                    <td colSpan={14} className="py-16 text-center">
+                    <td colSpan={13} className="py-16 text-center">
                       <Users className={`w-8 h-8 mx-auto ${isDark ? 'text-zinc-700' : 'text-slate-300'}`} />
                       <p className={`mt-2 text-sm ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
                         {hasActiveFilters ? 'No leads match filters' : 'No leads yet'}
@@ -1085,21 +1020,6 @@ export const CRMPage: React.FC = () => {
                       >
                         <FileText className="w-4 h-4" />
                       </button>
-                    </td>
-                    <td className={`${cellBase} text-center`}>
-                      <div className="flex items-center justify-center gap-1">
-                        <button
-                          onClick={(e) => { e.stopPropagation(); openDetailModal(lead); }}
-                          title="View"
-                          className={`p-1.5 rounded-lg transition-colors ${
-                            isDark
-                              ? 'text-zinc-400 hover:text-brand-400 hover:bg-brand-900/20'
-                              : 'text-slate-400 hover:text-brand-600 hover:bg-brand-50'
-                          }`}
-                        >
-                          <Eye className="w-4 h-4" />
-                        </button>
-                      </div>
                     </td>
                   </tr>
                 ))}
@@ -1396,7 +1316,7 @@ export const CRMPage: React.FC = () => {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
         <div className="absolute inset-0 bg-black/50 animate-backdrop" onClick={closeDetailModal} />
-        <div className={`relative w-full max-w-2xl max-h-[80vh] rounded-2xl animate-fade-in-up flex flex-col overflow-hidden ${
+        <div className={`relative w-full max-w-2xl max-h-[90vh] rounded-2xl animate-fade-in-up flex flex-col overflow-hidden ${
           isDark ? 'bg-dark-50 border border-zinc-800' : 'bg-white shadow-premium'
         }`}>
           {/* Header */}
@@ -1420,6 +1340,34 @@ export const CRMPage: React.FC = () => {
               >
                 <Edit2 className="w-4 h-4" />
               </button>
+              {deleteConfirmId === lead.id ? (
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => { handleDelete(lead.id); closeDetailModal(); }}
+                    className="px-2 py-1 rounded-lg text-xs font-medium bg-red-600 text-white hover:bg-red-700 transition-colors"
+                  >
+                    Confirm
+                  </button>
+                  <button
+                    onClick={() => setDeleteConfirmId(null)}
+                    className={`px-2 py-1 rounded-lg text-xs font-medium transition-colors ${
+                      isDark ? 'text-zinc-400 hover:bg-zinc-800' : 'text-slate-500 hover:bg-slate-100'
+                    }`}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setDeleteConfirmId(lead.id)}
+                  className={`p-2 rounded-lg transition-colors ${
+                    isDark ? 'text-zinc-400 hover:text-red-400 hover:bg-red-900/20' : 'text-slate-400 hover:text-red-600 hover:bg-red-50'
+                  }`}
+                  title="Delete"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              )}
               <button
                 onClick={closeDetailModal}
                 className={`p-2 rounded-lg transition-colors ${
@@ -1585,7 +1533,7 @@ export const CRMPage: React.FC = () => {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
         <div className="absolute inset-0 bg-black/50 animate-backdrop" onClick={closeLeadModal} />
-        <div className={`relative w-full max-w-xl max-h-[80vh] rounded-2xl animate-fade-in-up flex flex-col overflow-hidden ${
+        <div className={`relative w-full max-w-xl max-h-[90vh] rounded-2xl animate-fade-in-up flex flex-col overflow-hidden ${
           isDark ? 'bg-dark-50 border border-zinc-800' : 'bg-white shadow-premium'
         }`}>
           {/* Header */}
@@ -2345,7 +2293,7 @@ export const CRMPage: React.FC = () => {
     return (
       <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
         <div className="absolute inset-0 bg-black/50 animate-backdrop" onClick={closeConvertModal} />
-        <div className={`relative w-full max-w-md max-h-[80vh] rounded-2xl animate-fade-in-up flex flex-col overflow-hidden ${
+        <div className={`relative w-full max-w-md max-h-[90vh] rounded-2xl animate-fade-in-up flex flex-col overflow-hidden ${
           isDark ? 'bg-dark-50 border border-zinc-800' : 'bg-white shadow-premium'
         }`}>
           {/* Header */}
@@ -2512,135 +2460,6 @@ export const CRMPage: React.FC = () => {
   };
 
   // ---------------------------------------------------------------------------
-  // Render: Summary Modal
-  // ---------------------------------------------------------------------------
-
-  const renderSummaryModal = () => {
-    if (!showSummary) return null;
-
-    const totalLeads = leads.length;
-    const totalEstimatedValue = leads.reduce((sum, l) => sum + (l.estimatedValue || 0), 0);
-    const avgEstimatedValue = totalLeads > 0 ? totalEstimatedValue / totalLeads : 0;
-
-    // Group by stage
-    const byStage: Record<string, { count: number; value: number }> = {};
-    LEAD_STAGES.forEach(s => { byStage[s] = { count: 0, value: 0 }; });
-    leads.forEach(lead => {
-      if (byStage[lead.stage]) {
-        byStage[lead.stage].count += 1;
-        byStage[lead.stage].value += lead.estimatedValue || 0;
-      }
-    });
-
-    // Group by priority
-    const byPriority: Record<string, number> = {};
-    PRIORITIES.forEach(p => { byPriority[p] = 0; });
-    leads.forEach(lead => {
-      if (byPriority[lead.priority] !== undefined) {
-        byPriority[lead.priority] += 1;
-      }
-    });
-
-    return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-        <div className="absolute inset-0 bg-black/50 animate-backdrop" onClick={() => setShowSummary(false)} />
-        <div className={`relative w-full max-w-lg max-h-[80vh] rounded-2xl animate-fade-in-up flex flex-col overflow-hidden ${
-          isDark ? 'bg-dark-50 border border-zinc-800' : 'bg-white shadow-premium'
-        }`}>
-          {/* Header */}
-          <div className={`flex-shrink-0 flex items-center justify-between px-6 py-4 border-b ${
-            isDark ? 'bg-dark-50 border-zinc-800' : 'bg-white border-slate-200'
-          }`}>
-            <div className="flex items-center gap-2">
-              <BarChart3 className={`w-5 h-5 ${isDark ? 'text-brand-400' : 'text-brand-600'}`} />
-              <h2 className={`text-lg font-semibold font-display ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                Leads Summary
-              </h2>
-            </div>
-            <button
-              onClick={() => setShowSummary(false)}
-              className={`p-2 rounded-lg transition-colors ${
-                isDark ? 'text-zinc-400 hover:text-white hover:bg-zinc-800' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100'
-              }`}
-            >
-              <X className="w-5 h-5" />
-            </button>
-          </div>
-
-          <div className="flex-1 overflow-y-auto p-6 space-y-5">
-            {/* Top-level stats */}
-            <div className="grid grid-cols-3 gap-3">
-              <div className={`p-3 rounded-xl border text-center ${isDark ? 'border-zinc-800 bg-dark-100' : 'border-slate-200 bg-slate-50'}`}>
-                <p className={`text-[11px] font-medium ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Total Leads</p>
-                <p className={`text-xl font-bold mt-1 ${isDark ? 'text-white' : 'text-slate-900'}`}>{totalLeads}</p>
-              </div>
-              <div className={`p-3 rounded-xl border text-center ${isDark ? 'border-zinc-800 bg-dark-100' : 'border-slate-200 bg-slate-50'}`}>
-                <p className={`text-[11px] font-medium ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Total Value</p>
-                <p className={`text-xl font-bold mt-1 ${isDark ? 'text-emerald-400' : 'text-emerald-600'}`}>{formatINR(totalEstimatedValue)}</p>
-              </div>
-              <div className={`p-3 rounded-xl border text-center ${isDark ? 'border-zinc-800 bg-dark-100' : 'border-slate-200 bg-slate-50'}`}>
-                <p className={`text-[11px] font-medium ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Avg Value</p>
-                <p className={`text-xl font-bold mt-1 ${isDark ? 'text-brand-400' : 'text-brand-600'}`}>{formatINR(Math.round(avgEstimatedValue))}</p>
-              </div>
-            </div>
-
-            {/* By Stage */}
-            <div>
-              <h4 className={`text-xs font-semibold uppercase tracking-wider mb-3 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
-                By Stage
-              </h4>
-              <div className="space-y-2">
-                {LEAD_STAGES.map(stage => {
-                  const info = byStage[stage];
-                  const c = STAGE_COLORS[stage];
-                  return (
-                    <div
-                      key={stage}
-                      className={`flex items-center justify-between p-2.5 rounded-lg ${isDark ? 'bg-dark-100' : 'bg-slate-50'}`}
-                    >
-                      <div className="flex items-center gap-2">
-                        <span className={stageBadge(stage, isDark)}>{stage}</span>
-                      </div>
-                      <div className="flex items-center gap-4">
-                        <span className={`text-xs font-medium ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>
-                          {info.count} lead{info.count !== 1 ? 's' : ''}
-                        </span>
-                        <span className={`text-xs font-semibold min-w-[80px] text-right ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
-                          {formatINR(info.value)}
-                        </span>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* By Priority */}
-            <div>
-              <h4 className={`text-xs font-semibold uppercase tracking-wider mb-3 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
-                By Priority
-              </h4>
-              <div className="space-y-2">
-                {PRIORITIES.map(priority => (
-                  <div
-                    key={priority}
-                    className={`flex items-center justify-between p-2.5 rounded-lg ${isDark ? 'bg-dark-100' : 'bg-slate-50'}`}
-                  >
-                    <span className={priorityBadge(priority, isDark)}>{priority}</span>
-                    <span className={`text-xs font-medium ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>
-                      {byPriority[priority]} lead{byPriority[priority] !== 1 ? 's' : ''}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  // ---------------------------------------------------------------------------
   // Main render
   // ---------------------------------------------------------------------------
 
@@ -2658,9 +2477,6 @@ export const CRMPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Stats Bar */}
-      {renderStatsBar()}
-
       {/* Toolbar */}
       {renderToolbar()}
 
@@ -2671,7 +2487,6 @@ export const CRMPage: React.FC = () => {
       {renderLeadModal()}
       {renderDetailModal()}
       {renderConvertModal()}
-      {renderSummaryModal()}
 
       <BulkImportModal
         isOpen={showBulkImport}
