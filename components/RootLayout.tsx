@@ -1,4 +1,4 @@
-import React, { useState, Suspense, lazy, useEffect } from 'react';
+import React, { useState, Suspense, useEffect } from 'react';
 import { Navigate, Outlet } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
@@ -7,18 +7,19 @@ import { Sidebar } from './Sidebar';
 import { Header } from './Header';
 import { pageTitles } from '../utils/navigation';
 import { NavigationItem } from '../types';
+import { lazyWithRetry } from '../utils/lazyWithRetry';
 
 // Lazy load all page components
-const Dashboard = lazy(() => import('./Dashboard').then(m => ({ default: m.Dashboard })));
-const SalesEntryPage = lazy(() => import('./SalesEntryPage').then(m => ({ default: m.SalesEntryPage })));
-const CRMPage = lazy(() => import('./CRMPage').then(m => ({ default: m.CRMPage })));
-const AdminPage = lazy(() => import('./AdminPage').then(m => ({ default: m.AdminPage })));
-const SettingsPage = lazy(() => import('./SettingsPage').then(m => ({ default: m.SettingsPage })));
-const AccountsPage = lazy(() => import('./AccountsPage').then(m => ({ default: m.AccountsPage })));
-const ContactsPage = lazy(() => import('./ContactsPage').then(m => ({ default: m.ContactsPage })));
-const DealsPage = lazy(() => import('./DealsPage').then(m => ({ default: m.DealsPage })));
-const ReportsPage = lazy(() => import('./ReportsPage').then(m => ({ default: m.ReportsPage })));
-const InventoryPage = lazy(() => import('./InventoryPage').then(m => ({ default: m.InventoryPage })));
+const Dashboard = lazyWithRetry(() => import('./Dashboard').then(m => ({ default: m.Dashboard })));
+const SalesEntryPage = lazyWithRetry(() => import('./SalesEntryPage').then(m => ({ default: m.SalesEntryPage })));
+const CRMPage = lazyWithRetry(() => import('./CRMPage').then(m => ({ default: m.CRMPage })));
+const AdminPage = lazyWithRetry(() => import('./AdminPage').then(m => ({ default: m.AdminPage })));
+const SettingsPage = lazyWithRetry(() => import('./SettingsPage').then(m => ({ default: m.SettingsPage })));
+const AccountsPage = lazyWithRetry(() => import('./AccountsPage').then(m => ({ default: m.AccountsPage })));
+const ContactsPage = lazyWithRetry(() => import('./ContactsPage').then(m => ({ default: m.ContactsPage })));
+const DealsPage = lazyWithRetry(() => import('./DealsPage').then(m => ({ default: m.DealsPage })));
+const ReportsPage = lazyWithRetry(() => import('./ReportsPage').then(m => ({ default: m.ReportsPage })));
+const InventoryPage = lazyWithRetry(() => import('./InventoryPage').then(m => ({ default: m.InventoryPage })));
 
 const PAGE_COMPONENTS: Record<NavigationItem, React.LazyExoticComponent<React.ComponentType>> = {
   'dashboard': Dashboard,

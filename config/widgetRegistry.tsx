@@ -4,6 +4,7 @@ import {
   Target, Award, ShoppingCart, BarChart3, UserCheck, CheckSquare
 } from 'lucide-react';
 import { WidgetMetadata, DashboardPreferences } from '../types';
+import { lazyWithRetry } from '../utils/lazyWithRetry';
 
 // Widget components will be imported as we create them
 // import { SalesTeamWidget } from '../components/dashboard/widgets/SalesTeamWidget';
@@ -19,7 +20,7 @@ export const WIDGET_REGISTRY: Record<string, WidgetMetadata> = {
     requiredView: 'postsales',
     defaultVisible: true,
     defaultOrder: 1,
-    component: React.lazy(() => import('../components/dashboard/widgets/SalesTeamWidget').then(m => ({ default: m.SalesTeamWidget }))),
+    component: lazyWithRetry(() => import('../components/dashboard/widgets/SalesTeamWidget').then(m => ({ default: m.SalesTeamWidget }))),
     navigateTo: 'sales-entry',
   },
   'monthly': {
@@ -31,7 +32,7 @@ export const WIDGET_REGISTRY: Record<string, WidgetMetadata> = {
     requiredView: 'postsales',
     defaultVisible: true,
     defaultOrder: 2,
-    component: React.lazy(() => import('../components/dashboard/widgets/MonthlyWidget').then(m => ({ default: m.MonthlyWidget }))),
+    component: lazyWithRetry(() => import('../components/dashboard/widgets/MonthlyWidget').then(m => ({ default: m.MonthlyWidget }))),
     navigateTo: 'sales-entry',
   },
   'partners': {
@@ -43,7 +44,7 @@ export const WIDGET_REGISTRY: Record<string, WidgetMetadata> = {
     requiredView: 'postsales',
     defaultVisible: true,
     defaultOrder: 3,
-    component: React.lazy(() => import('../components/dashboard/widgets/PartnersWidget').then(m => ({ default: m.PartnersWidget }))),
+    component: lazyWithRetry(() => import('../components/dashboard/widgets/PartnersWidget').then(m => ({ default: m.PartnersWidget }))),
     navigateTo: 'partners',
   },
   'pipeline': {
@@ -55,7 +56,7 @@ export const WIDGET_REGISTRY: Record<string, WidgetMetadata> = {
     requiredView: 'presales',
     defaultVisible: true,
     defaultOrder: 4,
-    component: React.lazy(() => import('../components/dashboard/widgets/PipelineWidget').then(m => ({ default: m.PipelineWidget }))),
+    component: lazyWithRetry(() => import('../components/dashboard/widgets/PipelineWidget').then(m => ({ default: m.PipelineWidget }))),
     navigateTo: 'deals',
   },
   'growth': {
@@ -67,7 +68,7 @@ export const WIDGET_REGISTRY: Record<string, WidgetMetadata> = {
     requiredView: 'postsales',
     defaultVisible: true,
     defaultOrder: 5,
-    component: React.lazy(() => import('../components/dashboard/widgets/GrowthWidget').then(m => ({ default: m.GrowthWidget }))),
+    component: lazyWithRetry(() => import('../components/dashboard/widgets/GrowthWidget').then(m => ({ default: m.GrowthWidget }))),
     navigateTo: 'sales-entry',
   },
   'products': {
@@ -79,7 +80,7 @@ export const WIDGET_REGISTRY: Record<string, WidgetMetadata> = {
     requiredView: 'postsales',
     defaultVisible: true,
     defaultOrder: 6,
-    component: React.lazy(() => import('../components/dashboard/widgets/ProductsWidget').then(m => ({ default: m.ProductsWidget }))),
+    component: lazyWithRetry(() => import('../components/dashboard/widgets/ProductsWidget').then(m => ({ default: m.ProductsWidget }))),
     navigateTo: 'sales-entry',
   },
   'leads': {
@@ -91,7 +92,7 @@ export const WIDGET_REGISTRY: Record<string, WidgetMetadata> = {
     requiredView: 'presales',
     defaultVisible: true,
     defaultOrder: 7,
-    component: React.lazy(() => import('../components/dashboard/widgets/LeadsWidget').then(m => ({ default: m.LeadsWidget }))),
+    component: lazyWithRetry(() => import('../components/dashboard/widgets/LeadsWidget').then(m => ({ default: m.LeadsWidget }))),
     navigateTo: 'crm',
   },
   'top-partners': {
@@ -103,7 +104,7 @@ export const WIDGET_REGISTRY: Record<string, WidgetMetadata> = {
     requiredView: 'postsales',
     defaultVisible: true,
     defaultOrder: 9,
-    component: React.lazy(() => import('../components/dashboard/widgets/TopPartnersWidget').then(m => ({ default: m.TopPartnersWidget }))),
+    component: lazyWithRetry(() => import('../components/dashboard/widgets/TopPartnersWidget').then(m => ({ default: m.TopPartnersWidget }))),
     navigateTo: 'partners',
   },
   'recent-sales': {
@@ -115,7 +116,7 @@ export const WIDGET_REGISTRY: Record<string, WidgetMetadata> = {
     requiredView: 'postsales',
     defaultVisible: true,
     defaultOrder: 10,
-    component: React.lazy(() => import('../components/dashboard/widgets/RecentSalesWidget').then(m => ({ default: m.RecentSalesWidget }))),
+    component: lazyWithRetry(() => import('../components/dashboard/widgets/RecentSalesWidget').then(m => ({ default: m.RecentSalesWidget }))),
     navigateTo: 'sales-entry',
   },
   'revenue-trend': {
@@ -127,7 +128,7 @@ export const WIDGET_REGISTRY: Record<string, WidgetMetadata> = {
     requiredView: 'postsales',
     defaultVisible: true,
     defaultOrder: 11,
-    component: React.lazy(() => import('../components/dashboard/widgets/RevenueTrendWidget').then(m => ({ default: m.RevenueTrendWidget }))),
+    component: lazyWithRetry(() => import('../components/dashboard/widgets/RevenueTrendWidget').then(m => ({ default: m.RevenueTrendWidget }))),
     navigateTo: 'sales-entry',
   },
   'pipeline-chart': {
@@ -139,7 +140,7 @@ export const WIDGET_REGISTRY: Record<string, WidgetMetadata> = {
     requiredView: 'presales',
     defaultVisible: true,
     defaultOrder: 12,
-    component: React.lazy(() => import('../components/dashboard/widgets/PipelineChartWidget').then(m => ({ default: m.PipelineChartWidget }))),
+    component: lazyWithRetry(() => import('../components/dashboard/widgets/PipelineChartWidget').then(m => ({ default: m.PipelineChartWidget }))),
     navigateTo: 'deals',
   },
   'assignee-summary': {
@@ -150,7 +151,7 @@ export const WIDGET_REGISTRY: Record<string, WidgetMetadata> = {
     icon: <UserCheck className="w-4 h-4" />,
     defaultVisible: true,
     defaultOrder: 8,
-    component: React.lazy(() => import('../components/dashboard/widgets/AssigneeSummaryWidget').then(m => ({ default: m.AssigneeSummaryWidget }))),
+    component: lazyWithRetry(() => import('../components/dashboard/widgets/AssigneeSummaryWidget').then(m => ({ default: m.AssigneeSummaryWidget }))),
   },
   'leads-distribution': {
     id: 'leads-distribution',
@@ -161,7 +162,7 @@ export const WIDGET_REGISTRY: Record<string, WidgetMetadata> = {
     requiredView: 'presales',
     defaultVisible: true,
     defaultOrder: 13,
-    component: React.lazy(() => import('../components/dashboard/widgets/LeadsDistributionWidget').then(m => ({ default: m.LeadsDistributionWidget }))),
+    component: lazyWithRetry(() => import('../components/dashboard/widgets/LeadsDistributionWidget').then(m => ({ default: m.LeadsDistributionWidget }))),
     navigateTo: 'crm',
   },
   'tasks': {
@@ -172,7 +173,7 @@ export const WIDGET_REGISTRY: Record<string, WidgetMetadata> = {
     icon: <CheckSquare className="w-4 h-4" />,
     defaultVisible: true,
     defaultOrder: 14,
-    component: React.lazy(() => import('../components/dashboard/widgets/TasksWidget').then(m => ({ default: m.TasksWidget }))),
+    component: lazyWithRetry(() => import('../components/dashboard/widgets/TasksWidget').then(m => ({ default: m.TasksWidget }))),
     navigateTo: 'tasks',
   },
 };

@@ -1,11 +1,12 @@
-import React, { Suspense, lazy } from 'react';
+import React, { Suspense } from 'react';
 import { createBrowserRouter, Navigate } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 import { useAuth } from './contexts/AuthContext';
 import { RootLayout } from './components/RootLayout';
+import { lazyWithRetry } from './utils/lazyWithRetry';
 
 // Only LoginPage is rendered by the router — all other pages are in RootLayout
-const LoginPage = lazy(() => import('./components/LoginPage'));
+const LoginPage = lazyWithRetry(() => import('./components/LoginPage'));
 
 const LoginGuard = () => {
   const { isAuthenticated, isLoading } = useAuth();
