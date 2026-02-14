@@ -21,10 +21,10 @@ const LoginPage: React.FC = () => {
   };
 
   const handleQuickLogin = async () => {
-    setEmail('admin@gmail.com');
-    setPassword('1');
+    setEmail('superadmin@comprint.com');
+    setPassword('superadmin123');
     setError('');
-    const result = await signIn('admin@gmail.com', '1');
+    const result = await signIn('superadmin@comprint.com', 'superadmin123');
     if (!result.success) {
       setError(result.error || 'Login failed');
     }
@@ -86,9 +86,9 @@ const LoginPage: React.FC = () => {
           </div>
 
           {/* Glassmorphism card */}
-          <div className="backdrop-blur-xl bg-white/[0.05] border border-white/[0.08] rounded-2xl p-8 shadow-[0_8px_32px_rgba(0,0,0,0.4)]">
-            <h1 className="text-white text-2xl font-bold mb-1.5">
-              Login
+          <div className="backdrop-blur-xl bg-white/[0.1] border border-white/[0.15] rounded-2xl p-8 shadow-[0_8px_32px_rgba(0,0,0,0.4),_0_0_0_1px_rgba(255,255,255,0.06)] animate-fade-in-up">
+            <h1 className="text-white text-2xl font-bold mb-1.5 tracking-tight">
+              Welcome back
             </h1>
             <p className="text-zinc-500 text-sm mb-8">
               Enter your credentials to continue
@@ -106,14 +106,14 @@ const LoginPage: React.FC = () => {
               <div>
                 <label className="block text-zinc-400 text-sm font-medium mb-2">Email</label>
                 <div className="relative">
-                  <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-600" />
+                  <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
                   <input
                     type="email"
                     value={email}
                     onChange={e => setEmail(e.target.value)}
                     placeholder="Enter your email address"
                     required
-                    className="w-full pl-11 pr-4 py-3 rounded-xl bg-white/[0.05] border border-white/[0.08] text-white text-sm placeholder-zinc-600 focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/20 backdrop-blur-sm transition-all"
+                    className="w-full pl-11 pr-4 py-3 rounded-xl bg-white border border-zinc-300 text-black text-sm placeholder-zinc-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30 transition-all"
                   />
                 </div>
               </div>
@@ -127,19 +127,19 @@ const LoginPage: React.FC = () => {
                   </button>
                 </div>
                 <div className="relative">
-                  <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-600" />
+                  <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
                   <input
                     type={showPassword ? 'text' : 'password'}
                     value={password}
                     onChange={e => setPassword(e.target.value)}
                     placeholder="Enter your password"
                     required
-                    className="w-full pl-11 pr-11 py-3 rounded-xl bg-white/[0.05] border border-white/[0.08] text-white text-sm placeholder-zinc-600 focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/20 backdrop-blur-sm transition-all"
+                    className="w-full pl-11 pr-11 py-3 rounded-xl bg-white border border-zinc-300 text-black text-sm placeholder-zinc-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30 transition-all"
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-zinc-600 hover:text-zinc-400 transition-colors"
+                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-700 transition-colors"
                   >
                     {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
@@ -150,7 +150,7 @@ const LoginPage: React.FC = () => {
               <button
                 type="submit"
                 disabled={isLoading}
-                className="w-full py-3 rounded-xl bg-white text-black font-semibold text-sm hover:bg-zinc-200 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                className="w-full py-3 rounded-xl bg-white text-black font-semibold text-sm hover:bg-zinc-100 active:scale-[0.98] transition-all shadow-[0_0_20px_rgba(255,255,255,0.1)] hover:shadow-[0_0_30px_rgba(255,255,255,0.15)] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
                 {isLoading ? (
                   <div className="w-5 h-5 border-2 border-black/20 border-t-black rounded-full animate-spin" />
@@ -174,7 +174,7 @@ const LoginPage: React.FC = () => {
               disabled={isLoading}
               className="w-full py-3 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400 font-medium text-sm hover:bg-blue-500/20 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Quick Demo Login (Admin)
+              Quick Demo Login (Super Admin)
             </button>
           </div>
         </div>
