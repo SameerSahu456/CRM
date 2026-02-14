@@ -63,7 +63,7 @@ const LayoutShell: React.FC = () => {
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
       />
-      <div className="flex-1 flex flex-col md:ml-16 lg:ml-64 min-h-0 overflow-hidden">
+      <div className="flex-1 flex flex-col md:ml-16 lg:ml-64 min-h-0 min-w-0">
         <Header
           onMenuClick={() => setSidebarOpen(true)}
           title={pageTitles[activeTab] || 'Dashboard'}

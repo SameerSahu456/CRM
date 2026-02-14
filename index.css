@@ -42,6 +42,11 @@ body:has(.fixed.inset-0.z-50) {
   -webkit-overflow-scrolling: touch;
 }
 
+/* Enable horizontal touch scrolling (iOS fix) */
+.overflow-x-auto {
+  -webkit-overflow-scrolling: touch;
+}
+
 /* Sidebar nav must scroll on small screens */
 aside.sidebar-premium {
   display: flex !important;
