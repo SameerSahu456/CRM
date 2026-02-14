@@ -113,7 +113,7 @@ const LoginPage: React.FC = () => {
                     onChange={e => setEmail(e.target.value)}
                     placeholder="Enter your email address"
                     required
-                    className="w-full pl-11 pr-4 py-3 rounded-xl bg-zinc-100 border border-zinc-300 text-black text-sm placeholder-zinc-400 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30 transition-all"
+                    className="w-full pl-11 pr-4 py-3 rounded-xl bg-white border border-zinc-300 text-black text-sm placeholder-zinc-400 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30 transition-all"
                   />
                 </div>
               </div>
@@ -134,7 +134,7 @@ const LoginPage: React.FC = () => {
                     onChange={e => setPassword(e.target.value)}
                     placeholder="Enter your password"
                     required
-                    className="w-full pl-11 pr-11 py-3 rounded-xl bg-zinc-100 border border-zinc-300 text-black text-sm placeholder-zinc-400 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30 transition-all"
+                    className="w-full pl-11 pr-11 py-3 rounded-xl bg-white border border-zinc-300 text-black text-sm placeholder-zinc-400 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30 transition-all"
                   />
                   <button
                     type="button"
