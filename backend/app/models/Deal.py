@@ -84,6 +84,10 @@ class Deal(TimestampMixin, Base):
     location: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     next_follow_up: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
 
+    # Requirements
+    requirement: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    quoted_requirement: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
     # Billing Address
     billing_street: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     billing_state: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)

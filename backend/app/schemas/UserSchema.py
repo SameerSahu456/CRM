@@ -50,6 +50,8 @@ class UserOut(CamelModel):
     created_at: Optional[datetime] = None
     view_access: str = "presales"
     tag: Optional[str] = None
+    manager_id: Optional[UUID] = None
+    manager_name: Optional[str] = None
     dashboard_preferences: Optional[DashboardPreferences] = None
 
 

@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.middleware.security import get_current_user
+from app.utils.activity_logger import log_activity
 from app.models.Account import Account
 from app.models.Contact import Contact
 from app.models.Deal import Deal
@@ -368,6 +369,20 @@ async def bulk_import(
                 status_code=500,
                 detail=f"Database error during bulk insert: {str(exc)}",
             )
+
+    # Log the import activity
+    if imported_count > 0:
+        await log_activity(
+            db=db,
+            user=user,
+            action="bulk_import",
+            entity_type=entity,
+            entity_name=f"Imported {imported_count} {entity}",
+            changes=[{"field": "file", "old": None, "new": file.filename},
+                     {"field": "imported", "old": None, "new": str(imported_count)},
+                     {"field": "errors", "old": None, "new": str(len(errors))}],
+        )
+        await db.commit()
 
     total = imported_count + len(errors)
     return {

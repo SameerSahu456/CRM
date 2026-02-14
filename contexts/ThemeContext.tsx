@@ -12,15 +12,12 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [theme, setThemeState] = useState<Theme>(() => {
-    // Check localStorage or system preference
+    // Check localStorage, default to dark (interstellar theme)
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('comprint-theme') as Theme;
       if (saved) return saved;
-      if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
-        return 'dark';
-      }
     }
-    return 'light';
+    return 'dark';
   });
 
   useEffect(() => {

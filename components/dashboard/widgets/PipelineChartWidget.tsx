@@ -37,7 +37,7 @@ export const PipelineChartWidget: React.FC<WidgetProps> = ({ isDark, navigate, o
       icon={<Layers className="w-4 h-4" />}
       iconBg={isDark ? 'bg-purple-900/30' : 'bg-purple-50'}
       iconColor={isDark ? 'text-purple-400' : 'text-purple-600'}
-      title="Pipeline Chart"
+      title="Kanban Chart"
       titleColor={isDark ? 'text-purple-400' : 'text-purple-700'}
       subtitle={`${totalDeals} deals · ${formatCompact(totalDealValue)}`}
       isDark={isDark}

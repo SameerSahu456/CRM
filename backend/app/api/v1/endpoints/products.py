@@ -16,11 +16,15 @@ router = APIRouter()
 
 @router.get("/")
 async def list_products(
+    include_inactive: bool = False,
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     repo = ProductRepository(db)
-    products = await repo.get_active()
+    if include_inactive:
+        products = await repo.get_all(skip=0, limit=10000)
+    else:
+        products = await repo.get_active()
     return [ProductOut.model_validate(p).model_dump(by_alias=True) for p in products]
 
 

@@ -5,16 +5,43 @@ from datetime import datetime
 from typing import Optional
 
 from fastapi import APIRouter, Depends, Query
+from pydantic import BaseModel
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.middleware.rbac import require_role
+from app.middleware.security import get_current_user
 from app.models.ActivityLog import ActivityLog
 from app.models.User import User
 from app.schemas.ActivityLogSchema import ActivityLogOut
+from app.utils.activity_logger import log_activity
 
 router = APIRouter()
+
+
+class ActivityLogCreate(BaseModel):
+    action: str
+    entity_type: str
+    entity_name: Optional[str] = None
+
+
+@router.post("/")
+async def create_activity_log(
+    body: ActivityLogCreate,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Log an activity (e.g. export) from the frontend."""
+    await log_activity(
+        db=db,
+        user=user,
+        action=body.action,
+        entity_type=body.entity_type,
+        entity_name=body.entity_name,
+    )
+    await db.commit()
+    return {"ok": True}
 
 
 @router.get("/")

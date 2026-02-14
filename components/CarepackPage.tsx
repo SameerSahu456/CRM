@@ -9,6 +9,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useNavigation } from '../contexts/NavigationContext';
 import { carepacksApi, partnersApi } from '../services/api';
 import { Carepack, Partner, PaginatedResponse } from '../types';
+import { useColumnResize } from '../hooks/useColumnResize';
 
 // ---------------------------------------------------------------------------
 // Types local to this page
@@ -387,7 +388,7 @@ export const CarepackPage: React.FC = () => {
   // Styling helpers
   // ---------------------------------------------------------------------------
 
-  const cardClass = `premium-card ${isDark ? 'bg-dark-50 border border-zinc-800' : 'bg-white shadow-soft'}`;
+  const cardClass = `premium-card ${isDark ? '' : 'shadow-soft'}`;
   const inputClass = `w-full px-3 py-2.5 rounded-xl border text-sm transition-all ${
     isDark
       ? 'bg-dark-100 border-zinc-700 text-white placeholder-zinc-500 focus:border-brand-500'
@@ -395,6 +396,14 @@ export const CarepackPage: React.FC = () => {
   } focus:outline-none focus:ring-1 focus:ring-brand-500`;
   const labelClass = `block text-sm font-medium mb-1.5 ${isDark ? 'text-slate-300' : 'text-slate-700'}`;
   const selectClass = `${inputClass} appearance-none cursor-pointer`;
+
+  // Column resize for tables
+  const { colWidths: cpColWidths, onMouseDown: onCpMouseDown } = useColumnResize({
+    initialWidths: [160, 150, 140, 140, 120, 110, 110, 100, 100, 90],
+  });
+  const { colWidths: expColWidths, onMouseDown: onExpMouseDown } = useColumnResize({
+    initialWidths: [180, 150, 140, 140, 120, 120, 100, 90],
+  });
 
   // ---------------------------------------------------------------------------
   // Pagination renderer
@@ -669,17 +678,19 @@ export const CarepackPage: React.FC = () => {
         ) : (
           <>
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+              <table className="premium-table">
                 <thead>
                   <tr className={`border-b ${isDark ? 'border-zinc-800' : 'border-slate-100'}`}>
-                    {['Partner', 'Customer', 'Product Type', 'Serial #', 'SKU', 'Start Date', 'End Date', 'Status', 'Days Left', 'Actions'].map(h => (
+                    {['Partner', 'Customer', 'Product Type', 'Serial #', 'SKU', 'Start Date', 'End Date', 'Status', 'Days Left', 'Actions'].map((h, i) => (
                       <th
                         key={h}
-                        className={`px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider ${
+                        className={`px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider resizable-th ${
                           isDark ? 'text-zinc-500' : 'text-slate-400'
                         }`}
+                        style={{ width: cpColWidths[i] }}
                       >
                         {h}
+                        <div className="col-resize-handle" onMouseDown={e => onCpMouseDown(i, e)} />
                       </th>
                     ))}
                   </tr>
@@ -788,17 +799,19 @@ export const CarepackPage: React.FC = () => {
         )
       ) : (
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="premium-table">
             <thead>
               <tr className={`border-b ${isDark ? 'border-zinc-800' : 'border-slate-100'}`}>
-                {['Partner', 'Customer', 'Product Type', 'Serial #', 'SKU', 'End Date', 'Days Left', 'Actions'].map(h => (
+                {['Partner', 'Customer', 'Product Type', 'Serial #', 'SKU', 'End Date', 'Days Left', 'Actions'].map((h, i) => (
                   <th
                     key={h}
-                    className={`px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider ${
+                    className={`px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider resizable-th ${
                       isDark ? 'text-zinc-500' : 'text-slate-400'
                     }`}
+                    style={{ width: expColWidths[i] }}
                   >
                     {h}
+                    <div className="col-resize-handle" onMouseDown={e => onExpMouseDown(i, e)} />
                   </th>
                 ))}
               </tr>

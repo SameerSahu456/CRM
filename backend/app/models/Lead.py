@@ -103,5 +103,9 @@ class Lead(TimestampMixin, Base):
     designation: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
     location: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
 
+    # Requirements
+    requirement: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    quoted_requirement: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
     # Lead Image
     lead_image: Mapped[Optional[str]] = mapped_column(Text, nullable=True)

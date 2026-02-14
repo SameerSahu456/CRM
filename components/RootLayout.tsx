@@ -18,7 +18,7 @@ const AccountsPage = lazy(() => import('./AccountsPage').then(m => ({ default: m
 const ContactsPage = lazy(() => import('./ContactsPage').then(m => ({ default: m.ContactsPage })));
 const DealsPage = lazy(() => import('./DealsPage').then(m => ({ default: m.DealsPage })));
 const ReportsPage = lazy(() => import('./ReportsPage').then(m => ({ default: m.ReportsPage })));
-const QuoteBuilderPage = lazy(() => import('./QuoteBuilderPage').then(m => ({ default: m.QuoteBuilderPage })));
+const InventoryPage = lazy(() => import('./InventoryPage').then(m => ({ default: m.InventoryPage })));
 
 const PAGE_COMPONENTS: Record<NavigationItem, React.LazyExoticComponent<React.ComponentType>> = {
   'dashboard': Dashboard,
@@ -27,7 +27,7 @@ const PAGE_COMPONENTS: Record<NavigationItem, React.LazyExoticComponent<React.Co
   'accounts': AccountsPage,
   'contacts': ContactsPage,
   'deals': DealsPage,
-  'quote-builder': QuoteBuilderPage,
+  'inventory': InventoryPage,
   'reports': ReportsPage,
   'admin': AdminPage,
   'settings': SettingsPage,
@@ -58,12 +58,12 @@ const LayoutShell: React.FC = () => {
   }, [activeTab]);
 
   return (
-    <div className="flex h-screen overflow-clip">
+    <div className="flex h-[100dvh] overflow-hidden">
       <Sidebar
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
       />
-      <div className="flex-1 flex flex-col lg:ml-64 min-h-screen overflow-clip">
+      <div className="flex-1 flex flex-col md:ml-16 lg:ml-64 min-h-0 overflow-hidden">
         <Header
           onMenuClick={() => setSidebarOpen(true)}
           title={pageTitles[activeTab] || 'Dashboard'}

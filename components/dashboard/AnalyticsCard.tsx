@@ -35,7 +35,7 @@ export const AnalyticsCard: React.FC<AnalyticsCardProps> = ({
   return (
     <div
       className={`premium-card rounded-2xl overflow-hidden ${
-        isDark ? 'bg-[rgba(10,16,32,0.55)] border border-white/[0.06]' : 'bg-white shadow-soft'
+        isDark ? 'bg-[rgba(8,14,30,0.6)] border border-white/[0.07]' : 'border border-white/60'
       } ${className} ${onClick ? 'cursor-pointer' : ''}`}
       onClick={onClick}
     >

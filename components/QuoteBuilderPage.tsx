@@ -9,6 +9,7 @@ import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
 import { quotesApi, productsApi, partnersApi, formatINR } from '../services/api';
 import { Quote, QuoteLineItem, Product, Partner, PaginatedResponse } from '../types';
+import { useColumnResize } from '../hooks/useColumnResize';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -171,7 +172,7 @@ export const QuoteBuilderPage: React.FC = () => {
   // Styling helpers
   // ---------------------------------------------------------------------------
 
-  const cardClass = `premium-card ${isDark ? 'bg-dark-50 border border-zinc-800' : 'bg-white shadow-soft'}`;
+  const cardClass = `premium-card ${isDark ? '' : 'shadow-soft'}`;
   const inputClass = `w-full px-3 py-2.5 rounded-xl border text-sm transition-all ${
     isDark
       ? 'bg-dark-100 border-zinc-700 text-white placeholder-zinc-500 focus:border-brand-500'
@@ -179,6 +180,11 @@ export const QuoteBuilderPage: React.FC = () => {
   } focus:outline-none focus:ring-1 focus:ring-brand-500`;
   const labelClass = `block text-sm font-medium mb-1.5 ${isDark ? 'text-slate-300' : 'text-slate-700'}`;
   const selectClass = `${inputClass} appearance-none cursor-pointer`;
+
+  // Column resize for list table
+  const { colWidths: quoteColWidths, onMouseDown: onQuoteMouseDown } = useColumnResize({
+    initialWidths: [130, 200, 170, 120, 130, 110, 100],
+  });
 
   // ---------------------------------------------------------------------------
   // Data fetching
@@ -877,17 +883,19 @@ export const QuoteBuilderPage: React.FC = () => {
         ) : (
           <>
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+              <table className="premium-table">
                 <thead>
                   <tr className={`border-b ${isDark ? 'border-zinc-800' : 'border-slate-100'}`}>
-                    {['Quote #', 'Customer', 'Partner', 'Date', 'Amount', 'Status', 'Actions'].map(h => (
+                    {['Quote #', 'Customer', 'Partner', 'Date', 'Amount', 'Status', 'Actions'].map((h, i) => (
                       <th
                         key={h}
-                        className={`px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider ${
+                        className={`px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider resizable-th ${
                           isDark ? 'text-zinc-500' : 'text-slate-400'
                         }`}
+                        style={{ width: quoteColWidths[i] }}
                       >
                         {h}
+                        <div className="col-resize-handle" onMouseDown={e => onQuoteMouseDown(i, e)} />
                       </th>
                     ))}
                   </tr>
@@ -1219,7 +1227,7 @@ export const QuoteBuilderPage: React.FC = () => {
 
           {/* Line items table */}
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="premium-table">
               <thead>
                 <tr className={`border-b ${isDark ? 'border-zinc-800' : 'border-slate-100'}`}>
                   {['#', 'Product', 'Description', 'Qty', 'Unit Price', 'Disc %', 'Line Total', ''].map(h => (
@@ -1776,7 +1784,7 @@ export const QuoteBuilderPage: React.FC = () => {
               </div>
 
               <div className="overflow-x-auto">
-                <table className="w-full text-sm">
+                <table className="premium-table">
                   <thead>
                     <tr className={`border-b ${isDark ? 'border-zinc-800' : 'border-slate-100'}`}>
                       {['#', 'Product / Description', 'Qty', 'Unit Price', 'Disc %', 'Total'].map(h => (

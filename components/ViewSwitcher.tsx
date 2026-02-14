@@ -26,8 +26,8 @@ export const ViewSwitcher: React.FC = () => {
         onClick={() => setIsOpen(!isOpen)}
         className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg transition-all ${
           isDark
-            ? 'bg-[rgba(10,16,32,0.5)] hover:bg-[rgba(10,16,32,0.7)] text-white border border-white/[0.06]'
-            : 'bg-white hover:bg-slate-50 text-slate-900 border border-slate-200 shadow-sm'
+            ? 'bg-[rgba(8,14,30,0.6)] hover:bg-[rgba(10,18,38,0.7)] text-white border border-white/[0.07]'
+            : 'bg-white/50 hover:bg-white/70 text-slate-900 border border-white/50 shadow-sm backdrop-blur-md'
         }`}
       >
         <Icon className="w-4 h-4" />
@@ -45,8 +45,8 @@ export const ViewSwitcher: React.FC = () => {
 
           {/* Dropdown */}
           <div
-            className={`absolute top-full left-0 mt-2 w-full min-w-[240px] rounded-xl shadow-lg border z-50 overflow-hidden ${
-              isDark ? 'bg-[rgba(8,13,27,0.92)] border-white/[0.06] backdrop-blur-xl' : 'bg-white border-slate-200'
+            className={`absolute top-full left-0 mt-2 w-full min-w-[240px] rounded-xl border z-50 overflow-hidden animate-scale-in ${
+              isDark ? 'bg-[rgba(5,10,22,0.94)] border-white/[0.07] backdrop-blur-2xl shadow-[0_8px_40px_rgba(0,0,0,0.5),_0_0_1px_rgba(255,255,255,0.06)]' : 'bg-white/70 border-white/50 backdrop-blur-2xl shadow-[0_8px_30px_-4px_rgba(0,0,0,0.06)]'
             }`}
           >
             {views.map((view) => {
@@ -66,7 +66,7 @@ export const ViewSwitcher: React.FC = () => {
                         : 'bg-brand-50 border-l-2 border-brand-500'
                       : isDark
                       ? 'hover:bg-white/[0.04]'
-                      : 'hover:bg-slate-50'
+                      : 'hover:bg-white/40'
                   }`}
                 >
                   <div

@@ -88,6 +88,10 @@ class LeadOut(CamelModel):
     designation: Optional[str] = None
     location: Optional[str] = None
 
+    # Requirements
+    requirement: Optional[str] = None
+    quoted_requirement: Optional[str] = None
+
     # Lead Image
     lead_image: Optional[str] = None
 
@@ -174,6 +178,10 @@ class LeadCreate(CamelModel):
     designation: Optional[str] = None
     location: Optional[str] = None
 
+    # Requirements
+    requirement: Optional[str] = None
+    quoted_requirement: Optional[str] = None
+
     # Lead Image
     lead_image: Optional[str] = None
 
@@ -256,6 +264,10 @@ class LeadUpdate(CamelModel):
     # Designation and Location
     designation: Optional[str] = None
     location: Optional[str] = None
+
+    # Requirements
+    requirement: Optional[str] = None
+    quoted_requirement: Optional[str] = None
 
     # Lead Image
     lead_image: Optional[str] = None

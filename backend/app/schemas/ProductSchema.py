@@ -13,6 +13,7 @@ class ProductOut(CamelModel):
     category: Optional[str] = None
     base_price: Optional[float] = None
     commission_rate: Optional[float] = None
+    stock: int = 0
     is_active: bool = True
     created_at: Optional[datetime] = None
 
@@ -22,6 +23,7 @@ class ProductCreate(CamelModel):
     category: Optional[str] = None
     base_price: Optional[float] = None
     commission_rate: Optional[float] = 0
+    stock: int = 0
     is_active: bool = True
 
 
@@ -30,4 +32,5 @@ class ProductUpdate(CamelModel):
     category: Optional[str] = None
     base_price: Optional[float] = None
     commission_rate: Optional[float] = None
+    stock: Optional[int] = None
     is_active: Optional[bool] = None

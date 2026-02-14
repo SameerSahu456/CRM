@@ -18,6 +18,7 @@ const AccountsPage = lazy(() => import('./components/AccountsPage').then(m => ({
 const ContactsPage = lazy(() => import('./components/ContactsPage').then(m => ({ default: m.ContactsPage })));
 const DealsPage = lazy(() => import('./components/DealsPage').then(m => ({ default: m.DealsPage })));
 const ReportsPage = lazy(() => import('./components/ReportsPage').then(m => ({ default: m.ReportsPage })));
+const InventoryPage = lazy(() => import('./components/InventoryPage').then(m => ({ default: m.InventoryPage })));
 const LoginPage = lazy(() => import('./components/LoginPage'));
 
 const pageTitles: Record<NavigationItem, string> = {
@@ -27,7 +28,7 @@ const pageTitles: Record<NavigationItem, string> = {
   'accounts': 'Accounts',
   'contacts': 'Contacts',
   'deals': 'Deals',
-  'quote-builder': 'Quote Builder',
+  'inventory': 'Inventory',
   'reports': 'Reports',
   'admin': 'Admin Panel',
   'settings': 'Settings',
@@ -104,6 +105,9 @@ const AppContent: React.FC = () => {
         break;
       case 'deals':
         PageComponent = DealsPage;
+        break;
+      case 'inventory':
+        PageComponent = InventoryPage;
         break;
       case 'reports':
         PageComponent = ReportsPage;

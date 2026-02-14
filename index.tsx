@@ -55,6 +55,38 @@ document.addEventListener('visibilitychange', () => {
 });
 
 // ---------------------------------------------------------------------------
+// Stale chunk recovery — auto-reload on dynamic import failure after deploy
+// ---------------------------------------------------------------------------
+
+window.addEventListener('error', (e) => {
+  if (e.message?.includes('Failed to fetch dynamically imported module') ||
+      e.message?.includes('Loading chunk') ||
+      e.message?.includes('Loading CSS chunk')) {
+    const reloaded = sessionStorage.getItem('chunk-reload');
+    if (!reloaded) {
+      sessionStorage.setItem('chunk-reload', '1');
+      window.location.reload();
+    }
+  }
+});
+
+window.addEventListener('unhandledrejection', (e) => {
+  const msg = e.reason?.message || String(e.reason);
+  if (msg.includes('Failed to fetch dynamically imported module') ||
+      msg.includes('Loading chunk') ||
+      msg.includes('Loading CSS chunk')) {
+    const reloaded = sessionStorage.getItem('chunk-reload');
+    if (!reloaded) {
+      sessionStorage.setItem('chunk-reload', '1');
+      window.location.reload();
+    }
+  }
+});
+
+// Clear reload flag on successful load
+sessionStorage.removeItem('chunk-reload');
+
+// ---------------------------------------------------------------------------
 // App Render
 // ---------------------------------------------------------------------------
 

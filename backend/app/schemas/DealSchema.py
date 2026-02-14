@@ -73,6 +73,9 @@ class DealOut(CamelModel):
     email: Optional[str] = None
     location: Optional[str] = None
     next_follow_up: Optional[date] = None
+    # Requirements
+    requirement: Optional[str] = None
+    quoted_requirement: Optional[str] = None
     line_items: Optional[list[DealLineItemOut]] = None
 
 
@@ -134,6 +137,9 @@ class DealCreate(CamelModel):
     email: Optional[str] = None
     location: Optional[str] = None
     next_follow_up: Optional[date] = None
+    # Requirements
+    requirement: Optional[str] = None
+    quoted_requirement: Optional[str] = None
     line_items: list[DealLineItemCreate] = []
 
 
@@ -195,6 +201,9 @@ class DealUpdate(CamelModel):
     email: Optional[str] = None
     location: Optional[str] = None
     next_follow_up: Optional[date] = None
+    # Requirements
+    requirement: Optional[str] = None
+    quoted_requirement: Optional[str] = None
     line_items: Optional[list[DealLineItemCreate]] = None
 
 

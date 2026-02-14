@@ -3,7 +3,7 @@ import {
   Plus, Search, X, ChevronLeft, ChevronRight, Edit2, Trash2,
   Loader2, AlertCircle, CheckCircle, Building2,
   Phone, Mail, Briefcase, User as UserIcon,
-  MessageSquare, Smartphone, Users,
+  Smartphone, Users,
   Download, Upload
 } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
@@ -13,6 +13,7 @@ import { contactsApi, accountsApi } from '../services/api';
 import { exportToCsv } from '../utils/exportCsv';
 import { Contact, Account, PaginatedResponse } from '../types';
 import { BulkImportModal } from './BulkImportModal';
+import { useColumnResize } from '../hooks/useColumnResize';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -125,7 +126,11 @@ export const ContactsPage: React.FC = () => {
   // Styling helpers
   // ---------------------------------------------------------------------------
 
-  const cardClass = `premium-card ${isDark ? 'bg-dark-50 border border-zinc-800' : 'bg-white shadow-soft'}`;
+  const { colWidths, onMouseDown } = useColumnResize({
+    initialWidths: [45, 200, 240, 150, 170, 200],
+  });
+
+  const cardClass = `premium-card ${isDark ? '' : 'shadow-soft'}`;
   const inputClass = `w-full px-3 py-2.5 rounded-xl border text-sm transition-all ${
     isDark
       ? 'bg-dark-100 border-zinc-700 text-white placeholder-zinc-500 focus:border-brand-500'
@@ -466,15 +471,19 @@ export const ContactsPage: React.FC = () => {
       ) : (
         <>
           <div className="overflow-x-auto">
-            <table className="w-full text-sm border-collapse">
+            <table className="premium-table">
               <thead>
                 <tr className={`border-b ${isDark ? 'border-zinc-700' : 'border-slate-200'}`}>
-                  <th className={`${hdrCell} w-[40px] text-center`}>#</th>
-                  <th className={`${hdrCell} w-[180px]`}>Name</th>
-                  <th className={`${hdrCell} w-[200px]`}>Email</th>
-                  <th className={`${hdrCell} w-[130px]`}>Phone</th>
-                  <th className={`${hdrCell} w-[140px]`}>Job Title</th>
-                  <th className={`${hdrCell} w-[160px]`}>Account</th>
+                  {['#', 'Name', 'Email', 'Phone', 'Job Title', 'Account'].map((label, i) => (
+                    <th
+                      key={label}
+                      className={`${hdrCell} resizable-th ${i === 0 ? 'text-center' : ''}`}
+                      style={{ width: colWidths[i] }}
+                    >
+                      {label}
+                      <div className="col-resize-handle" onMouseDown={e => onMouseDown(i, e)} />
+                    </th>
+                  ))}
                 </tr>
               </thead>
               <tbody>
@@ -617,7 +626,7 @@ export const ContactsPage: React.FC = () => {
     const contact = detailContact;
 
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="fixed inset-0 z-50 flex items-start justify-center pt-[5vh] overflow-y-auto p-4">
         <div className="absolute inset-0 bg-black/50 animate-backdrop" onClick={closeDetailModal} />
         <div className={`relative w-full max-w-xl max-h-[90vh] rounded-2xl animate-fade-in-up flex flex-col overflow-hidden ${
           isDark ? 'bg-dark-50 border border-zinc-800' : 'bg-white shadow-premium'
@@ -710,7 +719,6 @@ export const ContactsPage: React.FC = () => {
                 <InfoRow label="Account" value={contact.accountName} isDark={isDark} icon={<Building2 className="w-3.5 h-3.5" />} />
               )}
               <InfoRow label="Type" value={contact.type} isDark={isDark} icon={<Users className="w-3.5 h-3.5" />} />
-              <InfoRow label="Preferred Contact" value={contact.preferredContact} isDark={isDark} icon={<MessageSquare className="w-3.5 h-3.5" />} />
             </div>
 
             {/* Notes */}
@@ -747,7 +755,7 @@ export const ContactsPage: React.FC = () => {
     if (!showFormModal) return null;
 
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="fixed inset-0 z-50 flex items-start justify-center pt-[5vh] overflow-y-auto p-4">
         <div className="absolute inset-0 bg-black/50 animate-backdrop" onClick={closeFormModal} />
         <div className={`relative w-full max-w-xl max-h-[90vh] rounded-2xl animate-fade-in-up flex flex-col overflow-hidden ${
           isDark ? 'bg-dark-50 border border-zinc-800' : 'bg-white shadow-premium'

@@ -4,7 +4,7 @@ import {
   IndianRupee, Loader2, AlertCircle, Building2,
   Phone, Mail, Globe, Users, MapPin, Hash,
   TrendingUp, FileText, Briefcase, User as UserIcon,
-  Download, Upload
+  Download, Upload, Target, Leaf, Snowflake
 } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
@@ -14,6 +14,7 @@ import { exportToCsv } from '../utils/exportCsv';
 import { Account, Contact, Deal, PaginatedResponse, Partner, User } from '../types';
 import { EnhancedAccountForm, EnhancedAccountFormData } from './EnhancedAccountForm';
 import { BulkImportModal } from './BulkImportModal';
+import { useColumnResize } from '../hooks/useColumnResize';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -83,6 +84,9 @@ export const AccountsPage: React.FC = () => {
 
 
 
+  // Summary counts
+  const [typeSummary, setTypeSummary] = useState<{ hunting: number; farming: number; cold: number; total: number }>({ hunting: 0, farming: 0, cold: 0, total: 0 });
+
   // Dropdown data for enhanced form
   const [partners, setPartners] = useState<Partner[]>([]);
   const [users, setUsers] = useState<User[]>([]);
@@ -92,11 +96,34 @@ export const AccountsPage: React.FC = () => {
   // Styling helpers
   // ---------------------------------------------------------------------------
 
-  const cardClass = `premium-card ${isDark ? 'bg-dark-50 border border-zinc-800' : 'bg-white shadow-soft'}`;
+  const { colWidths, onMouseDown } = useColumnResize({
+    initialWidths: [45, 200, 150, 140, 220, 130, 130],
+  });
+
+  const cardClass = `premium-card ${isDark ? '' : 'shadow-soft'}`;
 
   // ---------------------------------------------------------------------------
   // Data fetching
   // ---------------------------------------------------------------------------
+
+  const fetchSummary = useCallback(async () => {
+    try {
+      const accountsData = await accountsApi.list({ limit: '1000' });
+      const allAccounts = Array.isArray(accountsData?.data) ? accountsData.data : [];
+      setParentAccounts(allAccounts);
+
+      let hunting = 0, farming = 0, cold = 0;
+      allAccounts.forEach((a: Account) => {
+        const t = (a.type || '').toLowerCase();
+        if (t === 'hunting') hunting++;
+        else if (t === 'farming' || t === 'recurring') farming++;
+        else if (t === 'cold') cold++;
+      });
+      setTypeSummary({ hunting, farming, cold, total: allAccounts.length });
+    } catch (err) {
+      console.error('Failed to fetch summary:', err);
+    }
+  }, []);
 
   const fetchAccounts = useCallback(async () => {
     setIsLoading(true);
@@ -144,7 +171,7 @@ export const AccountsPage: React.FC = () => {
     setPage(1);
   }, [searchTerm]);
 
-  // Fetch dropdown data for enhanced form
+  // Fetch dropdown data for enhanced form + summary counts
   useEffect(() => {
     const fetchDropdownData = async () => {
       try {
@@ -156,19 +183,17 @@ export const AccountsPage: React.FC = () => {
         const usersData = await adminApi.listUsers();
         setUsers(Array.isArray(usersData) ? usersData : []);
 
-        // Fetch accounts for parent selection
-        const accountsData = await accountsApi.list({ limit: '100' });
-        setParentAccounts(Array.isArray(accountsData?.data) ? accountsData.data : []);
+        // Fetch accounts for parent selection + summary counts
+        await fetchSummary();
       } catch (err) {
         console.error('Failed to fetch dropdown data:', err);
-        // Ensure arrays are set even on error
         setPartners([]);
         setUsers([]);
         setParentAccounts([]);
       }
     };
     fetchDropdownData();
-  }, []);
+  }, [fetchSummary]);
 
   // ---------------------------------------------------------------------------
   // Form handlers
@@ -214,6 +239,7 @@ export const AccountsPage: React.FC = () => {
       }
       closeFormModal();
       fetchAccounts();
+      fetchSummary();
     } catch (err: any) {
       setFormError(err.message || 'Failed to save account');
       throw err; // Re-throw so the form knows submission failed
@@ -264,6 +290,7 @@ export const AccountsPage: React.FC = () => {
       await accountsApi.delete(id);
       setDeleteConfirmId(null);
       fetchAccounts();
+      fetchSummary();
     } catch (err: any) {
       setTableError(err.message || 'Failed to delete account');
     }
@@ -387,16 +414,19 @@ export const AccountsPage: React.FC = () => {
       ) : (
         <>
           <div className="overflow-x-auto">
-            <table className="w-full text-sm border-collapse">
+            <table className="premium-table">
               <thead>
                 <tr className={`border-b ${isDark ? 'border-zinc-700' : 'border-slate-200'}`}>
-                  <th className={`${hdrCell} w-[40px] text-center`}>#</th>
-                  <th className={`${hdrCell} w-[180px]`}>Name</th>
-                  <th className={`${hdrCell} w-[140px]`}>Industry</th>
-                  <th className={`${hdrCell} w-[130px]`}>Phone</th>
-                  <th className={`${hdrCell} w-[180px]`}>Email</th>
-                  <th className={`${hdrCell} w-[120px]`}>Revenue</th>
-                  <th className={`${hdrCell} w-[120px]`}>Type</th>
+                  {['#', 'Name', 'Industry', 'Phone', 'Email', 'Revenue', 'Type'].map((label, i) => (
+                    <th
+                      key={label}
+                      className={`${hdrCell} resizable-th ${i === 0 ? 'text-center' : ''}`}
+                      style={{ width: colWidths[i] }}
+                    >
+                      {label}
+                      <div className="col-resize-handle" onMouseDown={e => onMouseDown(i, e)} />
+                    </th>
+                  ))}
                 </tr>
               </thead>
               <tbody>
@@ -535,9 +565,9 @@ export const AccountsPage: React.FC = () => {
     const account = detailAccount;
 
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-        <div className="absolute inset-0 bg-black/50 animate-backdrop" onClick={closeDetailModal} />
-        <div className={`relative w-full max-w-2xl max-h-[90vh] rounded-2xl animate-fade-in-up flex flex-col overflow-hidden ${
+      <div className="fixed inset-0 z-50 flex items-start justify-center p-4 pt-[5vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-black/50 animate-backdrop" onClick={closeDetailModal} />
+        <div className={`relative w-full max-w-2xl max-h-[85vh] rounded-2xl animate-fade-in-up flex flex-col overflow-hidden ${
           isDark ? 'bg-dark-50 border border-zinc-800' : 'bg-white shadow-premium'
         }`}>
           {/* Header */}
@@ -810,6 +840,46 @@ export const AccountsPage: React.FC = () => {
         </div>
       </div>
 
+      {/* Summary Cards */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className={`${cardClass} p-4 flex items-center gap-3`}>
+          <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${isDark ? 'bg-blue-500/10 text-blue-400' : 'bg-blue-50 text-blue-600'}`}>
+            <Building2 className="w-5 h-5" />
+          </div>
+          <div>
+            <p className={`text-2xl font-bold font-display ${isDark ? 'text-white' : 'text-slate-900'}`}>{typeSummary.total}</p>
+            <p className={`text-xs ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Total Accounts</p>
+          </div>
+        </div>
+        <div className={`${cardClass} p-4 flex items-center gap-3`}>
+          <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${isDark ? 'bg-amber-500/10 text-amber-400' : 'bg-amber-50 text-amber-600'}`}>
+            <Target className="w-5 h-5" />
+          </div>
+          <div>
+            <p className={`text-2xl font-bold font-display ${isDark ? 'text-white' : 'text-slate-900'}`}>{typeSummary.hunting}</p>
+            <p className={`text-xs ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Hunting</p>
+          </div>
+        </div>
+        <div className={`${cardClass} p-4 flex items-center gap-3`}>
+          <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${isDark ? 'bg-emerald-500/10 text-emerald-400' : 'bg-emerald-50 text-emerald-600'}`}>
+            <Leaf className="w-5 h-5" />
+          </div>
+          <div>
+            <p className={`text-2xl font-bold font-display ${isDark ? 'text-white' : 'text-slate-900'}`}>{typeSummary.farming}</p>
+            <p className={`text-xs ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Farming</p>
+          </div>
+        </div>
+        <div className={`${cardClass} p-4 flex items-center gap-3`}>
+          <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${isDark ? 'bg-sky-500/10 text-sky-400' : 'bg-sky-50 text-sky-600'}`}>
+            <Snowflake className="w-5 h-5" />
+          </div>
+          <div>
+            <p className={`text-2xl font-bold font-display ${isDark ? 'text-white' : 'text-slate-900'}`}>{typeSummary.cold}</p>
+            <p className={`text-xs ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Cold</p>
+          </div>
+        </div>
+      </div>
+
       {/* Toolbar */}
       {renderToolbar()}
 
@@ -826,7 +896,7 @@ export const AccountsPage: React.FC = () => {
         entity="accounts"
         entityLabel="Accounts"
         isDark={isDark}
-        onSuccess={() => fetchAccounts()}
+        onSuccess={() => { fetchAccounts(); fetchSummary(); }}
       />
     </div>
   );

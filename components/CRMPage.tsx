@@ -6,15 +6,16 @@ import {
   Eye, BarChart3, LayoutGrid, List,
   Clock, StickyNote, FileText, Zap, XCircle,
   ChevronDown, Award, Building2, User as UserIcon, Tags,
-  Download, Upload
+  Download, Upload, Send
 } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigation } from '../contexts/NavigationContext';
-import { leadsApi, partnersApi, productsApi, adminApi, formatINR } from '../services/api';
+import { leadsApi, partnersApi, productsApi, adminApi, accountsApi, contactsApi, formatINR } from '../services/api';
 import { exportToCsv } from '../utils/exportCsv';
 import { Lead, LeadStage, PaginatedResponse, Partner, Product, User, ActivityLog } from '../types';
 import { BulkImportModal } from './BulkImportModal';
+import { useColumnResize } from '../hooks/useColumnResize';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -131,6 +132,10 @@ interface LeadFormData {
   queryId: string;
   mcatName: string;
 
+  // Requirements
+  requirement: string;
+  quotedRequirement: string;
+
   // Lead Image
   leadImage: string;
 }
@@ -217,6 +222,10 @@ const EMPTY_LEAD_FORM: LeadFormData = {
   leadType: '',
   queryId: '',
   mcatName: '',
+
+  // Requirements
+  requirement: '',
+  quotedRequirement: '',
 
   // Lead Image
   leadImage: '',
@@ -330,6 +339,10 @@ export const CRMPage: React.FC = () => {
   const [pipelineLeads, setPipelineLeads] = useState<Record<string, Lead[]>>({});
   const [isPipelineLoading, setIsPipelineLoading] = useState(false);
 
+  // Drag-and-drop state
+  const [draggedLeadId, setDraggedLeadId] = useState<string | null>(null);
+  const [dragOverStage, setDragOverStage] = useState<string | null>(null);
+
   // UI state
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -348,6 +361,7 @@ export const CRMPage: React.FC = () => {
     descriptionInfo: false,
     leadImage: false,
     opportunityDetails: false,
+    requirements: true,
     classification: false,
   });
 
@@ -358,6 +372,13 @@ export const CRMPage: React.FC = () => {
   const [isAuditLoading, setIsAuditLoading] = useState(false);
   const [isUpdatingStage, setIsUpdatingStage] = useState(false);
 
+  // Manual activity entry
+  const [activityType, setActivityType] = useState('note');
+  const [activityTitle, setActivityTitle] = useState('');
+  const [activityDesc, setActivityDesc] = useState('');
+  const [isAddingActivity, setIsAddingActivity] = useState(false);
+  const [activities, setActivities] = useState<any[]>([]);
+
   // Convert modal
   const [showConvertModal, setShowConvertModal] = useState(false);
   const [convertLeadId, setConvertLeadId] = useState<string | null>(null);
@@ -365,8 +386,21 @@ export const CRMPage: React.FC = () => {
   const [convertError, setConvertError] = useState('');
   const [isConverting, setIsConverting] = useState(false);
 
+  // Closed Won modal (account + contact creation)
+  const [showClosedWonModal, setShowClosedWonModal] = useState(false);
+  const [closedWonLeadRef, setClosedWonLeadRef] = useState<{ lead: Lead; source: 'detail' | 'pipeline' } | null>(null);
+  const [closedWonForm, setClosedWonForm] = useState({
+    accountName: '', industry: '', type: 'Hunting', phone: '', email: '', location: '',
+    contactFirstName: '', contactLastName: '', contactEmail: '', contactPhone: '', contactJobTitle: '',
+  });
+  const [closedWonError, setClosedWonError] = useState('');
+  const [isClosedWonSubmitting, setIsClosedWonSubmitting] = useState(false);
+
   // Delete confirmation
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+
+  // Lead summary counts
+  const [leadSummary, setLeadSummary] = useState({ total: 0, cold: 0, proposal: 0, negotiation: 0, closedWon: 0, closedLost: 0 });
 
   // Summarise modal
   const [showSummariseModal, setShowSummariseModal] = useState(false);
@@ -377,7 +411,11 @@ export const CRMPage: React.FC = () => {
   // Styling helpers
   // ---------------------------------------------------------------------------
 
-  const cardClass = `premium-card ${isDark ? 'bg-dark-50 border border-zinc-800' : 'bg-white shadow-soft'}`;
+  const { colWidths: crmColWidths, onMouseDown: onCrmMouseDown } = useColumnResize({
+    initialWidths: [45, 180, 150, 130, 130, 220, 130, 110, 160, 160, 110, 120, 100, 120, 120, 70],
+  });
+
+  const cardClass = `premium-card ${isDark ? '' : 'shadow-soft'}`;
   const inputClass = `w-full px-3 py-2.5 rounded-xl border text-sm transition-all ${
     isDark
       ? 'bg-dark-100 border-zinc-700 text-white placeholder-zinc-500 focus:border-brand-500'
@@ -455,14 +493,24 @@ export const CRMPage: React.FC = () => {
     fetchDropdownData();
   }, [fetchDropdownData]);
 
-  // Fetch based on view mode
+  // Fetch based on view mode (always fetch pipeline leads for summary cards)
   useEffect(() => {
+    fetchPipelineLeads();
     if (viewMode === 'table') {
       fetchLeads();
-    } else {
-      fetchPipelineLeads();
     }
   }, [viewMode, fetchLeads, fetchPipelineLeads]);
+
+  // Compute lead summary from pipeline data
+  useEffect(() => {
+    const cold = (pipelineLeads['Cold'] || []).length;
+    const proposal = (pipelineLeads['Proposal'] || []).length;
+    const negotiation = (pipelineLeads['Negotiation'] || []).length;
+    const closedWon = (pipelineLeads['Closed Won'] || []).length;
+    const closedLost = (pipelineLeads['Closed Lost'] || []).length;
+    const total = cold + proposal + negotiation + closedWon + closedLost;
+    setLeadSummary({ total, cold, proposal, negotiation, closedWon, closedLost });
+  }, [pipelineLeads]);
 
   // Reset to page 1 when filters change
   useEffect(() => {
@@ -567,13 +615,19 @@ export const CRMPage: React.FC = () => {
   const openDetailModal = async (lead: Lead) => {
     setDetailLead(lead);
     setAuditLogs([]);
+    setActivities([]);
     setShowDetailModal(true);
     setIsAuditLoading(true);
     try {
-      const auditData = await leadsApi.getAuditLog(lead.id);
+      const [auditData, actData] = await Promise.all([
+        leadsApi.getAuditLog(lead.id),
+        leadsApi.getActivities(lead.id),
+      ]);
       setAuditLogs(Array.isArray(auditData) ? auditData : []);
+      setActivities(Array.isArray(actData) ? actData : []);
     } catch {
       setAuditLogs([]);
+      setActivities([]);
     } finally {
       setIsAuditLoading(false);
     }
@@ -582,10 +636,39 @@ export const CRMPage: React.FC = () => {
   const closeDetailModal = () => {
     setShowDetailModal(false);
     setDetailLead(null);
+    setActivityType('note');
+    setActivityTitle('');
+    setActivityDesc('');
+  };
+
+  const handleAddLeadActivity = async () => {
+    if (!detailLead || !activityTitle.trim()) return;
+    setIsAddingActivity(true);
+    try {
+      await leadsApi.addActivity(detailLead.id, {
+        activity_type: activityType,
+        title: activityTitle.trim(),
+        description: activityDesc.trim() || undefined,
+      });
+      setActivityTitle('');
+      setActivityDesc('');
+      setActivityType('note');
+      // Refresh activities list
+      const actData = await leadsApi.getActivities(detailLead.id);
+      setActivities(Array.isArray(actData) ? actData : []);
+    } catch (err) {
+      console.error('Failed to add activity', err);
+    }
+    setIsAddingActivity(false);
   };
 
   const handleUpdateStage = async (newStage: LeadStage) => {
     if (!detailLead || detailLead.stage === newStage) return;
+    // Intercept Closed Won to show account creation popup
+    if (newStage === 'Closed Won' && detailLead.stage !== 'Closed Won') {
+      openClosedWonModal(detailLead, 'detail');
+      return;
+    }
     setIsUpdatingStage(true);
     try {
       const updated = await leadsApi.update(detailLead.id, { stage: newStage });
@@ -604,11 +687,94 @@ export const CRMPage: React.FC = () => {
 
   const handlePipelineMoveStage = async (lead: Lead, newStage: LeadStage) => {
     if (lead.stage === newStage) return;
+    // Intercept Closed Won to show account creation popup
+    if (newStage === 'Closed Won' && lead.stage !== 'Closed Won') {
+      openClosedWonModal(lead, 'pipeline');
+      return;
+    }
     try {
       await leadsApi.update(lead.id, { stage: newStage });
       refreshData();
     } catch {
       // Fail silently
+    }
+  };
+
+  // ---------------------------------------------------------------------------
+  // Closed Won handlers
+  // ---------------------------------------------------------------------------
+
+  const openClosedWonModal = (lead: Lead, source: 'detail' | 'pipeline') => {
+    setClosedWonLeadRef({ lead, source });
+    setClosedWonForm({
+      accountName: lead.companyName || '',
+      industry: '',
+      type: 'Hunting',
+      phone: lead.phone || '',
+      email: lead.email || '',
+      location: '',
+      contactFirstName: lead.contactPerson?.split(' ')[0] || '',
+      contactLastName: lead.contactPerson?.split(' ').slice(1).join(' ') || '',
+      contactEmail: lead.email || '',
+      contactPhone: lead.phone || '',
+      contactJobTitle: '',
+    });
+    setClosedWonError('');
+    setShowClosedWonModal(true);
+  };
+
+  const handleClosedWonSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!closedWonLeadRef) return;
+    const { lead } = closedWonLeadRef;
+
+    if (!closedWonForm.accountName.trim()) {
+      setClosedWonError('Account name is required');
+      return;
+    }
+
+    setIsClosedWonSubmitting(true);
+    setClosedWonError('');
+    try {
+      // 1. Create account
+      const account = await accountsApi.create({
+        name: closedWonForm.accountName,
+        industry: closedWonForm.industry || undefined,
+        type: closedWonForm.type || undefined,
+        phone: closedWonForm.phone || undefined,
+        email: closedWonForm.email || undefined,
+        location: closedWonForm.location || undefined,
+        status: 'active',
+        ownerId: user?.id,
+      });
+
+      // 2. Create contact associated with the account
+      if (closedWonForm.contactFirstName.trim()) {
+        await contactsApi.create({
+          firstName: closedWonForm.contactFirstName,
+          lastName: closedWonForm.contactLastName || undefined,
+          email: closedWonForm.contactEmail || undefined,
+          phone: closedWonForm.contactPhone || undefined,
+          jobTitle: closedWonForm.contactJobTitle || undefined,
+          accountId: account.id,
+          status: 'active',
+          ownerId: user?.id,
+        });
+      }
+
+      // 3. Update lead stage to Closed Won
+      await leadsApi.update(lead.id, { stage: 'Closed Won' });
+
+      setShowClosedWonModal(false);
+      setClosedWonLeadRef(null);
+      if (closedWonLeadRef.source === 'detail' && detailLead) {
+        setDetailLead({ ...detailLead, stage: 'Closed Won' });
+      }
+      refreshData();
+    } catch (err: any) {
+      setClosedWonError(err.message || 'Failed to create account');
+    } finally {
+      setIsClosedWonSubmitting(false);
     }
   };
 
@@ -753,7 +919,7 @@ export const CRMPage: React.FC = () => {
             }`}
           >
             <LayoutGrid className="w-3.5 h-3.5" />
-            Pipeline
+            Kanban Board
           </button>
         </div>
 
@@ -855,10 +1021,12 @@ export const CRMPage: React.FC = () => {
             { header: 'Phone', accessor: (r: Lead) => r.phone },
             { header: 'Designation', accessor: (r: Lead) => (r as any).designation },
             { header: 'Location', accessor: (r: Lead) => (r as any).location },
-            { header: 'Stage', accessor: (r: Lead) => r.stage },
-            { header: 'Estimated Value', accessor: (r: Lead) => r.estimatedValue },
             { header: 'Source', accessor: (r: Lead) => r.source },
-            { header: 'Tag', accessor: (r: Lead) => (r as any).tag },
+            { header: 'Requirement', accessor: (r: Lead) => r.requirement },
+            { header: 'Quoted Requirement', accessor: (r: Lead) => r.quotedRequirement },
+            { header: 'Estimated Value', accessor: (r: Lead) => r.estimatedValue },
+            { header: 'Stage', accessor: (r: Lead) => r.stage },
+            { header: 'Type', accessor: (r: Lead) => (r as any).tag },
             { header: 'Product Interest', accessor: (r: Lead) => r.productInterest },
             { header: 'Next Follow-up', accessor: (r: Lead) => r.nextFollowUp },
             { header: 'Expected Close', accessor: (r: Lead) => r.expectedCloseDate },
@@ -926,28 +1094,25 @@ export const CRMPage: React.FC = () => {
       ) : (
         <>
           <div className="overflow-x-auto">
-            <table className="w-full text-sm border-collapse">
+            <table className="premium-table" style={{ minWidth: crmColWidths.reduce((a, b) => a + b, 0) }}>
               <thead>
                 <tr className={`border-b ${isDark ? 'border-zinc-700' : 'border-slate-200'}`}>
-                  <th className={`${hdrCell} w-[40px] text-center`}>#</th>
-                  <th className={`${hdrCell} w-[150px]`}>Company</th>
-                  <th className={`${hdrCell} w-[130px]`}>Contact Name</th>
-                  <th className={`${hdrCell} w-[110px]`}>Contact No</th>
-                  <th className={`${hdrCell} w-[110px]`}>Designation</th>
-                  <th className={`${hdrCell} w-[160px]`}>Email</th>
-                  <th className={`${hdrCell} w-[110px]`}>Location</th>
-                  <th className={`${hdrCell} w-[110px]`}>Stage</th>
-                  <th className={`${hdrCell} w-[100px]`}>Value</th>
-                  <th className={`${hdrCell} w-[100px]`}>Source</th>
-                  <th className={`${hdrCell} w-[100px]`}>Tag</th>
-                  <th className={`${hdrCell} w-[110px]`}>Follow-up Date</th>
-                  <th className={`${hdrCell} w-[80px] text-center`}>Summarise</th>
+                  {['#', 'Company', 'Contact Name', 'Contact No', 'Designation', 'Email', 'Location', 'Source', 'Requirement', 'Quoted Requirement', 'Value', 'Stage', 'Type', 'Assignee', 'Follow-up Date', 'Summarise'].map((label, i) => (
+                    <th
+                      key={label}
+                      className={`${hdrCell} resizable-th ${i === 0 || i === 15 ? 'text-center' : ''}`}
+                      style={{ width: crmColWidths[i] }}
+                    >
+                      {label}
+                      <div className="col-resize-handle" onMouseDown={e => onCrmMouseDown(i, e)} />
+                    </th>
+                  ))}
                 </tr>
               </thead>
               <tbody>
                 {leads.length === 0 ? (
                   <tr>
-                    <td colSpan={13} className="py-16 text-center">
+                    <td colSpan={16} className="py-16 text-center">
                       <Users className={`w-8 h-8 mx-auto ${isDark ? 'text-zinc-700' : 'text-slate-300'}`} />
                       <p className={`mt-2 text-sm ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
                         {hasActiveFilters ? 'No leads match filters' : 'No leads yet'}
@@ -986,13 +1151,19 @@ export const CRMPage: React.FC = () => {
                       {(lead as any).location || '-'}
                     </td>
                     <td className={`${cellBase} ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
-                      <span className={stageBadge(lead.stage, isDark)}>{lead.stage}</span>
+                      <span className="capitalize">{lead.source || '-'}</span>
+                    </td>
+                    <td className={`${cellBase} ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
+                      <span className="truncate block max-w-[150px]">{lead.requirement || '-'}</span>
+                    </td>
+                    <td className={`${cellBase} ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
+                      <span className="truncate block max-w-[150px]">{lead.quotedRequirement || '-'}</span>
                     </td>
                     <td className={`${cellBase} ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
                       {lead.estimatedValue ? formatINR(lead.estimatedValue) : '-'}
                     </td>
                     <td className={`${cellBase} ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
-                      <span className="capitalize">{lead.source || '-'}</span>
+                      <span className={stageBadge(lead.stage, isDark)}>{lead.stage}</span>
                     </td>
                     <td className={`${cellBase} ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
                       {(lead as any).tag ? (
@@ -1004,6 +1175,9 @@ export const CRMPage: React.FC = () => {
                           {(lead as any).tag}
                         </span>
                       ) : '-'}
+                    </td>
+                    <td className={`${cellBase} ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
+                      {(lead as any).assignedToName || '-'}
                     </td>
                     <td className={`${cellBase} ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
                       {lead.nextFollowUp ? formatDate(lead.nextFollowUp) : '-'}
@@ -1118,8 +1292,13 @@ export const CRMPage: React.FC = () => {
     return (
       <div
         key={lead.id}
+        draggable
+        onDragStart={e => { e.dataTransfer.setData('text/plain', lead.id); setDraggedLeadId(lead.id); }}
+        onDragEnd={() => { setDraggedLeadId(null); setDragOverStage(null); }}
         onClick={() => openDetailModal(lead)}
-        className={`p-3 rounded-xl border cursor-pointer transition-all hover:shadow-md ${
+        className={`p-3 rounded-xl border cursor-grab active:cursor-grabbing transition-all hover:shadow-md ${
+          draggedLeadId === lead.id ? 'opacity-40 scale-95' : ''
+        } ${
           isDark
             ? 'bg-dark-100 border-zinc-700 hover:border-zinc-600'
             : 'bg-white border-slate-200 hover:border-slate-300'
@@ -1183,7 +1362,7 @@ export const CRMPage: React.FC = () => {
         <div className="flex flex-col items-center justify-center py-20">
           <Loader2 className="w-8 h-8 text-brand-600 animate-spin" />
           <p className={`mt-3 text-sm ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>
-            Loading pipeline...
+            Loading kanban board...
           </p>
         </div>
       );
@@ -1205,8 +1384,25 @@ export const CRMPage: React.FC = () => {
           {PIPELINE_STAGES.map(stage => {
             const stageLeads = (pipelineLeads[stage] || []).filter(filterLead);
             const c = STAGE_COLORS[stage];
+            const isOver = dragOverStage === stage;
             return (
-              <div key={stage} className={`${cardClass} p-3 min-h-[200px]`}>
+              <div
+                key={stage}
+                onDragOver={e => { e.preventDefault(); setDragOverStage(stage); }}
+                onDragLeave={() => setDragOverStage(null)}
+                onDrop={e => {
+                  e.preventDefault();
+                  setDragOverStage(null);
+                  const leadId = e.dataTransfer.getData('text/plain');
+                  if (!leadId) return;
+                  const allLeads = Object.values(pipelineLeads).flat();
+                  const lead = allLeads.find(l => l.id === leadId);
+                  if (lead && lead.stage !== stage) {
+                    handlePipelineMoveStage(lead, stage as LeadStage);
+                  }
+                }}
+                className={`${cardClass} p-3 min-h-[200px] transition-all ${isOver ? 'ring-2 ring-brand-500 ring-inset' : ''}`}
+              >
                 {/* Column header */}
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2">
@@ -1224,7 +1420,7 @@ export const CRMPage: React.FC = () => {
                 <div className="space-y-2">
                   {stageLeads.length === 0 ? (
                     <p className={`text-xs text-center py-6 ${isDark ? 'text-zinc-600' : 'text-slate-300'}`}>
-                      No leads
+                      {isOver ? 'Drop here' : 'No leads'}
                     </p>
                   ) : (
                     stageLeads.map(lead => renderPipelineCard(lead))
@@ -1241,8 +1437,25 @@ export const CRMPage: React.FC = () => {
             const stageLeads = (pipelineLeads[stage] || []).filter(filterLead);
             const c = STAGE_COLORS[stage];
             const isWon = stage === 'Closed Won';
+            const isOverTerminal = dragOverStage === stage;
             return (
-              <div key={stage} className={`${cardClass} p-4`}>
+              <div
+                key={stage}
+                onDragOver={e => { e.preventDefault(); setDragOverStage(stage); }}
+                onDragLeave={() => setDragOverStage(null)}
+                onDrop={e => {
+                  e.preventDefault();
+                  setDragOverStage(null);
+                  const leadId = e.dataTransfer.getData('text/plain');
+                  if (!leadId) return;
+                  const allLeads = Object.values(pipelineLeads).flat();
+                  const lead = allLeads.find(l => l.id === leadId);
+                  if (lead && lead.stage !== stage) {
+                    handlePipelineMoveStage(lead, stage as LeadStage);
+                  }
+                }}
+                className={`${cardClass} p-4 transition-all ${isOverTerminal ? 'ring-2 ring-brand-500 ring-inset' : ''}`}
+              >
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2">
                     {isWon
@@ -1393,6 +1606,31 @@ export const CRMPage: React.FC = () => {
               <InfoRow label="Next Follow-up" value={lead.nextFollowUp ? formatDate(lead.nextFollowUp) : undefined} isDark={isDark} icon={<Clock className="w-3.5 h-3.5" />} />
             </div>
 
+            {/* Requirements */}
+            {(lead.requirement || lead.quotedRequirement) && (
+              <div className="space-y-3">
+                <h4 className={`text-xs font-semibold uppercase tracking-wider ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
+                  Requirements
+                </h4>
+                {lead.requirement && (
+                  <div>
+                    <span className={`text-xs font-medium ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>Requirement (User Provided)</span>
+                    <p className={`text-sm whitespace-pre-wrap mt-1 ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
+                      {lead.requirement}
+                    </p>
+                  </div>
+                )}
+                {lead.quotedRequirement && (
+                  <div>
+                    <span className={`text-xs font-medium ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>Quoted Requirement (What We Serve)</span>
+                    <p className={`text-sm whitespace-pre-wrap mt-1 ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
+                      {lead.quotedRequirement}
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Notes */}
             {lead.notes && (
               <div>
@@ -1430,15 +1668,6 @@ export const CRMPage: React.FC = () => {
                 {isUpdatingStage && <Loader2 className="w-4 h-4 text-brand-600 animate-spin" />}
               </div>
 
-              {canConvert(lead.stage) && (
-                <button
-                  onClick={() => openConvertModal(lead)}
-                  className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-medium transition-all btn-premium whitespace-nowrap"
-                >
-                  <Award className="w-4 h-4" />
-                  Convert to Sale
-                </button>
-              )}
             </div>
 
             {/* Lost reason */}
@@ -1458,6 +1687,95 @@ export const CRMPage: React.FC = () => {
               }`}>
                 <p className={`text-xs font-semibold mb-1 ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`}>Converted to Sale</p>
                 <p className={`text-sm ${isDark ? 'text-emerald-300' : 'text-emerald-600'}`}>Sale ID: {lead.wonSaleId}</p>
+              </div>
+            )}
+
+            {/* Add Activity */}
+            <div>
+              <h4 className={`text-xs font-semibold uppercase tracking-wider mb-3 flex items-center gap-1.5 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
+                <MessageSquare className="w-3.5 h-3.5" /> Add Activity
+              </h4>
+              <div className={`p-3 rounded-xl border space-y-2 ${isDark ? 'border-zinc-800 bg-zinc-900/50' : 'border-slate-100 bg-slate-50'}`}>
+                <div className="flex gap-2">
+                  <select
+                    value={activityType}
+                    onChange={e => setActivityType(e.target.value)}
+                    className={`text-xs px-2 py-1.5 rounded-lg border appearance-none cursor-pointer ${
+                      isDark ? 'bg-dark-100 border-zinc-700 text-white' : 'bg-white border-slate-200 text-slate-900'
+                    } focus:outline-none focus:border-brand-500`}
+                  >
+                    <option value="note">Note</option>
+                    <option value="call">Call</option>
+                    <option value="email">Email</option>
+                    <option value="meeting">Meeting</option>
+                    <option value="follow_up">Follow-up</option>
+                    <option value="task">Task</option>
+                  </select>
+                  <input
+                    type="text"
+                    placeholder="Activity title..."
+                    value={activityTitle}
+                    onChange={e => setActivityTitle(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && handleAddLeadActivity()}
+                    className={`flex-1 text-xs px-2 py-1.5 rounded-lg border ${
+                      isDark ? 'bg-dark-100 border-zinc-700 text-white placeholder-zinc-500' : 'bg-white border-slate-200 text-slate-900 placeholder-slate-400'
+                    } focus:outline-none focus:border-brand-500`}
+                  />
+                </div>
+                <textarea
+                  rows={2}
+                  placeholder="Description (optional)..."
+                  value={activityDesc}
+                  onChange={e => setActivityDesc(e.target.value)}
+                  className={`w-full text-xs px-2 py-1.5 rounded-lg border resize-none ${
+                    isDark ? 'bg-dark-100 border-zinc-700 text-white placeholder-zinc-500' : 'bg-white border-slate-200 text-slate-900 placeholder-slate-400'
+                  } focus:outline-none focus:border-brand-500`}
+                />
+                <button
+                  onClick={handleAddLeadActivity}
+                  disabled={!activityTitle.trim() || isAddingActivity}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-brand-600 hover:bg-brand-700 text-white rounded-lg text-xs font-medium transition-all disabled:opacity-50"
+                >
+                  {isAddingActivity ? <Loader2 className="w-3 h-3 animate-spin" /> : <Send className="w-3 h-3" />}
+                  {isAddingActivity ? 'Adding...' : 'Add Activity'}
+                </button>
+              </div>
+            </div>
+
+            {/* Activities */}
+            {activities.length > 0 && (
+              <div>
+                <h4 className={`text-xs font-semibold uppercase tracking-wider mb-3 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
+                  Activities
+                </h4>
+                <div className="space-y-2 max-h-[200px] overflow-y-auto pr-1">
+                  {activities.map((act: any) => (
+                    <div
+                      key={act.id}
+                      className={`p-3 rounded-xl border text-xs ${
+                        isDark ? 'border-zinc-800 bg-zinc-900/50' : 'border-slate-100 bg-slate-50'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-1">
+                        <span className={`font-medium ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
+                          {act.title}
+                        </span>
+                        <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                          isDark ? 'bg-zinc-800 text-zinc-400' : 'bg-slate-200 text-slate-500'
+                        }`}>
+                          {act.activityType || act.activity_type}
+                        </span>
+                      </div>
+                      {act.description && (
+                        <p className={`${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>{act.description}</p>
+                      )}
+                      <div className={`flex items-center justify-between mt-1 ${isDark ? 'text-zinc-600' : 'text-slate-400'}`}>
+                        {act.createdByName && <span>by {act.createdByName}</span>}
+                        {act.createdAt && <span>{new Date(act.createdAt).toLocaleDateString()}</span>}
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
 
@@ -1531,9 +1849,9 @@ export const CRMPage: React.FC = () => {
     if (!showLeadModal) return null;
 
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-        <div className="absolute inset-0 bg-black/50 animate-backdrop" onClick={closeLeadModal} />
-        <div className={`relative w-full max-w-xl max-h-[90vh] rounded-2xl animate-fade-in-up flex flex-col overflow-hidden ${
+      <div className="fixed inset-0 z-50 flex items-start justify-center pt-[5vh] overflow-y-auto p-4">
+        <div className="fixed inset-0 bg-black/50 animate-backdrop" onClick={closeLeadModal} />
+        <div className={`relative w-full max-w-xl max-h-[85vh] rounded-2xl animate-fade-in-up flex flex-col overflow-hidden ${
           isDark ? 'bg-dark-50 border border-zinc-800' : 'bg-white shadow-premium'
         }`}>
           {/* Header */}
@@ -2052,30 +2370,6 @@ export const CRMPage: React.FC = () => {
               )}
             </div>
 
-            {/* Lead Image Section - Collapsible */}
-            <div className={`border rounded-lg ${isDark ? 'border-zinc-700' : 'border-slate-200'}`}>
-              <button
-                type="button"
-                onClick={() => toggleSection('leadImage')}
-                className={`w-full p-4 flex justify-between items-center transition-colors ${
-                  isDark ? 'hover:bg-zinc-800/50' : 'hover:bg-slate-50'
-                }`}
-              >
-                <div className="flex items-center gap-2">
-                  <UserIcon className={`w-4 h-4 ${isDark ? 'text-brand-400' : 'text-brand-600'}`} />
-                  <h3 className={`text-sm font-semibold ${isDark ? 'text-zinc-200' : 'text-slate-700'}`}>Lead Image</h3>
-                </div>
-                <ChevronDown className={`w-4 h-4 transition-transform ${expandedSections.leadImage ? 'rotate-180' : ''} ${
-                  isDark ? 'text-zinc-400' : 'text-slate-400'
-                }`} />
-              </button>
-              {expandedSections.leadImage && (
-                <div className="px-4 pb-4">
-                  <label htmlFor="leadImage" className={labelClass}>Lead Image URL</label>
-                  <input id="leadImage" name="leadImage" type="text" placeholder="Image URL" value={leadFormData.leadImage} onChange={handleLeadFormChange} className={inputClass} />
-                </div>
-              )}
-            </div>
 
             {/* Opportunity Details Section - Collapsible */}
             <div className={`border rounded-lg ${isDark ? 'border-zinc-700' : 'border-slate-200'}`}>
@@ -2127,6 +2421,53 @@ export const CRMPage: React.FC = () => {
                         <input id="nextFollowUp" name="nextFollowUp" type="date" value={leadFormData.nextFollowUp} onChange={handleLeadFormChange} className={`${inputClass} pl-10`} />
                       </div>
                     </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Requirements Section - Collapsible */}
+            <div className={`border rounded-lg ${isDark ? 'border-zinc-700' : 'border-slate-200'}`}>
+              <button
+                type="button"
+                onClick={() => toggleSection('requirements')}
+                className={`w-full p-4 flex justify-between items-center transition-colors ${
+                  isDark ? 'hover:bg-zinc-800/50' : 'hover:bg-slate-50'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <FileText className={`w-4 h-4 ${isDark ? 'text-brand-400' : 'text-brand-600'}`} />
+                  <h3 className={`text-sm font-semibold ${isDark ? 'text-zinc-200' : 'text-slate-700'}`}>Requirements</h3>
+                </div>
+                <ChevronDown className={`w-4 h-4 transition-transform ${expandedSections.requirements ? 'rotate-180' : ''} ${
+                  isDark ? 'text-zinc-400' : 'text-slate-400'
+                }`} />
+              </button>
+              {expandedSections.requirements && (
+                <div className="px-4 pb-4 space-y-4">
+                  <div>
+                    <label htmlFor="requirement" className={labelClass}>Requirement (User Provided)</label>
+                    <textarea
+                      id="requirement"
+                      name="requirement"
+                      rows={3}
+                      placeholder="What the user/lead requires..."
+                      value={leadFormData.requirement}
+                      onChange={handleLeadFormChange}
+                      className={inputClass}
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="quotedRequirement" className={labelClass}>Quoted Requirement (What We Serve)</label>
+                    <textarea
+                      id="quotedRequirement"
+                      name="quotedRequirement"
+                      rows={3}
+                      placeholder="What we are offering/serving..."
+                      value={leadFormData.quotedRequirement}
+                      onChange={handleLeadFormChange}
+                      className={inputClass}
+                    />
                   </div>
                 </div>
               )}
@@ -2203,9 +2544,9 @@ export const CRMPage: React.FC = () => {
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                      <label htmlFor="tag" className={labelClass}>Tag</label>
+                      <label htmlFor="tag" className={labelClass}>Type</label>
                       <select id="tag" name="tag" value={leadFormData.tag} onChange={handleLeadFormChange} className={selectClass}>
-                        <option value="">Select Tag</option>
+                        <option value="">Select Type</option>
                         <option value="Channel">Channel</option>
                         <option value="End Customer">End Customer</option>
                       </select>
@@ -2460,6 +2801,152 @@ export const CRMPage: React.FC = () => {
   };
 
   // ---------------------------------------------------------------------------
+  // Render: Closed Won Modal (Account + Contact creation)
+  // ---------------------------------------------------------------------------
+
+  const renderClosedWonModal = () => {
+    if (!showClosedWonModal || !closedWonLeadRef) return null;
+    const { lead } = closedWonLeadRef;
+
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+      const { name, value } = e.target;
+      setClosedWonForm(prev => ({ ...prev, [name]: value }));
+    };
+
+    return (
+      <div className="fixed inset-0 z-50 flex items-start justify-center p-4 pt-[5vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-black/50 animate-backdrop" onClick={() => setShowClosedWonModal(false)} />
+        <div className={`relative w-full max-w-lg rounded-2xl animate-fade-in-up ${
+          isDark ? 'bg-dark-50 border border-zinc-800' : 'bg-white shadow-premium'
+        }`}>
+          <form onSubmit={handleClosedWonSubmit}>
+            {/* Header */}
+            <div className={`flex items-center justify-between px-6 py-4 border-b ${
+              isDark ? 'border-zinc-800' : 'border-slate-200'
+            }`}>
+              <div className="flex items-center gap-2">
+                <CheckCircle className="w-5 h-5 text-emerald-500" />
+                <h2 className={`text-lg font-semibold font-display ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                  Closed Won — Create Account
+                </h2>
+              </div>
+              <button type="button" onClick={() => setShowClosedWonModal(false)} className={`p-2 rounded-lg ${isDark ? 'text-zinc-400 hover:bg-zinc-800' : 'text-slate-400 hover:bg-slate-100'}`}>
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-5 max-h-[65vh] overflow-y-auto">
+              <p className={`text-sm ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>
+                Lead "<strong>{lead.companyName}</strong>" is being marked as Closed Won. Create an account and contact.
+              </p>
+
+              {closedWonError && (
+                <div className={`p-3 rounded-xl flex items-center gap-2 text-sm ${isDark ? 'bg-red-900/20 border border-red-800 text-red-400' : 'bg-red-50 border border-red-200 text-red-700'}`}>
+                  <AlertCircle className="w-4 h-4 flex-shrink-0" />{closedWonError}
+                </div>
+              )}
+
+              {/* Account Details Section */}
+              <div>
+                <h3 className={`text-sm font-semibold mb-3 flex items-center gap-1.5 ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                  <Building2 className="w-4 h-4" /> Account Details
+                </h3>
+                <div className="space-y-3">
+                  <div>
+                    <label className={labelClass}>Account Name *</label>
+                    <input name="accountName" value={closedWonForm.accountName} onChange={handleChange} className={inputClass} required />
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className={labelClass}>Industry</label>
+                      <select name="industry" value={closedWonForm.industry} onChange={handleChange} className={selectClass}>
+                        <option value="">-None-</option>
+                        {['Technology','Healthcare','Finance','Manufacturing','Retail','Education','Real Estate','Telecom','Energy','Media','Other'].map(i => (
+                          <option key={i} value={i}>{i}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className={labelClass}>Type</label>
+                      <select name="type" value={closedWonForm.type} onChange={handleChange} className={selectClass}>
+                        <option value="">-None-</option>
+                        <option value="Hunting">Hunting</option>
+                        <option value="Farming">Farming</option>
+                        <option value="Cold">Cold</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className={labelClass}>Phone</label>
+                      <input name="phone" value={closedWonForm.phone} onChange={handleChange} className={inputClass} />
+                    </div>
+                    <div>
+                      <label className={labelClass}>Email</label>
+                      <input name="email" type="email" value={closedWonForm.email} onChange={handleChange} className={inputClass} />
+                    </div>
+                  </div>
+                  <div>
+                    <label className={labelClass}>Location</label>
+                    <input name="location" value={closedWonForm.location} onChange={handleChange} className={inputClass} />
+                  </div>
+                </div>
+              </div>
+
+              {/* Contact Details Section */}
+              <div>
+                <h3 className={`text-sm font-semibold mb-3 flex items-center gap-1.5 ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                  <UserIcon className="w-4 h-4" /> Contact Details
+                </h3>
+                <div className="space-y-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className={labelClass}>First Name</label>
+                      <input name="contactFirstName" value={closedWonForm.contactFirstName} onChange={handleChange} className={inputClass} />
+                    </div>
+                    <div>
+                      <label className={labelClass}>Last Name</label>
+                      <input name="contactLastName" value={closedWonForm.contactLastName} onChange={handleChange} className={inputClass} />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className={labelClass}>Email</label>
+                      <input name="contactEmail" type="email" value={closedWonForm.contactEmail} onChange={handleChange} className={inputClass} />
+                    </div>
+                    <div>
+                      <label className={labelClass}>Phone</label>
+                      <input name="contactPhone" value={closedWonForm.contactPhone} onChange={handleChange} className={inputClass} />
+                    </div>
+                  </div>
+                  <div>
+                    <label className={labelClass}>Job Title</label>
+                    <input name="contactJobTitle" value={closedWonForm.contactJobTitle} onChange={handleChange} className={inputClass} />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className={`flex items-center justify-end gap-3 px-6 py-4 border-t ${isDark ? 'border-zinc-800' : 'border-slate-200'}`}>
+              <button type="button" onClick={() => setShowClosedWonModal(false)} className={`px-4 py-2.5 rounded-xl text-sm font-medium ${isDark ? 'text-zinc-400 hover:bg-zinc-800' : 'text-slate-500 hover:bg-slate-100'}`}>
+                Cancel
+              </button>
+              <button type="submit" disabled={isClosedWonSubmitting} className="flex items-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-medium transition-all btn-premium disabled:opacity-50">
+                {isClosedWonSubmitting ? (
+                  <><Loader2 className="w-4 h-4 animate-spin" /> Creating...</>
+                ) : (
+                  <><CheckCircle className="w-4 h-4" /> Create Account & Close Won</>
+                )}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    );
+  };
+
+  // ---------------------------------------------------------------------------
   // Main render
   // ---------------------------------------------------------------------------
 
@@ -2469,11 +2956,75 @@ export const CRMPage: React.FC = () => {
       <div className="flex items-center justify-between">
         <div>
           <h1 className={`text-xl font-bold font-display ${isDark ? 'text-white' : 'text-slate-900'}`}>
-            CRM Pipeline
+            Leads
           </h1>
           <p className={`text-sm mt-0.5 ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>
-            Manage leads, track pipeline progress, and convert opportunities
+            Manage leads, track progress, and convert opportunities
           </p>
+        </div>
+      </div>
+
+      {/* Stage Summary Cards */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+        {/* Total */}
+        <div className={`${cardClass} p-4 flex items-center gap-3`}>
+          <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${isDark ? 'bg-blue-500/10 text-blue-400' : 'bg-blue-50 text-blue-600'}`}>
+            <Users className="w-5 h-5" />
+          </div>
+          <div>
+            <p className={`text-2xl font-bold font-display ${isDark ? 'text-white' : 'text-slate-900'}`}>{leadSummary.total}</p>
+            <p className={`text-xs ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Total</p>
+          </div>
+        </div>
+        {/* Cold */}
+        <div className={`${cardClass} p-4 flex items-center gap-3`}>
+          <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${isDark ? 'bg-sky-500/10 text-sky-400' : 'bg-sky-50 text-sky-600'}`}>
+            <Target className="w-5 h-5" />
+          </div>
+          <div>
+            <p className={`text-2xl font-bold font-display ${isDark ? 'text-white' : 'text-slate-900'}`}>{leadSummary.cold}</p>
+            <p className={`text-xs ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Cold</p>
+          </div>
+        </div>
+        {/* Proposal */}
+        <div className={`${cardClass} p-4 flex items-center gap-3`}>
+          <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${isDark ? 'bg-purple-500/10 text-purple-400' : 'bg-purple-50 text-purple-600'}`}>
+            <TrendingUp className="w-5 h-5" />
+          </div>
+          <div>
+            <p className={`text-2xl font-bold font-display ${isDark ? 'text-white' : 'text-slate-900'}`}>{leadSummary.proposal}</p>
+            <p className={`text-xs ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Proposal</p>
+          </div>
+        </div>
+        {/* Negotiation */}
+        <div className={`${cardClass} p-4 flex items-center gap-3`}>
+          <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${isDark ? 'bg-orange-500/10 text-orange-400' : 'bg-orange-50 text-orange-600'}`}>
+            <Clock className="w-5 h-5" />
+          </div>
+          <div>
+            <p className={`text-2xl font-bold font-display ${isDark ? 'text-white' : 'text-slate-900'}`}>{leadSummary.negotiation}</p>
+            <p className={`text-xs ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Negotiation</p>
+          </div>
+        </div>
+        {/* Closed Won */}
+        <div className={`${cardClass} p-4 flex items-center gap-3`}>
+          <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${isDark ? 'bg-emerald-500/10 text-emerald-400' : 'bg-emerald-50 text-emerald-600'}`}>
+            <CheckCircle className="w-5 h-5" />
+          </div>
+          <div>
+            <p className={`text-2xl font-bold font-display ${isDark ? 'text-white' : 'text-slate-900'}`}>{leadSummary.closedWon}</p>
+            <p className={`text-xs ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Closed Won</p>
+          </div>
+        </div>
+        {/* Closed Lost */}
+        <div className={`${cardClass} p-4 flex items-center gap-3`}>
+          <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${isDark ? 'bg-red-500/10 text-red-400' : 'bg-red-50 text-red-600'}`}>
+            <XCircle className="w-5 h-5" />
+          </div>
+          <div>
+            <p className={`text-2xl font-bold font-display ${isDark ? 'text-white' : 'text-slate-900'}`}>{leadSummary.closedLost}</p>
+            <p className={`text-xs ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Closed Lost</p>
+          </div>
         </div>
       </div>
 
@@ -2487,6 +3038,7 @@ export const CRMPage: React.FC = () => {
       {renderLeadModal()}
       {renderDetailModal()}
       {renderConvertModal()}
+      {renderClosedWonModal()}
 
       <BulkImportModal
         isOpen={showBulkImport}
@@ -2531,7 +3083,9 @@ export const CRMPage: React.FC = () => {
                 { label: 'Stage', value: summariseLead.stage },
                 { label: 'Value', value: summariseLead.estimatedValue ? formatINR(summariseLead.estimatedValue) : undefined },
                 { label: 'Source', value: summariseLead.source },
-                { label: 'Tag', value: (summariseLead as any).tag },
+                { label: 'Type', value: (summariseLead as any).tag },
+                { label: 'Requirement', value: summariseLead.requirement },
+                { label: 'Quoted Requirement', value: summariseLead.quotedRequirement },
                 { label: 'Follow-up Date', value: summariseLead.nextFollowUp ? formatDate(summariseLead.nextFollowUp) : undefined },
                 { label: 'Notes', value: summariseLead.notes },
               ].filter(item => item.value).map(item => (

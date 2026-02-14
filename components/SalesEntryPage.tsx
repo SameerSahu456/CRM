@@ -6,10 +6,11 @@ import {
 } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
-import { salesApi, productsApi, partnersApi, masterDataApi, formatINR } from '../services/api';
+import { salesApi, productsApi, partnersApi, formatINR } from '../services/api';
 import { exportToCsv } from '../utils/exportCsv';
 import { SalesEntry, Product, Partner, PaginatedResponse } from '../types';
 import { BulkImportModal } from './BulkImportModal';
+import { useColumnResize } from '../hooks/useColumnResize';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -108,8 +109,6 @@ export const SalesEntryPage: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterFromDate, setFilterFromDate] = useState('');
   const [filterToDate, setFilterToDate] = useState('');
-  const [filterLocation, setFilterLocation] = useState('');
-  const [locations, setLocations] = useState<any[]>([]);
 
   // Loading
   const [isLoading, setIsLoading] = useState(true);
@@ -147,7 +146,6 @@ export const SalesEntryPage: React.FC = () => {
       if (searchTerm) params.search = searchTerm;
       if (filterFromDate) params.fromDate = filterFromDate;
       if (filterToDate) params.toDate = filterToDate;
-      if (filterLocation) params.locationId = filterLocation;
 
       const response: PaginatedResponse<SalesEntry> = await salesApi.list(params);
       setSales(response.data);
@@ -159,19 +157,17 @@ export const SalesEntryPage: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [page, filterPaymentStatus, searchTerm, filterFromDate, filterToDate, filterLocation]);
+  }, [page, filterPaymentStatus, searchTerm, filterFromDate, filterToDate]);
 
   const fetchDropdownData = useCallback(async () => {
     try {
-      const [productsList, partnersResponse, locationsList] = await Promise.all([
+      const [productsList, partnersResponse] = await Promise.all([
         productsApi.list(),
         partnersApi.list({ limit: '100', status: 'approved' }),
-        masterDataApi.list('locations'),
       ]);
       setProducts(Array.isArray(productsList) ? productsList : []);
       const partnerData = partnersResponse?.data ?? partnersResponse;
       setPartners(Array.isArray(partnerData) ? partnerData : []);
-      setLocations(Array.isArray(locationsList) ? locationsList : []);
     } catch {
       // Dropdown data failure is non-critical
     }
@@ -187,7 +183,7 @@ export const SalesEntryPage: React.FC = () => {
 
   useEffect(() => {
     setPage(1);
-  }, [filterPaymentStatus, searchTerm, filterFromDate, filterToDate, filterLocation]);
+  }, [filterPaymentStatus, searchTerm, filterFromDate, filterToDate]);
 
   // Auto-clear success message
   useEffect(() => {
@@ -308,10 +304,9 @@ export const SalesEntryPage: React.FC = () => {
     setSearchTerm('');
     setFilterFromDate('');
     setFilterToDate('');
-    setFilterLocation('');
   };
 
-  const hasActiveFilters = filterPaymentStatus || searchTerm || filterFromDate || filterToDate || filterLocation;
+  const hasActiveFilters = filterPaymentStatus || searchTerm || filterFromDate || filterToDate;
 
   // ---------------------------------------------------------------------------
   // Lookup helpers
@@ -322,7 +317,11 @@ export const SalesEntryPage: React.FC = () => {
   // Styles
   // ---------------------------------------------------------------------------
 
-  const cardClass = `${isDark ? 'bg-dark-50 border border-zinc-800' : 'bg-white shadow-soft'} rounded-xl`;
+  const { colWidths: salesColWidths, onMouseDown: onSalesMouseDown } = useColumnResize({
+    initialWidths: [50, 120, 160, 140, 130, 70, 130, 120, 110, 100],
+  });
+
+  const cardClass = `premium-card ${isDark ? '' : 'shadow-soft'}`;
   const selectFilterClass = `w-full px-3 py-2 rounded-xl border text-sm transition-all appearance-none cursor-pointer ${
     isDark
       ? 'bg-dark-100 border-zinc-700 text-white focus:border-brand-500'
@@ -374,10 +373,6 @@ export const SalesEntryPage: React.FC = () => {
               title="To date"
             />
           </div>
-          <select value={filterLocation} onChange={e => setFilterLocation(e.target.value)} className={`${selectFilterClass} lg:w-40`}>
-            <option value="">All Locations</option>
-            {locations.map((l: any) => <option key={l.id} value={l.id}>{l.city}{l.state ? `, ${l.state}` : ''}</option>)}
-          </select>
           {hasActiveFilters && (
             <button onClick={clearFilters} className={`flex items-center gap-1 px-3 py-2 rounded-lg text-xs font-medium ${
               isDark ? 'text-zinc-400 hover:text-white hover:bg-zinc-800' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100'
@@ -475,17 +470,19 @@ export const SalesEntryPage: React.FC = () => {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="premium-table">
               <thead>
                 <tr className={`border-b ${isDark ? 'border-zinc-800' : 'border-slate-100'}`}>
-                  {['#', 'Date', 'Partner', 'Product', 'Customer', 'Qty', 'Amount', 'PO #', 'Invoice #', 'Status'].map(h => (
+                  {['#', 'Date', 'Partner', 'Product', 'Customer', 'Qty', 'Amount', 'PO #', 'Invoice #', 'Status'].map((h, i) => (
                     <th
                       key={h}
-                      className={`px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider ${
+                      className={`px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider resizable-th ${
                         isDark ? 'text-zinc-500' : 'text-slate-400'
                       }`}
+                      style={{ width: salesColWidths[i] }}
                     >
                       {h}
+                      <div className="col-resize-handle" onMouseDown={e => onSalesMouseDown(i, e)} />
                     </th>
                   ))}
                 </tr>

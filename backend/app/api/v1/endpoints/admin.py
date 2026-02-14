@@ -43,9 +43,28 @@ async def list_users(
         page=page, limit=limit, filters=filters or None
     )
 
-    data = [
-        UserOut.model_validate(u).model_dump(by_alias=True) for u in result["data"]
-    ]
+    users_list = result["data"]
+
+    # Build manager name lookup
+    manager_ids = {str(u.manager_id) for u in users_list if u.manager_id}
+    all_ids = {str(u.id) for u in users_list}
+    missing_ids = manager_ids - all_ids
+    manager_lookup = {str(u.id): u.name for u in users_list}
+
+    # If managers not in current page, fetch them
+    if missing_ids:
+        for mid in missing_ids:
+            mgr = await repo.get_by_id(mid)
+            if mgr:
+                manager_lookup[mid] = mgr.name
+
+    data = []
+    for u in users_list:
+        out = UserOut.model_validate(u).model_dump(by_alias=True)
+        if u.manager_id:
+            out["managerName"] = manager_lookup.get(str(u.manager_id))
+        data.append(out)
+
     return {"data": data, "pagination": result["pagination"]}
 
 

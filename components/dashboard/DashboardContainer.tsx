@@ -65,7 +65,7 @@ export const DashboardContainer: React.FC = () => {
       <div className="flex justify-end mb-4">
         <button
           onClick={() => setShowLibrary(true)}
-          className="flex items-center gap-2 px-4 py-2 rounded-xl bg-brand-600 text-white hover:bg-brand-700 transition-all shadow-sm hover:shadow-md"
+          className="btn-premium flex items-center gap-2 px-4 py-2 rounded-xl bg-brand-600 text-white hover:bg-brand-700 transition-all shadow-sm hover:shadow-md"
         >
           <Settings className="w-4 h-4" />
           Customize Widgets
@@ -95,7 +95,7 @@ export const DashboardContainer: React.FC = () => {
                   <Suspense
                     fallback={
                       <div className={`rounded-2xl p-5 flex items-center justify-center h-40 ${
-                        isDark ? 'bg-[rgba(10,16,32,0.55)] border border-white/[0.06]' : 'bg-white shadow-soft'
+                        isDark ? 'bg-[rgba(8,14,30,0.6)] border border-white/[0.07]' : 'bg-white/50 backdrop-blur-xl shadow-soft'
                       }`}>
                         <Loader2 className="w-6 h-6 animate-spin text-brand-600" />
                       </div>

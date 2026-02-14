@@ -56,6 +56,7 @@ export const router = createBrowserRouter([
       { path: 'accounts', element: null },
       { path: 'contacts', element: null },
       { path: 'deals', element: null },
+      { path: 'inventory', element: null },
       { path: 'quote-builder', element: null },
       { path: 'reports', element: null },
       { path: 'admin', element: null },

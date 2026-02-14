@@ -74,7 +74,7 @@ export const AnalyticsPage: React.FC = () => {
   const [taskStatsData, setTaskStatsData] = useState<TaskStatsData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  const cardClass = `premium-card ${isDark ? 'bg-dark-50 border border-zinc-800' : 'bg-white shadow-soft'}`;
+  const cardClass = `premium-card ${isDark ? '' : 'shadow-soft'}`;
 
   // ---------------------------------------------------------------------------
   // Data fetching
@@ -306,7 +306,7 @@ export const AnalyticsPage: React.FC = () => {
               <Layers className={`w-5 h-5 ${isDark ? 'text-purple-400' : 'text-purple-600'}`} />
             </div>
             <div>
-              <h3 className={`text-sm font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>Deal Pipeline</h3>
+              <h3 className={`text-sm font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>Deal Stages</h3>
               <p className={`text-xs ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>{totalDeals} deals &middot; {formatINR(totalDealValue)}</p>
             </div>
           </div>

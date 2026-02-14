@@ -1,7 +1,10 @@
 /**
  * Export data as a CSV file that opens cleanly in Excel.
  * Uses BOM prefix so Excel auto-detects UTF-8 encoding.
+ * Also logs the export activity.
  */
+
+import { activityLogApi } from '../services/api';
 
 interface ExportColumn<T> {
   header: string;
@@ -43,4 +46,11 @@ export function exportToCsv<T>(
   link.click();
   document.body.removeChild(link);
   URL.revokeObjectURL(url);
+
+  // Log export activity (fire-and-forget)
+  activityLogApi.create({
+    action: 'export',
+    entityType: filename,
+    entityName: `Exported ${data.length} ${filename}`,
+  }).catch(() => { /* ignore logging errors */ });
 }

@@ -40,7 +40,7 @@ export const LocationsPage: React.FC = () => {
   const [deleteTarget, setDeleteTarget] = useState<MasterLocation | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  const cardClass = `rounded-2xl border ${isDark ? 'bg-dark-200 border-zinc-800' : 'bg-white border-slate-200'} shadow-sm`;
+  const cardClass = `premium-card ${isDark ? '' : 'shadow-soft'}`;
   const inputClass = `w-full px-4 py-2.5 rounded-xl border text-sm transition-all ${
     isDark
       ? 'bg-dark-100 border-zinc-700 text-white placeholder-zinc-500 focus:border-brand-500'

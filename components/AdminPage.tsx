@@ -1,13 +1,14 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Plus, Search, Edit2, Trash2, X, Loader2, AlertCircle, CheckCircle,
-  Users, Package, Layers, Building2, Tags,
+  Users, Layers, Building2, Tags, ChevronLeft, ChevronRight,
   Shield, Key, ToggleLeft, ToggleRight, History,
 } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
-import { adminApi, masterDataApi, productsApi, formatINR } from '../services/api';
-import { User, UserRole, Product, MasterItem, MasterCategory } from '../types';
+import { adminApi, masterDataApi } from '../services/api';
+import { User, UserRole, MasterItem, MasterCategory } from '../types';
 import { ActivityLogTab } from './admin/ActivityLogTab';
 import { RolesTab } from './admin/RolesTab';
 import { ProductManagersTab } from './admin/ProductManagersTab';
@@ -16,11 +17,10 @@ import { ProductManagersTab } from './admin/ProductManagersTab';
 // Constants
 // ---------------------------------------------------------------------------
 
-type AdminTab = 'users' | 'products' | 'oems' | 'categories' | 'product-managers' | 'roles' | 'activity-log';
+type AdminTab = 'users' | 'oems' | 'categories' | 'product-managers' | 'roles' | 'activity-log';
 
 const TABS: { key: AdminTab; label: string; icon: React.ElementType; superadminOnly?: boolean }[] = [
   { key: 'users', label: 'Users', icon: Users },
-  { key: 'products', label: 'Products', icon: Package },
   { key: 'oems', label: 'OEMs', icon: Building2 },
   { key: 'categories', label: 'Categories', icon: Tags },
   { key: 'product-managers', label: 'Product Managers', icon: Layers },
@@ -57,6 +57,7 @@ interface UserFormData {
   isActive: boolean;
   viewAccess: 'presales' | 'postsales' | 'both';
   tag: string;
+  managerId: string;
 }
 
 const EMPTY_USER_FORM: UserFormData = {
@@ -71,22 +72,7 @@ const EMPTY_USER_FORM: UserFormData = {
   isActive: true,
   viewAccess: 'presales',
   tag: '',
-};
-
-interface ProductFormData {
-  name: string;
-  category: string;
-  basePrice: number | '';
-  commissionRate: number | '';
-  isActive: boolean;
-}
-
-const EMPTY_PRODUCT_FORM: ProductFormData = {
-  name: '',
-  category: '',
-  basePrice: '',
-  commissionRate: '',
-  isActive: true,
+  managerId: '',
 };
 
 // ---------------------------------------------------------------------------
@@ -150,15 +136,15 @@ interface ModalProps {
 const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, isDark, children, maxWidth = 'max-w-xl' }) => {
   if (!isOpen) return null;
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 flex items-start justify-center pt-[5vh] p-4 overflow-y-auto">
       <div className="absolute inset-0 bg-black/50 animate-backdrop" onClick={onClose} />
       <div
-        className={`relative w-full ${maxWidth} max-h-[80vh] overflow-y-auto rounded-2xl animate-fade-in-up ${
+        className={`relative w-full ${maxWidth} max-h-[85vh] flex flex-col overflow-hidden rounded-2xl animate-fade-in-up ${
           isDark ? 'bg-dark-50 border border-zinc-800' : 'bg-white shadow-premium'
         }`}
       >
         <div
-          className={`sticky top-0 z-10 flex items-center justify-between px-6 py-4 border-b ${
+          className={`flex-shrink-0 flex items-center justify-between px-6 py-4 border-b ${
             isDark ? 'bg-dark-50 border-zinc-800' : 'bg-white border-slate-200'
           }`}
         >
@@ -174,7 +160,9 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, isDark, children,
             <X className="w-5 h-5" />
           </button>
         </div>
-        {children}
+        <div className="flex-1 overflow-y-auto">
+          {children}
+        </div>
       </div>
     </div>
   );
@@ -201,7 +189,7 @@ const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
 }) => {
   if (!isOpen) return null;
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 flex items-start justify-center pt-[15vh] p-4 overflow-y-auto">
       <div className="absolute inset-0 bg-black/50 animate-backdrop" onClick={onClose} />
       <div
         className={`relative w-full max-w-sm rounded-2xl animate-fade-in-up p-6 ${
@@ -238,6 +226,82 @@ const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
 };
 
 // ---------------------------------------------------------------------------
+// Pagination Component
+// ---------------------------------------------------------------------------
+
+const PAGE_SIZE = 10;
+
+interface PaginationProps {
+  currentPage: number;
+  totalItems: number;
+  pageSize: number;
+  onPageChange: (page: number) => void;
+  isDark: boolean;
+}
+
+const Pagination: React.FC<PaginationProps> = ({ currentPage, totalItems, pageSize, onPageChange, isDark }) => {
+  const totalPages = Math.ceil(totalItems / pageSize);
+  if (totalPages <= 1) return null;
+
+  const start = (currentPage - 1) * pageSize + 1;
+  const end = Math.min(currentPage * pageSize, totalItems);
+
+  const getPageNumbers = () => {
+    const pages: (number | '...')[] = [];
+    if (totalPages <= 7) {
+      for (let i = 1; i <= totalPages; i++) pages.push(i);
+    } else {
+      pages.push(1);
+      if (currentPage > 3) pages.push('...');
+      for (let i = Math.max(2, currentPage - 1); i <= Math.min(totalPages - 1, currentPage + 1); i++) pages.push(i);
+      if (currentPage < totalPages - 2) pages.push('...');
+      pages.push(totalPages);
+    }
+    return pages;
+  };
+
+  const btnBase = `px-3 py-1.5 rounded-lg text-sm font-medium transition-colors`;
+  const btnActive = 'bg-brand-600 text-white';
+  const btnInactive = isDark
+    ? 'text-zinc-400 hover:text-white hover:bg-zinc-800'
+    : 'text-slate-500 hover:text-slate-900 hover:bg-slate-100';
+  const btnDisabled = isDark ? 'text-zinc-700 cursor-not-allowed' : 'text-slate-300 cursor-not-allowed';
+
+  return (
+    <div className={`flex flex-col sm:flex-row items-center justify-between gap-3 px-4 py-3 border-t ${isDark ? 'border-zinc-800' : 'border-slate-100'}`}>
+      <p className={`text-xs ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
+        Showing {start}–{end} of {totalItems}
+      </p>
+      <div className="flex items-center gap-1">
+        <button
+          onClick={() => onPageChange(currentPage - 1)}
+          disabled={currentPage === 1}
+          className={`${btnBase} ${currentPage === 1 ? btnDisabled : btnInactive}`}
+        >
+          <ChevronLeft className="w-4 h-4" />
+        </button>
+        {getPageNumbers().map((p, i) =>
+          p === '...' ? (
+            <span key={`dots-${i}`} className={`px-2 text-sm ${isDark ? 'text-zinc-600' : 'text-slate-400'}`}>...</span>
+          ) : (
+            <button key={p} onClick={() => onPageChange(p)} className={`${btnBase} ${currentPage === p ? btnActive : btnInactive}`}>
+              {p}
+            </button>
+          )
+        )}
+        <button
+          onClick={() => onPageChange(currentPage + 1)}
+          disabled={currentPage === totalPages}
+          className={`${btnBase} ${currentPage === totalPages ? btnDisabled : btnInactive}`}
+        >
+          <ChevronRight className="w-4 h-4" />
+        </button>
+      </div>
+    </div>
+  );
+};
+
+// ---------------------------------------------------------------------------
 // MasterDataTab — Generic for Verticals, OEMs, Partner Types
 // ---------------------------------------------------------------------------
 
@@ -257,6 +321,7 @@ const MasterDataTab: React.FC<MasterDataTabProps> = ({
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
 
   // Modal state
   const [showModal, setShowModal] = useState(false);
@@ -369,7 +434,7 @@ const MasterDataTab: React.FC<MasterDataTabProps> = ({
               type="text"
               placeholder={`Search ${entityLabel.toLowerCase()}...`}
               value={searchTerm}
-              onChange={e => setSearchTerm(e.target.value)}
+              onChange={e => { setSearchTerm(e.target.value); setCurrentPage(1); }}
               className={`w-full pl-10 pr-4 py-2.5 rounded-xl border text-sm transition-all ${
                 isDark
                   ? 'bg-dark-100 border-zinc-700 text-white placeholder-zinc-500 focus:border-brand-500'
@@ -425,7 +490,7 @@ const MasterDataTab: React.FC<MasterDataTabProps> = ({
                 </tr>
               </thead>
               <tbody>
-                {filtered.map(item => (
+                {filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE).map(item => (
                   <tr
                     key={item.id}
                     className={`border-b transition-colors ${
@@ -473,6 +538,7 @@ const MasterDataTab: React.FC<MasterDataTabProps> = ({
             </table>
           </div>
         )}
+        <Pagination currentPage={currentPage} totalItems={filtered.length} pageSize={PAGE_SIZE} onPageChange={setCurrentPage} isDark={isDark} />
       </div>
 
       {/* Create/Edit Modal */}
@@ -542,8 +608,26 @@ const MasterDataTab: React.FC<MasterDataTabProps> = ({
 };
 
 // ---------------------------------------------------------------------------
-// CategoriesTab — Name + OEM association
+// CategoriesTab — Name + Product Manager association
 // ---------------------------------------------------------------------------
+
+interface PMUser {
+  id: string;
+  name: string;
+  email: string;
+  role?: string;
+  isActive?: boolean;
+}
+
+function parsePmIds(raw?: string): string[] {
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
 
 interface CategoriesTabProps {
   isDark: boolean;
@@ -554,21 +638,23 @@ interface CategoriesTabProps {
 }
 
 const CategoriesTab: React.FC<CategoriesTabProps> = ({
-  isDark, cardClass, inputClass, labelClass, selectClass,
+  isDark, cardClass, inputClass, labelClass,
 }) => {
   const [items, setItems] = useState<MasterCategory[]>([]);
-  const [oems, setOems] = useState<MasterItem[]>([]);
+  const [pmUsers, setPmUsers] = useState<PMUser[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
 
   // Modal
   const [showModal, setShowModal] = useState(false);
   const [editingItem, setEditingItem] = useState<MasterCategory | null>(null);
   const [formName, setFormName] = useState('');
-  const [formOemId, setFormOemId] = useState('');
+  const [formPmIds, setFormPmIds] = useState<string[]>([]);
   const [formError, setFormError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [pmSearch, setPmSearch] = useState('');
 
   // Delete
   const [deleteTarget, setDeleteTarget] = useState<MasterCategory | null>(null);
@@ -578,12 +664,23 @@ const CategoriesTab: React.FC<CategoriesTabProps> = ({
     setIsLoading(true);
     setError('');
     try {
-      const [cats, oemsList] = await Promise.all([
+      const [cats, userData] = await Promise.all([
         masterDataApi.list('categories'),
-        masterDataApi.list('oems'),
+        adminApi.listUsers(),
       ]);
       setItems(Array.isArray(cats) ? cats : []);
-      setOems(Array.isArray(oemsList) ? oemsList : []);
+
+      const rawUsers = Array.isArray(userData) ? userData : (userData as any)?.data ?? [];
+      const userList: PMUser[] = rawUsers
+        .map((u: any) => ({
+          id: u.id,
+          name: u.name || u.email,
+          email: u.email,
+          role: u.role,
+          isActive: u.isActive ?? true,
+        }))
+        .filter((u: PMUser) => u.role === 'productmanager' && u.isActive !== false);
+      setPmUsers(userList);
     } catch (err: any) {
       setError(err.message || 'Failed to load categories');
     } finally {
@@ -595,24 +692,22 @@ const CategoriesTab: React.FC<CategoriesTabProps> = ({
     fetchData();
   }, [fetchData]);
 
-  const oemName = (oemId?: string) => {
-    if (!oemId) return '-';
-    return oems.find(o => o.id === oemId)?.name || '-';
-  };
-
   const openCreate = () => {
     setEditingItem(null);
     setFormName('');
-    setFormOemId('');
+    setFormPmIds([]);
     setFormError('');
+    setPmSearch('');
     setShowModal(true);
   };
 
   const openEdit = (item: MasterCategory) => {
     setEditingItem(item);
     setFormName(item.name);
-    setFormOemId(item.oemId || '');
+    const ids = parsePmIds(item.productManagerIds);
+    setFormPmIds(ids.length > 0 ? ids : item.productManagerId ? [item.productManagerId] : []);
     setFormError('');
+    setPmSearch('');
     setShowModal(true);
   };
 
@@ -620,6 +715,7 @@ const CategoriesTab: React.FC<CategoriesTabProps> = ({
     setShowModal(false);
     setEditingItem(null);
     setFormError('');
+    setPmSearch('');
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -632,9 +728,10 @@ const CategoriesTab: React.FC<CategoriesTabProps> = ({
     setIsSubmitting(true);
     setFormError('');
     try {
-      const payload: Record<string, any> = { name: trimmed };
-      if (formOemId) payload.oem_id = formOemId;
-      else payload.oem_id = null;
+      const payload: Record<string, any> = {
+        name: trimmed,
+        productManagerIds: JSON.stringify(formPmIds),
+      };
 
       if (editingItem) {
         await masterDataApi.update('categories', editingItem.id, payload);
@@ -674,6 +771,22 @@ const CategoriesTab: React.FC<CategoriesTabProps> = ({
     }
   };
 
+  const togglePm = (userId: string) => {
+    setFormPmIds(prev =>
+      prev.includes(userId) ? prev.filter(id => id !== userId) : [...prev, userId]
+    );
+  };
+
+  const removePm = (userId: string) => {
+    setFormPmIds(prev => prev.filter(id => id !== userId));
+  };
+
+  const filteredPmUsers = pmUsers.filter(u => {
+    if (!pmSearch.trim()) return true;
+    const term = pmSearch.toLowerCase();
+    return u.name.toLowerCase().includes(term) || u.email.toLowerCase().includes(term);
+  });
+
   const filtered = items.filter(item =>
     item.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -689,7 +802,7 @@ const CategoriesTab: React.FC<CategoriesTabProps> = ({
               type="text"
               placeholder="Search categories..."
               value={searchTerm}
-              onChange={e => setSearchTerm(e.target.value)}
+              onChange={e => { setSearchTerm(e.target.value); setCurrentPage(1); }}
               className={`w-full pl-10 pr-4 py-2.5 rounded-xl border text-sm transition-all ${
                 isDark
                   ? 'bg-dark-100 border-zinc-700 text-white placeholder-zinc-500 focus:border-brand-500'
@@ -737,7 +850,7 @@ const CategoriesTab: React.FC<CategoriesTabProps> = ({
             <table className="w-full text-sm">
               <thead>
                 <tr className={`border-b ${isDark ? 'border-zinc-800' : 'border-slate-100'}`}>
-                  {['Name', 'OEM', 'Status', 'Actions'].map(h => (
+                  {['Name', 'Product Managers', 'Status', 'Actions'].map(h => (
                     <th key={h} className={`px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
                       {h}
                     </th>
@@ -745,7 +858,7 @@ const CategoriesTab: React.FC<CategoriesTabProps> = ({
                 </tr>
               </thead>
               <tbody>
-                {filtered.map(item => (
+                {filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE).map(item => (
                   <tr
                     key={item.id}
                     className={`border-b transition-colors ${
@@ -753,7 +866,33 @@ const CategoriesTab: React.FC<CategoriesTabProps> = ({
                     }`}
                   >
                     <td className={`px-4 py-3 font-medium ${isDark ? 'text-white' : 'text-slate-900'}`}>{item.name}</td>
-                    <td className={`px-4 py-3 ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>{oemName(item.oemId)}</td>
+                    <td className={`px-4 py-3 ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
+                      {(() => {
+                        const ids = parsePmIds(item.productManagerIds);
+                        const legacyId = item.productManagerId;
+                        const allIds = ids.length > 0 ? ids : legacyId ? [legacyId] : [];
+                        if (allIds.length === 0) return <span className={isDark ? 'text-zinc-600' : 'text-slate-400'}>-</span>;
+                        return (
+                          <div className="flex flex-wrap gap-1">
+                            {allIds.map(id => {
+                              const u = pmUsers.find(p => p.id === id);
+                              return (
+                                <span
+                                  key={id}
+                                  className={`inline-flex items-center px-2 py-0.5 rounded-lg text-xs font-medium ${
+                                    isDark
+                                      ? 'bg-brand-500/20 text-brand-300 border border-brand-500/30'
+                                      : 'bg-brand-50 text-brand-700 border border-brand-200'
+                                  }`}
+                                >
+                                  {u ? u.name : id.slice(0, 8)}
+                                </span>
+                              );
+                            })}
+                          </div>
+                        );
+                      })()}
+                    </td>
                     <td className="px-4 py-3">
                       <span className={statusBadge(item.isActive, isDark)}>{item.isActive ? 'Active' : 'Inactive'}</span>
                     </td>
@@ -794,6 +933,7 @@ const CategoriesTab: React.FC<CategoriesTabProps> = ({
             </table>
           </div>
         )}
+        <Pagination currentPage={currentPage} totalItems={filtered.length} pageSize={PAGE_SIZE} onPageChange={setCurrentPage} isDark={isDark} />
       </div>
 
       {/* Create/Edit Modal */}
@@ -802,7 +942,7 @@ const CategoriesTab: React.FC<CategoriesTabProps> = ({
         onClose={closeModal}
         title={editingItem ? 'Edit Category' : 'Add Category'}
         isDark={isDark}
-        maxWidth="max-w-sm"
+        maxWidth="max-w-md"
       >
         <form onSubmit={handleSubmit} className="p-6 space-y-5">
           {formError && (
@@ -826,13 +966,107 @@ const CategoriesTab: React.FC<CategoriesTabProps> = ({
             />
           </div>
           <div>
-            <label className={labelClass}>OEM</label>
-            <select value={formOemId} onChange={e => setFormOemId(e.target.value)} className={selectClass}>
-              <option value="">None</option>
-              {oems.filter(o => o.isActive).map(o => (
-                <option key={o.id} value={o.id}>{o.name}</option>
-              ))}
-            </select>
+            <label className={labelClass}>
+              Product Managers
+              {formPmIds.length > 0 && (
+                <span className={`ml-2 text-xs font-normal ${isDark ? 'text-brand-400' : 'text-brand-600'}`}>
+                  ({formPmIds.length} selected)
+                </span>
+              )}
+            </label>
+
+            {/* Selected chips */}
+            {formPmIds.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 mb-2">
+                {formPmIds.map(id => {
+                  const u = pmUsers.find(p => p.id === id);
+                  return (
+                    <span
+                      key={id}
+                      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-xs font-medium ${
+                        isDark
+                          ? 'bg-brand-500/20 text-brand-300 border border-brand-500/30'
+                          : 'bg-brand-50 text-brand-700 border border-brand-200'
+                      }`}
+                    >
+                      {u ? u.name : id.slice(0, 8)}
+                      <button
+                        type="button"
+                        onClick={() => removePm(id)}
+                        className={`rounded-full p-0.5 transition-colors ${
+                          isDark ? 'hover:bg-brand-500/30' : 'hover:bg-brand-100'
+                        }`}
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </span>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Search */}
+            {pmUsers.length > 4 && (
+              <div className="relative mb-2">
+                <Search className={`absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 ${
+                  isDark ? 'text-zinc-500' : 'text-slate-400'
+                }`} />
+                <input
+                  type="text"
+                  placeholder="Search product managers..."
+                  value={pmSearch}
+                  onChange={e => setPmSearch(e.target.value)}
+                  className={`w-full pl-8 pr-3 py-1.5 rounded-lg text-xs border transition-colors ${
+                    isDark
+                      ? 'bg-dark-100 border-zinc-700 text-white placeholder-zinc-500 focus:border-brand-500'
+                      : 'bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400 focus:border-brand-500'
+                  } focus:outline-none`}
+                />
+              </div>
+            )}
+
+            {/* Inline checkbox list */}
+            <div className={`rounded-xl border max-h-44 overflow-y-auto ${
+              isDark ? 'border-zinc-700 bg-dark-100' : 'border-slate-200 bg-slate-50/50'
+            }`}>
+              {filteredPmUsers.length === 0 ? (
+                <div className={`px-3 py-4 text-center text-xs ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
+                  {pmUsers.length === 0 ? 'No users with "productmanager" role found' : 'No matches'}
+                </div>
+              ) : (
+                filteredPmUsers.map(user => {
+                  const isSelected = formPmIds.includes(user.id);
+                  return (
+                    <button
+                      key={user.id}
+                      type="button"
+                      onClick={() => togglePm(user.id)}
+                      className={`w-full px-3 py-2 flex items-center gap-2.5 text-left transition-colors ${
+                        isSelected
+                          ? isDark ? 'bg-brand-500/15' : 'bg-brand-50'
+                          : isDark ? 'hover:bg-white/[0.04]' : 'hover:bg-white/60'
+                      }`}
+                    >
+                      <div className={`w-4 h-4 rounded flex items-center justify-center flex-shrink-0 border transition-colors ${
+                        isSelected
+                          ? 'bg-brand-600 border-brand-600'
+                          : isDark ? 'border-zinc-600' : 'border-slate-300'
+                      }`}>
+                        {isSelected && <CheckCircle className="w-3 h-3 text-white" />}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className={`text-xs font-medium truncate ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                          {user.name}
+                        </div>
+                        <div className={`text-[10px] truncate ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
+                          {user.email}
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })
+              )}
+            </div>
           </div>
           <div className={`flex items-center justify-end gap-3 pt-4 border-t ${isDark ? 'border-zinc-800' : 'border-slate-200'}`}>
             <button
@@ -898,34 +1132,21 @@ export const AdminPage: React.FC = () => {
   const [userFormError, setUserFormError] = useState('');
   const [isUserSubmitting, setIsUserSubmitting] = useState(false);
 
+  // User detail popup
+  const [detailUser, setDetailUser] = useState<User | null>(null);
+
   // Reset password
   const [resetPasswordUser, setResetPasswordUser] = useState<User | null>(null);
   const [newPassword, setNewPassword] = useState('');
   const [isResettingPassword, setIsResettingPassword] = useState(false);
 
-  // ---------------------------------------------------------------------------
-  // Products state
-  // ---------------------------------------------------------------------------
-  const [products, setProducts] = useState<Product[]>([]);
-  const [productsLoading, setProductsLoading] = useState(true);
-  const [productsError, setProductsError] = useState('');
-  const [productsSearch, setProductsSearch] = useState('');
-
-  // Product modal
-  const [showProductModal, setShowProductModal] = useState(false);
-  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
-  const [productForm, setProductForm] = useState<ProductFormData>({ ...EMPTY_PRODUCT_FORM });
-  const [productFormError, setProductFormError] = useState('');
-  const [isProductSubmitting, setIsProductSubmitting] = useState(false);
-
-  // Product delete
-  const [deleteProductTarget, setDeleteProductTarget] = useState<Product | null>(null);
-  const [isDeletingProduct, setIsDeletingProduct] = useState(false);
+  // Pagination
+  const [usersPage, setUsersPage] = useState(1);
 
   // ---------------------------------------------------------------------------
   // Styling
   // ---------------------------------------------------------------------------
-  const cardClass = `premium-card ${isDark ? 'bg-dark-50 border border-zinc-800' : 'bg-white shadow-soft'}`;
+  const cardClass = `premium-card ${isDark ? '' : 'shadow-soft'}`;
   const inputClass = `w-full px-3 py-2.5 rounded-xl border text-sm transition-all ${
     isDark
       ? 'bg-dark-100 border-zinc-700 text-white placeholder-zinc-500 focus:border-brand-500'
@@ -957,26 +1178,6 @@ export const AdminPage: React.FC = () => {
   }, [activeTab, fetchUsers]);
 
   // ---------------------------------------------------------------------------
-  // Products data fetching
-  // ---------------------------------------------------------------------------
-  const fetchProducts = useCallback(async () => {
-    setProductsLoading(true);
-    setProductsError('');
-    try {
-      const data = await productsApi.list();
-      setProducts(Array.isArray(data) ? data : []);
-    } catch (err: any) {
-      setProductsError(err.message || 'Failed to load products');
-    } finally {
-      setProductsLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (activeTab === 'products') fetchProducts();
-  }, [activeTab, fetchProducts]);
-
-  // ---------------------------------------------------------------------------
   // User handlers
   // ---------------------------------------------------------------------------
   const openCreateUser = () => {
@@ -1000,6 +1201,7 @@ export const AdminPage: React.FC = () => {
       isActive: u.isActive,
       viewAccess: u.viewAccess || 'presales',
       tag: u.tag || '',
+      managerId: u.managerId || '',
     });
     setUserFormError('');
     setShowUserModal(true);
@@ -1044,6 +1246,8 @@ export const AdminPage: React.FC = () => {
       if (userForm.monthlyTarget !== '' && userForm.monthlyTarget !== 0) payload.monthlyTarget = Number(userForm.monthlyTarget);
       payload.viewAccess = userForm.viewAccess;
       if (userForm.tag) payload.tag = userForm.tag;
+      if (userForm.managerId) payload.managerId = userForm.managerId;
+      else payload.managerId = null;
 
       if (editingUser) {
         await adminApi.updateUser(editingUser.id, payload);
@@ -1096,98 +1300,6 @@ export const AdminPage: React.FC = () => {
   });
 
   // ---------------------------------------------------------------------------
-  // Product handlers
-  // ---------------------------------------------------------------------------
-  const openCreateProduct = () => {
-    setEditingProduct(null);
-    setProductForm({ ...EMPTY_PRODUCT_FORM });
-    setProductFormError('');
-    setShowProductModal(true);
-  };
-
-  const openEditProduct = (p: Product) => {
-    setEditingProduct(p);
-    setProductForm({
-      name: p.name,
-      category: p.category || '',
-      basePrice: p.basePrice ?? '',
-      commissionRate: p.commissionRate ?? '',
-      isActive: p.isActive,
-    });
-    setProductFormError('');
-    setShowProductModal(true);
-  };
-
-  const closeProductModal = () => {
-    setShowProductModal(false);
-    setEditingProduct(null);
-    setProductFormError('');
-  };
-
-  const handleProductFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value, type } = e.target;
-    if (type === 'checkbox') {
-      setProductForm(prev => ({ ...prev, [name]: (e.target as HTMLInputElement).checked }));
-    } else if (name === 'basePrice' || name === 'commissionRate') {
-      setProductForm(prev => ({ ...prev, [name]: value === '' ? '' : Number(value) || 0 }));
-    } else {
-      setProductForm(prev => ({ ...prev, [name]: value }));
-    }
-  };
-
-  const handleProductSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setProductFormError('');
-    if (!productForm.name.trim()) { setProductFormError('Product name is required'); return; }
-
-    setIsProductSubmitting(true);
-    try {
-      const payload: Record<string, any> = {
-        name: productForm.name.trim(),
-        isActive: productForm.isActive,
-      };
-      if (productForm.category.trim()) payload.category = productForm.category.trim();
-      if (productForm.basePrice !== '') payload.basePrice = Number(productForm.basePrice);
-      if (productForm.commissionRate !== '') payload.commissionRate = Number(productForm.commissionRate);
-
-      if (editingProduct) {
-        await productsApi.update(editingProduct.id, payload);
-      } else {
-        await productsApi.create(payload);
-      }
-      closeProductModal();
-      fetchProducts();
-    } catch (err: any) {
-      setProductFormError(err.message || 'Failed to save product');
-    } finally {
-      setIsProductSubmitting(false);
-    }
-  };
-
-  const handleDeleteProduct = async () => {
-    if (!deleteProductTarget) return;
-    setIsDeletingProduct(true);
-    try {
-      await productsApi.delete(deleteProductTarget.id);
-      setDeleteProductTarget(null);
-      fetchProducts();
-    } catch (err: any) {
-      setProductsError(err.message || 'Failed to delete product');
-      setDeleteProductTarget(null);
-    } finally {
-      setIsDeletingProduct(false);
-    }
-  };
-
-  const filteredProducts = products.filter(p => {
-    const term = productsSearch.toLowerCase();
-    return (
-      p.name.toLowerCase().includes(term) ||
-      (p.category || '').toLowerCase().includes(term)
-    );
-  });
-
-  // ---------------------------------------------------------------------------
   // Access guard
   // ---------------------------------------------------------------------------
   if (!isAdmin()) {
@@ -1223,7 +1335,7 @@ export const AdminPage: React.FC = () => {
               type="text"
               placeholder="Search users by name, email, role..."
               value={usersSearch}
-              onChange={e => setUsersSearch(e.target.value)}
+              onChange={e => { setUsersSearch(e.target.value); setUsersPage(1); }}
               className={`w-full pl-10 pr-4 py-2.5 rounded-xl border text-sm transition-all ${
                 isDark
                   ? 'bg-dark-100 border-zinc-700 text-white placeholder-zinc-500 focus:border-brand-500'
@@ -1271,7 +1383,7 @@ export const AdminPage: React.FC = () => {
             <table className="w-full text-sm">
               <thead>
                 <tr className={`border-b ${isDark ? 'border-zinc-800' : 'border-slate-100'}`}>
-                  {['Name', 'Email', 'Role', 'Department', 'Tag', 'Status', 'Last Login', 'Actions'].map(h => (
+                  {['Name', 'Email', 'Role', 'Department', 'Manager', 'Tag', 'Status', 'Last Login', 'Actions'].map(h => (
                     <th key={h} className={`px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
                       {h}
                     </th>
@@ -1279,10 +1391,11 @@ export const AdminPage: React.FC = () => {
                 </tr>
               </thead>
               <tbody>
-                {filteredUsers.map(u => (
+                {filteredUsers.slice((usersPage - 1) * PAGE_SIZE, usersPage * PAGE_SIZE).map(u => (
                   <tr
                     key={u.id}
-                    className={`border-b transition-colors ${
+                    onClick={() => setDetailUser(u)}
+                    className={`border-b transition-colors cursor-pointer ${
                       isDark ? 'border-zinc-800/50 hover:bg-zinc-800/30' : 'border-slate-50 hover:bg-slate-50/80'
                     }`}
                   >
@@ -1292,6 +1405,7 @@ export const AdminPage: React.FC = () => {
                       <span className={roleBadge(u.role, isDark)}>{roleLabel(u.role)}</span>
                     </td>
                     <td className={`px-4 py-3 ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>{u.department || '-'}</td>
+                    <td className={`px-4 py-3 ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>{(u as any).managerName || '-'}</td>
                     <td className={`px-4 py-3 ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
                       {u.tag === 'channel' ? 'Channel' : u.tag === 'endcustomer' ? 'End Customer' : u.tag === 'both' ? 'Both' : '-'}
                     </td>
@@ -1301,7 +1415,7 @@ export const AdminPage: React.FC = () => {
                     <td className={`px-4 py-3 whitespace-nowrap ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
                       {formatDate(u.lastLogin)}
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
                       <div className="flex items-center gap-1">
                         <button
                           onClick={() => toggleUserActive(u)}
@@ -1338,6 +1452,7 @@ export const AdminPage: React.FC = () => {
             </table>
           </div>
         )}
+        <Pagination currentPage={usersPage} totalItems={filteredUsers.length} pageSize={PAGE_SIZE} onPageChange={setUsersPage} isDark={isDark} />
       </div>
 
       {/* Create/Edit User Modal */}
@@ -1440,8 +1555,17 @@ export const AdminPage: React.FC = () => {
             </div>
           </div>
 
-          {/* Phone */}
+          {/* Manager + Phone */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className={labelClass}>Manager</label>
+              <select name="managerId" value={userForm.managerId} onChange={handleUserFormChange} className={selectClass}>
+                <option value="">No Manager</option>
+                {users.filter(u => u.id !== editingUser?.id).map(u => (
+                  <option key={u.id} value={u.id}>{u.name} ({roleLabel(u.role)})</option>
+                ))}
+              </select>
+            </div>
             <div>
               <label className={labelClass}>Phone</label>
               <input
@@ -1547,247 +1671,127 @@ export const AdminPage: React.FC = () => {
           />
         </div>
       </ConfirmDialog>
-    </div>
-  );
 
-  const renderProductsTab = () => (
-    <div className="space-y-4">
-      {/* Toolbar */}
-      <div className={`${cardClass} p-4`}>
-        <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-          <div className="relative flex-1 min-w-0">
-            <Search className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`} />
-            <input
-              type="text"
-              placeholder="Search products..."
-              value={productsSearch}
-              onChange={e => setProductsSearch(e.target.value)}
-              className={`w-full pl-10 pr-4 py-2.5 rounded-xl border text-sm transition-all ${
-                isDark
-                  ? 'bg-dark-100 border-zinc-700 text-white placeholder-zinc-500 focus:border-brand-500'
-                  : 'bg-white border-slate-200 text-slate-900 placeholder-slate-400 focus:border-brand-500'
-              } focus:outline-none focus:ring-1 focus:ring-brand-500`}
-            />
-          </div>
-          <button
-            onClick={openCreateProduct}
-            className="flex items-center gap-2 px-4 py-2.5 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-sm font-medium transition-all btn-premium whitespace-nowrap"
-          >
-            <Plus className="w-4 h-4" />
-            Add Product
-          </button>
-        </div>
-      </div>
-
-      {/* Table */}
-      <div className={`${cardClass} overflow-hidden`}>
-        {productsError && (
-          <div className={`m-4 p-3 rounded-xl flex items-center gap-2 text-sm ${
-            isDark ? 'bg-red-900/20 border border-red-800 text-red-400' : 'bg-red-50 border border-red-200 text-red-700'
+      {/* User Detail Modal — portaled to body to escape transform containing block */}
+      {detailUser && createPortal(
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto">
+          <div className="absolute inset-0 bg-black/50 animate-backdrop" onClick={() => setDetailUser(null)} />
+          <div className={`relative w-full max-w-lg rounded-2xl animate-fade-in-up max-h-[90vh] flex flex-col overflow-hidden ${
+            isDark ? 'bg-dark-50 border border-zinc-800' : 'bg-white shadow-premium'
           }`}>
-            <AlertCircle className="w-4 h-4 flex-shrink-0" />
-            {productsError}
-          </div>
-        )}
-
-        {productsLoading ? (
-          <div className="flex flex-col items-center justify-center py-20">
-            <Loader2 className="w-8 h-8 text-brand-600 animate-spin" />
-            <p className={`mt-3 text-sm ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>Loading products...</p>
-          </div>
-        ) : filteredProducts.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20">
-            <div className={`w-16 h-16 rounded-2xl flex items-center justify-center mb-4 ${isDark ? 'bg-zinc-800' : 'bg-slate-100'}`}>
-              <Package className={`w-7 h-7 ${isDark ? 'text-zinc-600' : 'text-slate-300'}`} />
-            </div>
-            <p className={`text-sm font-medium ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>
-              {productsSearch ? 'No products match your search' : 'No products yet'}
-            </p>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className={`border-b ${isDark ? 'border-zinc-800' : 'border-slate-100'}`}>
-                  {['Name', 'Category', 'Base Price', 'Commission %', 'Status', 'Actions'].map(h => (
-                    <th key={h} className={`px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
-                      {h}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {filteredProducts.map(p => (
-                  <tr
-                    key={p.id}
-                    className={`border-b transition-colors ${
-                      isDark ? 'border-zinc-800/50 hover:bg-zinc-800/30' : 'border-slate-50 hover:bg-slate-50/80'
-                    }`}
-                  >
-                    <td className={`px-4 py-3 font-medium ${isDark ? 'text-white' : 'text-slate-900'}`}>{p.name}</td>
-                    <td className={`px-4 py-3 ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>{p.category || '-'}</td>
-                    <td className={`px-4 py-3 whitespace-nowrap font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                      {p.basePrice != null ? formatINR(p.basePrice) : '-'}
-                    </td>
-                    <td className={`px-4 py-3 ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
-                      {p.commissionRate != null ? `${p.commissionRate}%` : '-'}
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className={statusBadge(p.isActive, isDark)}>{p.isActive ? 'Active' : 'Inactive'}</span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-1">
-                        <button
-                          onClick={() => openEditProduct(p)}
-                          title="Edit"
-                          className={`p-1.5 rounded-lg transition-colors ${
-                            isDark ? 'text-zinc-400 hover:text-brand-400 hover:bg-brand-900/20' : 'text-slate-400 hover:text-brand-600 hover:bg-brand-50'
-                          }`}
-                        >
-                          <Edit2 className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => setDeleteProductTarget(p)}
-                          title="Delete"
-                          className={`p-1.5 rounded-lg transition-colors ${
-                            isDark ? 'text-zinc-400 hover:text-red-400 hover:bg-red-900/20' : 'text-slate-400 hover:text-red-600 hover:bg-red-50'
-                          }`}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-
-      {/* Create/Edit Product Modal */}
-      <Modal
-        isOpen={showProductModal}
-        onClose={closeProductModal}
-        title={editingProduct ? 'Edit Product' : 'Add Product'}
-        isDark={isDark}
-        maxWidth="max-w-md"
-      >
-        <form onSubmit={handleProductSubmit} className="p-6 space-y-5">
-          {productFormError && (
-            <div className={`p-3 rounded-xl flex items-center gap-2 text-sm ${
-              isDark ? 'bg-red-900/20 border border-red-800 text-red-400' : 'bg-red-50 border border-red-200 text-red-700'
+            {/* Header */}
+            <div className={`flex-shrink-0 flex items-center justify-between px-6 py-4 border-b ${
+              isDark ? 'border-zinc-800' : 'border-slate-200'
             }`}>
-              <AlertCircle className="w-4 h-4 flex-shrink-0" />
-              {productFormError}
+              <div className="flex items-center gap-3">
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-sm font-bold ${
+                  isDark ? 'bg-brand-900/30 text-brand-400' : 'bg-brand-50 text-brand-600'
+                }`}>
+                  {detailUser.name.charAt(0).toUpperCase()}
+                </div>
+                <div>
+                  <h2 className={`text-lg font-semibold font-display ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                    {detailUser.name}
+                  </h2>
+                  <p className={`text-xs ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>{detailUser.email}</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setDetailUser(null)}
+                className={`p-2 rounded-lg transition-colors ${
+                  isDark ? 'text-zinc-400 hover:text-white hover:bg-zinc-800' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100'
+                }`}
+              >
+                <X className="w-5 h-5" />
+              </button>
             </div>
-          )}
 
-          <div>
-            <label className={labelClass}>Name <span className="text-red-500">*</span></label>
-            <input
-              type="text"
-              name="name"
-              value={productForm.name}
-              onChange={handleProductFormChange}
-              placeholder="Product name"
-              className={inputClass}
-              autoFocus
-              required
-            />
-          </div>
+            {/* Body */}
+            <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
+              {/* Status Banner */}
+              <div className={`rounded-xl p-4 flex items-center gap-4 ${
+                detailUser.isActive
+                  ? isDark ? 'bg-emerald-900/20 border border-emerald-800/30' : 'bg-emerald-50 border border-emerald-200'
+                  : isDark ? 'bg-red-900/20 border border-red-800/30' : 'bg-red-50 border border-red-200'
+              }`}>
+                <div className="flex-1">
+                  <p className={`text-sm font-medium ${
+                    detailUser.isActive
+                      ? isDark ? 'text-emerald-400' : 'text-emerald-700'
+                      : isDark ? 'text-red-400' : 'text-red-700'
+                  }`}>
+                    {detailUser.isActive ? 'Active' : 'Inactive'}
+                  </p>
+                  <p className={`text-lg font-bold mt-0.5 ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                    <span className={roleBadge(detailUser.role, isDark)}>{roleLabel(detailUser.role)}</span>
+                  </p>
+                </div>
+                <span className={statusBadge(detailUser.isActive, isDark)}>{detailUser.isActive ? 'Active' : 'Inactive'}</span>
+              </div>
 
-          <div>
-            <label className={labelClass}>Category</label>
-            <input
-              type="text"
-              name="category"
-              value={productForm.category}
-              onChange={handleProductFormChange}
-              placeholder="e.g. Laptops, Printers"
-              className={inputClass}
-            />
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className={labelClass}>Base Price (INR)</label>
-              <input
-                type="number"
-                name="basePrice"
-                value={productForm.basePrice}
-                onChange={handleProductFormChange}
-                placeholder="0"
-                min="0"
-                step="100"
-                className={inputClass}
-              />
+              {/* Info */}
+              <div className={`divide-y ${isDark ? 'divide-zinc-800' : 'divide-slate-100'}`}>
+                <div className="flex items-start gap-3 py-2">
+                  <p className={`text-xs font-medium w-32 flex-shrink-0 pt-0.5 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Department</p>
+                  <p className={`text-sm ${isDark ? 'text-white' : 'text-slate-900'}`}>{detailUser.department || '-'}</p>
+                </div>
+                <div className="flex items-start gap-3 py-2">
+                  <p className={`text-xs font-medium w-32 flex-shrink-0 pt-0.5 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Manager</p>
+                  <p className={`text-sm ${isDark ? 'text-white' : 'text-slate-900'}`}>{(detailUser as any).managerName || '-'}</p>
+                </div>
+                <div className="flex items-start gap-3 py-2">
+                  <p className={`text-xs font-medium w-32 flex-shrink-0 pt-0.5 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Tag</p>
+                  <p className={`text-sm ${isDark ? 'text-white' : 'text-slate-900'}`}>{detailUser.tag === 'channel' ? 'Channel' : detailUser.tag === 'endcustomer' ? 'End Customer' : detailUser.tag === 'both' ? 'Both' : '-'}</p>
+                </div>
+                <div className="flex items-start gap-3 py-2">
+                  <p className={`text-xs font-medium w-32 flex-shrink-0 pt-0.5 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>View Access</p>
+                  <p className={`text-sm ${isDark ? 'text-white' : 'text-slate-900'}`}>{detailUser.viewAccess === 'presales' ? 'Pre-Sales' : detailUser.viewAccess === 'postsales' ? 'Post-Sales' : detailUser.viewAccess === 'both' ? 'Both' : '-'}</p>
+                </div>
+                <div className="flex items-start gap-3 py-2">
+                  <p className={`text-xs font-medium w-32 flex-shrink-0 pt-0.5 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Phone</p>
+                  <p className={`text-sm ${isDark ? 'text-white' : 'text-slate-900'}`}>{detailUser.phone || '-'}</p>
+                </div>
+                <div className="flex items-start gap-3 py-2">
+                  <p className={`text-xs font-medium w-32 flex-shrink-0 pt-0.5 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Employee ID</p>
+                  <p className={`text-sm ${isDark ? 'text-white' : 'text-slate-900'}`}>{detailUser.employeeId || '-'}</p>
+                </div>
+                <div className="flex items-start gap-3 py-2">
+                  <p className={`text-xs font-medium w-32 flex-shrink-0 pt-0.5 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Monthly Target</p>
+                  <p className={`text-sm ${isDark ? 'text-white' : 'text-slate-900'}`}>{detailUser.monthlyTarget ? `₹${Number(detailUser.monthlyTarget).toLocaleString('en-IN')}` : '-'}</p>
+                </div>
+                <div className="flex items-start gap-3 py-2">
+                  <p className={`text-xs font-medium w-32 flex-shrink-0 pt-0.5 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Last Login</p>
+                  <p className={`text-sm ${isDark ? 'text-white' : 'text-slate-900'}`}>{formatDate(detailUser.lastLogin)}</p>
+                </div>
+                <div className="flex items-start gap-3 py-2">
+                  <p className={`text-xs font-medium w-32 flex-shrink-0 pt-0.5 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Created</p>
+                  <p className={`text-sm ${isDark ? 'text-white' : 'text-slate-900'}`}>{formatDate(detailUser.createdAt)}</p>
+                </div>
+              </div>
             </div>
-            <div>
-              <label className={labelClass}>Commission Rate (%)</label>
-              <input
-                type="number"
-                name="commissionRate"
-                value={productForm.commissionRate}
-                onChange={handleProductFormChange}
-                placeholder="0"
-                min="0"
-                max="100"
-                step="0.1"
-                className={inputClass}
-              />
+
+            {/* Footer */}
+            <div className={`flex-shrink-0 flex items-center gap-3 px-6 py-4 border-t ${isDark ? 'border-zinc-800' : 'border-slate-200'}`}>
+              <button
+                onClick={() => { setDetailUser(null); openEditUser(detailUser); }}
+                className="flex items-center gap-2 px-4 py-2.5 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-sm font-medium transition-all"
+              >
+                <Edit2 className="w-4 h-4" />
+                Edit User
+              </button>
+              <button
+                onClick={() => setDetailUser(null)}
+                className={`px-4 py-2.5 rounded-xl text-sm font-medium transition-colors ${
+                  isDark ? 'text-zinc-300 hover:text-white bg-zinc-800 hover:bg-zinc-700' : 'text-slate-700 hover:text-slate-900 bg-slate-100 hover:bg-slate-200'
+                }`}
+              >
+                Close
+              </button>
             </div>
           </div>
-
-          {/* Active toggle */}
-          <div className="flex items-center gap-3">
-            <label className="relative inline-flex items-center cursor-pointer">
-              <input
-                type="checkbox"
-                name="isActive"
-                checked={productForm.isActive}
-                onChange={handleProductFormChange}
-                className="sr-only peer"
-              />
-              <div className="w-11 h-6 bg-zinc-300 peer-focus:outline-none rounded-full peer dark:bg-zinc-700 peer-checked:bg-brand-600 transition-colors after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-full" />
-            </label>
-            <span className={`text-sm ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>Active</span>
-          </div>
-
-          {/* Footer */}
-          <div className={`flex items-center justify-end gap-3 pt-4 border-t ${isDark ? 'border-zinc-800' : 'border-slate-200'}`}>
-            <button
-              type="button"
-              onClick={closeProductModal}
-              disabled={isProductSubmitting}
-              className={`px-4 py-2.5 rounded-xl text-sm font-medium transition-colors ${
-                isDark ? 'text-zinc-400 hover:text-white hover:bg-zinc-800' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-              } disabled:opacity-50`}
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={isProductSubmitting}
-              className="flex items-center gap-2 px-5 py-2.5 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-sm font-medium transition-all btn-premium disabled:opacity-50"
-            >
-              {isProductSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
-              {editingProduct ? 'Update Product' : 'Create Product'}
-            </button>
-          </div>
-        </form>
-      </Modal>
-
-      {/* Delete Product Confirmation */}
-      <ConfirmDialog
-        isOpen={!!deleteProductTarget}
-        onClose={() => setDeleteProductTarget(null)}
-        onConfirm={handleDeleteProduct}
-        title="Delete Product"
-        message={`Are you sure you want to delete "${deleteProductTarget?.name}"? This action cannot be undone.`}
-        isDark={isDark}
-        isLoading={isDeletingProduct}
-      />
+        </div>,
+        document.body
+      )}
     </div>
   );
 
@@ -1799,8 +1803,6 @@ export const AdminPage: React.FC = () => {
     switch (activeTab) {
       case 'users':
         return renderUsersTab();
-      case 'products':
-        return renderProductsTab();
       case 'oems':
         return <MasterDataTab entity="oems" entityLabel="OEMs" isDark={isDark} cardClass={cardClass} inputClass={inputClass} labelClass={labelClass} />;
       case 'categories':

@@ -48,7 +48,7 @@ export const WIDGET_REGISTRY: Record<string, WidgetMetadata> = {
   },
   'pipeline': {
     id: 'pipeline',
-    label: 'Deal Pipeline',
+    label: 'Deal Kanban',
     description: 'Stage distribution of deals',
     category: 'presales',
     icon: <Layers className="w-4 h-4" />,
@@ -132,8 +132,8 @@ export const WIDGET_REGISTRY: Record<string, WidgetMetadata> = {
   },
   'pipeline-chart': {
     id: 'pipeline-chart',
-    label: 'Pipeline Chart',
-    description: 'Deal pipeline visualization',
+    label: 'Kanban Chart',
+    description: 'Deal stage visualization',
     category: 'analytics',
     icon: <Layers className="w-4 h-4" />,
     requiredView: 'presales',

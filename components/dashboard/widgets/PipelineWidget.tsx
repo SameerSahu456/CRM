@@ -45,7 +45,7 @@ export const PipelineWidget: React.FC<WidgetProps> = ({ isDark, navigate, onDeta
       icon={<Layers className="w-4 h-4" />}
       iconBg={isDark ? 'bg-purple-900/30' : 'bg-purple-50'}
       iconColor={isDark ? 'text-purple-400' : 'text-purple-600'}
-      title="Pipeline"
+      title="Deal Stages"
       titleColor={isDark ? 'text-purple-400' : 'text-purple-700'}
       subtitle="Stage Distribution"
       badgeRight={

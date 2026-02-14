@@ -33,9 +33,9 @@ export const WidgetLibrary: React.FC<WidgetLibraryProps> = ({ onClose }) => {
       <div className="absolute inset-0 bg-black/50 animate-backdrop" onClick={onClose} />
 
       {/* Modal */}
-      <div className={`relative w-full max-w-3xl max-h-[80vh] overflow-y-auto rounded-2xl animate-fade-in-up ${isDark ? 'bg-[rgba(8,13,27,0.92)] backdrop-blur-2xl border border-white/[0.06]' : 'bg-white'}`}>
+      <div className={`relative w-full max-w-3xl max-h-[80vh] overflow-y-auto rounded-2xl animate-fade-in-up ${isDark ? 'bg-[rgba(8,13,27,0.92)] backdrop-blur-2xl border border-white/[0.06]' : 'bg-white/72 backdrop-blur-2xl border border-white/50'}`}>
         {/* Header */}
-        <div className={`sticky top-0 z-10 px-6 py-4 border-b flex items-center justify-between ${isDark ? 'bg-[rgba(8,13,27,0.95)] backdrop-blur-xl border-white/[0.06]' : 'bg-white border-slate-200'}`}>
+        <div className={`sticky top-0 z-10 px-6 py-4 border-b flex items-center justify-between ${isDark ? 'bg-[rgba(8,13,27,0.95)] backdrop-blur-xl border-white/[0.06]' : 'bg-white/70 backdrop-blur-xl border-white/40'}`}>
           <div>
             <h2 className={`text-xl font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>
               Dashboard Widgets
@@ -117,7 +117,7 @@ export const WidgetLibrary: React.FC<WidgetLibraryProps> = ({ onClose }) => {
         </div>
 
         {/* Footer */}
-        <div className={`sticky bottom-0 px-6 py-4 border-t flex items-center justify-between ${isDark ? 'bg-[rgba(8,13,27,0.95)] backdrop-blur-xl border-white/[0.06]' : 'bg-white border-slate-200'}`}>
+        <div className={`sticky bottom-0 px-6 py-4 border-t flex items-center justify-between ${isDark ? 'bg-[rgba(8,13,27,0.95)] backdrop-blur-xl border-white/[0.06]' : 'bg-white/70 backdrop-blur-xl border-white/40'}`}>
           <p className={`text-sm ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>
             {accessibleWidgets.filter(w => isWidgetVisible(w.id)).length} of {accessibleWidgets.length} widgets visible
           </p>

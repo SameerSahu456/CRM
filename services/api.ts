@@ -70,6 +70,7 @@ export const authApi = {
 // Products
 export const productsApi = {
   list: () => fetchApi<any[]>('/products/'),
+  listAll: () => fetchApi<any[]>('/products/?include_inactive=true'),
   getById: (id: string) => fetchApi<any>(`/products/${id}`),
   create: (data: any) =>
     fetchApi<any>('/products/', { method: 'POST', body: JSON.stringify(data) }),
@@ -398,6 +399,15 @@ export const activityLogApi = {
     const qs = params ? '?' + new URLSearchParams(params).toString() : '';
     return fetchApi<any>(`/admin/activity-logs/${qs}`);
   },
+  create: (data: { action: string; entityType: string; entityName?: string }) =>
+    fetchApi<any>('/admin/activity-logs/', {
+      method: 'POST',
+      body: JSON.stringify({
+        action: data.action,
+        entity_type: data.entityType,
+        entity_name: data.entityName,
+      }),
+    }),
 };
 
 // Bulk Import

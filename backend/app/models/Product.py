@@ -2,7 +2,7 @@ import uuid
 from typing import Optional
 from decimal import Decimal
 
-from sqlalchemy import Boolean, Numeric, String, text
+from sqlalchemy import Boolean, Integer, Numeric, String, text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -21,4 +21,5 @@ class Product(TimestampMixin, Base):
     commission_rate: Mapped[Optional[Decimal]] = mapped_column(
         Numeric(5, 2), server_default="0"
     )
+    stock: Mapped[int] = mapped_column(Integer, server_default="0")
     is_active: Mapped[bool] = mapped_column(Boolean, server_default="true")

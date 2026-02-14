@@ -152,7 +152,7 @@ export const WidgetDetailModal: React.FC<WidgetDetailModalProps> = ({ widgetId, 
     return (
       <div className="space-y-6">
         {/* Summary cards */}
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div className={`p-4 rounded-xl ${isDark ? 'bg-zinc-900/50' : 'bg-slate-50'}`}>
             <p className={`text-[11px] uppercase tracking-wider ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Total Value</p>
             <p className={`text-2xl font-bold mt-1 ${isDark ? 'text-white' : 'text-slate-900'}`}>{formatINR(totalDealValue)}</p>
@@ -277,7 +277,7 @@ export const WidgetDetailModal: React.FC<WidgetDetailModalProps> = ({ widgetId, 
 
     return (
       <div className="space-y-6">
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div className={`p-4 rounded-xl ${isDark ? 'bg-zinc-900/50' : 'bg-slate-50'}`}>
             <p className={`text-[11px] uppercase tracking-wider ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Total Leads</p>
             <p className={`text-2xl font-bold mt-1 ${isDark ? 'text-white' : 'text-slate-900'}`}>{totalLeads}</p>
@@ -416,7 +416,7 @@ export const WidgetDetailModal: React.FC<WidgetDetailModalProps> = ({ widgetId, 
 
     return (
       <div className="space-y-6">
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div className={`p-4 rounded-xl ${isDark ? 'bg-zinc-900/50' : 'bg-slate-50'}`}>
             <p className={`text-[11px] uppercase tracking-wider ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Total Achieved</p>
             <p className={`text-2xl font-bold mt-1 ${isDark ? 'text-white' : 'text-slate-900'}`}>{formatINR(totalSalesAmount)}</p>
@@ -547,7 +547,7 @@ export const WidgetDetailModal: React.FC<WidgetDetailModalProps> = ({ widgetId, 
 
     return (
       <div className="space-y-6">
-        <div className="grid grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           <div className={`p-4 rounded-xl text-center ${isDark ? 'bg-blue-900/20 border border-blue-800/30' : 'bg-blue-50 border border-blue-200'}`}>
             <p className={`text-2xl font-bold ${isDark ? 'text-blue-400' : 'text-blue-700'}`}>{stats?.totalPartners ?? 0}</p>
             <p className={`text-[10px] uppercase tracking-wider font-medium mt-1 ${isDark ? 'text-blue-500/70' : 'text-blue-500'}`}>Active</p>

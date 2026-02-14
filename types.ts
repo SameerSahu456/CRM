@@ -6,7 +6,7 @@ export type NavigationItem =
   | 'accounts'
   | 'contacts'
   | 'deals'
-  | 'quote-builder'
+  | 'inventory'
   | 'reports'
   | 'admin'
   | 'settings';
@@ -26,6 +26,8 @@ export interface User {
   createdAt?: string;
   viewAccess?: 'presales' | 'postsales' | 'both';
   tag?: 'channel' | 'endcustomer' | 'both';
+  managerId?: string;
+  managerName?: string;
   dashboardPreferences?: DashboardPreferences;
 }
 
@@ -80,6 +82,7 @@ export interface Product {
   category?: string;
   basePrice?: number;
   commissionRate?: number;
+  stock: number;
   isActive: boolean;
   createdAt?: string;
 }
@@ -219,6 +222,10 @@ export interface Lead {
   // Designation and Location
   designation?: string;
   location?: string;
+
+  // Requirements
+  requirement?: string;
+  quotedRequirement?: string;
 
   // Lead Image
   leadImage?: string;
@@ -447,6 +454,9 @@ export interface Deal {
   email?: string;
   location?: string;
   nextFollowUp?: string;
+  // Requirements
+  requirement?: string;
+  quotedRequirement?: string;
 }
 
 export type DealStage = 'Cold' | 'Proposal' | 'Negotiation' | 'Closed Won' | 'Closed Lost';
@@ -589,6 +599,8 @@ export interface MasterCategory {
   name: string;
   oemId?: string;
   isActive: boolean;
+  productManagerId?: string;
+  productManagerIds?: string; // JSON string: '["uuid1","uuid2"]'
 }
 
 // Dashboard

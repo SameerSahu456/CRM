@@ -8,6 +8,7 @@ import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
 import { emailsApi, emailTemplatesApi } from '../services/api';
 import { Email, EmailTemplate, PaginatedResponse } from '../types';
+import { useColumnResize } from '../hooks/useColumnResize';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -157,7 +158,14 @@ export const EmailsPage: React.FC = () => {
   const [sendingId, setSendingId] = useState<string | null>(null);
 
   // Styling helpers
-  const cardClass = `premium-card ${isDark ? 'bg-dark-50 border border-zinc-800' : 'bg-white shadow-soft'}`;
+  const { colWidths: emailColWidths, onMouseDown: onEmailMouseDown } = useColumnResize({
+    initialWidths: [250, 220, 110, 140, 90],
+  });
+  const { colWidths: tplColWidths, onMouseDown: onTplMouseDown } = useColumnResize({
+    initialWidths: [200, 260, 140, 90],
+  });
+
+  const cardClass = `premium-card ${isDark ? '' : 'shadow-soft'}`;
   const inputClass = `w-full px-3 py-2.5 rounded-xl border text-sm transition-all ${isDark ? 'bg-dark-100 border-zinc-700 text-white placeholder-zinc-500' : 'bg-white border-slate-200 text-slate-900 placeholder-slate-400'} focus:outline-none focus:ring-1 focus:ring-brand-500`;
   const labelClass = `block text-sm font-medium mb-1.5 ${isDark ? 'text-slate-300' : 'text-slate-700'}`;
   const selectClass = `${inputClass} appearance-none cursor-pointer`;
@@ -516,17 +524,19 @@ export const EmailsPage: React.FC = () => {
             ) : (
               <>
                 <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
+                  <table className="premium-table">
                     <thead>
                       <tr className={`border-b ${isDark ? 'border-zinc-800' : 'border-slate-100'}`}>
-                        {['Subject', 'To', 'Status', 'Sent At', 'Actions'].map(h => (
+                        {['Subject', 'To', 'Status', 'Sent At', 'Actions'].map((h, i) => (
                           <th
                             key={h}
-                            className={`px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider ${
+                            className={`px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider resizable-th ${
                               isDark ? 'text-zinc-500' : 'text-slate-400'
                             }`}
+                            style={{ width: emailColWidths[i] }}
                           >
                             {h}
+                            <div className="col-resize-handle" onMouseDown={e => onEmailMouseDown(i, e)} />
                           </th>
                         ))}
                       </tr>
@@ -709,17 +719,19 @@ export const EmailsPage: React.FC = () => {
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+              <table className="premium-table">
                 <thead>
                   <tr className={`border-b ${isDark ? 'border-zinc-800' : 'border-slate-100'}`}>
-                    {['Name', 'Subject', 'Category', 'Actions'].map(h => (
+                    {['Name', 'Subject', 'Category', 'Actions'].map((h, i) => (
                       <th
                         key={h}
-                        className={`px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider ${
+                        className={`px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider resizable-th ${
                           isDark ? 'text-zinc-500' : 'text-slate-400'
                         }`}
+                        style={{ width: tplColWidths[i] }}
                       >
                         {h}
+                        <div className="col-resize-handle" onMouseDown={e => onTplMouseDown(i, e)} />
                       </th>
                     ))}
                   </tr>

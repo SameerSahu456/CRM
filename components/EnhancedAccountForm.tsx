@@ -118,7 +118,7 @@ const INDUSTRIES = [
   'Education', 'Real Estate', 'Telecom', 'Energy', 'Media', 'Government', 'Other'
 ];
 
-const ACCOUNT_TYPES = ['Hunting', 'Recurring', 'Cold'];
+const ACCOUNT_TYPES = ['Hunting', 'Farming', 'Cold'];
 const ENDCUSTOMER_CATEGORIES = ['Enterprise', 'SMB', 'Startup', 'Government', 'Education'];
 const LEAD_CATEGORIES = ['Hot', 'Warm', 'Cold'];
 const DESIGNATIONS = ['CEO', 'CFO', 'CTO', 'Manager', 'Director', 'VP', 'Other'];
@@ -447,7 +447,7 @@ export const EnhancedAccountForm: React.FC<Props> = ({
                         >
                           <option value="">-None-</option>
                           <option value="Hunting">Hunting</option>
-                          <option value="Recurring">Recurring</option>
+                          <option value="Farming">Farming</option>
                           <option value="Cold">Cold</option>
                         </select>
                       </div>

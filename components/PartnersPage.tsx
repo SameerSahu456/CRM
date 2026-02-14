@@ -13,6 +13,7 @@ import { exportToCsv } from '../utils/exportCsv';
 import { Partner, PaginatedResponse, User } from '../types';
 import { BulkImportModal } from './BulkImportModal';
 import { useNavigation } from '../contexts/NavigationContext';
+import { useColumnResize } from '../hooks/useColumnResize';
 
 // ---------------------------------------------------------------------------
 // Types local to this page
@@ -534,7 +535,11 @@ export const PartnersPage: React.FC = () => {
   // Styling helpers
   // ---------------------------------------------------------------------------
 
-  const cardClass = `premium-card ${isDark ? 'bg-dark-50 border border-zinc-800' : 'bg-white shadow-soft'}`;
+  const { colWidths: partnerColWidths, onMouseDown: onPartnerMouseDown } = useColumnResize({
+    initialWidths: [190, 170, 130, 140, 100, 100, 100],
+  });
+
+  const cardClass = `premium-card ${isDark ? '' : 'shadow-soft'}`;
   const inputClass = `w-full px-3 py-2.5 rounded-xl border text-sm transition-all ${
     isDark
       ? 'bg-dark-100 border-zinc-700 text-white placeholder-zinc-500 focus:border-brand-500'
@@ -758,14 +763,16 @@ export const PartnersPage: React.FC = () => {
     return (
       <thead>
         <tr className={`border-b ${isDark ? 'border-zinc-800' : 'border-slate-100'}`}>
-          {headers.map(h => (
+          {headers.map((h, i) => (
             <th
               key={h}
-              className={`px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider ${
+              className={`px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider resizable-th ${
                 isDark ? 'text-zinc-500' : 'text-slate-400'
               }`}
+              style={{ width: partnerColWidths[i] }}
             >
               {h}
+              <div className="col-resize-handle" onMouseDown={e => onPartnerMouseDown(i, e)} />
             </th>
           ))}
         </tr>
@@ -989,7 +996,7 @@ export const PartnersPage: React.FC = () => {
           )
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="premium-table">
               {renderTableHeader(true)}
               <tbody>
                 {partners.map(p => renderPartnerRow(p, true))}
@@ -1020,7 +1027,7 @@ export const PartnersPage: React.FC = () => {
         )
       ) : (
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="premium-table">
             {renderTableHeader(false)}
             <tbody>
               {myPartners.map(p => renderPartnerRow(p, false))}
@@ -1048,17 +1055,19 @@ export const PartnersPage: React.FC = () => {
         )
       ) : (
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="premium-table">
             <thead>
               <tr className={`border-b ${isDark ? 'border-zinc-800' : 'border-slate-100'}`}>
-                {['Company Name', 'Contact Person', 'City', 'Type', 'Tier', 'Registered', 'Actions'].map(h => (
+                {['Company Name', 'Contact Person', 'City', 'Type', 'Tier', 'Registered', 'Actions'].map((h, i) => (
                   <th
                     key={h}
-                    className={`px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider ${
+                    className={`px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider resizable-th ${
                       isDark ? 'text-zinc-500' : 'text-slate-400'
                     }`}
+                    style={{ width: partnerColWidths[i] }}
                   >
                     {h}
+                    <div className="col-resize-handle" onMouseDown={e => onPartnerMouseDown(i, e)} />
                   </th>
                 ))}
               </tr>
