@@ -1379,12 +1379,15 @@ export const CRMPage: React.FC = () => {
 
     return (
       <div className="space-y-4">
-        {/* Main pipeline columns */}
+        {/* All stages as Kanban columns */}
         <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
-          {PIPELINE_STAGES.map(stage => {
+          {LEAD_STAGES.map(stage => {
             const stageLeads = (pipelineLeads[stage] || []).filter(filterLead);
             const c = STAGE_COLORS[stage];
             const isOver = dragOverStage === stage;
+            const isWon = stage === 'Closed Won';
+            const isLost = stage === 'Closed Lost';
+            const isTerminal = isWon || isLost;
             return (
               <div
                 key={stage}
@@ -1406,14 +1409,27 @@ export const CRMPage: React.FC = () => {
                 {/* Column header */}
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2">
-                    <div className={`w-2 h-2 rounded-full ${isDark ? c.darkText.replace('text-', 'bg-') : c.text.replace('text-', 'bg-')}`} />
+                    {isTerminal ? (
+                      isWon
+                        ? <CheckCircle className={`w-4 h-4 ${isDark ? 'text-emerald-400' : 'text-emerald-600'}`} />
+                        : <XCircle className={`w-4 h-4 ${isDark ? 'text-red-400' : 'text-red-600'}`} />
+                    ) : (
+                      <div className={`w-2 h-2 rounded-full ${isDark ? c.darkText.replace('text-', 'bg-') : c.text.replace('text-', 'bg-')}`} />
+                    )}
                     <h3 className={`text-sm font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>{stage}</h3>
                   </div>
-                  <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
-                    isDark ? 'bg-zinc-800 text-zinc-400' : 'bg-slate-100 text-slate-500'
-                  }`}>
-                    {stageLeads.length}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    {isWon && stageLeads.length > 0 && (
+                      <span className={`text-[11px] font-semibold ${isDark ? 'text-emerald-400' : 'text-emerald-600'}`}>
+                        {formatINR(stageLeads.reduce((sum, l) => sum + (l.estimatedValue || 0), 0))}
+                      </span>
+                    )}
+                    <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+                      isDark ? 'bg-zinc-800 text-zinc-400' : 'bg-slate-100 text-slate-500'
+                    }`}>
+                      {stageLeads.length}
+                    </span>
+                  </div>
                 </div>
 
                 {/* Cards */}
@@ -1426,91 +1442,6 @@ export const CRMPage: React.FC = () => {
                     stageLeads.map(lead => renderPipelineCard(lead))
                   )}
                 </div>
-              </div>
-            );
-          })}
-        </div>
-
-        {/* Won / Lost summary cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {TERMINAL_STAGES.map(stage => {
-            const stageLeads = (pipelineLeads[stage] || []).filter(filterLead);
-            const c = STAGE_COLORS[stage];
-            const isWon = stage === 'Closed Won';
-            const isOverTerminal = dragOverStage === stage;
-            return (
-              <div
-                key={stage}
-                onDragOver={e => { e.preventDefault(); setDragOverStage(stage); }}
-                onDragLeave={() => setDragOverStage(null)}
-                onDrop={e => {
-                  e.preventDefault();
-                  setDragOverStage(null);
-                  const leadId = e.dataTransfer.getData('text/plain');
-                  if (!leadId) return;
-                  const allLeads = Object.values(pipelineLeads).flat();
-                  const lead = allLeads.find(l => l.id === leadId);
-                  if (lead && lead.stage !== stage) {
-                    handlePipelineMoveStage(lead, stage as LeadStage);
-                  }
-                }}
-                className={`${cardClass} p-4 transition-all ${isOverTerminal ? 'ring-2 ring-brand-500 ring-inset' : ''}`}
-              >
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-2">
-                    {isWon
-                      ? <CheckCircle className={`w-5 h-5 ${isDark ? 'text-emerald-400' : 'text-emerald-600'}`} />
-                      : <XCircle className={`w-5 h-5 ${isDark ? 'text-red-400' : 'text-red-600'}`} />
-                    }
-                    <h3 className={`text-base font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>{stage}</h3>
-                    <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
-                      isDark ? `${c.darkBg} ${c.darkText}` : `${c.bg} ${c.text}`
-                    }`}>
-                      {stageLeads.length}
-                    </span>
-                  </div>
-                  {isWon && stageLeads.length > 0 && (
-                    <p className={`text-sm font-semibold ${isDark ? 'text-emerald-400' : 'text-emerald-600'}`}>
-                      {formatINR(stageLeads.reduce((sum, l) => sum + (l.estimatedValue || 0), 0))}
-                    </p>
-                  )}
-                </div>
-
-                {stageLeads.length === 0 ? (
-                  <p className={`text-xs ${isDark ? 'text-zinc-600' : 'text-slate-400'}`}>
-                    No {stage.toLowerCase()} leads
-                  </p>
-                ) : (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-                    {stageLeads.slice(0, 6).map(lead => (
-                      <div
-                        key={lead.id}
-                        onClick={() => openDetailModal(lead)}
-                        className={`p-2 rounded-lg border cursor-pointer transition-colors ${
-                          isDark
-                            ? 'border-zinc-700 hover:bg-zinc-800/50'
-                            : 'border-slate-200 hover:bg-slate-50'
-                        }`}
-                      >
-                        <p className={`text-xs font-medium truncate ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                          {lead.companyName}
-                        </p>
-                        {lead.estimatedValue ? (
-                          <p className={`text-[11px] ${isWon ? (isDark ? 'text-emerald-400' : 'text-emerald-600') : (isDark ? 'text-red-400' : 'text-red-600')}`}>
-                            {formatINR(lead.estimatedValue)}
-                          </p>
-                        ) : null}
-                      </div>
-                    ))}
-                    {stageLeads.length > 6 && (
-                      <div className={`flex items-center justify-center p-2 rounded-lg border border-dashed ${
-                        isDark ? 'border-zinc-700 text-zinc-500' : 'border-slate-200 text-slate-400'
-                      }`}>
-                        <p className="text-xs">+{stageLeads.length - 6} more</p>
-                      </div>
-                    )}
-                  </div>
-                )}
               </div>
             );
           })}
