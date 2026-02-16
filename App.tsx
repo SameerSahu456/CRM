@@ -40,7 +40,7 @@ const pageTitles: Record<NavigationItem, string> = {
 const AppContent: React.FC = () => {
   const { isAuthenticated, isLoading } = useAuth();
   const [activeTab, setActiveTab] = useState<NavigationItem>(() => {
-    const saved = localStorage.getItem('zenith-active-tab');
+    const saved = localStorage.getItem('comprint-active-tab');
     if (saved && saved in pageTitles) return saved as NavigationItem;
     return 'dashboard';
   });
@@ -48,7 +48,7 @@ const AppContent: React.FC = () => {
   // Persist active tab to localStorage
   const handleSetActiveTab = (tab: NavigationItem) => {
     setActiveTab(tab);
-    localStorage.setItem('zenith-active-tab', tab);
+    localStorage.setItem('comprint-active-tab', tab);
   };
   const [sidebarOpen, setSidebarOpen] = useState(false);
 

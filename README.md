@@ -1,4 +1,4 @@
-# Zenith CRM
+# Comprint CRM
 
 A modern Customer Relationship Management system built with React, TypeScript, and FastAPI.
 
@@ -42,8 +42,8 @@ A modern Customer Relationship Management system built with React, TypeScript, a
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/yourusername/zenith-crm.git
-cd zenith-crm
+git clone https://github.com/yourusername/comprint-crm.git
+cd comprint-crm
 ```
 
 2. Install frontend dependencies:
@@ -67,7 +67,7 @@ psql -U postgres -f backend/scripts/init_db.sql
 
 Edit `backend/.env`:
 ```env
-DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5432/zenith_crm
+DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5432/comprint_crm
 SECRET_KEY=your-secret-key
 ```
 
@@ -85,7 +85,7 @@ npm run dev
 ## Project Structure
 
 ```
-zenith-crm/
+comprint-crm/
 ├── backend/                # FastAPI backend
 │   ├── app/
 │   │   ├── api/v1/        # API endpoints

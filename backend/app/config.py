@@ -6,7 +6,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
 
-    DATABASE_URL: str = "postgresql+asyncpg://localhost:5432/zenith_crm"
+    DATABASE_URL: str = "postgresql+asyncpg://localhost:5432/comprint_crm"
     SECRET_KEY: str = "change-me-in-production"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 525600  # 1 year — effectively never expires
     # Allow configuration via environment variable (comma-separated URLs)

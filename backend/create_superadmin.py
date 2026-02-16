@@ -9,7 +9,7 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 async def create_admin_users():
     # Connect to local database
-    engine = create_async_engine("postgresql+asyncpg://localhost:5432/zenith_crm")
+    engine = create_async_engine("postgresql+asyncpg://localhost:5432/comprint_crm")
 
     async with engine.begin() as conn:
         # Create superadmin (full access to everything)

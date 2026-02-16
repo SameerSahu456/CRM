@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import create_async_engine
 
 async def add_view_access_column():
     # Connect to local database
-    engine = create_async_engine("postgresql+asyncpg://localhost:5432/zenith_crm")
+    engine = create_async_engine("postgresql+asyncpg://localhost:5432/comprint_crm")
 
     async with engine.begin() as conn:
         # Add column

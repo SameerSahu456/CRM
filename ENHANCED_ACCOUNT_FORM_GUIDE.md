@@ -109,7 +109,7 @@ Created a new comprehensive form component with:
 ### Run Database Migration
 ```bash
 # In Supabase SQL Editor, run:
-/Users/macbookpro/Downloads/zenith-crm/backend/supabase_migration.sql
+/Users/macbookpro/Downloads/comprint-crm/backend/supabase_migration.sql
 ```
 
 ### Start Backend

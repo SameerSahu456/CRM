@@ -1,4 +1,4 @@
-# Zenith CRM Deployment Guide
+# Comprint CRM Deployment Guide
 
 ## Prerequisites
 1. Supabase account with a project created
