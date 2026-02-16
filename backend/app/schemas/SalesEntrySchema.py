@@ -10,7 +10,7 @@ from app.schemas.common import CamelModel
 
 class SalesEntryOut(CamelModel):
     id: UUID
-    partner_id: UUID
+    partner_id: Optional[UUID] = None
     product_id: Optional[UUID] = None
     salesperson_id: UUID
     customer_name: Optional[str] = None

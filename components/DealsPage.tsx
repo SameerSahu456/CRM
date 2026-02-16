@@ -777,6 +777,10 @@ export const DealsPage: React.FC = () => {
       setClosedWonError('Customer name is required');
       return;
     }
+    if (!closedWonOrderForm.partnerId) {
+      setClosedWonError('Please select a partner');
+      return;
+    }
     if (selectedProductIds.length === 0) {
       setClosedWonError('Please select at least one product');
       return;
@@ -794,6 +798,7 @@ export const DealsPage: React.FC = () => {
     setClosedWonError('');
 
     try {
+      // Step 1: Update deal stage to Closed Won
       const updatedPayload = {
         ...closedWonPayload,
         stage: 'Closed Won',
@@ -806,8 +811,9 @@ export const DealsPage: React.FC = () => {
         await dealsApi.create({ ...updatedPayload, ownerId: user?.id });
       }
 
-      // Create or update Sales Entry from order form
+      // Step 2: Create or update Sales Entry from order form
       const salesEntryData: any = {
+        partnerId: closedWonOrderForm.partnerId,
         salespersonId: user?.id,
         customerName: closedWonOrderForm.customerName,
         quantity: closedWonOrderForm.quantity,
@@ -820,9 +826,6 @@ export const DealsPage: React.FC = () => {
         dealId: closedWonDealId || undefined,
         productIds: selectedProductIds,
       };
-      if (closedWonOrderForm.partnerId) {
-        salesEntryData.partnerId = closedWonOrderForm.partnerId;
-      }
 
       if (closedWonExistingEntryId) {
         await salesApi.update(closedWonExistingEntryId, salesEntryData);
@@ -2470,8 +2473,8 @@ export const DealsPage: React.FC = () => {
 
             {/* Partner Selection */}
             <div>
-              <label className={labelClass}>Partner</label>
-              <select name="partnerId" value={closedWonOrderForm.partnerId} onChange={handleOrderChange} className={selectClass}>
+              <label className={labelClass}>Partner <span className="text-red-500">*</span></label>
+              <select name="partnerId" value={closedWonOrderForm.partnerId} onChange={handleOrderChange} className={selectClass} required>
                 <option value="">-- Select Partner --</option>
                 {partners.map(p => (
                   <option key={p.id} value={p.id}>{p.companyName}</option>
