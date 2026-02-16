@@ -53,7 +53,9 @@ export const router = createBrowserRouter([
       // Page rendering is handled by RootLayout keep-alive — routes just validate URLs
       { path: 'dashboard', element: null },
       { path: 'sales-entry', element: null },
-      { path: 'crm', element: null },
+      { path: 'leads', element: null },
+      { path: 'crm', element: <Navigate to="/leads" replace /> },
+      { path: 'collections', element: null },
       { path: 'accounts', element: null },
       { path: 'contacts', element: null },
       { path: 'deals', element: null },

@@ -3,7 +3,8 @@ import { NavigationItem } from '../types';
 const NAV_TO_PATH: Record<NavigationItem, string> = {
   'dashboard': '/dashboard',
   'sales-entry': '/sales-entry',
-  'crm': '/crm',
+  'leads': '/leads',
+  'collections': '/collections',
   'accounts': '/accounts',
   'contacts': '/contacts',
   'deals': '/deals',
@@ -23,13 +24,16 @@ export function navigationItemToPath(item: NavigationItem): string {
 
 export function pathToNavigationItem(path: string): NavigationItem {
   const normalized = path === '/' ? '/dashboard' : path.replace(/\/$/, '');
+  // Handle legacy /crm path → redirect to leads
+  if (normalized === '/crm') return 'leads';
   return PATH_TO_NAV[normalized] || 'dashboard';
 }
 
 export const pageTitles: Record<NavigationItem, string> = {
   'dashboard': 'Dashboard',
   'sales-entry': 'Sales Entry',
-  'crm': 'Leads',
+  'leads': 'Leads',
+  'collections': 'Collections',
   'accounts': 'Accounts',
   'contacts': 'Contacts',
   'deals': 'Deals',

@@ -2,7 +2,8 @@
 export type NavigationItem =
   | 'dashboard'
   | 'sales-entry'
-  | 'crm'
+  | 'leads'
+  | 'collections'
   | 'accounts'
   | 'contacts'
   | 'deals'

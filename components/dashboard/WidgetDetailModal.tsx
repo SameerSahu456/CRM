@@ -20,8 +20,8 @@ interface WidgetDetailModalProps {
 const WIDGET_PAGE_MAP: Record<string, NavigationItem> = {
   'pipeline': 'deals',
   'pipeline-chart': 'deals',
-  'leads': 'crm',
-  'leads-distribution': 'crm',
+  'leads': 'leads',
+  'leads-distribution': 'leads',
   'sales-team': 'sales-entry',
   'monthly': 'sales-entry',
   'partners': 'partners',

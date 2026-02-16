@@ -2,7 +2,7 @@ import React from 'react';
 import {
   LayoutDashboard, ShoppingCart, Target, Shield as ShieldIcon,
   Settings, LogOut, X, Building2, Contact, Handshake,
-  BarChart3, Package
+  BarChart3, Package, Wallet
 } from 'lucide-react';
 import { NavigationItem } from '../types';
 import { useAuth } from '../contexts/AuthContext';
@@ -29,8 +29,9 @@ const navItems: NavItem[] = [
   { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard className="w-4 h-4" />, section: 'Overview', view: 'both' },
   // Post-Sales items
   { id: 'sales-entry', label: 'Sales Entry', icon: <ShoppingCart className="w-4 h-4" />, section: 'Post-Sales', view: 'postsales' },
+  { id: 'collections', label: 'Collections', icon: <Wallet className="w-4 h-4" />, section: 'Post-Sales', view: 'postsales' },
   // Pre-Sales items
-  { id: 'crm', label: 'Leads', icon: <Target className="w-4 h-4" />, section: 'Pre-Sales', view: 'presales' },
+  { id: 'leads', label: 'Leads', icon: <Target className="w-4 h-4" />, section: 'Pre-Sales', view: 'presales' },
   { id: 'deals', label: 'Deals', icon: <Handshake className="w-4 h-4" />, section: 'Pre-Sales', view: 'presales' },
   { id: 'accounts', label: 'Accounts', icon: <Building2 className="w-4 h-4" />, section: 'Pre-Sales', view: 'presales' },
   { id: 'contacts', label: 'Contacts', icon: <Contact className="w-4 h-4" />, section: 'Pre-Sales', view: 'presales' },

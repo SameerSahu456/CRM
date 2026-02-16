@@ -93,7 +93,7 @@ export const WIDGET_REGISTRY: Record<string, WidgetMetadata> = {
     defaultVisible: true,
     defaultOrder: 7,
     component: lazyWithRetry(() => import('../components/dashboard/widgets/LeadsWidget').then(m => ({ default: m.LeadsWidget }))),
-    navigateTo: 'crm',
+    navigateTo: 'leads',
   },
   'top-partners': {
     id: 'top-partners',
@@ -163,7 +163,7 @@ export const WIDGET_REGISTRY: Record<string, WidgetMetadata> = {
     defaultVisible: true,
     defaultOrder: 13,
     component: lazyWithRetry(() => import('../components/dashboard/widgets/LeadsDistributionWidget').then(m => ({ default: m.LeadsDistributionWidget }))),
-    navigateTo: 'crm',
+    navigateTo: 'leads',
   },
   'tasks': {
     id: 'tasks',

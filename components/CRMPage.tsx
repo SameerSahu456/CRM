@@ -3,7 +3,7 @@ import {
   Plus, Search, X, ChevronLeft, ChevronRight, Edit2, Trash2,
   IndianRupee, Loader2, AlertCircle, CheckCircle, Calendar,
   Phone, Mail, MessageSquare, Users, Target, TrendingUp,
-  Eye, BarChart3, LayoutGrid, List,
+  Eye, BarChart3, LayoutGrid, List, ArrowRight,
   Clock, StickyNote, FileText, Zap, XCircle,
   ChevronDown, Award, Building2, User as UserIcon, Tags,
   Download, Upload, Send
@@ -1398,27 +1398,27 @@ export const CRMPage: React.FC = () => {
           </p>
         )}
 
-        {/* Move to dropdown */}
-        <div className="mt-2 pt-2 border-t border-dashed ${isDark ? 'border-zinc-700' : 'border-slate-200'}">
-          <div className="relative" onClick={e => e.stopPropagation()}>
-            <select
-              value={lead.stage}
-              onChange={e => handlePipelineMoveStage(lead, e.target.value as LeadStage)}
-              className={`w-full text-[11px] px-2 py-1 rounded-lg border transition-all appearance-none cursor-pointer ${
-                isDark
-                  ? 'bg-dark-50 border-zinc-700 text-zinc-300 focus:border-brand-500'
-                  : 'bg-slate-50 border-slate-200 text-slate-600 focus:border-brand-500'
-              } focus:outline-none`}
-            >
-              {LEAD_STAGES.map(s => (
-                <option key={s} value={s}>Move to: {s}</option>
-              ))}
-            </select>
-            <ChevronDown className={`absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 pointer-events-none ${
-              isDark ? 'text-zinc-500' : 'text-slate-400'
-            }`} />
-          </div>
-        </div>
+        {/* Move to next stage button */}
+        {(() => {
+          const idx = LEAD_STAGES.indexOf(lead.stage);
+          const nextStage = idx >= 0 && idx < LEAD_STAGES.length - 1 ? LEAD_STAGES[idx + 1] : null;
+          if (!nextStage) return null;
+          return (
+            <div className={`pt-2 mt-2 border-t border-dashed ${isDark ? 'border-zinc-700' : 'border-slate-200'}`}>
+              <button
+                onClick={(e) => { e.stopPropagation(); handlePipelineMoveStage(lead, nextStage); }}
+                className={`w-full flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-lg text-[11px] font-medium transition-all ${
+                  isDark
+                    ? 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700 hover:text-white'
+                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900'
+                }`}
+              >
+                <ArrowRight className="w-3 h-3" />
+                Move to {nextStage}
+              </button>
+            </div>
+          );
+        })()}
       </div>
     );
   };

@@ -254,6 +254,10 @@ export const ContactsPage: React.FC = () => {
       setFormError('First name is required');
       return;
     }
+    if (!formData.accountId) {
+      setFormError('Account is required. Every contact must be linked to an account.');
+      return;
+    }
 
     setIsSubmitting(true);
     try {
@@ -919,13 +923,14 @@ export const ContactsPage: React.FC = () => {
             {/* Row 5: Account + Type */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label htmlFor="accountId" className={labelClass}>Account</label>
+                <label htmlFor="accountId" className={labelClass}>Account <span className="text-red-500">*</span></label>
                 <select
                   id="accountId"
                   name="accountId"
                   value={formData.accountId}
                   onChange={handleFormChange}
                   className={selectClass}
+                  required
                 >
                   <option value="">Select Account</option>
                   {accountsList.map(a => (

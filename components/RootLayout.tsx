@@ -20,11 +20,13 @@ const ContactsPage = lazyWithRetry(() => import('./ContactsPage').then(m => ({ d
 const DealsPage = lazyWithRetry(() => import('./DealsPage').then(m => ({ default: m.DealsPage })));
 const ReportsPage = lazyWithRetry(() => import('./ReportsPage').then(m => ({ default: m.ReportsPage })));
 const InventoryPage = lazyWithRetry(() => import('./InventoryPage').then(m => ({ default: m.InventoryPage })));
+const CollectionsPage = lazyWithRetry(() => import('./CollectionsPage').then(m => ({ default: m.CollectionsPage })));
 
 const PAGE_COMPONENTS: Record<NavigationItem, React.LazyExoticComponent<React.ComponentType>> = {
   'dashboard': Dashboard,
   'sales-entry': SalesEntryPage,
-  'crm': CRMPage,
+  'leads': CRMPage,
+  'collections': CollectionsPage,
   'accounts': AccountsPage,
   'contacts': ContactsPage,
   'deals': DealsPage,
