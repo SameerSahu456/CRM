@@ -10,8 +10,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.exceptions import NotFoundException
 from app.middleware.security import get_current_user
-from app.utils.pdf_generator import generate_quote_pdf
-from app.utils.storage import upload_to_supabase
 from app.models.Partner import Partner
 from app.models.Product import Product
 from app.models.Quote import Quote
@@ -132,6 +130,9 @@ logger = logging.getLogger(__name__)
 async def _generate_and_store_pdf(db: AsyncSession, quote: Quote, quote_data: dict) -> str | None:
     """Generate a PDF for a quote and upload to Supabase Storage. Returns the URL."""
     try:
+        from app.utils.pdf_generator import generate_quote_pdf
+        from app.utils.storage import upload_to_supabase
+
         pdf_bytes = generate_quote_pdf(quote_data)
         file_name = f"quotes/quote-{quote.id}.pdf"
         pdf_url = await upload_to_supabase(pdf_bytes, file_name, "application/pdf")
@@ -236,7 +237,15 @@ async def create_quote(
 
     await db.flush()
 
-    return await _get_quote_with_items(db, quote.id)
+    result = await _get_quote_with_items(db, quote.id)
+
+    # Auto-generate PDF
+    if result:
+        pdf_url = await _generate_and_store_pdf(db, quote, result)
+        if pdf_url:
+            result["pdfUrl"] = pdf_url
+
+    return result
 
 
 @router.put("/{quote_id}")
@@ -279,7 +288,42 @@ async def update_quote(
             setattr(quote, key, value)
 
     await db.flush()
-    return await _get_quote_with_items(db, quote_id)
+    result = await _get_quote_with_items(db, quote_id)
+
+    # Regenerate PDF when content changes
+    if result and (body.line_items is not None or body.selected_term_ids is not None):
+        pdf_url = await _generate_and_store_pdf(db, quote, result)
+        if pdf_url:
+            result["pdfUrl"] = pdf_url
+
+    return result
+
+
+@router.get("/{quote_id}/pdf")
+async def get_quote_pdf(
+    quote_id: str,
+    regenerate: bool = Query(False),
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Get or regenerate the PDF for a quote."""
+    repo = BaseRepository(db, Quote)
+    quote = await repo.get_by_id(quote_id)
+    if not quote:
+        raise NotFoundException("Quote not found")
+
+    if not regenerate and quote.pdf_url:
+        return {"pdfUrl": quote.pdf_url}
+
+    quote_data = await _get_quote_with_items(db, quote_id)
+    if not quote_data:
+        raise NotFoundException("Quote not found")
+
+    pdf_url = await _generate_and_store_pdf(db, quote, quote_data)
+    if not pdf_url:
+        raise NotFoundException("Failed to generate PDF")
+
+    return {"pdfUrl": pdf_url}
 
 
 @router.delete("/{quote_id}")

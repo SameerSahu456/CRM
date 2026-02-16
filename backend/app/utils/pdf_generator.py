@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from weasyprint import HTML
-
 
 def _format_inr(amount) -> str:
     """Format a number as INR currency."""
@@ -30,6 +28,8 @@ def _format_date(date_str) -> str:
 
 def generate_quote_pdf(quote_data: dict) -> bytes:
     """Generate a PDF from quote data and return bytes."""
+    from weasyprint import HTML  # lazy import — requires native libs (cairo, pango)
+
     html_content = _build_quote_html(quote_data)
     return HTML(string=html_content).write_pdf()
 

@@ -10,4 +10,4 @@ passlib[bcrypt]==1.7.4
 python-multipart==0.0.9
 httpx==0.27.0
 eval-type-backport==0.3.1
-weasyprint==62.3
+# weasyprint==62.3  # Optional: install locally for PDF generation (requires system libs: brew install cairo pango gdk-pixbuf)
