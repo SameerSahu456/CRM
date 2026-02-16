@@ -160,7 +160,7 @@ export const DealsPage: React.FC = () => {
   const { setActiveTab: navigate } = useNavigation();
   const { getOptions, getValues } = useDropdowns();
   const isDark = theme === 'dark';
-  const canSeeAssignee = user?.role === 'admin' || user?.role === 'superadmin' || user?.role === 'businesshead' || user?.role === 'productmanager';
+  const canSeeAssignee = true; // Always show — backend controls data visibility via manager hierarchy
 
   // Dropdown data from DB
   const DEAL_STAGES = getValues('deal-stages') as DealStage[];
@@ -250,6 +250,7 @@ export const DealsPage: React.FC = () => {
     paymentStatus: 'pending', saleDate: new Date().toISOString().split('T')[0],
   });
   const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
+  const [productSearch, setProductSearch] = useState('');
   const [closedWonExistingEntryId, setClosedWonExistingEntryId] = useState<string | null>(null);
 
   // Inline quote builder state (inside deal detail for Channel tag)
@@ -757,6 +758,7 @@ export const DealsPage: React.FC = () => {
     setClosedWonDescription('');
     setClosedWonError('');
     setSelectedProductIds([]);
+    setProductSearch('');
     setClosedWonExistingEntryId(null);
   };
 
@@ -2449,15 +2451,22 @@ export const DealsPage: React.FC = () => {
               <input name="customerName" value={closedWonOrderForm.customerName} onChange={handleOrderChange} className={inputClass} required />
             </div>
 
-            {/* Product Selection (multiselect checkboxes) */}
+            {/* Product Selection (multiselect checkboxes with search) */}
             <div>
               <label className={labelClass}>Products <span className="text-red-500">*</span></label>
+              <input
+                type="text"
+                placeholder="Search products..."
+                value={productSearch}
+                onChange={e => setProductSearch(e.target.value)}
+                className={`${inputClass} mb-2`}
+              />
               <div className={`rounded-xl border p-3 max-h-40 overflow-y-auto space-y-1.5 ${
                 isDark ? 'bg-dark-100 border-zinc-700' : 'bg-slate-50 border-slate-200'
               }`}>
                 {products.length === 0 ? (
                   <p className={`text-xs ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>No products found</p>
-                ) : products.filter(p => p.isActive).map(product => (
+                ) : products.filter(p => p.isActive && p.name.toLowerCase().includes(productSearch.toLowerCase())).map(product => (
                   <label key={product.id} className={`flex items-center gap-2.5 px-2 py-1.5 rounded-lg cursor-pointer transition-colors ${
                     selectedProductIds.includes(product.id)
                       ? isDark ? 'bg-brand-900/30 text-brand-300' : 'bg-brand-50 text-brand-700'
