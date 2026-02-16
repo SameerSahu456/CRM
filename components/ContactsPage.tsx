@@ -9,6 +9,7 @@ import {
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigation } from '../contexts/NavigationContext';
+import { useDropdowns } from '../contexts/DropdownsContext';
 import { contactsApi, accountsApi } from '../services/api';
 import { exportToCsv } from '../utils/exportCsv';
 import { Contact, Account, PaginatedResponse } from '../types';
@@ -21,12 +22,6 @@ import { useColumnResize } from '../hooks/useColumnResize';
 
 const PAGE_SIZE = 10;
 
-const CONTACT_TYPES = [
-  'Customer',
-  'Prospect',
-  'Partner',
-  'Vendor',
-];
 
 // ---------------------------------------------------------------------------
 // Form types
@@ -87,7 +82,11 @@ export const ContactsPage: React.FC = () => {
   const { theme } = useTheme();
   const { user } = useAuth();
   const { setActiveTab: navigate, consumeNavParams } = useNavigation();
+  const { getValues } = useDropdowns();
   const isDark = theme === 'dark';
+
+  // Dropdown data from DB
+  const CONTACT_TYPES = getValues('contact-types');
 
   // Data state
   const [showBulkImport, setShowBulkImport] = useState(false);
@@ -402,7 +401,7 @@ export const ContactsPage: React.FC = () => {
             { header: 'Email', accessor: (r: Contact) => r.email },
             { header: 'Phone', accessor: (r: Contact) => r.phone },
             { header: 'Mobile', accessor: (r: Contact) => r.mobile },
-            { header: 'Job Title', accessor: (r: Contact) => r.jobTitle },
+            { header: 'Designation', accessor: (r: Contact) => r.designation || r.jobTitle },
             { header: 'Department', accessor: (r: Contact) => r.department },
             { header: 'Account', accessor: (r: Contact) => r.accountName },
             { header: 'Type', accessor: (r: Contact) => r.type },
@@ -474,7 +473,7 @@ export const ContactsPage: React.FC = () => {
             <table className="premium-table">
               <thead>
                 <tr className={`border-b ${isDark ? 'border-zinc-700' : 'border-slate-200'}`}>
-                  {['#', 'Name', 'Email', 'Phone', 'Job Title', 'Account'].map((label, i) => (
+                  {['#', 'Name', 'Email', 'Phone', 'Designation', 'Account'].map((label, i) => (
                     <th
                       key={label}
                       className={`${hdrCell} resizable-th ${i === 0 ? 'text-center' : ''}`}
@@ -519,7 +518,7 @@ export const ContactsPage: React.FC = () => {
                       <span className="whitespace-nowrap">{contact.phone || '-'}</span>
                     </td>
                     <td className={cellBase}>
-                      {contact.jobTitle || '-'}
+                      {contact.designation || contact.jobTitle || '-'}
                     </td>
                     <td className={cellBase}>
                       {contact.accountName ? (
@@ -698,7 +697,7 @@ export const ContactsPage: React.FC = () => {
               <InfoRow label="Email" value={contact.email} isDark={isDark} icon={<Mail className="w-3.5 h-3.5" />} />
               <InfoRow label="Phone" value={contact.phone} isDark={isDark} icon={<Phone className="w-3.5 h-3.5" />} />
               <InfoRow label="Mobile" value={contact.mobile} isDark={isDark} icon={<Smartphone className="w-3.5 h-3.5" />} />
-              <InfoRow label="Job Title" value={contact.jobTitle} isDark={isDark} icon={<Briefcase className="w-3.5 h-3.5" />} />
+              <InfoRow label="Designation" value={contact.designation || contact.jobTitle} isDark={isDark} icon={<Briefcase className="w-3.5 h-3.5" />} />
               <InfoRow label="Department" value={contact.department} isDark={isDark} icon={<Building2 className="w-3.5 h-3.5" />} />
               {contact.accountName && contact.accountId ? (
                 <div
@@ -883,10 +882,10 @@ export const ContactsPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Row 4: Job Title + Department */}
+            {/* Row 4: Designation + Department */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label htmlFor="jobTitle" className={labelClass}>Job Title</label>
+                <label htmlFor="jobTitle" className={labelClass}>Designation</label>
                 <div className="relative">
                   <Briefcase className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`} />
                   <input

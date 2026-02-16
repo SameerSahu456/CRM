@@ -18,11 +18,13 @@ from app.api.v1.endpoints import (
     notifications,
     partners,
     products,
+    quote_terms,
     quotes,
     roles,
     sales_entries,
     settings,
     tasks,
+    uploads,
 )
 
 api_router = APIRouter()
@@ -37,6 +39,7 @@ api_router.include_router(admin.router, prefix="/admin/users", tags=["Admin"])
 api_router.include_router(master_data.router, prefix="/data/master", tags=["Master Data"])
 api_router.include_router(notifications.router, prefix="/notifications", tags=["Notifications"])
 api_router.include_router(quotes.router, prefix="/quotes", tags=["Quotes"])
+api_router.include_router(quote_terms.router, prefix="/quote-terms", tags=["Quote Terms"])
 api_router.include_router(carepacks.router, prefix="/carepacks", tags=["Carepacks"])
 api_router.include_router(settings.router, prefix="/settings", tags=["Settings"])
 api_router.include_router(accounts.router, prefix="/accounts", tags=["Accounts"])
@@ -49,3 +52,4 @@ api_router.include_router(emails.router, prefix="/emails", tags=["Emails"])
 api_router.include_router(activity_logs.router, prefix="/admin/activity-logs", tags=["Activity Logs"])
 api_router.include_router(roles.router, prefix="/admin/roles", tags=["Roles"])
 api_router.include_router(bulk_import.router, prefix="/bulk", tags=["Bulk Import"])
+api_router.include_router(uploads.router, prefix="/uploads", tags=["Uploads"])

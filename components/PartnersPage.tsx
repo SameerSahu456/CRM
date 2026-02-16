@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
+import { useDropdowns } from '../contexts/DropdownsContext';
 import { partnersApi, masterDataApi, adminApi } from '../services/api';
 import { exportToCsv } from '../utils/exportCsv';
 import { Partner, PaginatedResponse, User } from '../types';
@@ -59,24 +60,6 @@ const EMPTY_FORM: PartnerFormData = {
   assignedTo: '',
 };
 
-const PARTNER_TYPES = [
-  { value: 'distributor', label: 'Distributor' },
-  { value: 'reseller', label: 'Reseller' },
-  { value: 'system-integrator', label: 'System Integrator' },
-  { value: 'retailer', label: 'Retailer' },
-];
-
-const TIERS = [
-  { value: 'elite', label: 'Elite' },
-  { value: 'growth', label: 'Growth' },
-  { value: 'new', label: 'New' },
-];
-
-const STATUSES = [
-  { value: 'pending', label: 'Pending' },
-  { value: 'approved', label: 'Approved' },
-  { value: 'rejected', label: 'Rejected' },
-];
 
 const PAGE_SIZE = 10;
 
@@ -139,7 +122,15 @@ export const PartnersPage: React.FC = () => {
   const { theme } = useTheme();
   const { user, isAdmin, hasRole } = useAuth();
   const { setActiveTab: navigate } = useNavigation();
+  const { getOptions } = useDropdowns();
   const isDark = theme === 'dark';
+
+  // Dropdown data from DB
+  const PARTNER_TYPES = getOptions('partner-types').length > 0
+    ? getOptions('partner-types')
+    : [{ value: 'distributor', label: 'Distributor' }, { value: 'reseller', label: 'Reseller' }, { value: 'system-integrator', label: 'System Integrator' }, { value: 'retailer', label: 'Retailer' }];
+  const TIERS = getOptions('partner-tiers');
+  const STATUSES = getOptions('partner-statuses');
 
   const canApprove = isAdmin() || hasRole('businesshead');
 

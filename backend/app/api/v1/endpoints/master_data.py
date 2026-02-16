@@ -22,6 +22,23 @@ ENTITY_MAP = {
     "categories": "master_categories",
 }
 
+# Dropdown entities stored in the generic master_dropdowns table
+DROPDOWN_ENTITIES = [
+    "deal-stages",
+    "deal-types",
+    "lead-sources",
+    "forecast-options",
+    "task-statuses",
+    "priorities",
+    "task-types",
+    "event-types",
+    "email-statuses",
+    "template-categories",
+    "contact-types",
+    "partner-tiers",
+    "partner-statuses",
+]
+
 
 async def _get_all(db: AsyncSession, table_name: str) -> list[dict]:
     result = await db.execute(text(f"SELECT * FROM {table_name} ORDER BY name"))
@@ -45,12 +62,60 @@ async def _get_locations(db: AsyncSession) -> list[dict]:
     return items
 
 
+async def _get_dropdowns(db: AsyncSession, entity: str) -> list[dict]:
+    result = await db.execute(
+        text(
+            "SELECT id, entity, value, label, sort_order, is_active, metadata "
+            "FROM master_dropdowns "
+            "WHERE entity = :entity AND is_active = TRUE "
+            "ORDER BY sort_order"
+        ),
+        {"entity": entity},
+    )
+    rows = result.mappings().all()
+    items = []
+    for row in rows:
+        item = {k: (str(v) if hasattr(v, "hex") else v) for k, v in dict(row).items()}
+        items.append(item)
+    return items
+
+
+@router.get("/dropdowns/all")
+async def list_all_dropdowns(
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Return all dropdown entities in a single request."""
+    result = await db.execute(
+        text(
+            "SELECT id, entity, value, label, sort_order, is_active, metadata "
+            "FROM master_dropdowns "
+            "WHERE is_active = TRUE "
+            "ORDER BY entity, sort_order"
+        )
+    )
+    rows = result.mappings().all()
+
+    grouped = {}
+    for row in rows:
+        item = {k: (str(v) if hasattr(v, "hex") else v) for k, v in dict(row).items()}
+        entity = item["entity"]
+        if entity not in grouped:
+            grouped[entity] = []
+        grouped[entity].append(item)
+
+    return grouped
+
+
 @router.get("/{entity}")
 async def list_master_data(
     entity: str,
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    if entity in DROPDOWN_ENTITIES:
+        return await _get_dropdowns(db, entity)
+
     table_name = ENTITY_MAP.get(entity)
     if not table_name:
         raise BadRequestException(f"Unknown entity: {entity}")
@@ -67,6 +132,29 @@ async def create_master_data(
     admin: User = Depends(require_admin()),
     db: AsyncSession = Depends(get_db),
 ):
+    if entity in DROPDOWN_ENTITIES:
+        value = body.get("value")
+        label = body.get("label", value)
+        sort_order = body.get("sortOrder", body.get("sort_order", 0))
+        metadata = body.get("metadata", {})
+        if not value:
+            raise BadRequestException("Value is required")
+        result = await db.execute(
+            text(
+                "INSERT INTO master_dropdowns (entity, value, label, sort_order, metadata) "
+                "VALUES (:entity, :value, :label, :sort_order, :metadata::jsonb) RETURNING *"
+            ),
+            {
+                "entity": entity,
+                "value": value,
+                "label": label,
+                "sort_order": sort_order,
+                "metadata": str(metadata).replace("'", '"') if isinstance(metadata, dict) else metadata,
+            },
+        )
+        row = result.mappings().first()
+        return {k: (str(v) if hasattr(v, "hex") else v) for k, v in dict(row).items()}
+
     table_name = ENTITY_MAP.get(entity)
     if not table_name:
         raise BadRequestException(f"Unknown entity: {entity}")
@@ -118,6 +206,36 @@ async def update_master_data(
     admin: User = Depends(require_admin()),
     db: AsyncSession = Depends(get_db),
 ):
+    if entity in DROPDOWN_ENTITIES:
+        sets = []
+        params = {"id": item_id}
+        allowed = {"value", "label", "sort_order", "is_active", "metadata"}
+        for key, val in body.items():
+            snake_key = ""
+            for ch in key:
+                if ch.isupper():
+                    snake_key += "_" + ch.lower()
+                else:
+                    snake_key += ch
+                col = snake_key.lstrip("_")
+            if col in allowed:
+                if col == "metadata":
+                    sets.append("metadata = :metadata::jsonb")
+                    params["metadata"] = str(val).replace("'", '"') if isinstance(val, dict) else val
+                else:
+                    sets.append(f"{col} = :{col}")
+                    params[col] = val
+        if not sets:
+            raise BadRequestException("No fields to update")
+        result = await db.execute(
+            text(f"UPDATE master_dropdowns SET {', '.join(sets)} WHERE id = :id RETURNING *"),
+            params,
+        )
+        row = result.mappings().first()
+        if not row:
+            raise NotFoundException("Item not found")
+        return {k: (str(v) if hasattr(v, "hex") else v) for k, v in dict(row).items()}
+
     table_name = ENTITY_MAP.get(entity)
     if not table_name:
         raise BadRequestException(f"Unknown entity: {entity}")
@@ -160,6 +278,15 @@ async def delete_master_data(
     admin: User = Depends(require_admin()),
     db: AsyncSession = Depends(get_db),
 ):
+    if entity in DROPDOWN_ENTITIES:
+        result = await db.execute(
+            text("DELETE FROM master_dropdowns WHERE id = :id"),
+            {"id": item_id},
+        )
+        if result.rowcount == 0:
+            raise NotFoundException("Item not found")
+        return {"success": True}
+
     table_name = ENTITY_MAP.get(entity)
     if not table_name:
         raise BadRequestException(f"Unknown entity: {entity}")

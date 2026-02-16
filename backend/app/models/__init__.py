@@ -8,6 +8,8 @@ from app.models.LeadActivity import LeadActivity
 from app.models.Notification import Notification
 from app.models.Quote import Quote
 from app.models.QuoteLineItem import QuoteLineItem
+from app.models.QuoteTerm import QuoteTerm
+from app.models.QuoteSelectedTerm import QuoteSelectedTerm
 from app.models.Carepack import Carepack
 from app.models.Account import Account
 from app.models.Contact import Contact
@@ -29,6 +31,8 @@ __all__ = [
     "Notification",
     "Quote",
     "QuoteLineItem",
+    "QuoteTerm",
+    "QuoteSelectedTerm",
     "Carepack",
     "Account",
     "Contact",

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import {
   Plus, Search, Trash2, X, ChevronLeft, ChevronRight,
   IndianRupee, CheckCircle, Loader2, AlertCircle,
-  Download, Upload, Edit2
+  Download, Upload, Edit2, LayoutGrid, List as ListIcon
 } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
@@ -93,6 +93,14 @@ export const SalesEntryPage: React.FC = () => {
   const { user } = useAuth();
   const isDark = theme === 'dark';
 
+  // Tab toggle
+  const [activeTab, setActiveTab] = useState<'entries' | 'collections'>('entries');
+
+  // Collections data
+  interface CollectionGroup { customerName: string; totalAmount: number; entryCount: number; paymentStatus: string }
+  const [collections, setCollections] = useState<{ pending: CollectionGroup[]; partialPending: CollectionGroup[]; paid: CollectionGroup[] }>({ pending: [], partialPending: [], paid: [] });
+  const [isCollectionsLoading, setIsCollectionsLoading] = useState(false);
+
   // Data
   const [showBulkImport, setShowBulkImport] = useState(false);
   const [sales, setSales] = useState<SalesEntry[]>([]);
@@ -180,6 +188,22 @@ export const SalesEntryPage: React.FC = () => {
   useEffect(() => {
     fetchSales();
   }, [fetchSales]);
+
+  const fetchCollections = useCallback(async () => {
+    setIsCollectionsLoading(true);
+    try {
+      const data = await salesApi.collections();
+      setCollections(data);
+    } catch {
+      setCollections({ pending: [], partialPending: [], paid: [] });
+    } finally {
+      setIsCollectionsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (activeTab === 'collections') fetchCollections();
+  }, [activeTab, fetchCollections]);
 
   useEffect(() => {
     setPage(1);
@@ -334,6 +358,106 @@ export const SalesEntryPage: React.FC = () => {
 
   return (
     <div className="p-3 sm:p-4 lg:p-6 space-y-4 animate-fade-in-up">
+      {/* Tab Toggle */}
+      <div className="flex items-center gap-2">
+        <button
+          onClick={() => setActiveTab('entries')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all ${
+            activeTab === 'entries'
+              ? 'bg-brand-600 text-white shadow-md'
+              : isDark ? 'text-zinc-400 hover:text-white hover:bg-zinc-800' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100'
+          }`}
+        >
+          <ListIcon className="w-4 h-4" />
+          Sales Entries
+        </button>
+        <button
+          onClick={() => setActiveTab('collections')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all ${
+            activeTab === 'collections'
+              ? 'bg-brand-600 text-white shadow-md'
+              : isDark ? 'text-zinc-400 hover:text-white hover:bg-zinc-800' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100'
+          }`}
+        >
+          <LayoutGrid className="w-4 h-4" />
+          Collections
+        </button>
+      </div>
+
+      {activeTab === 'collections' ? (
+        /* Collections Tab */
+        <div className="space-y-6">
+          {isCollectionsLoading ? (
+            <div className="flex flex-col items-center justify-center py-16">
+              <Loader2 className="w-6 h-6 text-brand-600 animate-spin" />
+              <p className={`mt-2 text-sm ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>Loading collections...</p>
+            </div>
+          ) : (
+            <>
+              {/* Pending Section */}
+              <div>
+                <h3 className={`text-sm font-semibold mb-3 flex items-center gap-2 ${isDark ? 'text-red-400' : 'text-red-600'}`}>
+                  <span className="w-2.5 h-2.5 rounded-full bg-red-500" /> Pending ({collections.pending.length})
+                </h3>
+                {collections.pending.length === 0 ? (
+                  <p className={`text-xs ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>No pending collections</p>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {collections.pending.map((item, i) => (
+                      <div key={i} className={`p-4 rounded-xl border-l-4 border-l-red-500 ${isDark ? 'bg-dark-100 border border-zinc-800' : 'bg-white border border-slate-200 shadow-sm'}`}>
+                        <p className={`text-sm font-semibold truncate ${isDark ? 'text-white' : 'text-slate-900'}`}>{item.customerName || 'Unknown'}</p>
+                        <p className={`text-lg font-bold mt-1 ${isDark ? 'text-red-400' : 'text-red-600'}`}>{formatINR(item.totalAmount)}</p>
+                        <p className={`text-xs mt-1 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>{item.entryCount} entr{item.entryCount === 1 ? 'y' : 'ies'}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Partial Pending Section */}
+              <div>
+                <h3 className={`text-sm font-semibold mb-3 flex items-center gap-2 ${isDark ? 'text-amber-400' : 'text-amber-600'}`}>
+                  <span className="w-2.5 h-2.5 rounded-full bg-amber-500" /> Partial Pending ({collections.partialPending.length})
+                </h3>
+                {collections.partialPending.length === 0 ? (
+                  <p className={`text-xs ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>No partial pending collections</p>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {collections.partialPending.map((item, i) => (
+                      <div key={i} className={`p-4 rounded-xl border-l-4 border-l-amber-500 ${isDark ? 'bg-dark-100 border border-zinc-800' : 'bg-white border border-slate-200 shadow-sm'}`}>
+                        <p className={`text-sm font-semibold truncate ${isDark ? 'text-white' : 'text-slate-900'}`}>{item.customerName || 'Unknown'}</p>
+                        <p className={`text-lg font-bold mt-1 ${isDark ? 'text-amber-400' : 'text-amber-600'}`}>{formatINR(item.totalAmount)}</p>
+                        <p className={`text-xs mt-1 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>{item.entryCount} entr{item.entryCount === 1 ? 'y' : 'ies'}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Paid Section */}
+              <div>
+                <h3 className={`text-sm font-semibold mb-3 flex items-center gap-2 ${isDark ? 'text-emerald-400' : 'text-emerald-600'}`}>
+                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" /> Paid ({collections.paid.length})
+                </h3>
+                {collections.paid.length === 0 ? (
+                  <p className={`text-xs ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>No paid collections</p>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {collections.paid.map((item, i) => (
+                      <div key={i} className={`p-4 rounded-xl border-l-4 border-l-emerald-500 ${isDark ? 'bg-dark-100 border border-zinc-800' : 'bg-white border border-slate-200 shadow-sm'}`}>
+                        <p className={`text-sm font-semibold truncate ${isDark ? 'text-white' : 'text-slate-900'}`}>{item.customerName || 'Unknown'}</p>
+                        <p className={`text-lg font-bold mt-1 ${isDark ? 'text-emerald-400' : 'text-emerald-600'}`}>{formatINR(item.totalAmount)}</p>
+                        <p className={`text-xs mt-1 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>{item.entryCount} entr{item.entryCount === 1 ? 'y' : 'ies'}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+        </div>
+      ) : (
+      <>
       {/* Toolbar */}
       <div className={`${cardClass} px-3 py-2.5 space-y-2`}>
         {/* Row 1: Search + Filters */}
@@ -597,6 +721,8 @@ export const SalesEntryPage: React.FC = () => {
           </div>
         )}
       </div>
+      </>
+      )}
 
       {/* Detail Modal */}
       {showDetailModal && detailEntry && (

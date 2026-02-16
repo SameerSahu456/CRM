@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Plus, Search, X, ChevronLeft, ChevronRight, Edit2, Trash2,
   IndianRupee, Loader2, AlertCircle, CheckCircle, Calendar,
@@ -11,7 +11,8 @@ import {
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigation } from '../contexts/NavigationContext';
-import { leadsApi, partnersApi, productsApi, adminApi, accountsApi, contactsApi, formatINR } from '../services/api';
+import { useDropdowns } from '../contexts/DropdownsContext';
+import { leadsApi, partnersApi, productsApi, adminApi, accountsApi, contactsApi, uploadsApi, formatINR } from '../services/api';
 import { exportToCsv } from '../utils/exportCsv';
 import { Lead, LeadStage, PaginatedResponse, Partner, Product, User, ActivityLog } from '../types';
 import { BulkImportModal } from './BulkImportModal';
@@ -23,20 +24,6 @@ import { useColumnResize } from '../hooks/useColumnResize';
 
 const PAGE_SIZE = 10;
 
-const LEAD_STAGES: LeadStage[] = ['Cold', 'Proposal', 'Negotiation', 'Closed Won', 'Closed Lost'];
-const PIPELINE_STAGES: LeadStage[] = ['Cold', 'Proposal', 'Negotiation'];
-const TERMINAL_STAGES: LeadStage[] = ['Closed Won', 'Closed Lost'];
-
-const PRIORITIES = ['Low', 'Medium', 'High'] as const;
-
-const SOURCES = [
-  { value: 'referral', label: 'Referral' },
-  { value: 'website', label: 'Website' },
-  { value: 'cold-call', label: 'Cold Call' },
-  { value: 'event', label: 'Event' },
-  { value: 'partner', label: 'Partner' },
-  { value: 'other', label: 'Other' },
-];
 
 
 const STAGE_COLORS: Record<LeadStage, { bg: string; text: string; darkBg: string; darkText: string; iconBg: string; darkIconBg: string }> = {
@@ -312,7 +299,14 @@ export const CRMPage: React.FC = () => {
   const { theme } = useTheme();
   const { user } = useAuth();
   const { setActiveTab: navigate } = useNavigation();
+  const { getOptions, getValues } = useDropdowns();
   const isDark = theme === 'dark';
+
+  // Dropdown data from DB (fallback to hardcoded stages if dropdowns haven't loaded)
+  const dropdownStages = getValues('deal-stages') as LeadStage[];
+  const LEAD_STAGES = dropdownStages.length > 0 ? dropdownStages : (Object.keys(STAGE_COLORS) as LeadStage[]);
+  const PRIORITIES = getValues('priorities');
+  const SOURCES = getOptions('lead-sources');
 
   // Data state
   const [showBulkImport, setShowBulkImport] = useState(false);
@@ -322,7 +316,7 @@ export const CRMPage: React.FC = () => {
   const [users, setUsers] = useState<User[]>([]);
 
   // View mode
-  const [viewMode, setViewMode] = useState<'table' | 'pipeline'>('table');
+  const [viewMode, setViewMode] = useState<'table' | 'pipeline'>('pipeline');
 
   // Pagination (table view)
   const [page, setPage] = useState(1);
@@ -337,7 +331,8 @@ export const CRMPage: React.FC = () => {
 
   // Pipeline data (all leads grouped by stage)
   const [pipelineLeads, setPipelineLeads] = useState<Record<string, Lead[]>>({});
-  const [isPipelineLoading, setIsPipelineLoading] = useState(false);
+  const [isPipelineLoading, setIsPipelineLoading] = useState(true);
+  const pipelineLoadedRef = useRef(false);
 
   // Drag-and-drop state
   const [draggedLeadId, setDraggedLeadId] = useState<string | null>(null);
@@ -345,6 +340,7 @@ export const CRMPage: React.FC = () => {
 
   // UI state
   const [isLoading, setIsLoading] = useState(true);
+  const tableLoadedRef = useRef(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [tableError, setTableError] = useState('');
 
@@ -391,10 +387,15 @@ export const CRMPage: React.FC = () => {
   const [closedWonLeadRef, setClosedWonLeadRef] = useState<{ lead: Lead; source: 'detail' | 'pipeline' } | null>(null);
   const [closedWonForm, setClosedWonForm] = useState({
     accountName: '', industry: '', type: 'Hunting', phone: '', email: '', location: '',
-    contactFirstName: '', contactLastName: '', contactEmail: '', contactPhone: '', contactJobTitle: '',
+    contactFirstName: '', contactLastName: '', contactEmail: '', contactPhone: '',
+    contactDesignation: '', contactDepartment: '',
   });
   const [closedWonError, setClosedWonError] = useState('');
   const [isClosedWonSubmitting, setIsClosedWonSubmitting] = useState(false);
+  const [gstFile, setGstFile] = useState<File | null>(null);
+  const [msmeFile, setMsmeFile] = useState<File | null>(null);
+  const [panFile, setPanFile] = useState<File | null>(null);
+  const [aadharFile, setAadharFile] = useState<File | null>(null);
 
   // Delete confirmation
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
@@ -412,7 +413,7 @@ export const CRMPage: React.FC = () => {
   // ---------------------------------------------------------------------------
 
   const { colWidths: crmColWidths, onMouseDown: onCrmMouseDown } = useColumnResize({
-    initialWidths: [45, 180, 150, 130, 130, 220, 130, 110, 160, 160, 110, 120, 100, 120, 120, 70],
+    initialWidths: [45, 70, 180, 150, 130, 130, 220, 130, 110, 160, 160, 110, 120, 100, 120, 120],
   });
 
   const cardClass = `premium-card ${isDark ? '' : 'shadow-soft'}`;
@@ -429,7 +430,7 @@ export const CRMPage: React.FC = () => {
   // ---------------------------------------------------------------------------
 
   const fetchLeads = useCallback(async () => {
-    setIsLoading(true);
+    if (!tableLoadedRef.current) setIsLoading(true);
     setTableError('');
     try {
       const params: Record<string, string> = {
@@ -445,6 +446,7 @@ export const CRMPage: React.FC = () => {
       setLeads(response.data);
       setTotalPages(response.pagination.totalPages);
       setTotalRecords(response.pagination.total);
+      tableLoadedRef.current = true;
     } catch (err: any) {
       setTableError(err.message || 'Failed to load leads');
       setLeads([]);
@@ -454,17 +456,16 @@ export const CRMPage: React.FC = () => {
   }, [page, filterStage, filterPriority, filterSource, searchTerm]);
 
   const fetchPipelineLeads = useCallback(async () => {
-    setIsPipelineLoading(true);
+    if (!pipelineLoadedRef.current) setIsPipelineLoading(true);
     try {
       const response: PaginatedResponse<Lead> = await leadsApi.list({ limit: '100' });
       const grouped: Record<string, Lead[]> = {};
-      LEAD_STAGES.forEach(s => { grouped[s] = []; });
       response.data.forEach(lead => {
-        if (grouped[lead.stage]) {
-          grouped[lead.stage].push(lead);
-        }
+        if (!grouped[lead.stage]) grouped[lead.stage] = [];
+        grouped[lead.stage].push(lead);
       });
       setPipelineLeads(grouped);
+      pipelineLoadedRef.current = true;
     } catch {
       setPipelineLeads({});
     } finally {
@@ -670,12 +671,27 @@ export const CRMPage: React.FC = () => {
       return;
     }
     setIsUpdatingStage(true);
+
+    // Optimistic update for pipeline view
+    const oldStage = detailLead.stage;
+    setPipelineLeads(prev => {
+      const updated = { ...prev };
+      updated[oldStage] = (updated[oldStage] || []).filter(l => l.id !== detailLead.id);
+      updated[newStage] = [...(updated[newStage] || []), { ...detailLead, stage: newStage }];
+      return updated;
+    });
+
     try {
       const updated = await leadsApi.update(detailLead.id, { stage: newStage });
       setDetailLead(updated);
-      refreshData();
     } catch {
-      // Fail silently
+      // Revert on failure
+      setPipelineLeads(prev => {
+        const reverted = { ...prev };
+        reverted[newStage] = (reverted[newStage] || []).filter(l => l.id !== detailLead.id);
+        reverted[oldStage] = [...(reverted[oldStage] || []), detailLead];
+        return reverted;
+      });
     } finally {
       setIsUpdatingStage(false);
     }
@@ -692,11 +708,26 @@ export const CRMPage: React.FC = () => {
       openClosedWonModal(lead, 'pipeline');
       return;
     }
+
+    // Optimistic update — move card instantly without reload
+    const oldStage = lead.stage;
+    setPipelineLeads(prev => {
+      const updated = { ...prev };
+      updated[oldStage] = (updated[oldStage] || []).filter(l => l.id !== lead.id);
+      updated[newStage] = [...(updated[newStage] || []), { ...lead, stage: newStage }];
+      return updated;
+    });
+
     try {
       await leadsApi.update(lead.id, { stage: newStage });
-      refreshData();
     } catch {
-      // Fail silently
+      // Revert on failure
+      setPipelineLeads(prev => {
+        const reverted = { ...prev };
+        reverted[newStage] = (reverted[newStage] || []).filter(l => l.id !== lead.id);
+        reverted[oldStage] = [...(reverted[oldStage] || []), lead];
+        return reverted;
+      });
     }
   };
 
@@ -717,8 +748,13 @@ export const CRMPage: React.FC = () => {
       contactLastName: lead.contactPerson?.split(' ').slice(1).join(' ') || '',
       contactEmail: lead.email || '',
       contactPhone: lead.phone || '',
-      contactJobTitle: '',
+      contactDesignation: lead.designation || '',
+      contactDepartment: '',
     });
+    setGstFile(null);
+    setMsmeFile(null);
+    setPanFile(null);
+    setAadharFile(null);
     setClosedWonError('');
     setShowClosedWonModal(true);
   };
@@ -732,11 +768,39 @@ export const CRMPage: React.FC = () => {
       setClosedWonError('Account name is required');
       return;
     }
+    if (!closedWonForm.contactFirstName.trim()) {
+      setClosedWonError('Contact first name is required');
+      return;
+    }
+    if (!gstFile) {
+      setClosedWonError('GST Certificate is mandatory');
+      return;
+    }
+    if (!panFile) {
+      setClosedWonError('PAN Card is mandatory');
+      return;
+    }
+    if (!aadharFile) {
+      setClosedWonError('Aadhar Card is mandatory');
+      return;
+    }
 
     setIsClosedWonSubmitting(true);
     setClosedWonError('');
     try {
-      // 1. Create account
+      // 1. Upload documents
+      const [gstResult, panResult, aadharResult] = await Promise.all([
+        uploadsApi.upload(gstFile),
+        uploadsApi.upload(panFile),
+        uploadsApi.upload(aadharFile),
+      ]);
+      let msmeUrl: string | undefined;
+      if (msmeFile) {
+        const msmeResult = await uploadsApi.upload(msmeFile);
+        msmeUrl = msmeResult.url;
+      }
+
+      // 2. Create account
       const account = await accountsApi.create({
         name: closedWonForm.accountName,
         industry: closedWonForm.industry || undefined,
@@ -748,21 +812,24 @@ export const CRMPage: React.FC = () => {
         ownerId: user?.id,
       });
 
-      // 2. Create contact associated with the account
-      if (closedWonForm.contactFirstName.trim()) {
-        await contactsApi.create({
-          firstName: closedWonForm.contactFirstName,
-          lastName: closedWonForm.contactLastName || undefined,
-          email: closedWonForm.contactEmail || undefined,
-          phone: closedWonForm.contactPhone || undefined,
-          jobTitle: closedWonForm.contactJobTitle || undefined,
-          accountId: account.id,
-          status: 'active',
-          ownerId: user?.id,
-        });
-      }
+      // 3. Create contact with document URLs
+      await contactsApi.create({
+        firstName: closedWonForm.contactFirstName,
+        lastName: closedWonForm.contactLastName || undefined,
+        email: closedWonForm.contactEmail || undefined,
+        phone: closedWonForm.contactPhone || undefined,
+        designation: closedWonForm.contactDesignation || undefined,
+        department: closedWonForm.contactDepartment || undefined,
+        accountId: account.id,
+        status: 'active',
+        ownerId: user?.id,
+        gstCertificateUrl: gstResult.url,
+        panCardUrl: panResult.url,
+        aadharCardUrl: aadharResult.url,
+        msmeCertificateUrl: msmeUrl,
+      });
 
-      // 3. Update lead stage to Closed Won
+      // 4. Update lead stage to Closed Won
       await leadsApi.update(lead.id, { stage: 'Closed Won' });
 
       setShowClosedWonModal(false);
@@ -908,7 +975,7 @@ export const CRMPage: React.FC = () => {
             }`}
           >
             <List className="w-3.5 h-3.5" />
-            Table
+            List View
           </button>
           <button
             onClick={() => setViewMode('pipeline')}
@@ -1097,10 +1164,10 @@ export const CRMPage: React.FC = () => {
             <table className="premium-table" style={{ minWidth: crmColWidths.reduce((a, b) => a + b, 0) }}>
               <thead>
                 <tr className={`border-b ${isDark ? 'border-zinc-700' : 'border-slate-200'}`}>
-                  {['#', 'Company', 'Contact Name', 'Contact No', 'Designation', 'Email', 'Location', 'Source', 'Requirement', 'Quoted Requirement', 'Value', 'Stage', 'Type', 'Assignee', 'Follow-up Date', 'Summarise'].map((label, i) => (
+                  {['#', 'Summarise', 'Company', 'Contact Name', 'Contact No', 'Designation', 'Email', 'Location', 'Source', 'Requirement', 'Quoted Requirement', 'Value', 'Stage', 'Type', 'Assignee', 'Follow-up Date'].map((label, i) => (
                     <th
                       key={label}
-                      className={`${hdrCell} resizable-th ${i === 0 || i === 15 ? 'text-center' : ''}`}
+                      className={`${hdrCell} resizable-th ${i === 0 || i === 1 ? 'text-center' : ''}`}
                       style={{ width: crmColWidths[i] }}
                     >
                       {label}
@@ -1131,6 +1198,19 @@ export const CRMPage: React.FC = () => {
                   >
                     <td className={`${cellBase} text-center ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
                       {(page - 1) * PAGE_SIZE + idx + 1}
+                    </td>
+                    <td className={`${cellBase} text-center`}>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setSummariseLead(lead); setShowSummariseModal(true); }}
+                        title="Summarise"
+                        className={`p-1.5 rounded-lg transition-colors ${
+                          isDark
+                            ? 'text-zinc-400 hover:text-brand-400 hover:bg-brand-900/20'
+                            : 'text-slate-400 hover:text-brand-600 hover:bg-brand-50'
+                        }`}
+                      >
+                        <FileText className="w-4 h-4" />
+                      </button>
                     </td>
                     <td className={`${cellBase} ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
                       <span className="font-medium">{lead.companyName}</span>
@@ -1181,19 +1261,6 @@ export const CRMPage: React.FC = () => {
                     </td>
                     <td className={`${cellBase} ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
                       {lead.nextFollowUp ? formatDate(lead.nextFollowUp) : '-'}
-                    </td>
-                    <td className={`${cellBase} text-center`}>
-                      <button
-                        onClick={(e) => { e.stopPropagation(); setSummariseLead(lead); setShowSummariseModal(true); }}
-                        title="Summarise"
-                        className={`p-1.5 rounded-lg transition-colors ${
-                          isDark
-                            ? 'text-zinc-400 hover:text-brand-400 hover:bg-brand-900/20'
-                            : 'text-slate-400 hover:text-brand-600 hover:bg-brand-50'
-                        }`}
-                      >
-                        <FileText className="w-4 h-4" />
-                      </button>
                     </td>
                   </tr>
                 ))}
@@ -2832,8 +2899,8 @@ export const CRMPage: React.FC = () => {
                 <div className="space-y-3">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
-                      <label className={labelClass}>First Name</label>
-                      <input name="contactFirstName" value={closedWonForm.contactFirstName} onChange={handleChange} className={inputClass} />
+                      <label className={labelClass}>First Name *</label>
+                      <input name="contactFirstName" value={closedWonForm.contactFirstName} onChange={handleChange} className={inputClass} required />
                     </div>
                     <div>
                       <label className={labelClass}>Last Name</label>
@@ -2846,13 +2913,48 @@ export const CRMPage: React.FC = () => {
                       <input name="contactEmail" type="email" value={closedWonForm.contactEmail} onChange={handleChange} className={inputClass} />
                     </div>
                     <div>
-                      <label className={labelClass}>Phone</label>
+                      <label className={labelClass}>Contact No</label>
                       <input name="contactPhone" value={closedWonForm.contactPhone} onChange={handleChange} className={inputClass} />
                     </div>
                   </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className={labelClass}>Designation</label>
+                      <input name="contactDesignation" value={closedWonForm.contactDesignation} onChange={handleChange} className={inputClass} />
+                    </div>
+                    <div>
+                      <label className={labelClass}>Department</label>
+                      <input name="contactDepartment" value={closedWonForm.contactDepartment} onChange={handleChange} className={inputClass} />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Document Uploads Section */}
+              <div>
+                <h3 className={`text-sm font-semibold mb-3 flex items-center gap-1.5 ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                  <Upload className="w-4 h-4" /> Document Uploads
+                </h3>
+                <div className="space-y-3">
                   <div>
-                    <label className={labelClass}>Job Title</label>
-                    <input name="contactJobTitle" value={closedWonForm.contactJobTitle} onChange={handleChange} className={inputClass} />
+                    <label className={labelClass}>GST Certificate *</label>
+                    <input type="file" accept=".pdf,.jpg,.jpeg,.png" onChange={e => setGstFile(e.target.files?.[0] || null)} className={`${inputClass} file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-medium ${isDark ? 'file:bg-zinc-700 file:text-zinc-200' : 'file:bg-slate-100 file:text-slate-700'}`} />
+                    {gstFile && <span className={`text-xs mt-1 block ${isDark ? 'text-emerald-400' : 'text-emerald-600'}`}>{gstFile.name}</span>}
+                  </div>
+                  <div>
+                    <label className={labelClass}>MSME Certificate <span className={`text-xs ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>(optional)</span></label>
+                    <input type="file" accept=".pdf,.jpg,.jpeg,.png" onChange={e => setMsmeFile(e.target.files?.[0] || null)} className={`${inputClass} file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-medium ${isDark ? 'file:bg-zinc-700 file:text-zinc-200' : 'file:bg-slate-100 file:text-slate-700'}`} />
+                    {msmeFile && <span className={`text-xs mt-1 block ${isDark ? 'text-emerald-400' : 'text-emerald-600'}`}>{msmeFile.name}</span>}
+                  </div>
+                  <div>
+                    <label className={labelClass}>PAN Card *</label>
+                    <input type="file" accept=".pdf,.jpg,.jpeg,.png" onChange={e => setPanFile(e.target.files?.[0] || null)} className={`${inputClass} file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-medium ${isDark ? 'file:bg-zinc-700 file:text-zinc-200' : 'file:bg-slate-100 file:text-slate-700'}`} />
+                    {panFile && <span className={`text-xs mt-1 block ${isDark ? 'text-emerald-400' : 'text-emerald-600'}`}>{panFile.name}</span>}
+                  </div>
+                  <div>
+                    <label className={labelClass}>Aadhar Card *</label>
+                    <input type="file" accept=".pdf,.jpg,.jpeg,.png" onChange={e => setAadharFile(e.target.files?.[0] || null)} className={`${inputClass} file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-medium ${isDark ? 'file:bg-zinc-700 file:text-zinc-200' : 'file:bg-slate-100 file:text-slate-700'}`} />
+                    {aadharFile && <span className={`text-xs mt-1 block ${isDark ? 'text-emerald-400' : 'text-emerald-600'}`}>{aadharFile.name}</span>}
                   </div>
                 </div>
               </div>

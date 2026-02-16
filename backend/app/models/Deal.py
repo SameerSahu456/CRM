@@ -76,6 +76,7 @@ class Deal(TimestampMixin, Base):
 
     # Tag: Channel or End Customer
     tag: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    payment_flag: Mapped[Optional[bool]] = mapped_column(Boolean, server_default="false")
 
     # Contact/Display fields
     contact_no: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)

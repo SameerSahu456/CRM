@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
+import { useDropdowns } from '../contexts/DropdownsContext';
 import { emailsApi, emailTemplatesApi } from '../services/api';
 import { Email, EmailTemplate, PaginatedResponse } from '../types';
 import { useColumnResize } from '../hooks/useColumnResize';
@@ -16,19 +17,6 @@ import { useColumnResize } from '../hooks/useColumnResize';
 
 const PAGE_SIZE = 10;
 
-const EMAIL_STATUSES = [
-  { value: '', label: 'All Statuses' },
-  { value: 'draft', label: 'Draft' },
-  { value: 'sent', label: 'Sent' },
-  { value: 'scheduled', label: 'Scheduled' },
-];
-
-const TEMPLATE_CATEGORIES = [
-  { value: 'Sales', label: 'Sales' },
-  { value: 'Marketing', label: 'Marketing' },
-  { value: 'Support', label: 'Support' },
-  { value: 'Follow-up', label: 'Follow-up' },
-];
 
 type ActiveTab = 'emails' | 'templates';
 
@@ -115,7 +103,12 @@ function truncateText(text: string, maxLen: number): string {
 export const EmailsPage: React.FC = () => {
   const { theme } = useTheme();
   const { user } = useAuth();
+  const { getOptions } = useDropdowns();
   const isDark = theme === 'dark';
+
+  // Dropdown data from DB
+  const EMAIL_STATUSES = [{ value: '', label: 'All Statuses' }, ...getOptions('email-statuses')];
+  const TEMPLATE_CATEGORIES = getOptions('template-categories');
 
   // Tab
   const [activeTab, setActiveTab] = useState<ActiveTab>('emails');

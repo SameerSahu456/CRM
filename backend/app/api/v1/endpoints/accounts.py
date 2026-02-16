@@ -57,6 +57,36 @@ async def list_accounts(
     return {"data": data, "pagination": result["pagination"]}
 
 
+@router.post("/with-contact")
+async def create_account_with_contact(
+    body: dict,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    from app.models.Contact import Contact as ContactModel
+
+    account_data = body.get("account", {})
+    contact_data = body.get("contact", {})
+
+    # Create account
+    repo = AccountRepository(db)
+    if "owner_id" not in account_data or not account_data.get("owner_id"):
+        account_data["owner_id"] = str(user.id)
+    account = await repo.create(account_data)
+
+    # Create contact linked to account
+    contact_repo = ContactRepository(db)
+    contact_data["account_id"] = str(account.id)
+    if "owner_id" not in contact_data or not contact_data.get("owner_id"):
+        contact_data["owner_id"] = str(user.id)
+    contact = await contact_repo.create(contact_data)
+
+    await log_activity(db, user, "create", "account", str(account.id), account.name)
+
+    result = AccountOut.model_validate(account).model_dump(by_alias=True)
+    return result
+
+
 @router.get("/{account_id}")
 async def get_account(
     account_id: str,

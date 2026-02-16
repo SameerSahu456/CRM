@@ -68,6 +68,7 @@ export interface EnhancedAccountFormData {
   shippingCountry: string;
 
   location: string;
+  tag: string;
 }
 
 export const EMPTY_ENHANCED_FORM: EnhancedAccountFormData = {
@@ -111,6 +112,7 @@ export const EMPTY_ENHANCED_FORM: EnhancedAccountFormData = {
   shippingCode: '',
   shippingCountry: '',
   location: '',
+  tag: '',
 };
 
 const INDUSTRIES = [
@@ -146,7 +148,8 @@ export const EnhancedAccountForm: React.FC<Props> = ({
   accounts = [],
   users = [],
 }) => {
-  const { isDark } = useTheme();
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
   const [formData, setFormData] = useState<EnhancedAccountFormData>(EMPTY_ENHANCED_FORM);
   const [activeTab, setActiveTab] = useState<'basic' | 'financial' | 'contact' | 'address'>('basic');
 
@@ -194,6 +197,7 @@ export const EnhancedAccountForm: React.FC<Props> = ({
         shippingCode: editingAccount.shippingCode || '',
         shippingCountry: editingAccount.shippingCountry || '',
         location: editingAccount.location || '',
+        tag: editingAccount.tag || '',
       });
     } else {
       setFormData(EMPTY_ENHANCED_FORM);
@@ -588,6 +592,24 @@ export const EnhancedAccountForm: React.FC<Props> = ({
                       </div>
                     </div>
 
+                    {/* Tag */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label htmlFor="tag" className={labelClass}>Tag</label>
+                        <select
+                          id="tag"
+                          name="tag"
+                          value={formData.tag}
+                          onChange={handleChange}
+                          className={selectClass}
+                        >
+                          <option value="">-None-</option>
+                          <option value="Digital Account">Digital Account</option>
+                          <option value="Existing Account">Existing Account</option>
+                        </select>
+                      </div>
+                    </div>
+
                     {/* Row: Lead Category + New Leads */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div>
@@ -767,7 +789,7 @@ export const EnhancedAccountForm: React.FC<Props> = ({
             {activeTab === 'contact' && (
               <div className="space-y-5">
                 <div>
-                  <label htmlFor="contactName" className={labelClass}>Name</label>
+                  <label htmlFor="contactName" className={labelClass}>Name {!editingAccount && <span className="text-red-500">*</span>}</label>
                   <div className="relative">
                     <UserIcon className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`} />
                     <input
@@ -778,6 +800,7 @@ export const EnhancedAccountForm: React.FC<Props> = ({
                       onChange={handleChange}
                       className={`${inputClass} pl-10`}
                       placeholder="Contact name"
+                      required={!editingAccount}
                     />
                   </div>
                 </div>

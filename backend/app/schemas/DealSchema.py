@@ -67,6 +67,7 @@ class DealOut(CamelModel):
     billing_city: Optional[str] = None
     billing_zip_code: Optional[str] = None
     tag: Optional[str] = None
+    payment_flag: Optional[bool] = None
     # Contact/Display fields
     contact_no: Optional[str] = None
     designation: Optional[str] = None
@@ -131,6 +132,7 @@ class DealCreate(CamelModel):
     billing_city: Optional[str] = None
     billing_zip_code: Optional[str] = None
     tag: Optional[str] = None
+    payment_flag: Optional[bool] = None
     # Contact/Display fields
     contact_no: Optional[str] = None
     designation: Optional[str] = None
@@ -195,6 +197,7 @@ class DealUpdate(CamelModel):
     billing_city: Optional[str] = None
     billing_zip_code: Optional[str] = None
     tag: Optional[str] = None
+    payment_flag: Optional[bool] = None
     # Contact/Display fields
     contact_no: Optional[str] = None
     designation: Optional[str] = None

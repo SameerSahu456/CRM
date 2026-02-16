@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Plus, Search, X, ChevronLeft, ChevronRight, Edit2, Trash2,
   IndianRupee, Loader2, AlertCircle, CheckCircle, Calendar,
@@ -7,11 +7,12 @@ import {
   Handshake, FileText, Briefcase, DollarSign,
   Layers, Snowflake,
   Download, Upload,
-  MapPin, Phone, Mail, Send, MessageSquare
+  MapPin, Phone, Mail, Send, MessageSquare, Flag
 } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigation } from '../contexts/NavigationContext';
+import { useDropdowns } from '../contexts/DropdownsContext';
 import { dealsApi, accountsApi, contactsApi, salesApi, quotesApi, productsApi, formatINR } from '../services/api';
 import { exportToCsv } from '../utils/exportCsv';
 import { BulkImportModal } from './BulkImportModal';
@@ -23,13 +24,6 @@ import { useColumnResize } from '../hooks/useColumnResize';
 // ---------------------------------------------------------------------------
 
 const PAGE_SIZE = 10;
-
-const DEAL_STAGES: DealStage[] = [
-  'Cold', 'Proposal', 'Negotiation', 'Closed Won', 'Closed Lost',
-];
-
-const PIPELINE_STAGES: DealStage[] = ['Cold', 'Proposal', 'Negotiation'];
-const TERMINAL_STAGES: DealStage[] = ['Closed Won', 'Closed Lost'];
 
 const STAGE_COLORS: Record<DealStage, {
   bg: string; text: string; darkBg: string; darkText: string;
@@ -48,28 +42,6 @@ const NEXT_STAGE: Record<string, DealStage> = {
   Negotiation: 'Closed Won',
 };
 
-const DEAL_TYPES = [
-  { value: 'New Business', label: 'New Business' },
-  { value: 'Existing Business', label: 'Existing Business' },
-  { value: 'Renewal', label: 'Renewal' },
-  { value: 'Upsell', label: 'Upsell' },
-];
-
-const LEAD_SOURCES = [
-  { value: 'Website', label: 'Website' },
-  { value: 'Referral', label: 'Referral' },
-  { value: 'Cold Call', label: 'Cold Call' },
-  { value: 'Event', label: 'Event' },
-  { value: 'Partner', label: 'Partner' },
-  { value: 'Other', label: 'Other' },
-];
-
-const FORECAST_OPTIONS = [
-  { value: 'Pipeline', label: 'Pipeline' },
-  { value: 'Best Case', label: 'Best Case' },
-  { value: 'Commit', label: 'Commit' },
-  { value: 'Omitted', label: 'Omitted' },
-];
 
 
 // ---------------------------------------------------------------------------
@@ -114,6 +86,7 @@ interface DealFormData {
   probability: number;
   requirement: string;
   quotedRequirement: string;
+  paymentFlag: boolean;
 }
 
 const EMPTY_DEAL_FORM: DealFormData = {
@@ -136,6 +109,7 @@ const EMPTY_DEAL_FORM: DealFormData = {
   probability: 0,
   requirement: '',
   quotedRequirement: '',
+  paymentFlag: false,
 };
 
 // ---------------------------------------------------------------------------
@@ -184,7 +158,17 @@ export const DealsPage: React.FC = () => {
   const { theme } = useTheme();
   const { user } = useAuth();
   const { setActiveTab: navigate } = useNavigation();
+  const { getOptions, getValues } = useDropdowns();
   const isDark = theme === 'dark';
+  const canSeeAssignee = user?.role === 'admin' || user?.role === 'superadmin' || user?.role === 'businesshead' || user?.role === 'productmanager';
+
+  // Dropdown data from DB
+  const DEAL_STAGES = getValues('deal-stages') as DealStage[];
+  const PIPELINE_STAGES = getOptions('deal-stages').filter(o => o.metadata?.is_pipeline).map(o => o.value) as DealStage[];
+  const TERMINAL_STAGES = getOptions('deal-stages').filter(o => o.metadata?.is_terminal).map(o => o.value) as DealStage[];
+  const DEAL_TYPES = getOptions('deal-types');
+  const LEAD_SOURCES = getOptions('lead-sources');
+  const FORECAST_OPTIONS = getOptions('forecast-options');
 
   // Data state
   const [showBulkImport, setShowBulkImport] = useState(false);
@@ -198,7 +182,7 @@ export const DealsPage: React.FC = () => {
   const [dealSummary, setDealSummary] = useState<{ total: number; cold: number; proposal: number; negotiation: number; closedWon: number; closedLost: number }>({ total: 0, cold: 0, proposal: 0, negotiation: 0, closedWon: 0, closedLost: 0 });
 
   // View mode
-  const [viewMode, setViewMode] = useState<'table' | 'pipeline'>('table');
+  const [viewMode, setViewMode] = useState<'table' | 'pipeline'>('pipeline');
 
   // Pagination (table view)
   const [page, setPage] = useState(1);
@@ -212,7 +196,9 @@ export const DealsPage: React.FC = () => {
 
   // UI state
   const [isLoading, setIsLoading] = useState(true);
-  const [isPipelineLoading, setIsPipelineLoading] = useState(false);
+  const tableLoadedRef = useRef(false);
+  const [isPipelineLoading, setIsPipelineLoading] = useState(true);
+  const pipelineLoadedRef = useRef(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [tableError, setTableError] = useState('');
 
@@ -263,6 +249,8 @@ export const DealsPage: React.FC = () => {
     customerName: '', quantity: 1, amount: 0, poNumber: '', invoiceNo: '',
     paymentStatus: 'pending', saleDate: new Date().toISOString().split('T')[0],
   });
+  const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
+  const [closedWonExistingEntryId, setClosedWonExistingEntryId] = useState<string | null>(null);
 
   // Inline quote builder state (inside deal detail for Channel tag)
   interface InlineLineItem {
@@ -270,9 +258,8 @@ export const DealsPage: React.FC = () => {
     description: string;
     quantity: number;
     unitPrice: number;
-    discountPct: number;
   }
-  const emptyLineItem: InlineLineItem = { productId: '', description: '', quantity: 1, unitPrice: 0, discountPct: 0 };
+  const emptyLineItem: InlineLineItem = { productId: '', description: '', quantity: 1, unitPrice: 0 };
   const [inlineQuoteOpen, setInlineQuoteOpen] = useState(false);
   const [inlineLineItems, setInlineLineItems] = useState<InlineLineItem[]>([{ ...emptyLineItem }]);
   const [inlineTaxRate, setInlineTaxRate] = useState(18);
@@ -287,8 +274,11 @@ export const DealsPage: React.FC = () => {
   // Styling helpers
   // ---------------------------------------------------------------------------
 
+  const dealInitialWidths = canSeeAssignee
+    ? [45, 70, 170, 150, 130, 130, 220, 130, 160, 160, 110, 120, 100, 120, 120]
+    : [45, 70, 170, 150, 130, 130, 220, 130, 160, 160, 110, 120, 100, 120];
   const { colWidths: dealColWidths, onMouseDown: onDealMouseDown } = useColumnResize({
-    initialWidths: [45, 170, 150, 130, 130, 220, 130, 120, 110, 100, 160, 160, 120, 120, 70],
+    initialWidths: dealInitialWidths,
   });
 
   const cardClass = `premium-card ${isDark ? '' : 'shadow-soft'}`;
@@ -305,7 +295,7 @@ export const DealsPage: React.FC = () => {
   // ---------------------------------------------------------------------------
 
   const fetchDeals = useCallback(async () => {
-    setIsLoading(true);
+    if (!tableLoadedRef.current) setIsLoading(true);
     setTableError('');
     try {
       const params: Record<string, string> = {
@@ -320,6 +310,7 @@ export const DealsPage: React.FC = () => {
       setDeals(response.data);
       setTotalPages(response.pagination.totalPages);
       setTotalRecords(response.pagination.total);
+      tableLoadedRef.current = true;
     } catch (err: any) {
       setTableError(err.message || 'Failed to load deals');
       setDeals([]);
@@ -329,11 +320,12 @@ export const DealsPage: React.FC = () => {
   }, [page, filterStage, filterAccount, searchTerm]);
 
   const fetchPipelineDeals = useCallback(async () => {
-    setIsPipelineLoading(true);
+    if (!pipelineLoadedRef.current) setIsPipelineLoading(true);
     try {
       const data = await dealsApi.pipeline();
       const allDeals: Deal[] = Array.isArray(data) ? data : (data?.data ?? []);
       setPipelineDeals(allDeals);
+      pipelineLoadedRef.current = true;
     } catch {
       setPipelineDeals([]);
     } finally {
@@ -418,6 +410,7 @@ export const DealsPage: React.FC = () => {
       probability: deal.probability ?? 0,
       requirement: deal.requirement || '',
       quotedRequirement: deal.quotedRequirement || '',
+      paymentFlag: deal.paymentFlag || false,
     });
     setEditingDealId(deal.id);
     setDealFormError('');
@@ -520,8 +513,7 @@ export const DealsPage: React.FC = () => {
         description: li.description,
         quantity: li.quantity,
         unitPrice: li.unitPrice,
-        discountPct: li.discountPct,
-        lineTotal: li.quantity * li.unitPrice * (1 - li.discountPct / 100),
+        lineTotal: li.quantity * li.unitPrice,
         sortOrder: idx,
       }));
       const subtotal = lineItems.reduce((sum, li) => sum + li.lineTotal, 0);
@@ -665,12 +657,21 @@ export const DealsPage: React.FC = () => {
     }
 
     setIsUpdatingStage(true);
+
+    // Optimistic update for pipeline view
+    const oldStage = detailDeal.stage;
+    setPipelineDeals(prev =>
+      prev.map(d => d.id === detailDeal.id ? { ...d, stage: newStage } : d)
+    );
+
     try {
       const updated = await dealsApi.update(detailDeal.id, { stage: newStage });
       setDetailDeal(updated);
-      refreshData();
     } catch {
-      // Fail silently
+      // Revert on failure
+      setPipelineDeals(prev =>
+        prev.map(d => d.id === detailDeal.id ? { ...d, stage: oldStage } : d)
+      );
     } finally {
       setIsUpdatingStage(false);
     }
@@ -697,17 +698,25 @@ export const DealsPage: React.FC = () => {
         paymentStatus: 'pending',
         saleDate: new Date().toISOString().split('T')[0],
       });
+      setSelectedProductIds([]);
+      setClosedWonExistingEntryId(null);
       setShowClosedWonModal(true);
       return;
     }
 
+    // Optimistic update — move card instantly without reload
+    const oldStage = deal.stage;
+    setPipelineDeals(prev =>
+      prev.map(d => d.id === deal.id ? { ...d, stage: newStage } : d)
+    );
+
     try {
-      await dealsApi.update(deal.id, {
-        stage: newStage,
-      });
-      refreshData();
+      await dealsApi.update(deal.id, { stage: newStage });
     } catch {
-      // Fail silently
+      // Revert on failure
+      setPipelineDeals(prev =>
+        prev.map(d => d.id === deal.id ? { ...d, stage: oldStage } : d)
+      );
     }
   };
 
@@ -747,11 +756,17 @@ export const DealsPage: React.FC = () => {
     setClosedWonPayload(null);
     setClosedWonDescription('');
     setClosedWonError('');
+    setSelectedProductIds([]);
+    setClosedWonExistingEntryId(null);
   };
 
   const handleClosedWonSubmit = async () => {
     if (!closedWonOrderForm.customerName.trim()) {
       setClosedWonError('Customer name is required');
+      return;
+    }
+    if (selectedProductIds.length === 0) {
+      setClosedWonError('Please select at least one product');
       return;
     }
     if (closedWonOrderForm.amount <= 0) {
@@ -779,8 +794,8 @@ export const DealsPage: React.FC = () => {
         await dealsApi.create({ ...updatedPayload, ownerId: user?.id });
       }
 
-      // Create Sales Entry from order form
-      await salesApi.create({
+      // Create or update Sales Entry from order form
+      const salesEntryData = {
         salespersonId: user?.id,
         customerName: closedWonOrderForm.customerName,
         quantity: closedWonOrderForm.quantity,
@@ -789,8 +804,16 @@ export const DealsPage: React.FC = () => {
         invoiceNo: closedWonOrderForm.invoiceNo || undefined,
         paymentStatus: closedWonOrderForm.paymentStatus,
         saleDate: closedWonOrderForm.saleDate,
-        notes: closedWonDescription ? `Deal closed: ${closedWonDescription}` : undefined,
-      });
+        description: closedWonDescription || undefined,
+        dealId: closedWonDealId || undefined,
+        productIds: selectedProductIds,
+      };
+
+      if (closedWonExistingEntryId) {
+        await salesApi.update(closedWonExistingEntryId, salesEntryData);
+      } else {
+        await salesApi.create(salesEntryData);
+      }
 
       closeClosedWonModal();
       refreshData();
@@ -799,6 +822,60 @@ export const DealsPage: React.FC = () => {
     } finally {
       setClosedWonSaving(false);
     }
+  };
+
+  // Reinitiate Sales Order — open modal pre-filled from existing sales entry
+  const handleReinitiateSalesOrder = async (deal: Deal) => {
+    setClosedWonDealId(deal.id);
+    setClosedWonPayload({ stage: 'Closed Won', value: deal.value, accountId: deal.accountId, title: deal.accountName || 'Deal' });
+    setClosedWonDescription(deal.description || '');
+    setClosedWonError('');
+
+    // Try to load existing sales entry for this deal
+    try {
+      const res = await salesApi.list({ deal_id: deal.id, limit: '1' });
+      const entries = res?.data || res || [];
+      if (entries.length > 0) {
+        const entry = entries[0];
+        setClosedWonOrderForm({
+          customerName: entry.customerName || deal.accountName || '',
+          quantity: entry.quantity || 1,
+          amount: entry.amount || deal.value || 0,
+          poNumber: entry.poNumber || '',
+          invoiceNo: entry.invoiceNo || '',
+          paymentStatus: entry.paymentStatus || 'pending',
+          saleDate: entry.saleDate || new Date().toISOString().split('T')[0],
+        });
+        setSelectedProductIds(entry.productIds || []);
+        setClosedWonExistingEntryId(entry.id);
+        setClosedWonDescription(entry.description || deal.description || '');
+      } else {
+        setClosedWonOrderForm({
+          customerName: deal.accountName || '',
+          quantity: 1,
+          amount: deal.value || 0,
+          poNumber: '',
+          invoiceNo: '',
+          paymentStatus: 'pending',
+          saleDate: new Date().toISOString().split('T')[0],
+        });
+        setSelectedProductIds([]);
+        setClosedWonExistingEntryId(null);
+      }
+    } catch {
+      setClosedWonOrderForm({
+        customerName: deal.accountName || '',
+        quantity: 1,
+        amount: deal.value || 0,
+        poNumber: '',
+        invoiceNo: '',
+        paymentStatus: 'pending',
+        saleDate: new Date().toISOString().split('T')[0],
+      });
+      setSelectedProductIds([]);
+      setClosedWonExistingEntryId(null);
+    }
+    setShowClosedWonModal(true);
   };
 
 
@@ -861,7 +938,7 @@ export const DealsPage: React.FC = () => {
             }`}
           >
             <List className="w-3.5 h-3.5" />
-            Table
+            List View
           </button>
           <button
             onClick={() => setViewMode('pipeline')}
@@ -960,17 +1037,17 @@ export const DealsPage: React.FC = () => {
             { header: 'Designation', accessor: (r: Deal) => r.designation },
             { header: 'Email', accessor: (r: Deal) => r.email },
             { header: 'Location', accessor: (r: Deal) => r.location },
-            { header: 'Stage', accessor: (r: Deal) => r.stage },
-            { header: 'Value', accessor: (r: Deal) => r.value },
-            { header: 'Type', accessor: (r: Deal) => r.tag },
             { header: 'Requirement', accessor: (r: Deal) => r.requirement },
             { header: 'Quoted Requirement', accessor: (r: Deal) => r.quotedRequirement },
+            { header: 'Value', accessor: (r: Deal) => r.value },
+            { header: 'Stage', accessor: (r: Deal) => r.stage },
+            { header: 'Type', accessor: (r: Deal) => r.tag },
             { header: 'Follow-up Date', accessor: (r: Deal) => r.nextFollowUp },
             { header: 'Closing Date', accessor: (r: Deal) => r.closingDate },
             { header: 'Type', accessor: (r: Deal) => r.type },
             { header: 'Forecast', accessor: (r: Deal) => r.forecast },
             { header: 'Lead Source', accessor: (r: Deal) => r.leadSource },
-            { header: 'Owner', accessor: (r: Deal) => r.ownerName },
+            ...(canSeeAssignee ? [{ header: 'Owner', accessor: (r: Deal) => r.ownerName }] : []),
             { header: 'Next Step', accessor: (r: Deal) => r.nextStep },
             { header: 'Description', accessor: (r: Deal) => r.description },
           ], deals)}
@@ -1039,10 +1116,10 @@ export const DealsPage: React.FC = () => {
               <table className="premium-table" style={{ minWidth: dealColWidths.reduce((a, b) => a + b, 0) }}>
                 <thead>
                   <tr className={`border-b ${isDark ? 'border-zinc-700' : 'border-slate-200'}`}>
-                    {['#', 'Company', 'Contact Name', 'Contact No', 'Designation', 'Email', 'Location', 'Stage', 'Value', 'Type', 'Requirement', 'Quoted Requirement', 'Assignee', 'Follow-up Date', 'Summarise'].map((label, i) => (
+                    {(['#', 'Summarise', 'Company', 'Contact Name', 'Contact No', 'Designation', 'Email', 'Location', 'Requirement', 'Quoted Requirement', 'Value', 'Stage', 'Type', ...(canSeeAssignee ? ['Assignee'] : []), 'Follow-up Date'] as string[]).map((label, i, arr) => (
                       <th
                         key={label}
-                        className={`${hdrCell} resizable-th ${i === 0 || i === 14 ? 'text-center' : ''}`}
+                        className={`${hdrCell} resizable-th ${i === 0 || i === 1 ? 'text-center' : ''}`}
                         style={{ width: dealColWidths[i] }}
                       >
                         {label}
@@ -1054,7 +1131,7 @@ export const DealsPage: React.FC = () => {
                 <tbody>
                   {deals.length === 0 ? (
                     <tr>
-                      <td colSpan={15} className="py-16 text-center">
+                      <td colSpan={canSeeAssignee ? 15 : 14} className="py-16 text-center">
                         <Briefcase className={`w-8 h-8 mx-auto ${isDark ? 'text-zinc-700' : 'text-slate-300'}`} />
                         <p className={`mt-2 text-sm ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
                           {hasActiveFilters ? 'No deals match filters' : 'No deals yet'}
@@ -1075,9 +1152,24 @@ export const DealsPage: React.FC = () => {
                       <td className={`${cellBase} text-center ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
                         {(page - 1) * PAGE_SIZE + idx + 1}
                       </td>
+                      {/* Summarise */}
+                      <td className={`${cellBase} text-center`}>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setSummariseDeal(deal); setShowSummariseModal(true); }}
+                          title="Summarise"
+                          className={`p-1.5 rounded-lg transition-colors ${
+                            isDark
+                              ? 'text-zinc-400 hover:text-brand-400 hover:bg-brand-900/20'
+                              : 'text-slate-400 hover:text-brand-600 hover:bg-brand-50'
+                          }`}
+                        >
+                          <FileText className="w-4 h-4" />
+                        </button>
+                      </td>
                       {/* Company */}
                       <td className={`${cellBase} ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
                         <span className="font-medium">{deal.company || deal.accountName || '-'}</span>
+                        {deal.paymentFlag && <span title="Payment pending"><Flag className="w-3.5 h-3.5 text-red-500 fill-red-500 inline-block ml-1" /></span>}
                       </td>
                       {/* Contact Name */}
                       <td className={`${cellBase} ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
@@ -1099,18 +1191,6 @@ export const DealsPage: React.FC = () => {
                       <td className={`${cellBase} ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
                         {deal.location || '-'}
                       </td>
-                      {/* Stage */}
-                      <td className={`${cellBase}`}>
-                        {renderReadCell(deal, 'stage')}
-                      </td>
-                      {/* Value */}
-                      <td className={`${cellBase}`}>
-                        {renderReadCell(deal, 'value')}
-                      </td>
-                      {/* Type */}
-                      <td className={`${cellBase}`}>
-                        {renderReadCell(deal, 'tag')}
-                      </td>
                       {/* Requirement */}
                       <td className={`${cellBase} ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
                         <span className="truncate block max-w-[150px]">{deal.requirement || '-'}</span>
@@ -1119,27 +1199,27 @@ export const DealsPage: React.FC = () => {
                       <td className={`${cellBase} ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
                         <span className="truncate block max-w-[150px]">{deal.quotedRequirement || '-'}</span>
                       </td>
-                      {/* Assignee */}
-                      <td className={`${cellBase} ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
-                        {deal.ownerName || '-'}
+                      {/* Value */}
+                      <td className={`${cellBase}`}>
+                        {renderReadCell(deal, 'value')}
                       </td>
+                      {/* Stage */}
+                      <td className={`${cellBase}`}>
+                        {renderReadCell(deal, 'stage')}
+                      </td>
+                      {/* Type */}
+                      <td className={`${cellBase}`}>
+                        {renderReadCell(deal, 'tag')}
+                      </td>
+                      {/* Assignee - only visible to admin/superadmin/managers */}
+                      {canSeeAssignee && (
+                        <td className={`${cellBase} ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
+                          {deal.ownerName || '-'}
+                        </td>
+                      )}
                       {/* Follow-up Date */}
                       <td className={`${cellBase} ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
                         {deal.nextFollowUp ? formatDate(deal.nextFollowUp) : '-'}
-                      </td>
-                      {/* Summarise */}
-                      <td className={`${cellBase} text-center`}>
-                        <button
-                          onClick={(e) => { e.stopPropagation(); setSummariseDeal(deal); setShowSummariseModal(true); }}
-                          title="Summarise"
-                          className={`p-1.5 rounded-lg transition-colors ${
-                            isDark
-                              ? 'text-zinc-400 hover:text-brand-400 hover:bg-brand-900/20'
-                              : 'text-slate-400 hover:text-brand-600 hover:bg-brand-50'
-                          }`}
-                        >
-                          <FileText className="w-4 h-4" />
-                        </button>
                       </td>
                     </tr>
                   ))}
@@ -1254,8 +1334,9 @@ export const DealsPage: React.FC = () => {
       >
         {/* Account & Edit */}
         <div className="flex items-start justify-between gap-2 mb-1.5">
-          <h4 className={`text-sm font-semibold truncate ${isDark ? 'text-white' : 'text-slate-900'}`}>
+          <h4 className={`text-sm font-semibold truncate flex items-center gap-1 ${isDark ? 'text-white' : 'text-slate-900'}`}>
             {deal.accountName || 'Untitled Deal'}
+            {deal.paymentFlag && <span title="Payment pending"><Flag className="w-3.5 h-3.5 text-red-500 fill-red-500 flex-shrink-0" /></span>}
           </h4>
           <button
             onClick={(e) => { e.stopPropagation(); openEditDealModal(deal); }}
@@ -1319,6 +1400,23 @@ export const DealsPage: React.FC = () => {
             >
               <ArrowRight className="w-3 h-3" />
               Move to {nextStage}
+            </button>
+          </div>
+        )}
+
+        {/* Reinitiate Sales Order for Closed Won */}
+        {deal.stage === 'Closed Won' && (
+          <div className={`pt-2 mt-2 border-t border-dashed ${isDark ? 'border-zinc-700' : 'border-slate-200'}`}>
+            <button
+              onClick={(e) => { e.stopPropagation(); handleReinitiateSalesOrder(deal); }}
+              className={`w-full flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-lg text-[11px] font-medium transition-all ${
+                isDark
+                  ? 'bg-emerald-900/30 text-emerald-400 hover:bg-emerald-900/50'
+                  : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
+              }`}
+            >
+              <FileText className="w-3 h-3" />
+              Reinitiate Sales Order
             </button>
           </div>
         )}
@@ -1713,22 +1811,9 @@ export const DealsPage: React.FC = () => {
                                   }`}
                                 />
                               </div>
-                              <div>
-                                <label className={`text-[10px] ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Disc %</label>
-                                <input
-                                  type="number"
-                                  min="0"
-                                  max="100"
-                                  value={li.discountPct}
-                                  onChange={e => handleInlineLineItemChange(idx, 'discountPct', Number(e.target.value) || 0)}
-                                  className={`w-full px-2 py-1.5 rounded-lg border text-xs ${
-                                    isDark ? 'bg-dark-100 border-zinc-700 text-white' : 'bg-white border-slate-200 text-slate-900'
-                                  }`}
-                                />
-                              </div>
                             </div>
                             <div className={`text-right text-xs font-medium ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
-                              Line Total: {formatINR(li.quantity * li.unitPrice * (1 - li.discountPct / 100))}
+                              Line Total: {formatINR(li.quantity * li.unitPrice)}
                             </div>
                           </div>
                         ))}
@@ -1759,7 +1844,7 @@ export const DealsPage: React.FC = () => {
                         </div>
                         <div className={`flex flex-col justify-end text-right text-xs space-y-0.5 ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
                           {(() => {
-                            const subtotal = inlineLineItems.reduce((sum, li) => sum + li.quantity * li.unitPrice * (1 - li.discountPct / 100), 0);
+                            const subtotal = inlineLineItems.reduce((sum, li) => sum + li.quantity * li.unitPrice, 0);
                             const tax = subtotal * (inlineTaxRate / 100);
                             return (
                               <>
@@ -2258,6 +2343,20 @@ export const DealsPage: React.FC = () => {
               />
             </div>
 
+            {/* Payment Flag */}
+            <div className={`p-3 rounded-xl border ${isDark ? 'border-zinc-700 bg-dark-100' : 'border-slate-200 bg-slate-50'}`}>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={dealFormData.paymentFlag || false}
+                  onChange={(e) => setDealFormData(prev => ({ ...prev, paymentFlag: e.target.checked }))}
+                  className="w-4 h-4 rounded border-slate-300 text-red-600 focus:ring-red-500"
+                />
+                <Flag className="w-4 h-4 text-red-500" />
+                <span className={`text-sm font-medium ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>Payment Pending</span>
+              </label>
+            </div>
+
             </div>
             {/* Footer - sticky at bottom */}
             <div className={`sticky bottom-0 flex items-center justify-end gap-3 px-6 py-4 border-t ${
@@ -2341,13 +2440,47 @@ export const DealsPage: React.FC = () => {
             )}
 
             <p className={`text-sm ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>
-              Fill in the sales order details. A sales entry will be created for this deal.
+              {closedWonExistingEntryId ? 'Update the sales order for this deal.' : 'Fill in the sales order details. A sales entry will be created for this deal.'}
             </p>
 
             {/* Customer Name */}
             <div>
               <label className={labelClass}>Customer Name <span className="text-red-500">*</span></label>
               <input name="customerName" value={closedWonOrderForm.customerName} onChange={handleOrderChange} className={inputClass} required />
+            </div>
+
+            {/* Product Selection (multiselect checkboxes) */}
+            <div>
+              <label className={labelClass}>Products <span className="text-red-500">*</span></label>
+              <div className={`rounded-xl border p-3 max-h-40 overflow-y-auto space-y-1.5 ${
+                isDark ? 'bg-dark-100 border-zinc-700' : 'bg-slate-50 border-slate-200'
+              }`}>
+                {products.length === 0 ? (
+                  <p className={`text-xs ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>No products found</p>
+                ) : products.filter(p => p.isActive).map(product => (
+                  <label key={product.id} className={`flex items-center gap-2.5 px-2 py-1.5 rounded-lg cursor-pointer transition-colors ${
+                    selectedProductIds.includes(product.id)
+                      ? isDark ? 'bg-brand-900/30 text-brand-300' : 'bg-brand-50 text-brand-700'
+                      : isDark ? 'hover:bg-zinc-800 text-zinc-300' : 'hover:bg-slate-100 text-slate-700'
+                  }`}>
+                    <input
+                      type="checkbox"
+                      checked={selectedProductIds.includes(product.id)}
+                      onChange={() => {
+                        setSelectedProductIds(prev =>
+                          prev.includes(product.id) ? prev.filter(id => id !== product.id) : [...prev, product.id]
+                        );
+                      }}
+                      className="rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+                    />
+                    <span className="text-sm">{product.name}</span>
+                    {product.basePrice ? <span className={`text-xs ml-auto ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>{formatINR(product.basePrice)}</span> : null}
+                  </label>
+                ))}
+              </div>
+              {selectedProductIds.length > 0 && (
+                <p className={`text-xs mt-1 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>{selectedProductIds.length} product(s) selected</p>
+              )}
             </div>
 
             {/* Quantity & Amount */}
@@ -2390,12 +2523,12 @@ export const DealsPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Notes / Description */}
+            {/* Description */}
             <div>
-              <label className={labelClass}>Notes</label>
+              <label className={labelClass}>Description</label>
               <textarea
                 rows={2}
-                placeholder="Additional notes about this sale..."
+                placeholder="Description of the sales order..."
                 value={closedWonDescription}
                 onChange={e => setClosedWonDescription(e.target.value)}
                 className={inputClass}
@@ -2422,9 +2555,9 @@ export const DealsPage: React.FC = () => {
               className="flex items-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-medium transition-all disabled:opacity-50"
             >
               {closedWonSaving ? (
-                <><Loader2 className="w-4 h-4 animate-spin" /> Creating Sale...</>
+                <><Loader2 className="w-4 h-4 animate-spin" /> {closedWonExistingEntryId ? 'Updating...' : 'Creating Sale...'}</>
               ) : (
-                <><CheckCircle className="w-4 h-4" /> Close Deal & Create Sale</>
+                <><CheckCircle className="w-4 h-4" /> {closedWonExistingEntryId ? 'Update Sales Order' : 'Close Deal & Create Sale'}</>
               )}
             </button>
           </div>

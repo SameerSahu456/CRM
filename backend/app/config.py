@@ -14,6 +14,8 @@ class Settings(BaseSettings):
     CORS_ORIGINS_STR: Optional[str] = None
     DEBUG: bool = False
     API_PREFIX: str = "/api"
+    SUPABASE_URL: Optional[str] = None
+    SUPABASE_SERVICE_KEY: Optional[str] = None
 
     @property
     def CORS_ORIGINS(self) -> List[str]:

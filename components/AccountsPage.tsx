@@ -97,7 +97,7 @@ export const AccountsPage: React.FC = () => {
   // ---------------------------------------------------------------------------
 
   const { colWidths, onMouseDown } = useColumnResize({
-    initialWidths: [45, 200, 150, 140, 220, 130, 130],
+    initialWidths: [45, 200, 150, 140, 220, 130, 130, 130, 130],
   });
 
   const cardClass = `premium-card ${isDark ? '' : 'shadow-soft'}`;
@@ -229,13 +229,31 @@ export const AccountsPage: React.FC = () => {
       return;
     }
 
+    // When creating (not editing), contact is mandatory
+    if (!editingAccountId && !formData.contactName.trim()) {
+      setFormError('Contact name is required when creating an account');
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       const payload = { ...formData, ownerId: formData.ownerId || user?.id };
       if (editingAccountId) {
         await accountsApi.update(editingAccountId, payload);
       } else {
-        await accountsApi.create(payload);
+        // Create account with contact atomically
+        const contactData: Record<string, any> = {
+          firstName: formData.contactName.split(' ')[0],
+          lastName: formData.contactName.split(' ').slice(1).join(' ') || undefined,
+          email: formData.contactEmail || undefined,
+          phone: formData.contactPhone || undefined,
+          designation: formData.contactDesignation === 'Other'
+            ? formData.contactDesignationOther || 'Other'
+            : formData.contactDesignation || undefined,
+          status: 'active',
+          ownerId: formData.ownerId || user?.id,
+        };
+        await accountsApi.createWithContact({ account: payload, contact: contactData });
       }
       closeFormModal();
       fetchAccounts();
@@ -417,7 +435,7 @@ export const AccountsPage: React.FC = () => {
             <table className="premium-table">
               <thead>
                 <tr className={`border-b ${isDark ? 'border-zinc-700' : 'border-slate-200'}`}>
-                  {['#', 'Name', 'Industry', 'Phone', 'Email', 'Revenue', 'Type'].map((label, i) => (
+                  {['#', 'Name', 'Industry', 'Phone', 'Email', 'Revenue', 'Type', 'GSTIN', 'Tag'].map((label, i) => (
                     <th
                       key={label}
                       className={`${hdrCell} resizable-th ${i === 0 ? 'text-center' : ''}`}
@@ -432,7 +450,7 @@ export const AccountsPage: React.FC = () => {
               <tbody>
                 {accounts.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="py-16 text-center">
+                    <td colSpan={9} className="py-16 text-center">
                       <Building2 className={`w-8 h-8 mx-auto ${isDark ? 'text-zinc-700' : 'text-slate-300'}`} />
                       <p className={`mt-2 text-sm ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
                         {hasActiveFilters ? 'No accounts match filters' : 'No accounts yet'}
@@ -469,6 +487,20 @@ export const AccountsPage: React.FC = () => {
                       </td>
                       <td className={`${cellBase} ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
                         {account.type || '-'}
+                      </td>
+                      <td className={`${cellBase} ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
+                        {account.gstinNo || '-'}
+                      </td>
+                      <td className={cellBase}>
+                        {account.tag ? (
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                            account.tag === 'Digital Account'
+                              ? (isDark ? 'bg-blue-900/30 text-blue-400' : 'bg-blue-50 text-blue-700')
+                              : (isDark ? 'bg-purple-900/30 text-purple-400' : 'bg-purple-50 text-purple-700')
+                          }`}>
+                            {account.tag}
+                          </span>
+                        ) : '-'}
                       </td>
                     </tr>
                 ))}
@@ -643,6 +675,7 @@ export const AccountsPage: React.FC = () => {
               <InfoRow label="Owner" value={account.ownerName} isDark={isDark} icon={<UserIcon className="w-3.5 h-3.5" />} />
               <InfoRow label="GSTIN" value={account.gstinNo} isDark={isDark} icon={<Hash className="w-3.5 h-3.5" />} />
               <InfoRow label="Payment Terms" value={account.paymentTerms} isDark={isDark} icon={<FileText className="w-3.5 h-3.5" />} />
+              <InfoRow label="Tag" value={account.tag} isDark={isDark} icon={<Building2 className="w-3.5 h-3.5" />} />
             </div>
 
             {/* Description */}

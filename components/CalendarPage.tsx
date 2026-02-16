@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
+import { useDropdowns } from '../contexts/DropdownsContext';
 import { calendarApi } from '../services/api';
 import { CalendarEvent } from '../types';
 
@@ -16,14 +17,6 @@ import { CalendarEvent } from '../types';
 
 const DAYS_OF_WEEK = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-const EVENT_TYPES = [
-  { value: 'Meeting', label: 'Meeting' },
-  { value: 'Call', label: 'Call' },
-  { value: 'Demo', label: 'Demo' },
-  { value: 'Webinar', label: 'Webinar' },
-  { value: 'Task', label: 'Task' },
-  { value: 'Reminder', label: 'Reminder' },
-];
 
 const EVENT_TYPE_COLORS: Record<string, { bg: string; text: string; darkBg: string; darkText: string; dot: string }> = {
   Meeting:  { bg: 'bg-blue-50', text: 'text-blue-700', darkBg: 'bg-blue-900/30', darkText: 'text-blue-400', dot: 'bg-blue-500' },
@@ -175,7 +168,11 @@ function formatDateLong(dateStr: string): string {
 export const CalendarPage: React.FC = () => {
   const { theme } = useTheme();
   const { user } = useAuth();
+  const { getOptions } = useDropdowns();
   const isDark = theme === 'dark';
+
+  // Dropdown data from DB
+  const EVENT_TYPES = getOptions('event-types');
 
   // Calendar navigation state
   const today = new Date();

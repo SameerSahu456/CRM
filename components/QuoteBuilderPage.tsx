@@ -3,12 +3,13 @@ import {
   Plus, Search, X, ChevronLeft, ChevronRight, Edit2, Trash2,
   IndianRupee, Loader2, AlertCircle, CheckCircle, Calendar,
   FileText, Eye, Package, Send, ArrowLeft, Copy, Download,
-  User as UserIcon, Building2, Percent, Hash
+  User as UserIcon, Building2, Hash
 } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
-import { quotesApi, productsApi, partnersApi, formatINR } from '../services/api';
-import { Quote, QuoteLineItem, Product, Partner, PaginatedResponse } from '../types';
+import { quotesApi, productsApi, partnersApi, quoteTermsApi, formatINR } from '../services/api';
+import { Quote, QuoteLineItem, QuoteTerm, Product, Partner, PaginatedResponse } from '../types';
+import { RichTextEditor } from './RichTextEditor';
 import { useColumnResize } from '../hooks/useColumnResize';
 
 // ---------------------------------------------------------------------------
@@ -43,7 +44,6 @@ interface LineItemFormData {
   description: string;
   quantity: number;
   unitPrice: number;
-  discountPct: number;
   lineTotal: number;
   sortOrder: number;
 }
@@ -54,7 +54,7 @@ interface QuoteFormData {
   validUntil: string;
   taxRate: number;
   discountAmount: number;
-  terms: string;
+  selectedTermIds: string[];
   notes: string;
   lineItems: LineItemFormData[];
 }
@@ -64,7 +64,6 @@ const EMPTY_LINE_ITEM: LineItemFormData = {
   description: '',
   quantity: 1,
   unitPrice: 0,
-  discountPct: 0,
   lineTotal: 0,
   sortOrder: 0,
 };
@@ -75,7 +74,7 @@ const EMPTY_FORM: QuoteFormData = {
   validUntil: '',
   taxRate: 18,
   discountAmount: 0,
-  terms: '',
+  selectedTermIds: [],
   notes: '',
   lineItems: [{ ...EMPTY_LINE_ITEM, sortOrder: 0 }],
 };
@@ -124,8 +123,8 @@ function statusBadge(status: QuoteStatus, isDark: boolean): string {
   return `${base} ${isDark ? `${c.darkBg} ${c.darkText}` : `${c.bg} ${c.text}`}`;
 }
 
-function calcLineTotal(qty: number, unitPrice: number, discountPct: number): number {
-  return qty * unitPrice * (1 - discountPct / 100);
+function calcLineTotal(qty: number, unitPrice: number): number {
+  return qty * unitPrice;
 }
 
 // ---------------------------------------------------------------------------
@@ -151,6 +150,8 @@ export const QuoteBuilderPage: React.FC = () => {
   // Dropdown data
   const [products, setProducts] = useState<Product[]>([]);
   const [partners, setPartners] = useState<Partner[]>([]);
+  const [availableTerms, setAvailableTerms] = useState<QuoteTerm[]>([]);
+  const [newTermText, setNewTermText] = useState('');
 
   // UI state
   const [isLoading, setIsLoading] = useState(true);
@@ -215,13 +216,15 @@ export const QuoteBuilderPage: React.FC = () => {
 
   const fetchDropdownData = useCallback(async () => {
     try {
-      const [productsList, partnersResponse] = await Promise.all([
+      const [productsList, partnersResponse, termsList] = await Promise.all([
         productsApi.list(),
         partnersApi.list({ limit: '100', status: 'approved' }),
+        quoteTermsApi.list(),
       ]);
       setProducts(Array.isArray(productsList) ? productsList : []);
       const partnerData = partnersResponse?.data ?? partnersResponse;
       setPartners(Array.isArray(partnerData) ? partnerData : []);
+      setAvailableTerms(Array.isArray(termsList) ? termsList : []);
     } catch {
       // Dropdown data failure is non-critical
     }
@@ -292,7 +295,7 @@ export const QuoteBuilderPage: React.FC = () => {
         validUntil: quote.validUntil ? quote.validUntil.split('T')[0] : '',
         taxRate: quote.taxRate ?? 18,
         discountAmount: quote.discountAmount ?? 0,
-        terms: quote.terms || '',
+        selectedTermIds: quote.selectedTermIds || [],
         notes: quote.notes || '',
         lineItems: (quote.lineItems && quote.lineItems.length > 0)
           ? quote.lineItems.map((li, idx) => ({
@@ -301,7 +304,6 @@ export const QuoteBuilderPage: React.FC = () => {
               description: li.description || '',
               quantity: li.quantity,
               unitPrice: li.unitPrice,
-              discountPct: li.discountPct,
               lineTotal: li.lineTotal,
               sortOrder: li.sortOrder ?? idx,
             }))
@@ -349,9 +351,9 @@ export const QuoteBuilderPage: React.FC = () => {
         }
       }
 
-      // Recalculate line total whenever qty, unitPrice, or discountPct change
-      if (field === 'quantity' || field === 'unitPrice' || field === 'discountPct' || field === 'productId') {
-        item.lineTotal = calcLineTotal(item.quantity, item.unitPrice, item.discountPct);
+      // Recalculate line total whenever qty or unitPrice change
+      if (field === 'quantity' || field === 'unitPrice' || field === 'productId') {
+        item.lineTotal = calcLineTotal(item.quantity, item.unitPrice);
       }
 
       newItems[index] = item;
@@ -420,7 +422,7 @@ export const QuoteBuilderPage: React.FC = () => {
       discountAmount: formData.discountAmount,
       totalAmount,
       status: sendAfterSave ? 'sent' : 'draft',
-      terms: formData.terms || null,
+      selectedTermIds: formData.selectedTermIds,
       notes: formData.notes || null,
       createdBy: user?.id || null,
       lineItems: formData.lineItems
@@ -431,7 +433,6 @@ export const QuoteBuilderPage: React.FC = () => {
           description: li.description || null,
           quantity: li.quantity,
           unitPrice: li.unitPrice,
-          discountPct: li.discountPct,
           lineTotal: li.lineTotal,
           sortOrder: li.sortOrder,
         })),
@@ -516,7 +517,6 @@ export const QuoteBuilderPage: React.FC = () => {
           </td>
           <td style="padding:10px 12px;text-align:center;border-bottom:1px solid #e2e8f0;color:#334155;">${li.quantity}</td>
           <td style="padding:10px 12px;text-align:right;border-bottom:1px solid #e2e8f0;color:#334155;">${formatINR(li.unitPrice)}</td>
-          <td style="padding:10px 12px;text-align:right;border-bottom:1px solid #e2e8f0;color:#334155;">${li.discountPct > 0 ? `${li.discountPct}%` : '-'}</td>
           <td style="padding:10px 12px;text-align:right;border-bottom:1px solid #e2e8f0;font-weight:600;color:#1e293b;">${formatINR(li.lineTotal)}</td>
         </tr>`
       )
@@ -702,12 +702,11 @@ export const QuoteBuilderPage: React.FC = () => {
         <th>Product / Description</th>
         <th class="center" style="width:60px;">Qty</th>
         <th class="right" style="width:120px;">Unit Price</th>
-        <th class="right" style="width:80px;">Disc %</th>
         <th class="right" style="width:120px;">Total</th>
       </tr>
     </thead>
     <tbody>
-      ${lineItemsRows || '<tr><td colspan="6" style="padding:20px;text-align:center;color:#94a3b8;">No line items</td></tr>'}
+      ${lineItemsRows || '<tr><td colspan="5" style="padding:20px;text-align:center;color:#94a3b8;">No line items</td></tr>'}
     </tbody>
   </table>
 
@@ -1230,7 +1229,7 @@ export const QuoteBuilderPage: React.FC = () => {
             <table className="premium-table">
               <thead>
                 <tr className={`border-b ${isDark ? 'border-zinc-800' : 'border-slate-100'}`}>
-                  {['#', 'Product', 'Description', 'Qty', 'Unit Price', 'Disc %', 'Line Total', ''].map(h => (
+                  {['#', 'Product', 'Description', 'Qty', 'Unit Price', 'Line Total', ''].map(h => (
                     <th
                       key={h}
                       className={`px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider ${
@@ -1272,17 +1271,13 @@ export const QuoteBuilderPage: React.FC = () => {
                     </td>
 
                     {/* Description */}
-                    <td className="px-3 py-2">
-                      <input
-                        type="text"
+                    <td className="px-3 py-2" style={{ minWidth: 250 }}>
+                      <RichTextEditor
                         value={item.description}
-                        onChange={e => updateLineItem(idx, 'description', e.target.value)}
-                        placeholder="Description"
-                        className={`w-full px-2 py-1.5 rounded-lg border text-xs transition-all ${
-                          isDark
-                            ? 'bg-dark-100 border-zinc-700 text-white placeholder-zinc-500 focus:border-brand-500'
-                            : 'bg-white border-slate-200 text-slate-900 placeholder-slate-400 focus:border-brand-500'
-                        } focus:outline-none focus:ring-1 focus:ring-brand-500`}
+                        onChange={(html) => updateLineItem(idx, 'description', html)}
+                        placeholder="Enter description..."
+                        isDark={isDark}
+                        minHeight="50px"
                       />
                     </td>
 
@@ -1311,23 +1306,6 @@ export const QuoteBuilderPage: React.FC = () => {
                         value={item.unitPrice || ''}
                         onChange={e => updateLineItem(idx, 'unitPrice', Number(e.target.value) || 0)}
                         className={`w-28 px-2 py-1.5 rounded-lg border text-xs text-right transition-all ${
-                          isDark
-                            ? 'bg-dark-100 border-zinc-700 text-white focus:border-brand-500'
-                            : 'bg-white border-slate-200 text-slate-900 focus:border-brand-500'
-                        } focus:outline-none focus:ring-1 focus:ring-brand-500`}
-                      />
-                    </td>
-
-                    {/* Discount % */}
-                    <td className="px-3 py-2">
-                      <input
-                        type="number"
-                        min="0"
-                        max="100"
-                        step="0.1"
-                        value={item.discountPct || ''}
-                        onChange={e => updateLineItem(idx, 'discountPct', Number(e.target.value) || 0)}
-                        className={`w-20 px-2 py-1.5 rounded-lg border text-xs text-right transition-all ${
                           isDark
                             ? 'bg-dark-100 border-zinc-700 text-white focus:border-brand-500'
                             : 'bg-white border-slate-200 text-slate-900 focus:border-brand-500'
@@ -1370,16 +1348,96 @@ export const QuoteBuilderPage: React.FC = () => {
           {/* Terms & Notes */}
           <div className={`${cardClass} p-6 space-y-4`}>
             <div>
-              <label htmlFor="terms" className={labelClass}>Terms &amp; Conditions</label>
-              <textarea
-                id="terms"
-                name="terms"
-                rows={4}
-                placeholder="Payment terms, warranty, delivery terms..."
-                value={formData.terms}
-                onChange={handleFormFieldChange}
-                className={`${inputClass} resize-none`}
-              />
+              <label className={labelClass}>Terms &amp; Conditions</label>
+              <div className={`rounded-xl border p-3 space-y-2 ${
+                isDark ? 'bg-dark-100 border-zinc-700' : 'bg-white border-slate-200'
+              }`}>
+                {availableTerms.length === 0 && (
+                  <p className={`text-xs ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>No terms available. Add a custom term below.</p>
+                )}
+                {availableTerms.map(term => (
+                  <div key={term.id} className="flex items-start gap-2">
+                    <input
+                      type="checkbox"
+                      id={`term-${term.id}`}
+                      checked={formData.selectedTermIds.includes(term.id)}
+                      onChange={() => {
+                        setFormData(prev => ({
+                          ...prev,
+                          selectedTermIds: prev.selectedTermIds.includes(term.id)
+                            ? prev.selectedTermIds.filter(id => id !== term.id)
+                            : [...prev.selectedTermIds, term.id],
+                        }));
+                      }}
+                      className="mt-1 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+                    />
+                    <label htmlFor={`term-${term.id}`} className={`text-sm flex-1 ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
+                      {term.content}
+                    </label>
+                    {!term.isPredefined && (
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          try {
+                            await quoteTermsApi.delete(term.id);
+                            setAvailableTerms(prev => prev.filter(t => t.id !== term.id));
+                            setFormData(prev => ({
+                              ...prev,
+                              selectedTermIds: prev.selectedTermIds.filter(id => id !== term.id),
+                            }));
+                          } catch { /* ignore */ }
+                        }}
+                        className={`p-0.5 rounded hover:bg-red-100 ${isDark ? 'text-zinc-500 hover:text-red-400 hover:bg-red-900/20' : 'text-slate-400 hover:text-red-500'}`}
+                        title="Delete custom term"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+                ))}
+
+                {/* Add custom term */}
+                <div className="flex items-center gap-2 pt-1">
+                  <input
+                    type="text"
+                    value={newTermText}
+                    onChange={e => setNewTermText(e.target.value)}
+                    placeholder="Add a custom term..."
+                    className={`flex-1 px-2 py-1.5 rounded-lg border text-xs transition-all ${
+                      isDark
+                        ? 'bg-dark-200 border-zinc-600 text-white placeholder-zinc-500 focus:border-brand-500'
+                        : 'bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400 focus:border-brand-500'
+                    } focus:outline-none focus:ring-1 focus:ring-brand-500`}
+                    onKeyDown={async (e) => {
+                      if (e.key === 'Enter' && newTermText.trim()) {
+                        e.preventDefault();
+                        try {
+                          const created = await quoteTermsApi.create({ content: newTermText.trim(), sortOrder: availableTerms.length });
+                          setAvailableTerms(prev => [...prev, created]);
+                          setFormData(prev => ({ ...prev, selectedTermIds: [...prev.selectedTermIds, created.id] }));
+                          setNewTermText('');
+                        } catch { /* ignore */ }
+                      }
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      if (!newTermText.trim()) return;
+                      try {
+                        const created = await quoteTermsApi.create({ content: newTermText.trim(), sortOrder: availableTerms.length });
+                        setAvailableTerms(prev => [...prev, created]);
+                        setFormData(prev => ({ ...prev, selectedTermIds: [...prev.selectedTermIds, created.id] }));
+                        setNewTermText('');
+                      } catch { /* ignore */ }
+                    }}
+                    className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-brand-600 hover:bg-brand-700 text-white transition-colors"
+                  >
+                    <Plus className="w-3 h-3" />
+                    Add
+                  </button>
+                </div>
+              </div>
             </div>
             <div>
               <label htmlFor="notes" className={labelClass}>Internal Notes</label>
@@ -1787,7 +1845,7 @@ export const QuoteBuilderPage: React.FC = () => {
                 <table className="premium-table">
                   <thead>
                     <tr className={`border-b ${isDark ? 'border-zinc-800' : 'border-slate-100'}`}>
-                      {['#', 'Product / Description', 'Qty', 'Unit Price', 'Disc %', 'Total'].map(h => (
+                      {['#', 'Product / Description', 'Qty', 'Unit Price', 'Total'].map(h => (
                         <th
                           key={h}
                           className={`px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider ${
@@ -1811,9 +1869,10 @@ export const QuoteBuilderPage: React.FC = () => {
                         <td className={`px-4 py-3 ${isDark ? 'text-white' : 'text-slate-900'}`}>
                           <p className="font-medium">{li.productName || '-'}</p>
                           {li.description && li.description !== li.productName && (
-                            <p className={`text-xs mt-0.5 ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>
-                              {li.description}
-                            </p>
+                            <div
+                              className={`text-xs mt-0.5 ${isDark ? 'text-zinc-400' : 'text-slate-500'} [&_strong]:font-semibold [&_em]:italic [&_ul]:list-disc [&_ul]:pl-4 [&_ol]:list-decimal [&_ol]:pl-4`}
+                              dangerouslySetInnerHTML={{ __html: li.description }}
+                            />
                           )}
                         </td>
                         <td className={`px-4 py-3 text-center ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
@@ -1821,9 +1880,6 @@ export const QuoteBuilderPage: React.FC = () => {
                         </td>
                         <td className={`px-4 py-3 text-right whitespace-nowrap ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
                           {formatINR(li.unitPrice)}
-                        </td>
-                        <td className={`px-4 py-3 text-right ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
-                          {li.discountPct > 0 ? `${li.discountPct}%` : '-'}
                         </td>
                         <td className={`px-4 py-3 text-right whitespace-nowrap font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>
                           {formatINR(li.lineTotal)}
@@ -1833,7 +1889,7 @@ export const QuoteBuilderPage: React.FC = () => {
 
                     {(!q.lineItems || q.lineItems.length === 0) && (
                       <tr>
-                        <td colSpan={6} className={`px-4 py-8 text-center ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
+                        <td colSpan={5} className={`px-4 py-8 text-center ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
                           No line items
                         </td>
                       </tr>

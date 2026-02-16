@@ -43,6 +43,12 @@ class ContactOut(CamelModel):
     partner_id: Optional[UUID] = None
     new_leads: Optional[bool] = None
 
+    # Document URLs
+    gst_certificate_url: Optional[str] = None
+    msme_certificate_url: Optional[str] = None
+    pan_card_url: Optional[str] = None
+    aadhar_card_url: Optional[str] = None
+
     # Forms Info
     bandwidth_required: Optional[str] = None
     product_configuration: Optional[str] = None
@@ -107,6 +113,12 @@ class ContactCreate(CamelModel):
     partner_id: Optional[UUID] = None
     new_leads: Optional[bool] = None
 
+    # Document URLs
+    gst_certificate_url: Optional[str] = None
+    msme_certificate_url: Optional[str] = None
+    pan_card_url: Optional[str] = None
+    aadhar_card_url: Optional[str] = None
+
     # Forms Info
     bandwidth_required: Optional[str] = None
     product_configuration: Optional[str] = None
@@ -164,6 +176,12 @@ class ContactUpdate(CamelModel):
     vendor_name: Optional[str] = None
     partner_id: Optional[UUID] = None
     new_leads: Optional[bool] = None
+
+    # Document URLs
+    gst_certificate_url: Optional[str] = None
+    msme_certificate_url: Optional[str] = None
+    pan_card_url: Optional[str] = None
+    aadhar_card_url: Optional[str] = None
 
     # Forms Info
     bandwidth_required: Optional[str] = None

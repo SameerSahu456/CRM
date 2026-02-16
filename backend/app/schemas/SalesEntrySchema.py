@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Optional
+from typing import Optional, List
 from uuid import UUID
 from datetime import date, datetime
 from decimal import Decimal
@@ -11,7 +11,7 @@ from app.schemas.common import CamelModel
 class SalesEntryOut(CamelModel):
     id: UUID
     partner_id: UUID
-    product_id: UUID
+    product_id: Optional[UUID] = None
     salesperson_id: UUID
     customer_name: Optional[str] = None
     quantity: int = 1
@@ -24,6 +24,9 @@ class SalesEntryOut(CamelModel):
     location_id: Optional[UUID] = None
     vertical_id: Optional[UUID] = None
     notes: Optional[str] = None
+    description: Optional[str] = None
+    deal_id: Optional[UUID] = None
+    product_ids: Optional[List[UUID]] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
     # Joined fields
@@ -34,7 +37,7 @@ class SalesEntryOut(CamelModel):
 
 class SalesEntryCreate(CamelModel):
     partner_id: UUID
-    product_id: UUID
+    product_id: Optional[UUID] = None
     salesperson_id: Optional[UUID] = None
     customer_name: Optional[str] = None
     quantity: int = 1
@@ -47,6 +50,9 @@ class SalesEntryCreate(CamelModel):
     location_id: Optional[UUID] = None
     vertical_id: Optional[UUID] = None
     notes: Optional[str] = None
+    description: Optional[str] = None
+    deal_id: Optional[UUID] = None
+    product_ids: Optional[List[UUID]] = None
 
 
 class SalesEntryUpdate(CamelModel):
@@ -63,6 +69,9 @@ class SalesEntryUpdate(CamelModel):
     location_id: Optional[UUID] = None
     vertical_id: Optional[UUID] = None
     notes: Optional[str] = None
+    description: Optional[str] = None
+    deal_id: Optional[UUID] = None
+    product_ids: Optional[List[UUID]] = None
 
 
 class SalesSummary(CamelModel):

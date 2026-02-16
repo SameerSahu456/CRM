@@ -1,19 +1,23 @@
 from __future__ import annotations
 
-from datetime import datetime
+import logging
 from typing import Optional
 
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy import delete, func, select, text
+from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.exceptions import NotFoundException
 from app.middleware.security import get_current_user
+from app.utils.pdf_generator import generate_quote_pdf
+from app.utils.storage import upload_to_supabase
 from app.models.Partner import Partner
 from app.models.Product import Product
 from app.models.Quote import Quote
 from app.models.QuoteLineItem import QuoteLineItem
+from app.models.QuoteSelectedTerm import QuoteSelectedTerm
+from app.models.QuoteTerm import QuoteTerm
 from app.models.User import User
 from app.repositories.base import BaseRepository
 from app.schemas.QuoteSchema import (
@@ -33,7 +37,7 @@ async def _generate_quote_number(db: AsyncSession) -> str:
 
 
 async def _get_quote_with_items(db: AsyncSession, quote_id) -> dict | None:
-    """Fetch quote with partner name and line items."""
+    """Fetch quote with partner name, line items, and selected term IDs."""
     stmt = (
         select(Quote, Partner.company_name.label("partner_name"))
         .outerjoin(Partner, Quote.partner_id == Partner.id)
@@ -61,10 +65,54 @@ async def _get_quote_with_items(db: AsyncSession, quote_id) -> dict | None:
         item_out["productName"] = item_row[1]
         items.append(item_out)
 
+    # Get selected term IDs
+    terms_stmt = (
+        select(QuoteSelectedTerm.term_id)
+        .where(QuoteSelectedTerm.quote_id == quote_id)
+        .order_by(QuoteSelectedTerm.sort_order)
+    )
+    terms_result = await db.execute(terms_stmt)
+    selected_term_ids = [str(r[0]) for r in terms_result.all()]
+
     out = QuoteOut.model_validate(quote).model_dump(by_alias=True)
     out["partnerName"] = partner_name
     out["lineItems"] = items
+    out["selectedTermIds"] = selected_term_ids
     return out
+
+
+async def _save_selected_terms(db: AsyncSession, quote: Quote, term_ids: list) -> None:
+    """Save selected term IDs and compile terms text onto the quote."""
+    # Delete old selections
+    await db.execute(
+        delete(QuoteSelectedTerm).where(QuoteSelectedTerm.quote_id == quote.id)
+    )
+
+    if not term_ids:
+        quote.terms = None
+        return
+
+    # Fetch the terms in order
+    terms_stmt = (
+        select(QuoteTerm)
+        .where(QuoteTerm.id.in_(term_ids))
+        .order_by(QuoteTerm.sort_order)
+    )
+    terms_result = await db.execute(terms_stmt)
+    selected_terms = terms_result.scalars().all()
+
+    # Create junction records
+    for idx, term in enumerate(selected_terms):
+        junction = QuoteSelectedTerm(
+            quote_id=quote.id, term_id=term.id, sort_order=idx
+        )
+        db.add(junction)
+
+    # Compile terms text
+    compiled = "\n".join(
+        f"{i + 1}. {t.content}" for i, t in enumerate(selected_terms)
+    )
+    quote.terms = compiled
 
 
 def _calc_totals(line_items: list, tax_rate: float, discount_amount: float) -> dict:
@@ -78,6 +126,23 @@ def _calc_totals(line_items: list, tax_rate: float, discount_amount: float) -> d
     }
 
 
+logger = logging.getLogger(__name__)
+
+
+async def _generate_and_store_pdf(db: AsyncSession, quote: Quote, quote_data: dict) -> str | None:
+    """Generate a PDF for a quote and upload to Supabase Storage. Returns the URL."""
+    try:
+        pdf_bytes = generate_quote_pdf(quote_data)
+        file_name = f"quotes/quote-{quote.id}.pdf"
+        pdf_url = await upload_to_supabase(pdf_bytes, file_name, "application/pdf")
+        quote.pdf_url = pdf_url
+        await db.flush()
+        return pdf_url
+    except Exception:
+        logger.exception("Failed to generate PDF for quote %s", quote.id)
+        return None
+
+
 @router.get("/")
 async def list_quotes(
     page: int = Query(1, ge=1),
@@ -86,7 +151,6 @@ async def list_quotes(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    repo = BaseRepository(db, Quote)
     filters = []
     if status:
         filters.append(Quote.status == status)
@@ -152,7 +216,7 @@ async def create_quote(
 
     totals = _calc_totals(body.line_items, body.tax_rate, body.discount_amount)
 
-    quote_data = body.model_dump(exclude={"line_items"})
+    quote_data = body.model_dump(exclude={"line_items", "selected_term_ids"})
     quote_data["quote_number"] = quote_number
     quote_data["created_by"] = user.id
     quote_data.update(totals)
@@ -166,6 +230,10 @@ async def create_quote(
     for item in body.line_items:
         li = QuoteLineItem(**item.model_dump(), quote_id=quote.id)
         db.add(li)
+
+    # Save selected T&C
+    await _save_selected_terms(db, quote, body.selected_term_ids)
+
     await db.flush()
 
     return await _get_quote_with_items(db, quote.id)
@@ -183,7 +251,7 @@ async def update_quote(
     if not quote:
         raise NotFoundException("Quote not found")
 
-    update_data = body.model_dump(exclude_unset=True, exclude={"line_items"})
+    update_data = body.model_dump(exclude_unset=True, exclude={"line_items", "selected_term_ids"})
 
     # If line items provided, replace them all
     if body.line_items is not None:
@@ -201,6 +269,10 @@ async def update_quote(
         discount = body.discount_amount if body.discount_amount is not None else float(quote.discount_amount)
         totals = _calc_totals(body.line_items, tax_rate, discount)
         update_data.update(totals)
+
+    # Update selected T&C if provided
+    if body.selected_term_ids is not None:
+        await _save_selected_terms(db, quote, body.selected_term_ids)
 
     for key, value in update_data.items():
         if hasattr(quote, key):

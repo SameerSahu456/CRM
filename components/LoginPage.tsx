@@ -10,6 +10,28 @@ const LoginPage: React.FC = () => {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
+  const cardRef = React.useRef<HTMLDivElement>(null);
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    const card = cardRef.current;
+    if (!card) return;
+    const rect = card.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    const centerX = rect.width / 2;
+    const centerY = rect.height / 2;
+    const rotateX = ((y - centerY) / centerY) * -6;
+    const rotateY = ((x - centerX) / centerX) * 6;
+    card.style.transform = `perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) translateZ(10px)`;
+    card.style.setProperty('--mouse-x', `${x}px`);
+    card.style.setProperty('--mouse-y', `${y}px`);
+  };
+
+  const handleMouseLeave = () => {
+    const card = cardRef.current;
+    if (!card) return;
+    card.style.transform = 'perspective(1000px) rotateX(0deg) rotateY(0deg) translateZ(0px)';
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -33,78 +55,168 @@ const LoginPage: React.FC = () => {
   return (
     <>
       <style>{`
-        @keyframes borderGlow {
-          0%, 100% { opacity: 0.5; }
-          50% { opacity: 1; }
-        }
         @keyframes shimmer {
           0% { background-position: -200% 0; }
           100% { background-position: 200% 0; }
         }
-        @keyframes floatUp {
-          0% { opacity: 0; transform: translateY(20px) scale(0.98); }
-          100% { opacity: 1; transform: translateY(0) scale(1); }
+        @keyframes float-particle {
+          0%, 100% { transform: translateY(0px) translateX(0px); opacity: 0; }
+          10% { opacity: 1; }
+          90% { opacity: 1; }
+          50% { transform: translateY(-30px) translateX(15px); }
         }
-        @keyframes gradientRotate {
-          0% { transform: rotate(0deg); }
-          100% { transform: rotate(360deg); }
+        @keyframes card-enter-3d {
+          0% { opacity: 0; transform: perspective(1000px) rotateX(8deg) rotateY(-4deg) translateY(40px) translateZ(-30px) scale(0.95); }
+          100% { opacity: 1; transform: perspective(1000px) rotateX(0deg) rotateY(0deg) translateY(0) translateZ(0px) scale(1); }
+        }
+        @keyframes edge-light {
+          0%, 100% { opacity: 0.3; background-position: 0% 50%; }
+          50% { opacity: 0.8; background-position: 100% 50%; }
         }
         .login-card-enter {
-          animation: floatUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+          animation: card-enter-3d 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
         }
-        .glass-card {
+        .glass-card-3d {
+          --mouse-x: 50%;
+          --mouse-y: 50%;
           position: relative;
-          background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 50%, rgba(255,255,255,0.08) 100%);
+          background: linear-gradient(145deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.03) 40%, rgba(10,10,20,0.4) 100%);
           backdrop-filter: blur(40px) saturate(150%);
           -webkit-backdrop-filter: blur(40px) saturate(150%);
+          transform-style: preserve-3d;
+          transition: transform 0.15s ease-out, box-shadow 0.15s ease-out;
+          box-shadow:
+            0 0 0 1px rgba(255,255,255,0.08),
+            0 8px 32px rgba(0,0,0,0.5),
+            0 20px 60px rgba(0,0,0,0.4),
+            0 2px 8px rgba(59,130,246,0.08),
+            inset 0 1px 0 rgba(255,255,255,0.1),
+            inset 0 -1px 0 rgba(0,0,0,0.2);
         }
-        .glass-card::before {
+        .glass-card-3d:hover {
+          box-shadow:
+            0 0 0 1px rgba(255,255,255,0.12),
+            0 12px 40px rgba(0,0,0,0.6),
+            0 30px 80px rgba(0,0,0,0.45),
+            0 4px 16px rgba(59,130,246,0.15),
+            inset 0 1px 0 rgba(255,255,255,0.15),
+            inset 0 -1px 0 rgba(0,0,0,0.2);
+        }
+        /* Animated border gradient */
+        .glass-card-3d::before {
           content: '';
           position: absolute;
           inset: -1px;
-          border-radius: 17px;
-          padding: 1px;
-          background: linear-gradient(135deg, rgba(255,255,255,0.2), rgba(255,255,255,0.05), rgba(59,130,246,0.2), rgba(255,255,255,0.1));
+          border-radius: 25px;
+          padding: 1.5px;
+          background: linear-gradient(135deg, rgba(255,255,255,0.25), rgba(59,130,246,0.3), rgba(139,92,246,0.2), rgba(255,255,255,0.1), rgba(59,130,246,0.25));
+          background-size: 300% 300%;
           -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
           mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
           -webkit-mask-composite: xor;
           mask-composite: exclude;
           pointer-events: none;
-          animation: borderGlow 3s ease-in-out infinite;
+          animation: edge-light 4s ease-in-out infinite;
         }
-        .glass-card::after {
+        /* Mouse-follow spotlight */
+        .glass-card-3d::after {
           content: '';
           position: absolute;
           inset: 0;
-          border-radius: 16px;
-          background: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+          border-radius: 24px;
+          background: radial-gradient(350px circle at var(--mouse-x) var(--mouse-y), rgba(59,130,246,0.1), rgba(139,92,246,0.05) 40%, transparent 70%);
+          pointer-events: none;
+          z-index: 1;
+          opacity: 0;
+          transition: opacity 0.3s ease;
+        }
+        .glass-card-3d:hover::after {
+          opacity: 1;
+        }
+        /* Top light reflection */
+        .glass-card-3d .card-reflection {
+          position: absolute;
+          top: 0;
+          left: 10%;
+          right: 10%;
+          height: 1px;
+          background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+          border-radius: 50%;
+          z-index: 2;
           pointer-events: none;
         }
+        /* Noise texture overlay */
+        .glass-card-3d .card-noise {
+          position: absolute;
+          inset: 0;
+          border-radius: 24px;
+          background: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+          pointer-events: none;
+          z-index: 1;
+        }
+        /* Floating particles */
+        .card-particle {
+          position: absolute;
+          width: 3px;
+          height: 3px;
+          border-radius: 50%;
+          background: rgba(59,130,246,0.5);
+          pointer-events: none;
+          z-index: 0;
+          animation: float-particle 6s ease-in-out infinite;
+        }
         .glass-input {
-          background: linear-gradient(135deg, rgba(255,255,255,0.07) 0%, rgba(255,255,255,0.03) 100%);
-          backdrop-filter: blur(10px);
-          -webkit-backdrop-filter: blur(10px);
+          background: rgba(15,15,25,0.7);
           border: 1px solid rgba(255,255,255,0.1);
           transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+          color: #ffffff !important;
+          caret-color: #ffffff;
+          -webkit-text-fill-color: #ffffff;
+          box-shadow: inset 0 2px 4px rgba(0,0,0,0.3), 0 1px 0 rgba(255,255,255,0.05);
+        }
+        .glass-input::placeholder {
+          color: #a1a1aa !important;
+          -webkit-text-fill-color: #a1a1aa;
+          opacity: 1;
         }
         .glass-input:focus {
-          background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.06) 100%);
+          background: rgba(20,20,35,0.8);
           border-color: rgba(59,130,246,0.5);
-          box-shadow: 0 0 0 3px rgba(59,130,246,0.1), 0 0 20px rgba(59,130,246,0.1);
+          box-shadow: inset 0 2px 4px rgba(0,0,0,0.3), 0 0 0 3px rgba(59,130,246,0.12), 0 0 30px rgba(59,130,246,0.08);
+        }
+        .glass-input:-webkit-autofill,
+        .glass-input:-webkit-autofill:hover,
+        .glass-input:-webkit-autofill:focus {
+          -webkit-text-fill-color: #ffffff !important;
+          -webkit-box-shadow: 0 0 0px 1000px #0f0f19 inset !important;
+          transition: background-color 5000s ease-in-out 0s;
         }
         .btn-glow {
           position: relative;
           overflow: hidden;
           background: linear-gradient(135deg, #3b82f6 0%, #2563eb 50%, #1d4ed8 100%);
-          box-shadow: 0 0 20px rgba(59,130,246,0.4), 0 4px 12px rgba(0,0,0,0.3);
-          transition: all 0.3s ease;
+          box-shadow:
+            0 0 20px rgba(59,130,246,0.35),
+            0 6px 20px rgba(0,0,0,0.4),
+            inset 0 1px 0 rgba(255,255,255,0.2),
+            inset 0 -2px 4px rgba(0,0,0,0.2);
+          transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+          text-shadow: 0 1px 2px rgba(0,0,0,0.3);
         }
         .btn-glow:hover {
-          box-shadow: 0 0 30px rgba(59,130,246,0.5), 0 4px 16px rgba(0,0,0,0.3);
-          transform: translateY(-1px);
+          box-shadow:
+            0 0 35px rgba(59,130,246,0.5),
+            0 8px 30px rgba(0,0,0,0.4),
+            inset 0 1px 0 rgba(255,255,255,0.25),
+            inset 0 -2px 4px rgba(0,0,0,0.2);
+          transform: translateY(-2px);
         }
         .btn-glow:active {
-          transform: scale(0.98) translateY(0);
+          transform: scale(0.97) translateY(0);
+          box-shadow:
+            0 0 15px rgba(59,130,246,0.3),
+            0 2px 8px rgba(0,0,0,0.4),
+            inset 0 2px 4px rgba(0,0,0,0.3);
         }
         .btn-glow::after {
           content: '';
@@ -113,7 +225,7 @@ const LoginPage: React.FC = () => {
           left: -50%;
           width: 200%;
           height: 200%;
-          background: linear-gradient(45deg, transparent 30%, rgba(255,255,255,0.1) 50%, transparent 70%);
+          background: linear-gradient(45deg, transparent 30%, rgba(255,255,255,0.15) 50%, transparent 70%);
           animation: shimmer 3s ease-in-out infinite;
           background-size: 200% 100%;
         }
@@ -173,8 +285,22 @@ const LoginPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Premium Glassmorphism card */}
-            <div className="glass-card rounded-2xl p-9 login-card-enter">
+            {/* Premium 3D Glassmorphism card */}
+            <div
+              ref={cardRef}
+              onMouseMove={handleMouseMove}
+              onMouseLeave={handleMouseLeave}
+              className="glass-card-3d rounded-3xl p-9 login-card-enter"
+            >
+              {/* 3D depth layers */}
+              <div className="card-reflection" />
+              <div className="card-noise" />
+              {/* Floating particles */}
+              <div className="card-particle" style={{ top: '15%', left: '8%', animationDelay: '0s', animationDuration: '5s' }} />
+              <div className="card-particle" style={{ top: '70%', right: '12%', animationDelay: '1.5s', animationDuration: '7s' }} />
+              <div className="card-particle" style={{ top: '40%', left: '85%', animationDelay: '3s', animationDuration: '6s', background: 'rgba(139,92,246,0.4)' }} />
+              <div className="card-particle" style={{ top: '85%', left: '25%', animationDelay: '4s', animationDuration: '8s', background: 'rgba(99,202,210,0.4)' }} />
+
               <h1 className="relative z-10 text-white text-[26px] font-bold mb-1 tracking-tight">
                 Welcome back
               </h1>
@@ -201,7 +327,7 @@ const LoginPage: React.FC = () => {
                       onChange={e => setEmail(e.target.value)}
                       placeholder="Enter your email address"
                       required
-                      className="glass-input w-full pl-11 pr-4 py-3.5 rounded-xl text-white text-sm placeholder-zinc-500 focus:outline-none"
+                      className="glass-input w-full pl-11 pr-4 py-3.5 rounded-xl text-white text-sm placeholder-zinc-400 focus:outline-none"
                     />
                   </div>
                 </div>
@@ -222,7 +348,7 @@ const LoginPage: React.FC = () => {
                       onChange={e => setPassword(e.target.value)}
                       placeholder="Enter your password"
                       required
-                      className="glass-input w-full pl-11 pr-11 py-3.5 rounded-xl text-white text-sm placeholder-zinc-500 focus:outline-none"
+                      className="glass-input w-full pl-11 pr-11 py-3.5 rounded-xl text-white text-sm placeholder-zinc-400 focus:outline-none"
                     />
                     <button
                       type="button"
@@ -260,7 +386,8 @@ const LoginPage: React.FC = () => {
                 type="button"
                 onClick={handleQuickLogin}
                 disabled={isLoading}
-                className="relative z-10 w-full py-3.5 rounded-xl bg-white/[0.05] border border-white/[0.1] text-zinc-300 font-medium text-sm hover:bg-white/[0.08] hover:border-white/[0.18] hover:text-white active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed backdrop-blur-sm"
+                className="relative z-10 w-full py-3.5 rounded-xl bg-white/[0.04] border border-white/[0.08] text-zinc-300 font-medium text-sm hover:bg-white/[0.08] hover:border-white/[0.16] hover:text-white active:scale-[0.97] transition-all disabled:opacity-50 disabled:cursor-not-allowed backdrop-blur-sm"
+                style={{ boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05), 0 2px 8px rgba(0,0,0,0.2)' }}
               >
                 Quick Demo Login (Super Admin)
               </button>

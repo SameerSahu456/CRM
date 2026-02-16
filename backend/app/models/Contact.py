@@ -54,6 +54,12 @@ class Contact(TimestampMixin, Base):
     )
     new_leads: Mapped[Optional[bool]] = mapped_column(Boolean, server_default="false")
 
+    # Document URLs
+    gst_certificate_url: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    msme_certificate_url: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    pan_card_url: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    aadhar_card_url: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
     # Forms Info
     bandwidth_required: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     product_configuration: Mapped[Optional[str]] = mapped_column(Text, nullable=True)

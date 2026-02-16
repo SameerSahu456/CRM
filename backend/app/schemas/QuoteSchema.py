@@ -14,7 +14,6 @@ class QuoteLineItemOut(CamelModel):
     description: Optional[str] = None
     quantity: int = 1
     unit_price: float
-    discount_pct: float = 0
     line_total: float
     sort_order: int = 0
     product_name: Optional[str] = None
@@ -25,7 +24,6 @@ class QuoteLineItemCreate(CamelModel):
     description: Optional[str] = None
     quantity: int = 1
     unit_price: float
-    discount_pct: float = 0
     line_total: float
     sort_order: int = 0
 
@@ -50,6 +48,8 @@ class QuoteOut(CamelModel):
     updated_at: Optional[datetime] = None
     partner_name: Optional[str] = None
     line_items: Optional[list[QuoteLineItemOut]] = None
+    pdf_url: Optional[str] = None
+    selected_term_ids: Optional[list[UUID]] = None
 
 
 class QuoteCreate(CamelModel):
@@ -62,6 +62,7 @@ class QuoteCreate(CamelModel):
     terms: Optional[str] = None
     notes: Optional[str] = None
     line_items: list[QuoteLineItemCreate] = []
+    selected_term_ids: list[UUID] = []
 
 
 class QuoteUpdate(CamelModel):
@@ -75,3 +76,4 @@ class QuoteUpdate(CamelModel):
     terms: Optional[str] = None
     notes: Optional[str] = None
     line_items: Optional[list[QuoteLineItemCreate]] = None
+    selected_term_ids: Optional[list[UUID]] = None

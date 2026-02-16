@@ -4,6 +4,7 @@ import { RouterProvider } from 'react-router-dom';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { AuthProvider } from './contexts/AuthContext';
 import { ViewProvider } from './contexts/ViewContext';
+import { DropdownsProvider } from './contexts/DropdownsContext';
 import { router } from './router';
 
 // ---------------------------------------------------------------------------
@@ -100,9 +101,11 @@ root.render(
   <React.StrictMode>
     <ThemeProvider>
       <AuthProvider>
-        <ViewProvider>
-          <RouterProvider router={router} />
-        </ViewProvider>
+        <DropdownsProvider>
+          <ViewProvider>
+            <RouterProvider router={router} />
+          </ViewProvider>
+        </DropdownsProvider>
       </AuthProvider>
     </ThemeProvider>
   </React.StrictMode>

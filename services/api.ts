@@ -125,6 +125,7 @@ export const salesApi = {
     return fetchApi<any>(`/data/sales-entries/summary${qs}`);
   },
   breakdown: () => fetchApi<any>('/data/sales-entries/breakdown'),
+  collections: () => fetchApi<any>('/data/sales-entries/collections'),
 };
 
 // Leads
@@ -177,6 +178,21 @@ export const quotesApi = {
     fetchApi<any>(`/quotes/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   delete: (id: string) =>
     fetchApi<any>(`/quotes/${id}`, { method: 'DELETE' }),
+  getPdf: (id: string, regenerate?: boolean) => {
+    const qs = regenerate ? '?regenerate=true' : '';
+    return fetchApi<{ pdfUrl: string }>(`/quotes/${id}/pdf${qs}`);
+  },
+};
+
+// Quote Terms
+export const quoteTermsApi = {
+  list: () => fetchApi<any[]>('/quote-terms/'),
+  create: (data: any) =>
+    fetchApi<any>('/quote-terms/', { method: 'POST', body: JSON.stringify(data) }),
+  update: (id: string, data: any) =>
+    fetchApi<any>(`/quote-terms/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  delete: (id: string) =>
+    fetchApi<any>(`/quote-terms/${id}`, { method: 'DELETE' }),
 };
 
 // Carepacks
@@ -209,6 +225,8 @@ export const accountsApi = {
     fetchApi<any>(`/accounts/${id}`, { method: 'DELETE' }),
   getContacts: (id: string) => fetchApi<any>(`/accounts/${id}/contacts`),
   getDeals: (id: string) => fetchApi<any>(`/accounts/${id}/deals`),
+  createWithContact: (data: { account: any; contact: any }) =>
+    fetchApi<any>('/accounts/with-contact', { method: 'POST', body: JSON.stringify(data) }),
 };
 
 // Contacts
@@ -366,6 +384,14 @@ export const masterDataApi = {
     fetchApi<any>(`/data/master/${entity}/${id}`, { method: 'DELETE' }),
 };
 
+// Dropdowns (all dropdown entities in one call)
+export const dropdownsApi = {
+  getAll: async () => {
+    const data = await fetchApi<Record<string, any[]>>('/data/master/dropdowns/all');
+    return snakeToCamel(data);
+  },
+};
+
 // Settings
 export const settingsApi = {
   list: () => fetchApi<any[]>('/settings/'),
@@ -438,6 +464,25 @@ export const bulkImportApi = {
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
       throw new Error(err.detail || 'Import failed');
+    }
+    return res.json();
+  },
+};
+
+// Uploads (file upload to Supabase Storage)
+export const uploadsApi = {
+  upload: async (file: File): Promise<{ url: string; filename: string }> => {
+    const token = getToken();
+    const formData = new FormData();
+    formData.append('file', file);
+    const res = await fetch(`${API_BASE}/uploads/`, {
+      method: 'POST',
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: formData,
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || 'Upload failed');
     }
     return res.json();
   },

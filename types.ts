@@ -133,6 +133,9 @@ export interface SalesEntry {
   locationId?: string;
   verticalId?: string;
   notes?: string;
+  description?: string;
+  dealId?: string;
+  productIds?: string[];
   createdAt?: string;
   updatedAt?: string;
   // Joined data
@@ -268,6 +271,8 @@ export interface Quote {
   updatedAt?: string;
   partnerName?: string;
   lineItems?: QuoteLineItem[];
+  pdfUrl?: string;
+  selectedTermIds?: string[];
 }
 
 export interface QuoteLineItem {
@@ -277,10 +282,19 @@ export interface QuoteLineItem {
   description?: string;
   quantity: number;
   unitPrice: number;
-  discountPct: number;
   lineTotal: number;
   sortOrder?: number;
   productName?: string;
+}
+
+// Quote Terms
+export interface QuoteTerm {
+  id: string;
+  content: string;
+  isPredefined: boolean;
+  sortOrder: number;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 // Carepacks
@@ -333,6 +347,7 @@ export interface Account {
   newLeads?: number;
   referencesDoc?: string;
   bankStatementDoc?: string;
+  tag?: string;
 
   // Contact Information
   contactName?: string;
@@ -401,6 +416,10 @@ export interface Contact {
   vendorName?: string;
   partnerId?: string;
   newLeads?: boolean;
+  gstCertificateUrl?: string;
+  msmeCertificateUrl?: string;
+  panCardUrl?: string;
+  aadharCardUrl?: string;
 
   // Forms Info
   bandwidthRequired?: string;
@@ -457,6 +476,7 @@ export interface Deal {
   // Requirements
   requirement?: string;
   quotedRequirement?: string;
+  paymentFlag?: boolean;
 }
 
 export type DealStage = 'Cold' | 'Proposal' | 'Negotiation' | 'Closed Won' | 'Closed Lost';

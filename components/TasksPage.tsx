@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
+import { useDropdowns } from '../contexts/DropdownsContext';
 import { tasksApi, adminApi } from '../services/api';
 import { Task, PaginatedResponse, User } from '../types';
 
@@ -16,24 +17,6 @@ import { Task, PaginatedResponse, User } from '../types';
 
 const PAGE_SIZE = 10;
 
-const TASK_STATUSES = [
-  { value: 'pending', label: 'Pending' },
-  { value: 'in_progress', label: 'In Progress' },
-  { value: 'completed', label: 'Completed' },
-];
-
-const TASK_PRIORITIES = [
-  { value: 'High', label: 'High' },
-  { value: 'Medium', label: 'Medium' },
-  { value: 'Low', label: 'Low' },
-];
-
-const TASK_TYPES = [
-  { value: 'Call', label: 'Call' },
-  { value: 'Email', label: 'Email' },
-  { value: 'Meeting', label: 'Meeting' },
-  { value: 'Demo', label: 'Demo' },
-];
 
 const PRIORITY_COLORS: Record<string, {
   bg: string; text: string; darkBg: string; darkText: string;
@@ -160,7 +143,13 @@ function statusLabel(status: string): string {
 export const TasksPage: React.FC = () => {
   const { theme } = useTheme();
   const { user } = useAuth();
+  const { getOptions } = useDropdowns();
   const isDark = theme === 'dark';
+
+  // Dropdown data from DB
+  const TASK_STATUSES = getOptions('task-statuses');
+  const TASK_PRIORITIES = getOptions('priorities');
+  const TASK_TYPES = getOptions('task-types');
 
   // Data state
   const [tasks, setTasks] = useState<Task[]>([]);

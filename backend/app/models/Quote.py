@@ -29,4 +29,5 @@ class Quote(TimestampMixin, Base):
     status: Mapped[str] = mapped_column(String(50), server_default="draft")
     terms: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    pdf_url: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     created_by: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), nullable=True)

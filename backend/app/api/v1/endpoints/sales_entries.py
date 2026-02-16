@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Optional
 
 from fastapi import APIRouter, Depends, Query
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -35,6 +36,7 @@ async def list_sales_entries(
     to_date: Optional[str] = None,
     location_id: Optional[str] = None,
     vertical_id: Optional[str] = None,
+    deal_id: Optional[str] = None,
     search: Optional[str] = None,
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
@@ -44,6 +46,8 @@ async def list_sales_entries(
 
     if partner_id:
         filters.append(SalesEntry.partner_id == partner_id)
+    if deal_id:
+        filters.append(SalesEntry.deal_id == deal_id)
     if product_id:
         filters.append(SalesEntry.product_id == product_id)
     if salesperson_id:
@@ -106,6 +110,42 @@ async def sales_breakdown(
     if scoped_ids is not None:
         filters.append(SalesEntry.salesperson_id.in_(scoped_ids))
     return await repo.get_breakdown(filters=filters or None)
+
+
+@router.get("/collections")
+async def sales_collections(
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    scoped_ids = await get_scoped_user_ids(user, db)
+    stmt = (
+        select(
+            SalesEntry.customer_name,
+            SalesEntry.payment_status,
+            func.sum(SalesEntry.amount).label("total_amount"),
+            func.count().label("entry_count"),
+        )
+        .group_by(SalesEntry.customer_name, SalesEntry.payment_status)
+        .order_by(SalesEntry.customer_name)
+    )
+    if scoped_ids is not None:
+        stmt = stmt.where(SalesEntry.salesperson_id.in_(scoped_ids))
+    result = await db.execute(stmt)
+    rows = result.all()
+    pending, partial, paid = [], [], []
+    for row in rows:
+        item = {
+            "customerName": row.customer_name or "Unknown",
+            "totalAmount": float(row.total_amount),
+            "entryCount": row.entry_count,
+        }
+        if row.payment_status in ("pending", "overdue"):
+            pending.append(item)
+        elif row.payment_status == "partial":
+            partial.append(item)
+        elif row.payment_status == "paid":
+            paid.append(item)
+    return {"pending": pending, "partialPending": partial, "paid": paid}
 
 
 @router.post("/")
