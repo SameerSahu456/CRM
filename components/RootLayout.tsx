@@ -21,6 +21,9 @@ const DealsPage = lazyWithRetry(() => import('./DealsPage').then(m => ({ default
 const ReportsPage = lazyWithRetry(() => import('./ReportsPage').then(m => ({ default: m.ReportsPage })));
 const InventoryPage = lazyWithRetry(() => import('./InventoryPage').then(m => ({ default: m.InventoryPage })));
 const CollectionsPage = lazyWithRetry(() => import('./CollectionsPage').then(m => ({ default: m.CollectionsPage })));
+const TasksPage = lazyWithRetry(() => import('./TasksPage').then(m => ({ default: m.TasksPage })));
+const CalendarPage = lazyWithRetry(() => import('./CalendarPage').then(m => ({ default: m.CalendarPage })));
+const MeetingsPage = lazyWithRetry(() => import('./MeetingsPage').then(m => ({ default: m.MeetingsPage })));
 
 const PAGE_COMPONENTS: Record<NavigationItem, React.LazyExoticComponent<React.ComponentType>> = {
   'dashboard': Dashboard,
@@ -31,6 +34,9 @@ const PAGE_COMPONENTS: Record<NavigationItem, React.LazyExoticComponent<React.Co
   'contacts': ContactsPage,
   'deals': DealsPage,
   'inventory': InventoryPage,
+  'tasks': TasksPage,
+  'calendar': CalendarPage,
+  'meetings': MeetingsPage,
   'reports': ReportsPage,
   'admin': AdminPage,
   'settings': SettingsPage,

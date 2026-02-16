@@ -16,7 +16,7 @@ class SalesEntry(TimestampMixin, Base):
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, server_default=text("uuid_generate_v4()")
     )
-    partner_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    partner_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), nullable=True)
     product_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), nullable=True)
     salesperson_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
     customer_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)

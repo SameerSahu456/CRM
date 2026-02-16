@@ -2,7 +2,7 @@ import React from 'react';
 import {
   LayoutDashboard, ShoppingCart, Target, Shield as ShieldIcon,
   Settings, LogOut, X, Building2, Contact, Handshake,
-  BarChart3, Package, Wallet
+  BarChart3, Package, Wallet, CheckSquare, CalendarDays, Video
 } from 'lucide-react';
 import { NavigationItem } from '../types';
 import { useAuth } from '../contexts/AuthContext';
@@ -38,6 +38,9 @@ const navItems: NavItem[] = [
   // Post-Sales items (continued)
   { id: 'inventory', label: 'Inventory', icon: <Package className="w-4 h-4" />, section: 'Inventory', view: 'both' },
   // Tools (available in both views)
+  { id: 'tasks', label: 'Tasks', icon: <CheckSquare className="w-4 h-4" />, section: 'Tools', view: 'both' },
+  { id: 'calendar', label: 'Calendar', icon: <CalendarDays className="w-4 h-4" />, section: 'Tools', view: 'both' },
+  { id: 'meetings', label: 'Meetings', icon: <Video className="w-4 h-4" />, section: 'Tools', view: 'both' },
   { id: 'reports', label: 'Reports', icon: <BarChart3 className="w-4 h-4" />, section: 'Tools', view: 'both' },
   // System (available in both views)
   { id: 'admin', label: 'Admin', icon: <ShieldIcon className="w-4 h-4" />, section: 'System', roles: ['admin', 'superadmin'], view: 'both' },

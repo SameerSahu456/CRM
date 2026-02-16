@@ -13,10 +13,10 @@ import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigation } from '../contexts/NavigationContext';
 import { useDropdowns } from '../contexts/DropdownsContext';
-import { dealsApi, accountsApi, contactsApi, salesApi, quotesApi, productsApi, formatINR } from '../services/api';
+import { dealsApi, accountsApi, contactsApi, salesApi, quotesApi, productsApi, partnersApi, formatINR } from '../services/api';
 import { exportToCsv } from '../utils/exportCsv';
 import { BulkImportModal } from './BulkImportModal';
-import { Deal, DealStage, Account, Contact, Product, PaginatedResponse, ActivityLog } from '../types';
+import { Deal, DealStage, Account, Contact, Product, Partner, PaginatedResponse, ActivityLog } from '../types';
 import { useColumnResize } from '../hooks/useColumnResize';
 
 // ---------------------------------------------------------------------------
@@ -177,6 +177,7 @@ export const DealsPage: React.FC = () => {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
+  const [partners, setPartners] = useState<Partner[]>([]);
 
   // Summary counts
   const [dealSummary, setDealSummary] = useState<{ total: number; cold: number; proposal: number; negotiation: number; closedWon: number; closedLost: number }>({ total: 0, cold: 0, proposal: 0, negotiation: 0, closedWon: 0, closedLost: 0 });
@@ -248,6 +249,7 @@ export const DealsPage: React.FC = () => {
   const [closedWonOrderForm, setClosedWonOrderForm] = useState({
     customerName: '', quantity: 1, amount: 0, poNumber: '', invoiceNo: '',
     paymentStatus: 'pending', saleDate: new Date().toISOString().split('T')[0],
+    partnerId: '',
   });
   const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
   const [productSearch, setProductSearch] = useState('');
@@ -336,16 +338,19 @@ export const DealsPage: React.FC = () => {
 
   const fetchDropdownData = useCallback(async () => {
     try {
-      const [accountsResponse, contactsResponse, productsList] = await Promise.all([
+      const [accountsResponse, contactsResponse, productsList, partnersResponse] = await Promise.all([
         accountsApi.list({ limit: '100' }),
         contactsApi.list({ limit: '100' }),
         productsApi.list(),
+        partnersApi.list({ limit: '100', status: 'approved' }),
       ]);
       const acctData = accountsResponse?.data ?? accountsResponse;
       setAccounts(Array.isArray(acctData) ? acctData : []);
       const contData = contactsResponse?.data ?? contactsResponse;
       setContacts(Array.isArray(contData) ? contData : []);
       setProducts(Array.isArray(productsList) ? productsList : []);
+      const partData = partnersResponse?.data ?? partnersResponse;
+      setPartners(Array.isArray(partData) ? partData : []);
     } catch {
       // Dropdown data failure is non-critical
     }
@@ -599,6 +604,7 @@ export const DealsPage: React.FC = () => {
           invoiceNo: '',
           paymentStatus: 'pending',
           saleDate: new Date().toISOString().split('T')[0],
+          partnerId: acct?.partnerId || '',
         });
         setShowClosedWonModal(true);
         closeDealModal();
@@ -640,6 +646,7 @@ export const DealsPage: React.FC = () => {
 
     // Intercept Closed Won → show sales order form popup
     if (newStage === 'Closed Won') {
+      const acct = accounts.find(a => a.id === detailDeal.accountId);
       setClosedWonDealId(detailDeal.id);
       setClosedWonPayload({ stage: 'Closed Won', value: detailDeal.value, accountId: detailDeal.accountId, title: detailDeal.accountName || 'Deal' });
       setClosedWonDescription(detailDeal.description || '');
@@ -651,6 +658,7 @@ export const DealsPage: React.FC = () => {
         invoiceNo: '',
         paymentStatus: 'pending',
         saleDate: new Date().toISOString().split('T')[0],
+        partnerId: acct?.partnerId || '',
       });
       setShowClosedWonModal(true);
       closeDealDetailModal();
@@ -687,6 +695,7 @@ export const DealsPage: React.FC = () => {
 
     // Intercept Closed Won → show popup
     if (newStage === 'Closed Won') {
+      const acct = accounts.find(a => a.id === deal.accountId);
       setClosedWonDealId(deal.id);
       setClosedWonPayload({ stage: 'Closed Won', value: deal.value, accountId: deal.accountId, title: deal.accountName || 'Deal' });
       setClosedWonDescription(deal.description || '');
@@ -698,6 +707,7 @@ export const DealsPage: React.FC = () => {
         invoiceNo: '',
         paymentStatus: 'pending',
         saleDate: new Date().toISOString().split('T')[0],
+        partnerId: acct?.partnerId || '',
       });
       setSelectedProductIds([]);
       setClosedWonExistingEntryId(null);
@@ -797,7 +807,7 @@ export const DealsPage: React.FC = () => {
       }
 
       // Create or update Sales Entry from order form
-      const salesEntryData = {
+      const salesEntryData: any = {
         salespersonId: user?.id,
         customerName: closedWonOrderForm.customerName,
         quantity: closedWonOrderForm.quantity,
@@ -810,6 +820,9 @@ export const DealsPage: React.FC = () => {
         dealId: closedWonDealId || undefined,
         productIds: selectedProductIds,
       };
+      if (closedWonOrderForm.partnerId) {
+        salesEntryData.partnerId = closedWonOrderForm.partnerId;
+      }
 
       if (closedWonExistingEntryId) {
         await salesApi.update(closedWonExistingEntryId, salesEntryData);
@@ -828,6 +841,7 @@ export const DealsPage: React.FC = () => {
 
   // Reinitiate Sales Order — open modal pre-filled from existing sales entry
   const handleReinitiateSalesOrder = async (deal: Deal) => {
+    const acct = accounts.find(a => a.id === deal.accountId);
     setClosedWonDealId(deal.id);
     setClosedWonPayload({ stage: 'Closed Won', value: deal.value, accountId: deal.accountId, title: deal.accountName || 'Deal' });
     setClosedWonDescription(deal.description || '');
@@ -847,6 +861,7 @@ export const DealsPage: React.FC = () => {
           invoiceNo: entry.invoiceNo || '',
           paymentStatus: entry.paymentStatus || 'pending',
           saleDate: entry.saleDate || new Date().toISOString().split('T')[0],
+          partnerId: entry.partnerId || acct?.partnerId || '',
         });
         setSelectedProductIds(entry.productIds || []);
         setClosedWonExistingEntryId(entry.id);
@@ -860,6 +875,7 @@ export const DealsPage: React.FC = () => {
           invoiceNo: '',
           paymentStatus: 'pending',
           saleDate: new Date().toISOString().split('T')[0],
+          partnerId: acct?.partnerId || '',
         });
         setSelectedProductIds([]);
         setClosedWonExistingEntryId(null);
@@ -873,6 +889,7 @@ export const DealsPage: React.FC = () => {
         invoiceNo: '',
         paymentStatus: 'pending',
         saleDate: new Date().toISOString().split('T')[0],
+        partnerId: acct?.partnerId || '',
       });
       setSelectedProductIds([]);
       setClosedWonExistingEntryId(null);
@@ -2449,6 +2466,17 @@ export const DealsPage: React.FC = () => {
             <div>
               <label className={labelClass}>Customer Name <span className="text-red-500">*</span></label>
               <input name="customerName" value={closedWonOrderForm.customerName} onChange={handleOrderChange} className={inputClass} required />
+            </div>
+
+            {/* Partner Selection */}
+            <div>
+              <label className={labelClass}>Partner</label>
+              <select name="partnerId" value={closedWonOrderForm.partnerId} onChange={handleOrderChange} className={selectClass}>
+                <option value="">-- Select Partner --</option>
+                {partners.map(p => (
+                  <option key={p.id} value={p.id}>{p.companyName}</option>
+                ))}
+              </select>
             </div>
 
             {/* Product Selection (multiselect checkboxes with search) */}

@@ -36,7 +36,7 @@ class SalesEntryOut(CamelModel):
 
 
 class SalesEntryCreate(CamelModel):
-    partner_id: UUID
+    partner_id: Optional[UUID] = None
     product_id: Optional[UUID] = None
     salesperson_id: Optional[UUID] = None
     customer_name: Optional[str] = None

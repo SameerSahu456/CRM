@@ -8,6 +8,9 @@ export type NavigationItem =
   | 'contacts'
   | 'deals'
   | 'inventory'
+  | 'tasks'
+  | 'calendar'
+  | 'meetings'
   | 'reports'
   | 'admin'
   | 'settings';
