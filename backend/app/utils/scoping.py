@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import List, Optional
 
-from sqlalchemy import select
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.exceptions import ForbiddenException
@@ -18,15 +18,26 @@ async def get_scoped_user_ids(
     """Return list of user IDs this user can see, or None for unrestricted.
 
     - admin / superadmin  → None (see everything)
-    - manager-level roles → own ID + direct reports (via manager_id)
+    - manager-level roles → own ID + ALL subordinates recursively
+      (walks the full manager_id chain: L1 → L2 → ... → this manager)
     - sales                → own ID only
     """
     if user.role in ADMIN_ROLES:
         return None
 
     if user.role in MANAGER_ROLES:
+        # Recursive CTE to find all subordinates at every level
         result = await db.execute(
-            select(User.id).where(User.manager_id == user.id)
+            text("""
+                WITH RECURSIVE subordinates AS (
+                    SELECT id FROM users WHERE manager_id = :uid
+                    UNION ALL
+                    SELECT u.id FROM users u
+                    INNER JOIN subordinates s ON u.manager_id = s.id
+                )
+                SELECT id FROM subordinates
+            """),
+            {"uid": str(user.id)},
         )
         team_ids: List[str] = [str(row[0]) for row in result.all()]
         team_ids.append(str(user.id))
