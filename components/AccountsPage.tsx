@@ -97,7 +97,7 @@ export const AccountsPage: React.FC = () => {
   // ---------------------------------------------------------------------------
 
   const { colWidths, onMouseDown } = useColumnResize({
-    initialWidths: [45, 200, 150, 140, 220, 130, 130, 130, 130],
+    initialWidths: [45, 200, 150, 140, 220, 130, 130, 130, 140, 130],
   });
 
   const cardClass = `premium-card ${isDark ? '' : 'shadow-soft'}`;
@@ -373,6 +373,7 @@ export const AccountsPage: React.FC = () => {
             { header: 'Location', accessor: (r: Account) => r.location },
             { header: 'Revenue', accessor: (r: Account) => r.revenue },
             { header: 'Employees', accessor: (r: Account) => r.employees },
+            { header: 'Account Type', accessor: (r: Account) => r.accountType },
             { header: 'Status', accessor: (r: Account) => r.status },
             { header: 'Owner', accessor: (r: Account) => r.ownerName },
             { header: 'GSTIN', accessor: (r: Account) => r.gstinNo },
@@ -435,7 +436,7 @@ export const AccountsPage: React.FC = () => {
             <table className="premium-table">
               <thead>
                 <tr className={`border-b ${isDark ? 'border-zinc-700' : 'border-slate-200'}`}>
-                  {['#', 'Name', 'Industry', 'Phone', 'Email', 'Revenue', 'Type', 'GSTIN', 'Tag'].map((label, i) => (
+                  {['#', 'Name', 'Industry', 'Phone', 'Email', 'Revenue', 'Type', 'GSTIN', 'Account Type', 'Tag'].map((label, i) => (
                     <th
                       key={label}
                       className={`${hdrCell} resizable-th ${i === 0 ? 'text-center' : ''}`}
@@ -450,7 +451,7 @@ export const AccountsPage: React.FC = () => {
               <tbody>
                 {accounts.length === 0 ? (
                   <tr>
-                    <td colSpan={9} className="py-16 text-center">
+                    <td colSpan={10} className="py-16 text-center">
                       <Building2 className={`w-8 h-8 mx-auto ${isDark ? 'text-zinc-700' : 'text-slate-300'}`} />
                       <p className={`mt-2 text-sm ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
                         {hasActiveFilters ? 'No accounts match filters' : 'No accounts yet'}
@@ -490,6 +491,17 @@ export const AccountsPage: React.FC = () => {
                       </td>
                       <td className={`${cellBase} ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
                         {account.gstinNo || '-'}
+                      </td>
+                      <td className={cellBase}>
+                        {account.accountType ? (
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                            account.accountType === 'Channel Partner'
+                              ? (isDark ? 'bg-emerald-900/30 text-emerald-400' : 'bg-emerald-50 text-emerald-700')
+                              : (isDark ? 'bg-orange-900/30 text-orange-400' : 'bg-orange-50 text-orange-700')
+                          }`}>
+                            {account.accountType}
+                          </span>
+                        ) : '-'}
                       </td>
                       <td className={cellBase}>
                         {account.tag ? (
@@ -675,6 +687,7 @@ export const AccountsPage: React.FC = () => {
               <InfoRow label="Owner" value={account.ownerName} isDark={isDark} icon={<UserIcon className="w-3.5 h-3.5" />} />
               <InfoRow label="GSTIN" value={account.gstinNo} isDark={isDark} icon={<Hash className="w-3.5 h-3.5" />} />
               <InfoRow label="Payment Terms" value={account.paymentTerms} isDark={isDark} icon={<FileText className="w-3.5 h-3.5" />} />
+              <InfoRow label="Account Type" value={account.accountType} isDark={isDark} icon={<Building2 className="w-3.5 h-3.5" />} />
               <InfoRow label="Tag" value={account.tag} isDark={isDark} icon={<Building2 className="w-3.5 h-3.5" />} />
             </div>
 

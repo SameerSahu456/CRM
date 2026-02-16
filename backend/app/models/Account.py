@@ -53,6 +53,7 @@ class Account(TimestampMixin, Base):
     references_doc: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
     bank_statement_doc: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
     tag: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    account_type: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
 
     # Contact Information
     contact_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)

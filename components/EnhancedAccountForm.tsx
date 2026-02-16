@@ -69,6 +69,7 @@ export interface EnhancedAccountFormData {
 
   location: string;
   tag: string;
+  accountType: string;
 }
 
 export const EMPTY_ENHANCED_FORM: EnhancedAccountFormData = {
@@ -113,6 +114,7 @@ export const EMPTY_ENHANCED_FORM: EnhancedAccountFormData = {
   shippingCountry: '',
   location: '',
   tag: '',
+  accountType: '',
 };
 
 const INDUSTRIES = [
@@ -198,6 +200,7 @@ export const EnhancedAccountForm: React.FC<Props> = ({
         shippingCountry: editingAccount.shippingCountry || '',
         location: editingAccount.location || '',
         tag: editingAccount.tag || '',
+        accountType: editingAccount.accountType || '',
       });
     } else {
       setFormData(EMPTY_ENHANCED_FORM);
@@ -592,7 +595,7 @@ export const EnhancedAccountForm: React.FC<Props> = ({
                       </div>
                     </div>
 
-                    {/* Tag */}
+                    {/* Tag + Account Type */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div>
                         <label htmlFor="tag" className={labelClass}>Tag</label>
@@ -606,6 +609,20 @@ export const EnhancedAccountForm: React.FC<Props> = ({
                           <option value="">-None-</option>
                           <option value="Digital Account">Digital Account</option>
                           <option value="Existing Account">Existing Account</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label htmlFor="accountType" className={labelClass}>Account Type</label>
+                        <select
+                          id="accountType"
+                          name="accountType"
+                          value={formData.accountType}
+                          onChange={handleChange}
+                          className={selectClass}
+                        >
+                          <option value="">-None-</option>
+                          <option value="Channel Partner">Channel Partner</option>
+                          <option value="End Customer">End Customer</option>
                         </select>
                       </div>
                     </div>

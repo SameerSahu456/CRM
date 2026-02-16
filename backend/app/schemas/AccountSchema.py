@@ -39,6 +39,7 @@ class AccountOut(CamelModel):
     references_doc: Optional[str] = None
     bank_statement_doc: Optional[str] = None
     tag: Optional[str] = None
+    account_type: Optional[str] = None
 
     # Contact Information
     contact_name: Optional[str] = None
@@ -99,6 +100,7 @@ class AccountCreate(CamelModel):
     references_doc: Optional[str] = None
     bank_statement_doc: Optional[str] = None
     tag: Optional[str] = None
+    account_type: Optional[str] = None
 
     # Contact Information
     contact_name: Optional[str] = None
@@ -153,6 +155,7 @@ class AccountUpdate(CamelModel):
     references_doc: Optional[str] = None
     bank_statement_doc: Optional[str] = None
     tag: Optional[str] = None
+    account_type: Optional[str] = None
 
     # Contact Information
     contact_name: Optional[str] = None

@@ -352,6 +352,7 @@ export interface Account {
   referencesDoc?: string;
   bankStatementDoc?: string;
   tag?: string;
+  accountType?: 'Channel Partner' | 'End Customer';
 
   // Contact Information
   contactName?: string;
