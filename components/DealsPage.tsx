@@ -256,6 +256,7 @@ export const DealsPage: React.FC = () => {
   });
   const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
   const [productSearch, setProductSearch] = useState('');
+  const [productDropdownOpen, setProductDropdownOpen] = useState(false);
   const [closedWonExistingEntryId, setClosedWonExistingEntryId] = useState<string | null>(null);
 
   // Inline quote builder state (inside deal detail for Channel tag)
@@ -2532,44 +2533,64 @@ export const DealsPage: React.FC = () => {
               {closedWonExistingEntryId ? 'Update the sales order for this deal.' : 'Fill in the sales order details. A sales entry will be created for this deal.'}
             </p>
 
-            {/* Product Selection (multiselect checkboxes with search) */}
-            <div>
+            {/* Product Selection (click-to-open dropdown) */}
+            <div className="relative">
               <label className={labelClass}>Products <span className="text-red-500">*</span></label>
-              <input
-                type="text"
-                placeholder="Search products..."
-                value={productSearch}
-                onChange={e => setProductSearch(e.target.value)}
-                className={`${inputClass} mb-2`}
-              />
-              <div className={`rounded-xl border p-3 max-h-40 overflow-y-auto space-y-1.5 ${
-                isDark ? 'bg-dark-100 border-zinc-700' : 'bg-slate-50 border-slate-200'
-              }`}>
-                {products.length === 0 ? (
-                  <p className={`text-xs ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>No products found</p>
-                ) : products.filter(p => p.isActive && p.name.toLowerCase().includes(productSearch.toLowerCase())).map(product => (
-                  <label key={product.id} className={`flex items-center gap-2.5 px-2 py-1.5 rounded-lg cursor-pointer transition-colors ${
-                    selectedProductIds.includes(product.id)
-                      ? isDark ? 'bg-brand-900/30 text-brand-300' : 'bg-brand-50 text-brand-700'
-                      : isDark ? 'hover:bg-zinc-800 text-zinc-300' : 'hover:bg-slate-100 text-slate-700'
-                  }`}>
+              <button
+                type="button"
+                onClick={() => setProductDropdownOpen(prev => !prev)}
+                className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl border text-sm text-left transition-colors ${
+                  isDark
+                    ? 'bg-dark-100 border-zinc-700 text-zinc-300 hover:border-zinc-500'
+                    : 'bg-white border-slate-200 text-slate-700 hover:border-slate-400'
+                }`}
+              >
+                <span className={selectedProductIds.length === 0 ? (isDark ? 'text-zinc-500' : 'text-slate-400') : ''}>
+                  {selectedProductIds.length === 0
+                    ? '-- Select Products --'
+                    : `${selectedProductIds.length} product(s) selected`}
+                </span>
+                <ChevronDown className={`w-4 h-4 transition-transform ${productDropdownOpen ? 'rotate-180' : ''} ${isDark ? 'text-zinc-500' : 'text-slate-400'}`} />
+              </button>
+              {productDropdownOpen && (
+                <div className={`absolute z-10 left-0 right-0 mt-1 rounded-xl border shadow-lg ${
+                  isDark ? 'bg-dark-100 border-zinc-700' : 'bg-white border-slate-200'
+                }`}>
+                  <div className="p-2">
                     <input
-                      type="checkbox"
-                      checked={selectedProductIds.includes(product.id)}
-                      onChange={() => {
-                        setSelectedProductIds(prev =>
-                          prev.includes(product.id) ? prev.filter(id => id !== product.id) : [...prev, product.id]
-                        );
-                      }}
-                      className="rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+                      type="text"
+                      placeholder="Search products..."
+                      value={productSearch}
+                      onChange={e => setProductSearch(e.target.value)}
+                      className={`${inputClass} text-sm`}
+                      autoFocus
                     />
-                    <span className="text-sm">{product.name}</span>
-                    {product.basePrice ? <span className={`text-xs ml-auto ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>{formatINR(product.basePrice)}</span> : null}
-                  </label>
-                ))}
-              </div>
-              {selectedProductIds.length > 0 && (
-                <p className={`text-xs mt-1 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>{selectedProductIds.length} product(s) selected</p>
+                  </div>
+                  <div className="max-h-48 overflow-y-auto px-2 pb-2 space-y-1">
+                    {products.length === 0 ? (
+                      <p className={`text-xs px-2 py-3 text-center ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>No products found</p>
+                    ) : products.filter(p => p.isActive && p.name.toLowerCase().includes(productSearch.toLowerCase())).map(product => (
+                      <label key={product.id} className={`flex items-center gap-2.5 px-2.5 py-2 rounded-lg cursor-pointer transition-colors ${
+                        selectedProductIds.includes(product.id)
+                          ? isDark ? 'bg-brand-900/30 text-brand-300' : 'bg-brand-50 text-brand-700'
+                          : isDark ? 'hover:bg-zinc-800 text-zinc-300' : 'hover:bg-slate-100 text-slate-700'
+                      }`}>
+                        <input
+                          type="checkbox"
+                          checked={selectedProductIds.includes(product.id)}
+                          onChange={() => {
+                            setSelectedProductIds(prev =>
+                              prev.includes(product.id) ? prev.filter(id => id !== product.id) : [...prev, product.id]
+                            );
+                          }}
+                          className="rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+                        />
+                        <span className="text-sm">{product.name}</span>
+                        {product.basePrice ? <span className={`text-xs ml-auto ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>{formatINR(product.basePrice)}</span> : null}
+                      </label>
+                    ))}
+                  </div>
+                </div>
               )}
             </div>
 
