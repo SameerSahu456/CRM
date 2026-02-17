@@ -14,10 +14,15 @@ from app.models.Carepack import Carepack
 from app.models.Account import Account
 from app.models.Contact import Contact
 from app.models.Deal import Deal
+from app.models.DealActivity import DealActivity
+from app.models.DealLineItem import DealLineItem
 from app.models.Task import Task
 from app.models.CalendarEvent import CalendarEvent
 from app.models.EmailTemplate import EmailTemplate
 from app.models.Email import Email
+from app.models.ActivityLog import ActivityLog
+from app.models.Role import Role
+from app.models.RolePermission import RolePermission
 
 __all__ = [
     "Base",
@@ -37,8 +42,13 @@ __all__ = [
     "Account",
     "Contact",
     "Deal",
+    "DealActivity",
+    "DealLineItem",
     "Task",
     "CalendarEvent",
     "EmailTemplate",
     "Email",
+    "ActivityLog",
+    "Role",
+    "RolePermission",
 ]

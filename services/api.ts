@@ -469,7 +469,7 @@ export const bulkImportApi = {
   },
 };
 
-// Uploads (file upload to Supabase Storage)
+// Uploads (file upload)
 export const uploadsApi = {
   upload: async (file: File): Promise<{ url: string; filename: string }> => {
     const token = getToken();

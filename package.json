@@ -15,7 +15,6 @@
     "@react-spring/three": "^10.0.3",
     "@react-three/fiber": "^8.18.0",
     "@shadergradient/react": "^2.4.20",
-    "@supabase/supabase-js": "^2.95.3",
     "@tiptap/extension-placeholder": "^3.19.0",
     "@tiptap/pm": "^3.19.0",
     "@tiptap/react": "^3.19.0",

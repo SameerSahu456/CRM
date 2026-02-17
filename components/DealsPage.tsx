@@ -597,6 +597,8 @@ export const DealsPage: React.FC = () => {
         if (!payload.accountId) delete payload.accountId;
         if (!payload.contactId) delete payload.contactId;
         if (!payload.closingDate) delete payload.closingDate;
+        if (!payload.nextFollowUp) delete payload.nextFollowUp;
+        if (!payload.billingDeliveryDate) delete payload.billingDeliveryDate;
         setClosedWonDealId(editingDealId);
         setClosedWonPayload(payload);
         setClosedWonDescription(dealFormData.description || '');
@@ -842,9 +844,9 @@ export const DealsPage: React.FC = () => {
 
       // Step 2: Create or update Sales Entry from order form
       const salesEntryData: any = {
-        partnerId: closedWonOrderForm.partnerId,
+        partnerId: closedWonOrderForm.partnerId || undefined,
         salespersonId: user?.id,
-        customerName: closedWonOrderForm.customerName,
+        customerName: closedWonOrderForm.customerName || undefined,
         quantity: closedWonOrderForm.quantity,
         amount: closedWonOrderForm.amount,
         poNumber: closedWonOrderForm.poNumber || undefined,

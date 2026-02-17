@@ -128,14 +128,14 @@ logger = logging.getLogger(__name__)
 
 
 async def _generate_and_store_pdf(db: AsyncSession, quote: Quote, quote_data: dict) -> str | None:
-    """Generate a PDF for a quote and upload to Supabase Storage. Returns the URL."""
+    """Generate a PDF for a quote and store it locally. Returns the URL."""
     try:
         from app.utils.pdf_generator import generate_quote_pdf
-        from app.utils.storage import upload_to_supabase
+        from app.utils.storage import upload_file
 
         pdf_bytes = generate_quote_pdf(quote_data)
         file_name = f"quotes/quote-{quote.id}.pdf"
-        pdf_url = await upload_to_supabase(pdf_bytes, file_name, "application/pdf")
+        pdf_url = await upload_file(pdf_bytes, file_name, "application/pdf")
         quote.pdf_url = pdf_url
         await db.flush()
         return pdf_url

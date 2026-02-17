@@ -14,8 +14,10 @@ class Settings(BaseSettings):
     CORS_ORIGINS_STR: Optional[str] = None
     DEBUG: bool = False
     API_PREFIX: str = "/api"
-    SUPABASE_URL: Optional[str] = None
-    SUPABASE_SERVICE_KEY: Optional[str] = None
+
+    # File storage config
+    UPLOAD_DIR: str = "uploads"
+    BASE_URL: str = "http://localhost:3002"
 
     @property
     def CORS_ORIGINS(self) -> List[str]:

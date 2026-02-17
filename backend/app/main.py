@@ -1,6 +1,9 @@
+from pathlib import Path
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from app.api.v1.router import api_router
 from app.config import settings
@@ -31,6 +34,11 @@ app.add_exception_handler(CRMException, crm_exception_handler)
 app.add_exception_handler(Exception, generic_exception_handler)
 
 app.include_router(api_router, prefix=settings.API_PREFIX)
+
+# Serve uploaded files from local storage
+upload_dir = Path(settings.UPLOAD_DIR)
+upload_dir.mkdir(parents=True, exist_ok=True)
+app.mount("/files", StaticFiles(directory=str(upload_dir)), name="uploaded-files")
 
 
 @app.get("/api/status")

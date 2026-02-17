@@ -1,49 +1,45 @@
-import os
-import ssl as ssl_module
+import ssl
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
 
 from app.config import settings
 
-# Handle sslmode and pgbouncer for asyncpg (Supabase connection pooling)
-db_url = settings.DATABASE_URL
-connect_args = {}
+_db_url = settings.DATABASE_URL
+_is_supabase = "supabase" in _db_url
 
-# Supabase ALWAYS requires SSL - configure it first
-if "supabase" in db_url.lower():
-    ssl_ctx = ssl_module.create_default_context()
-    ssl_ctx.check_hostname = False
-    ssl_ctx.verify_mode = ssl_module.CERT_NONE
-    connect_args["ssl"] = ssl_ctx
+if _is_supabase:
+    # Strip query params like ?pgbouncer=true&connection_limit=1 that break asyncpg
+    _db_url = _db_url.split("?")[0]
 
-    # Disable prepared statements for pgbouncer compatibility
-    # Connection pooling URLs (.pooler.supabase.com) use pgbouncer
-    if ".pooler.supabase.com" in db_url or "pgbouncer" in db_url:
-        connect_args["statement_cache_size"] = 0
+    # Supabase uses pgBouncer which requires special handling:
+    #   - NullPool (serverless, no persistent connections)
+    #   - statement_cache_size=0 (pgBouncer doesn't support prepared statements)
+    #   - SSL required
+    _ssl_ctx = ssl.create_default_context()
+    _ssl_ctx.check_hostname = False
+    _ssl_ctx.verify_mode = ssl.CERT_NONE
 
-# Strip query parameters that asyncpg doesn't support (sslmode, pgbouncer, etc.)
-if "?" in db_url:
-    db_url = db_url.split("?")[0]
-
-# Detect serverless environment (Vercel / AWS Lambda)
-is_serverless = bool(os.environ.get("VERCEL") or os.environ.get("AWS_LAMBDA_FUNCTION_NAME"))
-
-# NullPool for serverless (no persistent pool), regular pool for local dev
-engine_kwargs = dict(
-    echo=False,
-    connect_args=connect_args,
-)
-
-if is_serverless:
-    engine_kwargs["poolclass"] = NullPool
+    engine = create_async_engine(
+        _db_url,
+        echo=False,
+        poolclass=NullPool,
+        connect_args={
+            "ssl": _ssl_ctx,
+            "statement_cache_size": 0,
+            "prepared_statement_cache_size": 0,
+        },
+    )
 else:
-    engine_kwargs["pool_size"] = 5
-    engine_kwargs["max_overflow"] = 10
-    engine_kwargs["pool_pre_ping"] = True
-    engine_kwargs["pool_recycle"] = 300
-
-engine = create_async_engine(db_url, **engine_kwargs)
+    # Local PostgreSQL — standard connection pooling
+    engine = create_async_engine(
+        settings.DATABASE_URL,
+        echo=False,
+        pool_size=5,
+        max_overflow=10,
+        pool_pre_ping=True,
+        pool_recycle=300,
+    )
 
 async_session = async_sessionmaker(
     engine,

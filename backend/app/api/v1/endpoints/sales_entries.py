@@ -158,6 +158,9 @@ async def create_sales_entry(
     data = body.model_dump(exclude_unset=True)
     if "salesperson_id" not in data or data["salesperson_id"] is None:
         data["salesperson_id"] = user.id
+    # Convert UUID objects to strings for JSONB column
+    if "product_ids" in data and data["product_ids"]:
+        data["product_ids"] = [str(pid) for pid in data["product_ids"]]
     entry = await repo.create(data)
     await log_activity(db, user, "create", "sales_entry", str(entry.id), entry.customer_name)
     return SalesEntryOut.model_validate(entry).model_dump(by_alias=True)
@@ -176,7 +179,11 @@ async def update_sales_entry(
         raise NotFoundException("Sales entry not found")
     await enforce_scope(old, "salesperson_id", user, db, resource_name="sales entry")
     old_data = model_to_dict(old)
-    entry = await repo.update(entry_id, body.model_dump(exclude_unset=True))
+    update_data = body.model_dump(exclude_unset=True)
+    # Convert UUID objects to strings for JSONB column
+    if "product_ids" in update_data and update_data["product_ids"]:
+        update_data["product_ids"] = [str(pid) for pid in update_data["product_ids"]]
+    entry = await repo.update(entry_id, update_data)
     changes = compute_changes(old_data, model_to_dict(entry))
     await log_activity(db, user, "update", "sales_entry", str(entry.id), entry.customer_name, changes)
     return SalesEntryOut.model_validate(entry).model_dump(by_alias=True)
