@@ -41,3 +41,16 @@ class SalesEntry(TimestampMixin, Base):
         UUID(as_uuid=True), ForeignKey("deals.id"), nullable=True
     )
     product_ids: Mapped[Optional[list]] = mapped_column(JSONB, nullable=True, server_default=text("'[]'::jsonb"))
+
+    # Sales Order extended fields
+    contact_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    contact_no: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    email: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    gstin: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    pan_no: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    dispatch_method: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    payment_terms: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    order_type: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)  # New / Refurb
+    serial_number: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    boq: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    price: Mapped[Optional[Decimal]] = mapped_column(Numeric(15, 2), nullable=True)

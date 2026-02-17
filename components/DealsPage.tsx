@@ -250,6 +250,9 @@ export const DealsPage: React.FC = () => {
     customerName: '', quantity: 1, amount: 0, poNumber: '', invoiceNo: '',
     paymentStatus: 'pending', saleDate: new Date().toISOString().split('T')[0],
     partnerId: '',
+    contactName: '', contactNo: '', email: '', gstin: '', panNo: '',
+    dispatchMethod: '', paymentTerms: '', orderType: 'New' as 'New' | 'Refurb',
+    serialNumber: '', boq: '', price: 0,
   });
   const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
   const [productSearch, setProductSearch] = useState('');
@@ -605,6 +608,17 @@ export const DealsPage: React.FC = () => {
           paymentStatus: 'pending',
           saleDate: new Date().toISOString().split('T')[0],
           partnerId: acct?.partnerId || '',
+          contactName: dealFormData.contactNo ? '' : '',
+          contactNo: dealFormData.contactNo || '',
+          email: dealFormData.email || '',
+          gstin: acct?.gstinNo || '',
+          panNo: acct?.panNo || '',
+          dispatchMethod: '',
+          paymentTerms: acct?.paymentTerms || '',
+          orderType: 'New',
+          serialNumber: '',
+          boq: '',
+          price: 0,
         });
         setShowClosedWonModal(true);
         closeDealModal();
@@ -659,6 +673,17 @@ export const DealsPage: React.FC = () => {
         paymentStatus: 'pending',
         saleDate: new Date().toISOString().split('T')[0],
         partnerId: acct?.partnerId || '',
+        contactName: detailDeal.contactName || '',
+        contactNo: detailDeal.contactNo || '',
+        email: detailDeal.email || '',
+        gstin: acct?.gstinNo || '',
+        panNo: acct?.panNo || '',
+        dispatchMethod: '',
+        paymentTerms: acct?.paymentTerms || '',
+        orderType: 'New',
+        serialNumber: '',
+        boq: '',
+        price: 0,
       });
       setShowClosedWonModal(true);
       closeDealDetailModal();
@@ -708,6 +733,17 @@ export const DealsPage: React.FC = () => {
         paymentStatus: 'pending',
         saleDate: new Date().toISOString().split('T')[0],
         partnerId: acct?.partnerId || '',
+        contactName: deal.contactName || '',
+        contactNo: deal.contactNo || '',
+        email: deal.email || '',
+        gstin: acct?.gstinNo || '',
+        panNo: acct?.panNo || '',
+        dispatchMethod: '',
+        paymentTerms: acct?.paymentTerms || '',
+        orderType: 'New',
+        serialNumber: '',
+        boq: '',
+        price: 0,
       });
       setSelectedProductIds([]);
       setClosedWonExistingEntryId(null);
@@ -825,6 +861,17 @@ export const DealsPage: React.FC = () => {
         description: closedWonDescription || undefined,
         dealId: closedWonDealId || undefined,
         productIds: selectedProductIds,
+        contactName: closedWonOrderForm.contactName || undefined,
+        contactNo: closedWonOrderForm.contactNo || undefined,
+        email: closedWonOrderForm.email || undefined,
+        gstin: closedWonOrderForm.gstin || undefined,
+        panNo: closedWonOrderForm.panNo || undefined,
+        dispatchMethod: closedWonOrderForm.dispatchMethod || undefined,
+        paymentTerms: closedWonOrderForm.paymentTerms || undefined,
+        orderType: closedWonOrderForm.orderType || undefined,
+        serialNumber: closedWonOrderForm.serialNumber || undefined,
+        boq: closedWonOrderForm.boq || undefined,
+        price: closedWonOrderForm.price || undefined,
       };
 
       if (closedWonExistingEntryId) {
@@ -850,6 +897,21 @@ export const DealsPage: React.FC = () => {
     setClosedWonDescription(deal.description || '');
     setClosedWonError('');
 
+    // Default new fields from deal/account
+    const newFieldsFromDeal = {
+      contactName: deal.contactName || '',
+      contactNo: deal.contactNo || '',
+      email: deal.email || '',
+      gstin: acct?.gstinNo || '',
+      panNo: acct?.panNo || '',
+      dispatchMethod: '',
+      paymentTerms: acct?.paymentTerms || '',
+      orderType: 'New' as const,
+      serialNumber: '',
+      boq: '',
+      price: 0,
+    };
+
     // Try to load existing sales entry for this deal
     try {
       const res = await salesApi.list({ deal_id: deal.id, limit: '1' });
@@ -865,6 +927,17 @@ export const DealsPage: React.FC = () => {
           paymentStatus: entry.paymentStatus || 'pending',
           saleDate: entry.saleDate || new Date().toISOString().split('T')[0],
           partnerId: entry.partnerId || acct?.partnerId || '',
+          contactName: entry.contactName || newFieldsFromDeal.contactName,
+          contactNo: entry.contactNo || newFieldsFromDeal.contactNo,
+          email: entry.email || newFieldsFromDeal.email,
+          gstin: entry.gstin || newFieldsFromDeal.gstin,
+          panNo: entry.panNo || newFieldsFromDeal.panNo,
+          dispatchMethod: entry.dispatchMethod || '',
+          paymentTerms: entry.paymentTerms || newFieldsFromDeal.paymentTerms,
+          orderType: entry.orderType || 'New',
+          serialNumber: entry.serialNumber || '',
+          boq: entry.boq || '',
+          price: entry.price || 0,
         });
         setSelectedProductIds(entry.productIds || []);
         setClosedWonExistingEntryId(entry.id);
@@ -879,6 +952,7 @@ export const DealsPage: React.FC = () => {
           paymentStatus: 'pending',
           saleDate: new Date().toISOString().split('T')[0],
           partnerId: acct?.partnerId || '',
+          ...newFieldsFromDeal,
         });
         setSelectedProductIds([]);
         setClosedWonExistingEntryId(null);
@@ -893,6 +967,7 @@ export const DealsPage: React.FC = () => {
         paymentStatus: 'pending',
         saleDate: new Date().toISOString().split('T')[0],
         partnerId: acct?.partnerId || '',
+        ...newFieldsFromDeal,
       });
       setSelectedProductIds([]);
       setClosedWonExistingEntryId(null);
@@ -2423,7 +2498,7 @@ export const DealsPage: React.FC = () => {
       const { name, value } = e.target;
       setClosedWonOrderForm(prev => ({
         ...prev,
-        [name]: (name === 'quantity' || name === 'amount') ? Number(value) || 0 : value,
+        [name]: (name === 'quantity' || name === 'amount' || name === 'price') ? Number(value) || 0 : value,
       }));
     };
 
@@ -2523,11 +2598,43 @@ export const DealsPage: React.FC = () => {
               )}
             </div>
 
-            {/* Quantity & Amount */}
+            {/* Contact Info */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div>
+                <label className={labelClass}>Contact Name</label>
+                <input name="contactName" value={closedWonOrderForm.contactName} onChange={handleOrderChange} className={inputClass} placeholder="Contact person" />
+              </div>
+              <div>
+                <label className={labelClass}>Contact No</label>
+                <input name="contactNo" value={closedWonOrderForm.contactNo} onChange={handleOrderChange} className={inputClass} placeholder="+91..." />
+              </div>
+              <div>
+                <label className={labelClass}>Email</label>
+                <input name="email" type="email" value={closedWonOrderForm.email} onChange={handleOrderChange} className={inputClass} placeholder="email@example.com" />
+              </div>
+            </div>
+
+            {/* Company Details */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className={labelClass}>GSTIN</label>
+                <input name="gstin" value={closedWonOrderForm.gstin} onChange={handleOrderChange} className={inputClass} placeholder="22AAAAA0000A1Z5" />
+              </div>
+              <div>
+                <label className={labelClass}>PAN No</label>
+                <input name="panNo" value={closedWonOrderForm.panNo} onChange={handleOrderChange} className={inputClass} placeholder="AAAAA0000A" />
+              </div>
+            </div>
+
+            {/* Quantity, Price & Amount */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div>
                 <label className={labelClass}>Quantity</label>
                 <input name="quantity" type="number" min="1" value={closedWonOrderForm.quantity} onChange={handleOrderChange} className={inputClass} />
+              </div>
+              <div>
+                <label className={labelClass}>Price (per unit)</label>
+                <input name="price" type="number" min="0" step="0.01" value={closedWonOrderForm.price} onChange={handleOrderChange} className={inputClass} />
               </div>
               <div>
                 <label className={labelClass}>Amount <span className="text-red-500">*</span></label>
@@ -2547,6 +2654,22 @@ export const DealsPage: React.FC = () => {
               </div>
             </div>
 
+            {/* Dispatch Method & Payment Terms */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className={labelClass}>Dispatch Method</label>
+                <select name="dispatchMethod" value={closedWonOrderForm.dispatchMethod} onChange={handleOrderChange} className={selectClass}>
+                  <option value="">-- Select --</option>
+                  <option value="Air">Air</option>
+                  <option value="Road">Road</option>
+                </select>
+              </div>
+              <div>
+                <label className={labelClass}>Payment Terms</label>
+                <input name="paymentTerms" value={closedWonOrderForm.paymentTerms} onChange={handleOrderChange} className={inputClass} placeholder="e.g. Net 30" />
+              </div>
+            </div>
+
             {/* Payment Status & Sale Date */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
@@ -2561,6 +2684,48 @@ export const DealsPage: React.FC = () => {
                 <label className={labelClass}>Sale Date <span className="text-red-500">*</span></label>
                 <input name="saleDate" type="date" value={closedWonOrderForm.saleDate} onChange={handleOrderChange} className={inputClass} required />
               </div>
+            </div>
+
+            {/* Order Type Toggle: New / Refurb */}
+            <div>
+              <label className={labelClass}>Order Type</label>
+              <div className="flex gap-2">
+                {(['New', 'Refurb'] as const).map(t => (
+                  <button
+                    key={t}
+                    type="button"
+                    onClick={() => setClosedWonOrderForm(prev => ({ ...prev, orderType: t, serialNumber: t === 'Refurb' ? '' : prev.serialNumber }))}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                      closedWonOrderForm.orderType === t
+                        ? 'bg-brand-600 text-white shadow-sm'
+                        : isDark ? 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                    }`}
+                  >
+                    {t}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Conditional fields based on Order Type */}
+            {closedWonOrderForm.orderType === 'New' && (
+              <div>
+                <label className={labelClass}>Serial Number</label>
+                <input name="serialNumber" value={closedWonOrderForm.serialNumber} onChange={handleOrderChange} className={inputClass} placeholder="Enter serial number" />
+              </div>
+            )}
+
+            {/* BOQ - shown for both New and Refurb */}
+            <div>
+              <label className={labelClass}>BOQ (Bill of Quantities)</label>
+              <textarea
+                name="boq"
+                rows={3}
+                placeholder="Enter BOQ details..."
+                value={closedWonOrderForm.boq}
+                onChange={handleOrderChange}
+                className={inputClass}
+              />
             </div>
 
             {/* Description */}

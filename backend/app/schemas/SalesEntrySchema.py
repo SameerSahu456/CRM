@@ -27,6 +27,18 @@ class SalesEntryOut(CamelModel):
     description: Optional[str] = None
     deal_id: Optional[UUID] = None
     product_ids: Optional[List[UUID]] = None
+    # Sales Order extended fields
+    contact_name: Optional[str] = None
+    contact_no: Optional[str] = None
+    email: Optional[str] = None
+    gstin: Optional[str] = None
+    pan_no: Optional[str] = None
+    dispatch_method: Optional[str] = None
+    payment_terms: Optional[str] = None
+    order_type: Optional[str] = None
+    serial_number: Optional[str] = None
+    boq: Optional[str] = None
+    price: Optional[float] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
     # Joined fields
@@ -53,6 +65,18 @@ class SalesEntryCreate(CamelModel):
     description: Optional[str] = None
     deal_id: Optional[UUID] = None
     product_ids: Optional[List[UUID]] = None
+    # Sales Order extended fields
+    contact_name: Optional[str] = None
+    contact_no: Optional[str] = None
+    email: Optional[str] = None
+    gstin: Optional[str] = None
+    pan_no: Optional[str] = None
+    dispatch_method: Optional[str] = None
+    payment_terms: Optional[str] = None
+    order_type: Optional[str] = None
+    serial_number: Optional[str] = None
+    boq: Optional[str] = None
+    price: Optional[float] = None
 
 
 class SalesEntryUpdate(CamelModel):
@@ -72,6 +96,18 @@ class SalesEntryUpdate(CamelModel):
     description: Optional[str] = None
     deal_id: Optional[UUID] = None
     product_ids: Optional[List[UUID]] = None
+    # Sales Order extended fields
+    contact_name: Optional[str] = None
+    contact_no: Optional[str] = None
+    email: Optional[str] = None
+    gstin: Optional[str] = None
+    pan_no: Optional[str] = None
+    dispatch_method: Optional[str] = None
+    payment_terms: Optional[str] = None
+    order_type: Optional[str] = None
+    serial_number: Optional[str] = None
+    boq: Optional[str] = None
+    price: Optional[float] = None
 
 
 class SalesSummary(CamelModel):
