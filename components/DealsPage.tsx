@@ -809,14 +809,6 @@ export const DealsPage: React.FC = () => {
   };
 
   const handleClosedWonSubmit = async () => {
-    if (!closedWonOrderForm.customerName.trim()) {
-      setClosedWonError('Customer name is required');
-      return;
-    }
-    if (!closedWonOrderForm.partnerId) {
-      setClosedWonError('Please select a partner');
-      return;
-    }
     if (selectedProductIds.length === 0) {
       setClosedWonError('Please select at least one product');
       return;
@@ -2540,23 +2532,6 @@ export const DealsPage: React.FC = () => {
               {closedWonExistingEntryId ? 'Update the sales order for this deal.' : 'Fill in the sales order details. A sales entry will be created for this deal.'}
             </p>
 
-            {/* Customer Name */}
-            <div>
-              <label className={labelClass}>Customer Name <span className="text-red-500">*</span></label>
-              <input name="customerName" value={closedWonOrderForm.customerName} onChange={handleOrderChange} className={inputClass} required />
-            </div>
-
-            {/* Partner Selection */}
-            <div>
-              <label className={labelClass}>Partner <span className="text-red-500">*</span></label>
-              <select name="partnerId" value={closedWonOrderForm.partnerId} onChange={handleOrderChange} className={selectClass} required>
-                <option value="">-- Select Partner --</option>
-                {partners.map(p => (
-                  <option key={p.id} value={p.id}>{p.companyName}</option>
-                ))}
-              </select>
-            </div>
-
             {/* Product Selection (multiselect checkboxes with search) */}
             <div>
               <label className={labelClass}>Products <span className="text-red-500">*</span></label>
@@ -2642,18 +2617,6 @@ export const DealsPage: React.FC = () => {
               </div>
             </div>
 
-            {/* PO Number & Invoice */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label className={labelClass}>PO Number</label>
-                <input name="poNumber" value={closedWonOrderForm.poNumber} onChange={handleOrderChange} className={inputClass} placeholder="PO-XXXX" />
-              </div>
-              <div>
-                <label className={labelClass}>Invoice No</label>
-                <input name="invoiceNo" value={closedWonOrderForm.invoiceNo} onChange={handleOrderChange} className={inputClass} placeholder="INV-XXXX" />
-              </div>
-            </div>
-
             {/* Dispatch Method & Payment Terms */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
@@ -2670,20 +2633,10 @@ export const DealsPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Payment Status & Sale Date */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label className={labelClass}>Payment Status</label>
-                <select name="paymentStatus" value={closedWonOrderForm.paymentStatus} onChange={handleOrderChange} className={selectClass}>
-                  <option value="pending">Pending</option>
-                  <option value="partial">Partial</option>
-                  <option value="paid">Paid</option>
-                </select>
-              </div>
-              <div>
-                <label className={labelClass}>Sale Date <span className="text-red-500">*</span></label>
-                <input name="saleDate" type="date" value={closedWonOrderForm.saleDate} onChange={handleOrderChange} className={inputClass} required />
-              </div>
+            {/* Sale Date */}
+            <div>
+              <label className={labelClass}>Sale Date <span className="text-red-500">*</span></label>
+              <input name="saleDate" type="date" value={closedWonOrderForm.saleDate} onChange={handleOrderChange} className={inputClass} required />
             </div>
 
             {/* Order Type Toggle: New / Refurb */}
