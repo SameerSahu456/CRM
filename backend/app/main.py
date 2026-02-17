@@ -35,10 +35,13 @@ app.add_exception_handler(Exception, generic_exception_handler)
 
 app.include_router(api_router, prefix=settings.API_PREFIX)
 
-# Serve uploaded files from local storage
+# Serve uploaded files from local storage (skip on serverless/Vercel)
 upload_dir = Path(settings.UPLOAD_DIR)
-upload_dir.mkdir(parents=True, exist_ok=True)
-app.mount("/files", StaticFiles(directory=str(upload_dir)), name="uploaded-files")
+try:
+    upload_dir.mkdir(parents=True, exist_ok=True)
+    app.mount("/files", StaticFiles(directory=str(upload_dir)), name="uploaded-files")
+except OSError:
+    pass  # Read-only filesystem (Vercel serverless)
 
 
 @app.get("/api/status")
