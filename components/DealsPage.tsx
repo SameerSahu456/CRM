@@ -877,6 +877,7 @@ export const DealsPage: React.FC = () => {
 
       closeClosedWonModal();
       refreshData();
+      navigate('sales-entry');
     } catch (err: any) {
       setClosedWonError(err.message || 'Failed to complete deal');
     } finally {
@@ -2534,6 +2535,19 @@ export const DealsPage: React.FC = () => {
             <p className={`text-sm ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>
               {closedWonExistingEntryId ? 'Update the sales order for this deal.' : 'Fill in the sales order details. A sales entry will be created for this deal.'}
             </p>
+
+            {/* Company Name (auto-filled from account) */}
+            <div>
+              <label className={labelClass}>Company Name</label>
+              <input
+                name="customerName"
+                value={closedWonOrderForm.customerName}
+                onChange={handleOrderChange}
+                className={`${inputClass} ${isDark ? 'bg-dark-200' : 'bg-slate-50'}`}
+                placeholder="Company name"
+                readOnly
+              />
+            </div>
 
             {/* Product Selection (click-to-open dropdown) */}
             <div className="relative">
