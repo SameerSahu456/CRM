@@ -78,6 +78,7 @@ async def list_sales_entries(
         out = SalesEntryOut.model_validate(entry).model_dump(by_alias=True)
         out["partnerName"] = item["partner_name"]
         out["productName"] = item["product_name"]
+        out["productNames"] = item["product_names"]
         out["salespersonName"] = item["salesperson_name"]
         data.append(out)
 

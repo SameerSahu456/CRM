@@ -48,13 +48,39 @@ class SalesEntryRepository(BaseRepository[SalesEntry]):
         result = await self.db.execute(stmt)
         rows = result.all()
 
+        # Collect all product_ids from entries that have them
+        all_product_ids: set[str] = set()
+        for row in rows:
+            entry = row[0]
+            if entry.product_ids:
+                for pid in entry.product_ids:
+                    all_product_ids.add(str(pid))
+
+        # Bulk-fetch product names for all referenced product_ids
+        product_name_map: dict[str, str] = {}
+        if all_product_ids:
+            prod_stmt = select(Product.id, Product.name).where(
+                Product.id.in_(list(all_product_ids))
+            )
+            prod_result = await self.db.execute(prod_stmt)
+            for pid, pname in prod_result.all():
+                product_name_map[str(pid)] = pname
+
         items = []
         for row in rows:
             entry = row[0]
+            # Resolve product names from product_ids array
+            resolved_names = None
+            if entry.product_ids:
+                resolved_names = [
+                    product_name_map.get(str(pid), "Unknown")
+                    for pid in entry.product_ids
+                ]
             items.append({
                 "entry": entry,
                 "partner_name": row[1],
                 "product_name": row[2],
+                "product_names": resolved_names,
                 "salesperson_name": row[3],
             })
 

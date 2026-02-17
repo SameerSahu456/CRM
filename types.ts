@@ -145,6 +145,7 @@ export interface SalesEntry {
   // Joined data
   partnerName?: string;
   productName?: string;
+  productNames?: string[];
   salespersonName?: string;
 }
 

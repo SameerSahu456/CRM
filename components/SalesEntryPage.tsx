@@ -395,8 +395,8 @@ export const SalesEntryPage: React.FC = () => {
           <button
             onClick={() => exportToCsv('sales_entries', [
               { header: 'Date', accessor: (r: SalesEntry) => r.saleDate ? r.saleDate.split('T')[0] : '' },
-              { header: 'Partner', accessor: (r: SalesEntry) => r.partnerName },
-              { header: 'Product', accessor: (r: SalesEntry) => r.productName },
+              { header: 'Account', accessor: (r: SalesEntry) => r.customerName },
+              { header: 'Product', accessor: (r: SalesEntry) => r.productNames && r.productNames.length > 0 ? r.productNames.map((n, i) => `${i + 1}. ${n}`).join(', ') : r.productName },
               { header: 'Customer', accessor: (r: SalesEntry) => r.customerName },
               { header: 'Quantity', accessor: (r: SalesEntry) => r.quantity },
               { header: 'Amount', accessor: (r: SalesEntry) => r.amount },
@@ -473,7 +473,7 @@ export const SalesEntryPage: React.FC = () => {
             <table className="premium-table">
               <thead>
                 <tr className={`border-b ${isDark ? 'border-zinc-800' : 'border-slate-100'}`}>
-                  {['#', 'Date', 'Partner', 'Product', 'Customer', 'Qty', 'Amount', 'PO #', 'Invoice #', 'Status'].map((h, i) => (
+                  {['#', 'Date', 'Account', 'Product', 'Customer', 'Qty', 'Amount', 'PO #', 'Invoice #', 'Status'].map((h, i) => (
                     <th
                       key={h}
                       className={`px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider resizable-th ${
@@ -507,10 +507,14 @@ export const SalesEntryPage: React.FC = () => {
                         {formatDate(entry.saleDate)}
                       </td>
                       <td className={`px-4 py-3 font-medium ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                        {entry.partnerName || '-'}
+                        {entry.customerName || '-'}
                       </td>
                       <td className={`px-4 py-3 ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
-                        {entry.productName || '-'}
+                        {entry.productNames && entry.productNames.length > 0
+                          ? entry.productNames.length === 1
+                            ? entry.productNames[0]
+                            : entry.productNames.map((name, i) => `${i + 1}. ${name}`).join(', ')
+                          : entry.productName || '-'}
                       </td>
                       <td className={`px-4 py-3 ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
                         {entry.customerName || '-'}
@@ -677,12 +681,16 @@ export const SalesEntryPage: React.FC = () => {
                   <p className={`font-medium ${isDark ? 'text-white' : 'text-slate-900'}`}>{formatDate(detailEntry.saleDate)}</p>
                 </div>
                 <div>
-                  <p className={`text-xs mb-0.5 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Partner</p>
-                  <p className={`font-medium ${isDark ? 'text-white' : 'text-slate-900'}`}>{detailEntry.partnerName || '-'}</p>
+                  <p className={`text-xs mb-0.5 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Account</p>
+                  <p className={`font-medium ${isDark ? 'text-white' : 'text-slate-900'}`}>{detailEntry.customerName || '-'}</p>
                 </div>
                 <div>
                   <p className={`text-xs mb-0.5 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Product</p>
-                  <p className={`font-medium ${isDark ? 'text-white' : 'text-slate-900'}`}>{detailEntry.productName || '-'}</p>
+                  <p className={`font-medium ${isDark ? 'text-white' : 'text-slate-900'}`}>{detailEntry.productNames && detailEntry.productNames.length > 0
+                    ? detailEntry.productNames.length === 1
+                      ? detailEntry.productNames[0]
+                      : detailEntry.productNames.map((name: string, i: number) => `${i + 1}. ${name}`).join(', ')
+                    : detailEntry.productName || '-'}</p>
                 </div>
                 <div>
                   <p className={`text-xs mb-0.5 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Customer</p>

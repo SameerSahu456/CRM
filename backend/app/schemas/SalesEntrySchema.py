@@ -44,6 +44,7 @@ class SalesEntryOut(CamelModel):
     # Joined fields
     partner_name: Optional[str] = None
     product_name: Optional[str] = None
+    product_names: Optional[List[str]] = None
     salesperson_name: Optional[str] = None
 
 
