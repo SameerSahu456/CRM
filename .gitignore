@@ -29,6 +29,18 @@ dist-ssr
 .env.*
 backend/.env
 
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+.eggs/
+*.egg
+.mypy_cache/
+.pytest_cache/
+
 # Uploaded files (keep directory structure)
 backend/uploads/*
 !backend/uploads/.gitkeep

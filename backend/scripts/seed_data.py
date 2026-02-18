@@ -31,6 +31,7 @@ sys.path.insert(0, str(backend_dir))
 
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy import text
 import bcrypt
 
 from app.models import (
@@ -55,8 +56,9 @@ async_session = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False
 
 
 def hash_password(password: str) -> str:
-    """Hash a password using bcrypt."""
-    return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+    """Hash a password using bcrypt. Truncates to 72 bytes (bcrypt limit)."""
+    password_bytes = password.encode("utf-8")[:72]  # bcrypt max is 72 bytes
+    return bcrypt.hashpw(password_bytes, bcrypt.gensalt()).decode("utf-8")
 
 
 # Sample data generators
@@ -283,8 +285,8 @@ class DataGenerator:
         "Email Campaign",
         "Partner",
     ]
-    LEAD_STAGES = ["Cold", "Warm", "Hot", "Qualified", "Proposal Sent", "Negotiation"]
-    DEAL_STAGES = ["Cold", "Warm", "Hot", "Proposal", "Negotiation", "Closed Won", "Closed Lost"]
+    LEAD_STAGES = ["Cold", "Proposal", "Negotiation", "Closed Won", "Closed Lost"]
+    DEAL_STAGES = ["Cold", "Proposal", "Negotiation", "Closed Won", "Closed Lost"]
     PRIORITIES = ["Low", "Medium", "High", "Urgent"]
     TASK_TYPES = ["Call", "Email", "Meeting", "Follow-up", "Demo", "Proposal"]
     TASK_STATUSES = ["pending", "in_progress", "completed", "cancelled"]
@@ -451,9 +453,9 @@ async def create_products(session: AsyncSession):
         product = Product(
             name=product_data["name"],
             category=product_data["category"],
-            unit_price=Decimal(product_data["base_price"]),
-            cost_price=Decimal(str(float(product_data["base_price"]) * 0.7)),  # 70% of unit price
-            stock_quantity=random.randint(10, 100),
+            base_price=Decimal(product_data["base_price"]),
+            commission_rate=Decimal(product_data["commission_rate"]),
+            stock=random.randint(10, 100),
             is_active=True,
         )
         session.add(product)
@@ -473,17 +475,29 @@ async def create_partners(session: AsyncSession, users, count=15):
         company_name = f"{random.choice(DataGenerator.FIRST_NAMES)} {random.choice(['Enterprises', 'Solutions', 'Systems', 'Technologies'])}"
         contact_person = DataGenerator.random_name()
 
+        city = random.choice(DataGenerator.CITIES)
+        state = random.choice(DataGenerator.STATES)
+
         partner = Partner(
-            name=company_name,
-            type=random.choice(DataGenerator.PARTNER_TYPES),
-            status=random.choice(["active", "inactive"]),
+            company_name=company_name,
+            partner_type=random.choice(DataGenerator.PARTNER_TYPES),
+            status=random.choice(["active", "pending", "approved"]),
+            tier=random.choice(["new", "silver", "gold", "platinum"]),
             contact_person=contact_person,
             email=DataGenerator.random_email(contact_person, company_name),
             phone=DataGenerator.random_phone(),
-            website=f"https://www.{company_name.lower().replace(' ', '')}.com",
-            address=f"{random.randint(1, 999)} {random.choice(['MG Road', 'Park Street', 'Main Road', 'Commercial Street'])}, {random.choice(DataGenerator.CITIES)}, {random.choice(DataGenerator.STATES)}",
-            commission_rate=Decimal(str(random.choice([5.0, 7.5, 10.0, 12.5, 15.0]))),
+            mobile=DataGenerator.random_phone(),
+            gst_number=f"27AABCU{random.randint(1000, 9999)}C1Z{random.randint(1, 9)}",
+            pan_number=f"AABCU{random.randint(1000, 9999)}C",
+            address=f"{random.randint(1, 999)} {random.choice(['MG Road', 'Park Street', 'Main Road', 'Commercial Street'])}",
+            city=city,
+            state=state,
+            pincode=f"{random.randint(100000, 999999)}",
+            vertical=random.choice(
+                ["IT Hardware", "Printing", "Networking", "Software", "Services"]
+            ),
             notes=f"Partner since {random.randint(2018, 2024)}",
+            is_active=random.choice([True, True, True, False]),
         )
         session.add(partner)
         partners.append(partner)
@@ -502,6 +516,8 @@ async def create_accounts(session: AsyncSession, users, partners, count=50):
         industry = random.choice(DataGenerator.INDUSTRIES)
         company_name = DataGenerator.random_company(industry)
         contact_name = DataGenerator.random_name()
+        city = random.choice(DataGenerator.CITIES)
+        state = random.choice(DataGenerator.STATES)
 
         account = Account(
             name=f"{company_name} {i+1}",
@@ -509,12 +525,20 @@ async def create_accounts(session: AsyncSession, users, partners, count=50):
             website=f"www.{company_name.lower().replace(' ', '')}{i}.com",
             phone=DataGenerator.random_phone(),
             email=DataGenerator.random_email(contact_name, company_name),
-            billing_address=f"{random.randint(1, 999)} {random.choice(['MG Road', 'Park Street', 'Main Road'])}, {random.choice(DataGenerator.CITIES)}, {random.choice(DataGenerator.STATES)}",
-            shipping_address=f"{random.randint(1, 999)} {random.choice(['Industrial Area', 'Tech Park', 'Business District'])}, {random.choice(DataGenerator.CITIES)}, {random.choice(DataGenerator.STATES)}",
+            billing_street=f"{random.randint(1, 999)} {random.choice(['MG Road', 'Park Street', 'Main Road'])}",
+            billing_city=city,
+            billing_state=state,
+            billing_code=f"{random.randint(100000, 999999)}",
+            billing_country="India",
+            shipping_street=f"{random.randint(1, 999)} {random.choice(['Industrial Area', 'Tech Park', 'Business District'])}",
+            shipping_city=city,
+            shipping_state=state,
+            shipping_code=f"{random.randint(100000, 999999)}",
+            shipping_country="India",
             status=random.choice(["active", "inactive"]),
             partner_id=random.choice(partners).id if random.random() > 0.5 else None,
             owner_id=random.choice(users).id,
-            notes=f"Leading {industry.lower()} company with {random.randint(10, 5000)} employees",
+            description=f"Leading {industry.lower()} company with {random.randint(10, 5000)} employees",
         )
         session.add(account)
         accounts.append(account)
@@ -541,12 +565,12 @@ async def create_contacts(session: AsyncSession, accounts, users, count=100):
             email=DataGenerator.random_email(f"{first_name} {last_name}", account.name),
             phone=DataGenerator.random_phone(),
             mobile=DataGenerator.random_phone(),
-            title=random.choice(
+            job_title=random.choice(
                 ["Manager", "Director", "VP", "Executive", "Specialist", "Coordinator"]
             ),
             department=random.choice(["IT", "Sales", "Finance", "Operations", "HR"]),
             account_id=account.id,
-            is_primary=(i % 10 == 0),  # Every 10th contact is primary
+            status="active",
             notes=f"Contact for {account.name}",
         )
         session.add(contact)
@@ -570,14 +594,22 @@ async def create_leads(session: AsyncSession, users, partners, products, count=8
 
         lead = Lead(
             company_name=company_name,
-            contact_name=contact_name,
+            contact_person=contact_name,
+            first_name=contact_name.split()[0] if contact_name else None,
+            last_name=(
+                contact_name.split()[-1] if contact_name and len(contact_name.split()) > 1 else None
+            ),
             email=DataGenerator.random_email(contact_name, company_name),
             phone=DataGenerator.random_phone(),
+            mobile=DataGenerator.random_phone(),
             source=random.choice(DataGenerator.LEAD_SOURCES),
-            status=random.choice(["new", "contacted", "qualified", "lost"]),
-            industry=industry,
+            stage=random.choice(["Cold", "Proposal", "Negotiation", "Closed Won", "Closed Lost"]),
+            priority=random.choice(["Low", "Medium", "High", "Urgent"]),
             estimated_value=Decimal(random.randint(10000, 500000)),
             assigned_to=random.choice(users).id,
+            partner_id=random.choice(partners).id if random.random() > 0.7 else None,
+            expected_close_date=date.today() + timedelta(days=random.randint(7, 90)),
+            product_name=product.name,
             notes=f"Interested in {product.name}. {random.choice(['Hot lead', 'Needs follow-up', 'Budget approved', 'Decision pending'])}",
         )
         session.add(lead)
@@ -601,9 +633,7 @@ async def create_deals(session: AsyncSession, accounts, users, products, count=6
         # Probability based on stage
         probability_map = {
             "Cold": 10,
-            "Warm": 25,
-            "Hot": 50,
-            "Proposal": 60,
+            "Proposal": 50,
             "Negotiation": 75,
             "Closed Won": 100,
             "Closed Lost": 0,
@@ -677,8 +707,10 @@ async def create_sales_entries(session: AsyncSession, partners, products, users,
     for i in range(count):
         product = random.choice(products)
         quantity = random.randint(1, 20)
-        amount = float(product.base_price) * quantity
-        commission = amount * (float(product.commission_rate) / 100)
+        base_price = float(product.base_price) if product.base_price else 10000
+        commission_rate = float(product.commission_rate) if product.commission_rate else 5
+        amount = base_price * quantity
+        commission = amount * (commission_rate / 100)
 
         sales_entry = SalesEntry(
             partner_id=random.choice(partners).id if random.random() > 0.3 else None,
@@ -686,11 +718,11 @@ async def create_sales_entries(session: AsyncSession, partners, products, users,
             salesperson_id=random.choice(users).id,
             customer_name=f"{DataGenerator.random_company()} Customer",
             quantity=quantity,
-            amount=Decimal(amount),
+            amount=Decimal(str(amount)),
             po_number=f"PO{random.randint(10000, 99999)}",
             invoice_no=f"INV{random.randint(10000, 99999)}",
             payment_status=random.choice(DataGenerator.PAYMENT_STATUSES),
-            commission_amount=Decimal(commission),
+            commission_amount=Decimal(str(commission)),
             sale_date=DataGenerator.random_date_range(90, 0),
             notes=f"Sale of {quantity} units of {product.name}",
         )
@@ -724,8 +756,10 @@ async def create_calendar_events(session: AsyncSession, users, count=40):
             description=f"{event_type} scheduled for discussion",
             start_time=start_time,
             end_time=end_time,
-            event_type=event_type,
-            attendees=",".join([user.email for user in random.sample(users, min(3, len(users)))]),
+            type=event_type,
+            location=random.choice(
+                ["Conference Room A", "Online", "Client Office", "HQ Meeting Room"]
+            ),
             owner_id=random.choice(users).id,
         )
         session.add(event)
@@ -820,6 +854,33 @@ async def create_email_templates(session: AsyncSession, users, count=10):
     return templates
 
 
+async def clear_database(session: AsyncSession):
+    """Clear all existing data from the database."""
+    print("🗑️  Clearing existing data...")
+
+    # Delete in reverse order of dependencies
+    tables = [
+        "email_templates",
+        "calendar_events",
+        "sales_entries",
+        "tasks",
+        "deals",
+        "leads",
+        "contacts",
+        "accounts",
+        "partners",
+        "products",
+        "users",
+    ]
+
+    for table in tables:
+        await session.execute(text(f"DELETE FROM {table}"))
+        print(f"   Cleared {table}")
+
+    await session.commit()
+    print("✅ Database cleared\n")
+
+
 async def seed_database():
     """Main function to seed all data."""
     print("\n" + "=" * 60)
@@ -828,6 +889,9 @@ async def seed_database():
 
     try:
         async with async_session() as session:
+            # Clear existing data first
+            await clear_database(session)
+
             # Create data in order of dependencies
             users = await create_users(session, count=20)
             products = await create_products(session)
