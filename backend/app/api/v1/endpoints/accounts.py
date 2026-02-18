@@ -1,60 +1,74 @@
+"""
+Account API Endpoints
+
+This module contains all HTTP endpoints for account management.
+Controllers are thin and delegate business logic to the AccountService.
+
+Following SOLID principles:
+- Single Responsibility: Controllers only handle HTTP request/response
+- Dependency Inversion: Depends on service abstraction
+"""
+
 from __future__ import annotations
 
-from typing import Optional
+from typing import Any, Dict, Optional
 
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.exceptions import NotFoundException
 from app.middleware.security import get_current_user
-from app.models.Account import Account
-from app.models.User import User
-from app.repositories.AccountRepository import AccountRepository
-from app.repositories.ContactRepository import ContactRepository
-from app.repositories.DealRepository import DealRepository
-from app.schemas.AccountSchema import AccountOut, AccountCreate, AccountUpdate
-from app.schemas.ContactSchema import ContactOut
-from app.schemas.DealSchema import DealOut
-from app.utils.activity_logger import compute_changes, log_activity, model_to_dict
-from app.utils.scoping import get_scoped_user_ids, enforce_scope
+from app.models.user import User
+from app.schemas.account_schema import AccountCreate, AccountUpdate
+from app.services.account_service import AccountService
+from app.utils.response_utils import (
+    created_response,
+    deleted_response,
+    paginated_response,
+    success_response,
+)
 
 router = APIRouter()
 
 
 @router.get("/")
 async def list_accounts(
-    page: int = Query(1, ge=1),
-    limit: int = Query(20, ge=1, le=1000),
-    status: Optional[str] = None,
-    industry: Optional[str] = None,
-    search: Optional[str] = None,
+    page: int = Query(1, ge=1, description="Page number"),
+    limit: int = Query(20, ge=1, le=1000, description="Items per page"),
+    status: Optional[str] = Query(None, description="Filter by status"),
+    industry: Optional[str] = Query(None, description="Filter by industry"),
+    search: Optional[str] = Query(None, description="Search by account name"),
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-):
-    repo = AccountRepository(db)
-    filters = []
-    if status:
-        filters.append(Account.status == status)
-    if industry:
-        filters.append(Account.industry == industry)
-    if search:
-        filters.append(Account.name.ilike(f"%{search}%"))
+) -> Dict[str, Any]:
+    """
+    List accounts with filtering and pagination.
 
-    # Scope: non-admin users only see accounts owned by them/their team
-    scoped_ids = await get_scoped_user_ids(user, db)
-    if scoped_ids is not None:
-        filters.append(Account.owner_id.in_(scoped_ids))
+    Returns standardized response:
+    {
+        "code": 200,
+        "data": [...],
+        "message": "Success",
+        "pagination": {...}
+    }
+    """
+    service = AccountService(db)
+    result = await service.list_accounts(
+        page=page,
+        limit=limit,
+        user=user,
+        status=status,
+        industry=industry,
+        search=search,
+    )
 
-    result = await repo.get_with_owner(page=page, limit=limit, filters=filters or None)
-
-    data = []
-    for item in result["data"]:
-        out = AccountOut.model_validate(item["account"]).model_dump(by_alias=True)
-        out["ownerName"] = item["owner_name"]
-        data.append(out)
-
-    return {"data": data, "pagination": result["pagination"]}
+    return paginated_response(
+        data=result["data"],
+        page=page,
+        limit=limit,
+        total=result["pagination"]["total"],
+        message="Accounts retrieved successfully",
+    )
 
 
 @router.post("/with-contact")
@@ -62,29 +76,28 @@ async def create_account_with_contact(
     body: dict,
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-):
-    from app.models.Contact import Contact as ContactModel
+) -> Dict[str, Any]:
+    """
+    Create an account with an associated contact.
 
+    Returns standardized response:
+    {
+        "code": 201,
+        "data": {...},
+        "message": "Created successfully"
+    }
+    """
     account_data = body.get("account", {})
     contact_data = body.get("contact", {})
 
-    # Create account
-    repo = AccountRepository(db)
-    if "owner_id" not in account_data or not account_data.get("owner_id"):
-        account_data["owner_id"] = str(user.id)
-    account = await repo.create(account_data)
+    service = AccountService(db)
+    account = await service.create_account_with_contact(
+        account_data=account_data, contact_data=contact_data, user=user
+    )
 
-    # Create contact linked to account
-    contact_repo = ContactRepository(db)
-    contact_data["account_id"] = str(account.id)
-    if "owner_id" not in contact_data or not contact_data.get("owner_id"):
-        contact_data["owner_id"] = str(user.id)
-    contact = await contact_repo.create(contact_data)
-
-    await log_activity(db, user, "create", "account", str(account.id), account.name)
-
-    result = AccountOut.model_validate(account).model_dump(by_alias=True)
-    return result
+    return created_response(
+        data=account, message="Account and contact created successfully"
+    )
 
 
 @router.get("/{account_id}")
@@ -92,13 +105,21 @@ async def get_account(
     account_id: str,
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-):
-    repo = AccountRepository(db)
-    account = await repo.get_by_id(account_id)
-    if not account:
-        raise NotFoundException("Account not found")
-    await enforce_scope(account, "owner_id", user, db, resource_name="account")
-    return AccountOut.model_validate(account).model_dump(by_alias=True)
+) -> Dict[str, Any]:
+    """
+    Get a single account by ID.
+
+    Returns standardized response:
+    {
+        "code": 200,
+        "data": {...},
+        "message": "Success"
+    }
+    """
+    service = AccountService(db)
+    account = await service.get_account_by_id(account_id=account_id, user=user)
+
+    return success_response(data=account, message="Account retrieved successfully")
 
 
 @router.post("/")
@@ -106,14 +127,21 @@ async def create_account(
     body: AccountCreate,
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-):
-    repo = AccountRepository(db)
-    data = body.model_dump(exclude_unset=True)
-    if "owner_id" not in data or data["owner_id"] is None:
-        data["owner_id"] = user.id
-    account = await repo.create(data)
-    await log_activity(db, user, "create", "account", str(account.id), account.name)
-    return AccountOut.model_validate(account).model_dump(by_alias=True)
+) -> Dict[str, Any]:
+    """
+    Create a new account.
+
+    Returns standardized response:
+    {
+        "code": 201,
+        "data": {...},
+        "message": "Created successfully"
+    }
+    """
+    service = AccountService(db)
+    account = await service.create_account(account_data=body, user=user)
+
+    return created_response(data=account, message="Account created successfully")
 
 
 @router.put("/{account_id}")
@@ -122,17 +150,23 @@ async def update_account(
     body: AccountUpdate,
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-):
-    repo = AccountRepository(db)
-    old = await repo.get_by_id(account_id)
-    if not old:
-        raise NotFoundException("Account not found")
-    await enforce_scope(old, "owner_id", user, db, resource_name="account")
-    old_data = model_to_dict(old)
-    account = await repo.update(account_id, body.model_dump(exclude_unset=True))
-    changes = compute_changes(old_data, model_to_dict(account))
-    await log_activity(db, user, "update", "account", str(account.id), account.name, changes)
-    return AccountOut.model_validate(account).model_dump(by_alias=True)
+) -> Dict[str, Any]:
+    """
+    Update an existing account.
+
+    Returns standardized response:
+    {
+        "code": 200,
+        "data": {...},
+        "message": "Success"
+    }
+    """
+    service = AccountService(db)
+    account = await service.update_account(
+        account_id=account_id, account_data=body, user=user
+    )
+
+    return success_response(data=account, message="Account updated successfully")
 
 
 @router.delete("/{account_id}")
@@ -140,16 +174,21 @@ async def delete_account(
     account_id: str,
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-):
-    repo = AccountRepository(db)
-    account = await repo.get_by_id(account_id)
-    if not account:
-        raise NotFoundException("Account not found")
-    await enforce_scope(account, "owner_id", user, db, resource_name="account")
-    account_name = account.name
-    await repo.delete(account_id)
-    await log_activity(db, user, "delete", "account", account_id, account_name)
-    return {"success": True}
+) -> Dict[str, Any]:
+    """
+    Delete an account.
+
+    Returns standardized response:
+    {
+        "code": 200,
+        "data": null,
+        "message": "Deleted successfully"
+    }
+    """
+    service = AccountService(db)
+    await service.delete_account(account_id=account_id, user=user)
+
+    return deleted_response(message="Account deleted successfully")
 
 
 @router.get("/{account_id}/contacts")
@@ -159,18 +198,30 @@ async def list_account_contacts(
     limit: int = Query(20, ge=1, le=100),
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-):
-    repo = ContactRepository(db)
-    result = await repo.get_by_account(account_id=account_id, page=page, limit=limit)
+) -> Dict[str, Any]:
+    """
+    List all contacts for a specific account.
 
-    data = []
-    for item in result["data"]:
-        out = ContactOut.model_validate(item["contact"]).model_dump(by_alias=True)
-        out["accountName"] = item["account_name"]
-        out["ownerName"] = item["owner_name"]
-        data.append(out)
+    Returns standardized response:
+    {
+        "code": 200,
+        "data": [...],
+        "message": "Success",
+        "pagination": {...}
+    }
+    """
+    service = AccountService(db)
+    result = await service.list_account_contacts(
+        account_id=account_id, page=page, limit=limit, user=user
+    )
 
-    return {"data": data, "pagination": result["pagination"]}
+    return paginated_response(
+        data=result["data"],
+        page=page,
+        limit=limit,
+        total=result["pagination"]["total"],
+        message="Account contacts retrieved successfully",
+    )
 
 
 @router.get("/{account_id}/deals")
@@ -178,16 +229,18 @@ async def list_account_deals(
     account_id: str,
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-):
-    repo = DealRepository(db)
-    items = await repo.get_by_account(account_id=account_id)
+) -> Dict[str, Any]:
+    """
+    List all deals for a specific account.
 
-    data = []
-    for item in items:
-        out = DealOut.model_validate(item["deal"]).model_dump(by_alias=True)
-        out["accountName"] = item["account_name"]
-        out["contactName"] = item["contact_name"]
-        out["ownerName"] = item["owner_name"]
-        data.append(out)
+    Returns standardized response:
+    {
+        "code": 200,
+        "data": [...],
+        "message": "Success"
+    }
+    """
+    service = AccountService(db)
+    deals = await service.list_account_deals(account_id=account_id, user=user)
 
-    return data
+    return success_response(data=deals, message="Account deals retrieved successfully")

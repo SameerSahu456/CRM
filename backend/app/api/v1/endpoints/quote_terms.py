@@ -7,10 +7,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.exceptions import BadRequestException, NotFoundException
 from app.middleware.security import get_current_user
-from app.models.QuoteTerm import QuoteTerm
-from app.models.User import User
+from app.models.quote_term import QuoteTerm
+from app.models.user import User
 from app.repositories.base import BaseRepository
-from app.schemas.QuoteTermSchema import QuoteTermCreate, QuoteTermOut, QuoteTermUpdate
+from app.schemas.quote_term_schema import QuoteTermCreate, QuoteTermOut, QuoteTermUpdate
 
 router = APIRouter()
 

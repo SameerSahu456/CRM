@@ -6,7 +6,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.exceptions import ForbiddenException
-from app.models.User import User
+from app.models.user import User
 
 ADMIN_ROLES = ("admin", "superadmin")
 

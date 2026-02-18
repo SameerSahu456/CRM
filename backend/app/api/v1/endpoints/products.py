@@ -1,31 +1,57 @@
+"""
+Product API Endpoints
+
+This module contains all HTTP endpoints for product management.
+Controllers are thin and delegate business logic to the ProductService.
+
+Following SOLID principles:
+- Single Responsibility: Controllers only handle HTTP request/response
+- Dependency Inversion: Depends on service abstraction
+"""
+
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends
+from typing import Any, Dict
+
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.exceptions import NotFoundException
 from app.middleware.security import get_current_user
-from app.models.User import User
-from app.repositories.ProductRepository import ProductRepository
-from app.schemas.ProductSchema import ProductCreate, ProductOut, ProductUpdate
-from app.utils.activity_logger import compute_changes, log_activity, model_to_dict
+from app.models.user import User
+from app.schemas.product_schema import ProductCreate, ProductOut, ProductUpdate
+from app.services.product_service import ProductService
+from app.utils.response_utils import (
+    created_response,
+    deleted_response,
+    success_response,
+)
 
 router = APIRouter()
 
 
 @router.get("/")
 async def list_products(
-    include_inactive: bool = False,
+    include_inactive: bool = Query(
+        False, description="Include inactive products in the list"
+    ),
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-):
-    repo = ProductRepository(db)
-    if include_inactive:
-        products = await repo.get_all(skip=0, limit=10000)
-    else:
-        products = await repo.get_active()
-    return [ProductOut.model_validate(p).model_dump(by_alias=True) for p in products]
+) -> Dict[str, Any]:
+    """
+    List all products or only active products.
+
+    Returns standardized response:
+    {
+        "code": 200,
+        "data": [...],
+        "message": "Success"
+    }
+    """
+    service = ProductService(db)
+    products = await service.list_products(include_inactive=include_inactive)
+
+    return success_response(data=products, message="Products retrieved successfully")
 
 
 @router.get("/{product_id}")
@@ -33,12 +59,21 @@ async def get_product(
     product_id: str,
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-):
-    repo = ProductRepository(db)
-    product = await repo.get_by_id(product_id)
-    if not product:
-        raise NotFoundException("Product not found")
-    return ProductOut.model_validate(product).model_dump(by_alias=True)
+) -> Dict[str, Any]:
+    """
+    Get a single product by ID.
+
+    Returns standardized response:
+    {
+        "code": 200,
+        "data": {...},
+        "message": "Success"
+    }
+    """
+    service = ProductService(db)
+    product = await service.get_product_by_id(product_id=product_id)
+
+    return success_response(data=product, message="Product retrieved successfully")
 
 
 @router.post("/")
@@ -46,11 +81,21 @@ async def create_product(
     body: ProductCreate,
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-):
-    repo = ProductRepository(db)
-    product = await repo.create(body.model_dump(exclude_unset=True))
-    await log_activity(db, user, "create", "product", str(product.id), product.name)
-    return ProductOut.model_validate(product).model_dump(by_alias=True)
+) -> Dict[str, Any]:
+    """
+    Create a new product.
+
+    Returns standardized response:
+    {
+        "code": 201,
+        "data": {...},
+        "message": "Created successfully"
+    }
+    """
+    service = ProductService(db)
+    product = await service.create_product(product_data=body, user=user)
+
+    return created_response(data=product, message="Product created successfully")
 
 
 @router.put("/{product_id}")
@@ -59,16 +104,23 @@ async def update_product(
     body: ProductUpdate,
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-):
-    repo = ProductRepository(db)
-    old = await repo.get_by_id(product_id)
-    if not old:
-        raise NotFoundException("Product not found")
-    old_data = model_to_dict(old)
-    product = await repo.update(product_id, body.model_dump(exclude_unset=True))
-    changes = compute_changes(old_data, model_to_dict(product))
-    await log_activity(db, user, "update", "product", str(product.id), product.name, changes)
-    return ProductOut.model_validate(product).model_dump(by_alias=True)
+) -> Dict[str, Any]:
+    """
+    Update an existing product.
+
+    Returns standardized response:
+    {
+        "code": 200,
+        "data": {...},
+        "message": "Success"
+    }
+    """
+    service = ProductService(db)
+    product = await service.update_product(
+        product_id=product_id, product_data=body, user=user
+    )
+
+    return success_response(data=product, message="Product updated successfully")
 
 
 @router.delete("/{product_id}")
@@ -76,12 +128,18 @@ async def delete_product(
     product_id: str,
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-):
-    repo = ProductRepository(db)
-    product = await repo.get_by_id(product_id)
-    if not product:
-        raise NotFoundException("Product not found")
-    product_name = product.name
-    await repo.delete(product_id)
-    await log_activity(db, user, "delete", "product", product_id, product_name)
-    return {"success": True}
+) -> Dict[str, Any]:
+    """
+    Delete a product.
+
+    Returns standardized response:
+    {
+        "code": 200,
+        "data": null,
+        "message": "Deleted successfully"
+    }
+    """
+    service = ProductService(db)
+    await service.delete_product(product_id=product_id, user=user)
+
+    return deleted_response(message="Product deleted successfully")

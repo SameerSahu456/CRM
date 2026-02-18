@@ -1,48 +1,65 @@
+"""
+Email API Endpoints
+
+This module contains all HTTP endpoints for email management.
+Controllers are thin and delegate business logic to the EmailService.
+
+Following SOLID principles:
+- Single Responsibility: Controllers only handle HTTP request/response
+- Dependency Inversion: Depends on service abstraction
+"""
+
 from __future__ import annotations
 
-from datetime import datetime, timezone
-from typing import Optional
+from typing import Any, Dict, Optional
 
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.exceptions import NotFoundException
 from app.middleware.security import get_current_user
-from app.models.Email import Email
-from app.models.User import User
-from app.repositories.EmailRepository import EmailRepository
-from app.schemas.EmailSchema import EmailOut, EmailCreate, EmailUpdate
+from app.models.user import User
+from app.schemas.email_schema import EmailCreate, EmailOut, EmailUpdate
+from app.services.email_service import EmailService
+from app.utils.response_utils import (
+    created_response,
+    deleted_response,
+    paginated_response,
+    success_response,
+)
 
 router = APIRouter()
 
 
 @router.get("/")
 async def list_emails(
-    page: int = Query(1, ge=1),
-    limit: int = Query(20, ge=1, le=100),
-    status: Optional[str] = None,
+    page: int = Query(1, ge=1, description="Page number"),
+    limit: int = Query(20, ge=1, le=100, description="Items per page"),
+    status: Optional[str] = Query(None, description="Filter by status"),
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-):
-    repo = EmailRepository(db)
-    filters = []
-    if status:
-        filters.append(Email.status == status)
+) -> Dict[str, Any]:
+    """
+    List emails with filtering and pagination.
 
-    if user.role == "sales":
-        filters.append(Email.owner_id == user.id)
+    Returns standardized response:
+    {
+        "code": 200,
+        "data": [...],
+        "message": "Success",
+        "pagination": {...}
+    }
+    """
+    service = EmailService(db)
+    result = await service.list_emails(page=page, limit=limit, user=user, status=status)
 
-    result = await repo.get_with_names(page=page, limit=limit, filters=filters or None)
-
-    data = []
-    for item in result["data"]:
-        out = EmailOut.model_validate(item["email"]).model_dump(by_alias=True)
-        out["ownerName"] = item["owner_name"]
-        out["templateName"] = item["template_name"]
-        data.append(out)
-
-    return {"data": data, "pagination": result["pagination"]}
+    return paginated_response(
+        data=result["data"],
+        page=page,
+        limit=limit,
+        total=result["pagination"]["total"],
+        message="Emails retrieved successfully",
+    )
 
 
 @router.get("/{email_id}")
@@ -50,12 +67,21 @@ async def get_email(
     email_id: str,
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-):
-    repo = EmailRepository(db)
-    email = await repo.get_by_id(email_id)
-    if not email:
-        raise NotFoundException("Email not found")
-    return EmailOut.model_validate(email).model_dump(by_alias=True)
+) -> Dict[str, Any]:
+    """
+    Get a single email by ID.
+
+    Returns standardized response:
+    {
+        "code": 200,
+        "data": {...},
+        "message": "Success"
+    }
+    """
+    service = EmailService(db)
+    email = await service.get_email_by_id(email_id=email_id)
+
+    return success_response(data=email, message="Email retrieved successfully")
 
 
 @router.post("/")
@@ -63,13 +89,21 @@ async def create_email(
     body: EmailCreate,
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-):
-    repo = EmailRepository(db)
-    data = body.model_dump(exclude_unset=True)
-    if "owner_id" not in data or data["owner_id"] is None:
-        data["owner_id"] = user.id
-    email = await repo.create(data)
-    return EmailOut.model_validate(email).model_dump(by_alias=True)
+) -> Dict[str, Any]:
+    """
+    Create a new email.
+
+    Returns standardized response:
+    {
+        "code": 201,
+        "data": {...},
+        "message": "Created successfully"
+    }
+    """
+    service = EmailService(db)
+    email = await service.create_email(email_data=body, user=user)
+
+    return created_response(data=email, message="Email created successfully")
 
 
 @router.put("/{email_id}")
@@ -78,12 +112,21 @@ async def update_email(
     body: EmailUpdate,
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-):
-    repo = EmailRepository(db)
-    email = await repo.update(email_id, body.model_dump(exclude_unset=True))
-    if not email:
-        raise NotFoundException("Email not found")
-    return EmailOut.model_validate(email).model_dump(by_alias=True)
+) -> Dict[str, Any]:
+    """
+    Update an existing email.
+
+    Returns standardized response:
+    {
+        "code": 200,
+        "data": {...},
+        "message": "Success"
+    }
+    """
+    service = EmailService(db)
+    email = await service.update_email(email_id=email_id, email_data=body)
+
+    return success_response(data=email, message="Email updated successfully")
 
 
 @router.post("/{email_id}/send")
@@ -91,15 +134,21 @@ async def send_email(
     email_id: str,
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-):
-    repo = EmailRepository(db)
-    email = await repo.update(email_id, {
-        "status": "sent",
-        "sent_at": datetime.now(timezone.utc),
-    })
-    if not email:
-        raise NotFoundException("Email not found")
-    return EmailOut.model_validate(email).model_dump(by_alias=True)
+) -> Dict[str, Any]:
+    """
+    Mark an email as sent.
+
+    Returns standardized response:
+    {
+        "code": 200,
+        "data": {...},
+        "message": "Success"
+    }
+    """
+    service = EmailService(db)
+    email = await service.send_email(email_id=email_id)
+
+    return success_response(data=email, message="Email sent successfully")
 
 
 @router.delete("/{email_id}")
@@ -107,9 +156,18 @@ async def delete_email(
     email_id: str,
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-):
-    repo = EmailRepository(db)
-    deleted = await repo.delete(email_id)
-    if not deleted:
-        raise NotFoundException("Email not found")
-    return {"success": True}
+) -> Dict[str, Any]:
+    """
+    Delete an email.
+
+    Returns standardized response:
+    {
+        "code": 200,
+        "data": null,
+        "message": "Deleted successfully"
+    }
+    """
+    service = EmailService(db)
+    await service.delete_email(email_id=email_id)
+
+    return deleted_response(message="Email deleted successfully")

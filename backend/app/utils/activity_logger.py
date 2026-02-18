@@ -77,7 +77,7 @@ async def log_activity(
     changes: Optional[list] = None,
 ) -> None:
     """Insert a row into the ``activity_logs`` table."""
-    from app.models.ActivityLog import ActivityLog
+    from app.models.activity_log import ActivityLog
 
     user_id = None
     user_name = None

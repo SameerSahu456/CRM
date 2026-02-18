@@ -1,155 +1,178 @@
 from __future__ import annotations
 
-from datetime import date, timedelta
-from typing import Optional
+from typing import Any, Dict
 
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.exceptions import NotFoundException
 from app.middleware.security import get_current_user
-from app.models.Carepack import Carepack
-from app.models.Partner import Partner
-from app.models.User import User
-from app.repositories.base import BaseRepository
-from app.schemas.CarepackSchema import CarepackCreate, CarepackOut, CarepackUpdate
+from app.models.user import User
+from app.schemas.carepack_schema import CarepackCreate, CarepackUpdate
+from app.services.carepack_service import CarepackService
+from app.utils.response_utils import (
+    created_response,
+    deleted_response,
+    paginated_response,
+    success_response,
+)
 
 router = APIRouter()
 
 
-@router.get("/")
+@router.get("/", response_model=Dict[str, Any])
 async def list_carepacks(
-    page: int = Query(1, ge=1),
-    limit: int = Query(20, ge=1, le=100),
-    status: Optional[str] = None,
-    partner_id: Optional[str] = None,
+    page: int = Query(1, ge=1, description="Page number"),
+    limit: int = Query(20, ge=1, le=100, description="Items per page"),
+    status: str = Query(None, description="Filter by status"),
+    partner_id: str = Query(None, description="Filter by partner ID"),
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-):
-    stmt = (
-        select(Carepack, Partner.company_name.label("partner_name"))
-        .outerjoin(Partner, Carepack.partner_id == Partner.id)
+) -> Dict[str, Any]:
+    """
+    List carepacks with filtering and pagination.
+
+    Args:
+        page: Page number
+        limit: Items per page
+        status: Filter by status (active, expired, cancelled)
+        partner_id: Filter by partner ID
+        user: Current user
+        db: Database session
+
+    Returns:
+        Paginated list of carepacks with partner names
+    """
+    service = CarepackService(db)
+    result = await service.list_carepacks(
+        page=page, limit=limit, status=status, partner_id=partner_id
     )
-    count_stmt = select(func.count()).select_from(Carepack)
 
-    filters = []
-    if status:
-        filters.append(Carepack.status == status)
-    if partner_id:
-        filters.append(Carepack.partner_id == partner_id)
-
-    for f in filters:
-        stmt = stmt.where(f)
-        count_stmt = count_stmt.where(f)
-
-    stmt = stmt.order_by(Carepack.created_at.desc())
-    offset = (page - 1) * limit
-    stmt = stmt.offset(offset).limit(limit)
-
-    result = await db.execute(stmt)
-    rows = result.all()
-
-    data = []
-    for row in rows:
-        out = CarepackOut.model_validate(row[0]).model_dump(by_alias=True)
-        out["partnerName"] = row[1]
-        data.append(out)
-
-    total_result = await db.execute(count_stmt)
-    total = total_result.scalar_one()
-    total_pages = (total + limit - 1) // limit
-
-    return {
-        "data": data,
-        "pagination": {
-            "page": page,
-            "limit": limit,
-            "total": total,
-            "totalPages": total_pages,
-        },
-    }
+    return paginated_response(
+        data=result["data"],
+        page=page,
+        limit=limit,
+        total=result["pagination"]["total"],
+        message="Carepacks retrieved successfully",
+    )
 
 
-@router.get("/expiring")
+@router.get("/expiring", response_model=Dict[str, Any])
 async def expiring_carepacks(
-    days: int = Query(30, ge=1, le=365),
+    days: int = Query(30, ge=1, le=365, description="Days to look ahead"),
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-):
-    """Get carepacks expiring within the next N days."""
-    cutoff = date.today() + timedelta(days=days)
+) -> Dict[str, Any]:
+    """
+    Get carepacks expiring within the next N days.
 
-    stmt = (
-        select(Carepack, Partner.company_name.label("partner_name"))
-        .outerjoin(Partner, Carepack.partner_id == Partner.id)
-        .where(Carepack.status == "active")
-        .where(Carepack.end_date <= cutoff)
-        .where(Carepack.end_date >= date.today())
-        .order_by(Carepack.end_date)
+    Args:
+        days: Number of days to look ahead
+        user: Current user
+        db: Database session
+
+    Returns:
+        List of expiring carepacks with partner names
+    """
+    service = CarepackService(db)
+    data = await service.get_expiring_carepacks(days=days)
+
+    return success_response(
+        data=data, message="Expiring carepacks retrieved successfully"
     )
 
-    result = await db.execute(stmt)
-    rows = result.all()
 
-    data = []
-    for row in rows:
-        out = CarepackOut.model_validate(row[0]).model_dump(by_alias=True)
-        out["partnerName"] = row[1]
-        data.append(out)
-
-    return data
-
-
-@router.get("/{carepack_id}")
+@router.get("/{carepack_id}", response_model=Dict[str, Any])
 async def get_carepack(
     carepack_id: str,
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-):
-    repo = BaseRepository(db, Carepack)
-    carepack = await repo.get_by_id(carepack_id)
-    if not carepack:
-        raise NotFoundException("Carepack not found")
-    return CarepackOut.model_validate(carepack).model_dump(by_alias=True)
+) -> Dict[str, Any]:
+    """
+    Get a single carepack by ID.
+
+    Args:
+        carepack_id: Carepack ID
+        user: Current user
+        db: Database session
+
+    Returns:
+        Carepack dictionary
+    """
+    service = CarepackService(db)
+    carepack = await service.get_carepack_by_id(carepack_id)
+
+    return success_response(data=carepack, message="Carepack retrieved successfully")
 
 
-@router.post("/")
+@router.post("/", response_model=Dict[str, Any])
 async def create_carepack(
     body: CarepackCreate,
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-):
-    repo = BaseRepository(db, Carepack)
-    data = body.model_dump(exclude_unset=True)
-    data["created_by"] = user.id
-    carepack = await repo.create(data)
-    return CarepackOut.model_validate(carepack).model_dump(by_alias=True)
+) -> Dict[str, Any]:
+    """
+    Create a new carepack.
+
+    Args:
+        body: Carepack creation data
+        user: Current user
+        db: Database session
+
+    Returns:
+        Created carepack dictionary
+    """
+    service = CarepackService(db)
+    carepack = await service.create_carepack(carepack_data=body, user=user)
+
+    return created_response(data=carepack, message="Carepack created successfully")
 
 
-@router.put("/{carepack_id}")
+@router.put("/{carepack_id}", response_model=Dict[str, Any])
 async def update_carepack(
     carepack_id: str,
     body: CarepackUpdate,
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-):
-    repo = BaseRepository(db, Carepack)
-    carepack = await repo.update(carepack_id, body.model_dump(exclude_unset=True))
-    if not carepack:
-        raise NotFoundException("Carepack not found")
-    return CarepackOut.model_validate(carepack).model_dump(by_alias=True)
+) -> Dict[str, Any]:
+    """
+    Update an existing carepack.
+
+    Args:
+        carepack_id: Carepack ID
+        body: Carepack update data
+        user: Current user
+        db: Database session
+
+    Returns:
+        Updated carepack dictionary
+    """
+    service = CarepackService(db)
+    carepack = await service.update_carepack(
+        carepack_id=carepack_id, carepack_data=body
+    )
+
+    return success_response(data=carepack, message="Carepack updated successfully")
 
 
-@router.delete("/{carepack_id}")
+@router.delete("/{carepack_id}", response_model=Dict[str, Any])
 async def delete_carepack(
     carepack_id: str,
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-):
-    repo = BaseRepository(db, Carepack)
-    deleted = await repo.delete(carepack_id)
-    if not deleted:
-        raise NotFoundException("Carepack not found")
-    return {"success": True}
+) -> Dict[str, Any]:
+    """
+    Delete a carepack.
+
+    Args:
+        carepack_id: Carepack ID
+        user: Current user
+        db: Database session
+
+    Returns:
+        Success confirmation
+    """
+    service = CarepackService(db)
+    await service.delete_carepack(carepack_id)
+
+    return deleted_response(message="Carepack deleted successfully")

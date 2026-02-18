@@ -5,15 +5,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.middleware.security import get_current_user
-from app.models.User import User
-from app.repositories.UserRepository import UserRepository
-from app.schemas.UserSchema import (
+from app.models.user import User
+from app.repositories.user_repository import UserRepository
+from app.schemas.user_schema import (
     ChangePasswordRequest,
     DashboardPreferences,
     LoginRequest,
     UserOut,
 )
-from app.services.AuthService import AuthService
+from app.services.auth_service import AuthService
 
 router = APIRouter()
 

@@ -1,66 +1,76 @@
+"""
+Contact API Endpoints
+
+This module contains all HTTP endpoints for contact management.
+Controllers are thin and delegate business logic to the ContactService.
+
+Following SOLID principles:
+- Single Responsibility: Controllers only handle HTTP request/response
+- Dependency Inversion: Depends on service abstraction
+"""
+
 from __future__ import annotations
 
-from typing import Optional
+from typing import Any, Dict, Optional
 
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy import or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.exceptions import NotFoundException
 from app.middleware.security import get_current_user
-from app.models.Contact import Contact
-from app.models.User import User
-from app.repositories.ContactRepository import ContactRepository
-from app.schemas.ContactSchema import ContactOut, ContactCreate, ContactUpdate
-from app.utils.activity_logger import compute_changes, log_activity, model_to_dict
-from app.utils.scoping import get_scoped_user_ids, enforce_scope
+from app.models.user import User
+from app.schemas.contact_schema import ContactCreate, ContactUpdate
+from app.services.contact_service import ContactService
+from app.utils.response_utils import (
+    created_response,
+    deleted_response,
+    paginated_response,
+    success_response,
+)
 
 router = APIRouter()
 
 
 @router.get("/")
 async def list_contacts(
-    page: int = Query(1, ge=1),
-    limit: int = Query(20, ge=1, le=100),
-    account_id: Optional[str] = None,
-    status: Optional[str] = None,
-    type: Optional[str] = None,
-    search: Optional[str] = None,
+    page: int = Query(1, ge=1, description="Page number"),
+    limit: int = Query(20, ge=1, le=100, description="Items per page"),
+    account_id: Optional[str] = Query(None, description="Filter by account"),
+    status: Optional[str] = Query(None, description="Filter by status"),
+    type: Optional[str] = Query(None, description="Filter by type"),
+    search: Optional[str] = Query(None, description="Search by name"),
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-):
-    repo = ContactRepository(db)
-    filters = []
-    if account_id:
-        filters.append(Contact.account_id == account_id)
-    if status:
-        filters.append(Contact.status == status)
-    if type:
-        filters.append(Contact.type == type)
-    if search:
-        filters.append(
-            or_(
-                Contact.first_name.ilike(f"%{search}%"),
-                Contact.last_name.ilike(f"%{search}%"),
-            )
-        )
+) -> Dict[str, Any]:
+    """
+    List contacts with filtering and pagination.
 
-    # Scope: non-admin users only see contacts owned by them/their team
-    scoped_ids = await get_scoped_user_ids(user, db)
-    if scoped_ids is not None:
-        filters.append(Contact.owner_id.in_(scoped_ids))
+    Returns standardized response:
+    {
+        "code": 200,
+        "data": [...],
+        "message": "Success",
+        "pagination": {...}
+    }
+    """
+    service = ContactService(db)
+    result = await service.list_contacts(
+        page=page,
+        limit=limit,
+        user=user,
+        account_id=account_id,
+        status=status,
+        type=type,
+        search=search,
+    )
 
-    result = await repo.get_with_names(page=page, limit=limit, filters=filters or None)
-
-    data = []
-    for item in result["data"]:
-        out = ContactOut.model_validate(item["contact"]).model_dump(by_alias=True)
-        out["accountName"] = item["account_name"]
-        out["ownerName"] = item["owner_name"]
-        data.append(out)
-
-    return {"data": data, "pagination": result["pagination"]}
+    return paginated_response(
+        data=result["data"],
+        page=page,
+        limit=limit,
+        total=result["pagination"]["total"],
+        message="Contacts retrieved successfully",
+    )
 
 
 @router.get("/{contact_id}")
@@ -68,13 +78,21 @@ async def get_contact(
     contact_id: str,
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-):
-    repo = ContactRepository(db)
-    contact = await repo.get_by_id(contact_id)
-    if not contact:
-        raise NotFoundException("Contact not found")
-    await enforce_scope(contact, "owner_id", user, db, resource_name="contact")
-    return ContactOut.model_validate(contact).model_dump(by_alias=True)
+) -> Dict[str, Any]:
+    """
+    Get a single contact by ID.
+
+    Returns standardized response:
+    {
+        "code": 200,
+        "data": {...},
+        "message": "Success"
+    }
+    """
+    service = ContactService(db)
+    contact = await service.get_contact_by_id(contact_id=contact_id, user=user)
+
+    return success_response(data=contact, message="Contact retrieved successfully")
 
 
 @router.post("/")
@@ -82,15 +100,21 @@ async def create_contact(
     body: ContactCreate,
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-):
-    repo = ContactRepository(db)
-    data = body.model_dump(exclude_unset=True)
-    if "owner_id" not in data or data["owner_id"] is None:
-        data["owner_id"] = user.id
-    contact = await repo.create(data)
-    cname = f"{contact.first_name} {getattr(contact, 'last_name', '') or ''}".strip()
-    await log_activity(db, user, "create", "contact", str(contact.id), cname)
-    return ContactOut.model_validate(contact).model_dump(by_alias=True)
+) -> Dict[str, Any]:
+    """
+    Create a new contact.
+
+    Returns standardized response:
+    {
+        "code": 201,
+        "data": {...},
+        "message": "Created successfully"
+    }
+    """
+    service = ContactService(db)
+    contact = await service.create_contact(contact_data=body, user=user)
+
+    return created_response(data=contact, message="Contact created successfully")
 
 
 @router.put("/{contact_id}")
@@ -99,18 +123,23 @@ async def update_contact(
     body: ContactUpdate,
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-):
-    repo = ContactRepository(db)
-    old = await repo.get_by_id(contact_id)
-    if not old:
-        raise NotFoundException("Contact not found")
-    await enforce_scope(old, "owner_id", user, db, resource_name="contact")
-    old_data = model_to_dict(old)
-    contact = await repo.update(contact_id, body.model_dump(exclude_unset=True))
-    changes = compute_changes(old_data, model_to_dict(contact))
-    cname = f"{contact.first_name} {getattr(contact, 'last_name', '') or ''}".strip()
-    await log_activity(db, user, "update", "contact", str(contact.id), cname, changes)
-    return ContactOut.model_validate(contact).model_dump(by_alias=True)
+) -> Dict[str, Any]:
+    """
+    Update an existing contact.
+
+    Returns standardized response:
+    {
+        "code": 200,
+        "data": {...},
+        "message": "Success"
+    }
+    """
+    service = ContactService(db)
+    contact = await service.update_contact(
+        contact_id=contact_id, contact_data=body, user=user
+    )
+
+    return success_response(data=contact, message="Contact updated successfully")
 
 
 @router.delete("/{contact_id}")
@@ -118,13 +147,18 @@ async def delete_contact(
     contact_id: str,
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-):
-    repo = ContactRepository(db)
-    contact = await repo.get_by_id(contact_id)
-    if not contact:
-        raise NotFoundException("Contact not found")
-    await enforce_scope(contact, "owner_id", user, db, resource_name="contact")
-    cname = f"{contact.first_name} {getattr(contact, 'last_name', '') or ''}".strip()
-    await repo.delete(contact_id)
-    await log_activity(db, user, "delete", "contact", contact_id, cname)
-    return {"success": True}
+) -> Dict[str, Any]:
+    """
+    Delete a contact.
+
+    Returns standardized response:
+    {
+        "code": 200,
+        "data": null,
+        "message": "Deleted successfully"
+    }
+    """
+    service = ContactService(db)
+    await service.delete_contact(contact_id=contact_id, user=user)
+
+    return deleted_response(message="Contact deleted successfully")
