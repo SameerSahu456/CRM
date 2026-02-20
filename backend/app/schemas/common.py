@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any, Generic, Optional, TypeVar
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 from pydantic.alias_generators import to_camel
 
 T = TypeVar("T")
@@ -16,6 +16,14 @@ class CamelModel(BaseModel):
         alias_generator=to_camel,
         populate_by_name=True,
     )
+
+    @model_validator(mode="before")
+    @classmethod
+    def _empty_strings_to_none(cls, values: Any) -> Any:
+        """Convert empty strings to None so Optional[UUID]/Optional[date] fields pass validation."""
+        if isinstance(values, dict):
+            return {k: (None if v == "" else v) for k, v in values.items()}
+        return values
 
 
 class PaginationMeta(BaseModel):
