@@ -14,35 +14,24 @@ from __future__ import annotations
 from typing import Any, Dict, Optional
 
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.exceptions import BadRequestException, NotFoundException
 from app.middleware.security import get_current_user
-from app.models.lead import Lead
-from app.models.notification import Notification
-from app.models.sales_entry import SalesEntry
 from app.models.user import User
-from app.repositories.lead_repository import LeadRepository
-from app.repositories.sales_entry_repository import SalesEntryRepository
 from app.schemas.lead_schema import (
     LeadActivityCreate,
-    LeadActivityOut,
     LeadConvertRequest,
     LeadCreate,
-    LeadOut,
     LeadUpdate,
 )
 from app.services.lead_service import LeadService
-from app.utils.activity_logger import compute_changes, log_activity, model_to_dict
 from app.utils.response_utils import (
     created_response,
     deleted_response,
     paginated_response,
     success_response,
 )
-from app.utils.scoping import enforce_scope, get_scoped_user_ids
 
 router = APIRouter()
 
@@ -171,39 +160,10 @@ async def update_lead(
         "message": "Success"
     }
     """
-    # Note: This endpoint has special notification logic
-    # Using repository directly for now
-    repo = LeadRepository(db)
-    old = await repo.get_by_id(lead_id)
-    if not old:
-        raise NotFoundException("Lead not found")
-    await enforce_scope(old, "assigned_to", user, db, resource_name="lead")
-    old_data = model_to_dict(old)
-    update_data = body.model_dump(exclude_unset=True)
-    lead = await repo.update(lead_id, update_data)
-    changes = compute_changes(old_data, model_to_dict(lead))
-    await log_activity(db, user, "update", "lead", str(lead.id), lead.company_name, changes)
+    service = LeadService(db)
+    lead = await service.update_lead_with_notifications(lead_id=lead_id, lead_data=body, user=user)
 
-    # Notify Product Managers when lead moves to Negotiation stage
-    if update_data.get("stage") == "Negotiation":
-        result = await db.execute(
-            text("SELECT id FROM users WHERE role = 'productmanager'")
-        )
-        pm_users = result.fetchall()
-        entity_name = lead.company_name
-        for pm in pm_users:
-            notif = Notification(
-                user_id=pm[0],
-                type="stage_change",
-                title="Lead moved to Negotiation",
-                message=f"Lead '{entity_name}' has moved to Negotiation stage",
-                is_read=False,
-            )
-            db.add(notif)
-        await db.flush()
-
-    lead_out = LeadOut.model_validate(lead).model_dump(by_alias=True)
-    return success_response(data=lead_out, message="Lead updated successfully")
+    return success_response(data=lead, message="Lead updated successfully")
 
 
 @router.delete("/{lead_id}")
@@ -235,47 +195,14 @@ async def convert_lead(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    lead_repo = LeadRepository(db)
-    lead = await lead_repo.get_by_id(lead_id)
-    if not lead:
-        raise NotFoundException("Lead not found")
-    await enforce_scope(lead, "assigned_to", user, db, resource_name="lead")
-    if lead.stage == "Closed Won":
-        raise BadRequestException("Lead already converted")
+    """
+    Convert a lead to a sale.
 
-    # Create sales entry
-    sales_repo = SalesEntryRepository(db)
-    sale_data = {
-        "partner_id": body.partner_id,
-        "product_id": body.product_id,
-        "salesperson_id": user.id,
-        "customer_name": body.customer_name or lead.company_name,
-        "amount": body.amount,
-        "sale_date": body.sale_date,
-    }
-    sale = await sales_repo.create(sale_data)
-
-    # Update lead
-    await lead_repo.update(
-        lead_id,
-        {
-            "stage": "Closed Won",
-            "won_sale_id": sale.id,
-        },
-    )
-
-    # Add activity
-    await lead_repo.create_activity(
-        {
-            "lead_id": lead_id,
-            "activity_type": "converted",
-            "title": "Lead converted to sale",
-            "description": f"Sale amount: {body.amount}",
-            "created_by": user.id,
-        }
-    )
-
-    return {"success": True, "sale_id": str(sale.id)}
+    Returns dictionary with success status and sale_id.
+    """
+    service = LeadService(db)
+    result = await service.convert_lead(lead_id=lead_id, convert_data=body, user=user)
+    return result
 
 
 @router.get("/{lead_id}/activities")
@@ -284,14 +211,13 @@ async def get_lead_activities(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    repo = LeadRepository(db)
-    rows = await repo.get_activities(lead_id)
-    activities = []
-    for row in rows:
-        out = LeadActivityOut.model_validate(row[0]).model_dump(by_alias=True)
-        out["createdByName"] = row[1]
-        activities.append(out)
-    return activities
+    """
+    Get activities for a lead.
+
+    Returns list of activity dictionaries.
+    """
+    service = LeadService(db)
+    return await service.get_activities(lead_id=lead_id)
 
 
 @router.post("/{lead_id}/activities")
@@ -301,21 +227,13 @@ async def add_lead_activity(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    repo = LeadRepository(db)
-    lead = await repo.get_by_id(lead_id)
-    if not lead:
-        raise NotFoundException("Lead not found")
+    """
+    Add an activity to a lead.
 
-    activity = await repo.create_activity(
-        {
-            "lead_id": lead_id,
-            "activity_type": body.activity_type,
-            "title": body.title,
-            "description": body.description,
-            "created_by": user.id,
-        }
-    )
-    return LeadActivityOut.model_validate(activity).model_dump(by_alias=True)
+    Returns created activity data.
+    """
+    service = LeadService(db)
+    return await service.add_activity(lead_id=lead_id, activity_data=body, user=user)
 
 
 @router.get("/{lead_id}/audit-log")
@@ -324,18 +242,10 @@ async def get_lead_audit_log(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    from sqlalchemy import select as sa_select
-    from app.models.activity_log import ActivityLog
-    from app.schemas.activity_log_schema import ActivityLogOut
+    """
+    Get audit log for a lead.
 
-    stmt = (
-        sa_select(ActivityLog)
-        .where(ActivityLog.entity_type == "lead")
-        .where(ActivityLog.entity_id == str(lead_id))
-        .order_by(ActivityLog.created_at.desc())
-    )
-    result = await db.execute(stmt)
-    logs = list(result.scalars().all())
-    return [
-        ActivityLogOut.model_validate(log).model_dump(by_alias=True) for log in logs
-    ]
+    Returns list of audit log entries.
+    """
+    service = LeadService(db)
+    return await service.get_audit_log(lead_id=lead_id)

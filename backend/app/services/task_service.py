@@ -7,6 +7,7 @@ Following SOLID principles with clear separation of concerns.
 
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from typing import Any, Dict, Optional
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -165,9 +166,7 @@ class TaskService:
 
         return TaskOut.model_validate(task).model_dump(by_alias=True)
 
-    async def update_task(
-        self, task_id: str, task_data: TaskUpdate, user: User
-    ) -> Dict[str, Any]:
+    async def update_task(self, task_id: str, task_data: TaskUpdate, user: User) -> Dict[str, Any]:
         """
         Update an existing task.
 
@@ -194,15 +193,11 @@ class TaskService:
         old_data = model_to_dict(old)
 
         # Update task
-        task = await self.task_repo.update(
-            task_id, task_data.model_dump(exclude_unset=True)
-        )
+        task = await self.task_repo.update(task_id, task_data.model_dump(exclude_unset=True))
 
         # Log activity with changes
         changes = compute_changes(old_data, model_to_dict(task))
-        await log_activity(
-            self.db, user, "update", "task", str(task.id), task.title, changes
-        )
+        await log_activity(self.db, user, "update", "task", str(task.id), task.title, changes)
 
         return TaskOut.model_validate(task).model_dump(by_alias=True)
 
@@ -238,3 +233,37 @@ class TaskService:
         await log_activity(self.db, user, "delete", "task", task_id, task_title)
 
         return True
+
+    async def complete_task(self, task_id: str, user: User) -> Dict[str, Any]:
+        """
+        Mark a task as completed.
+
+        Args:
+            task_id: Task UUID
+            user: Current authenticated user
+
+        Returns:
+            Updated task data
+
+        Raises:
+            NotFoundException: If task not found
+        """
+        old = await self.task_repo.get_by_id(task_id)
+        if not old:
+            raise NotFoundException("Task not found")
+
+        await enforce_scope(old, "assigned_to", user, self.db, resource_name="task")
+        old_data = model_to_dict(old)
+
+        task = await self.task_repo.update(
+            task_id,
+            {
+                "status": "completed",
+                "completed_at": datetime.now(timezone.utc),
+            },
+        )
+
+        changes = compute_changes(old_data, model_to_dict(task))
+        await log_activity(self.db, user, "update", "task", str(task.id), task.title, changes)
+
+        return TaskOut.model_validate(task).model_dump(by_alias=True)

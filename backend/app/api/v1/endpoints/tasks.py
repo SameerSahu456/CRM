@@ -11,28 +11,22 @@ Following SOLID principles:
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
 from typing import Any, Dict, Optional
 
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.exceptions import NotFoundException
 from app.middleware.security import get_current_user
-from app.models.task import Task
 from app.models.user import User
-from app.repositories.task_repository import TaskRepository
-from app.schemas.task_schema import TaskCreate, TaskOut, TaskUpdate
+from app.schemas.task_schema import TaskCreate, TaskUpdate
 from app.services.task_service import TaskService
-from app.utils.activity_logger import compute_changes, log_activity, model_to_dict
 from app.utils.response_utils import (
     created_response,
     deleted_response,
     paginated_response,
     success_response,
 )
-from app.utils.scoping import enforce_scope, get_scoped_user_ids
 
 router = APIRouter()
 
@@ -183,26 +177,10 @@ async def complete_task(
         "message": "Success"
     }
     """
-    # Note: This endpoint has special logic for completion
-    # Using repository directly for now
-    repo = TaskRepository(db)
-    old = await repo.get_by_id(task_id)
-    if not old:
-        raise NotFoundException("Task not found")
-    await enforce_scope(old, "assigned_to", user, db, resource_name="task")
-    old_data = model_to_dict(old)
-    task = await repo.update(
-        task_id,
-        {
-            "status": "completed",
-            "completed_at": datetime.now(timezone.utc),
-        },
-    )
-    changes = compute_changes(old_data, model_to_dict(task))
-    await log_activity(db, user, "update", "task", str(task.id), task.title, changes)
-    task_out = TaskOut.model_validate(task).model_dump(by_alias=True)
+    service = TaskService(db)
+    task = await service.complete_task(task_id=task_id, user=user)
 
-    return success_response(data=task_out, message="Task marked as completed")
+    return success_response(data=task, message="Task marked as completed")
 
 
 @router.delete("/{task_id}")
