@@ -23,6 +23,7 @@ from app.models.email import Email
 from app.models.activity_log import ActivityLog
 from app.models.role import Role
 from app.models.role_permission import RolePermission
+from app.models.master_dropdown import MasterDropdown
 
 __all__ = [
     "Base",
@@ -51,4 +52,5 @@ __all__ = [
     "ActivityLog",
     "Role",
     "RolePermission",
+    "MasterDropdown",
 ]

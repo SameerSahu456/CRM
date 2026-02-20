@@ -71,20 +71,54 @@ class MasterDataService:
 
     async def _get_dropdowns(self, entity: str) -> List[Dict]:
         """Get dropdown items for a specific entity."""
-        result = await self.db.execute(
-            text(
-                "SELECT id, entity, value, label, sort_order, is_active, metadata "
-                "FROM master_dropdowns "
-                "WHERE entity = :entity AND is_active = TRUE "
-                "ORDER BY sort_order"
-            ),
-            {"entity": entity},
-        )
-        rows = result.mappings().all()
+        try:
+            result = await self.db.execute(
+                text(
+                    "SELECT id, entity, value, label, sort_order, is_active, metadata "
+                    "FROM master_dropdowns "
+                    "WHERE entity = :entity AND is_active = TRUE "
+                    "ORDER BY sort_order"
+                ),
+                {"entity": entity},
+            )
+            rows = result.mappings().all()
+        except Exception:
+            await self.db.rollback()
+            await self._ensure_table_and_seed()
+            result = await self.db.execute(
+                text(
+                    "SELECT id, entity, value, label, sort_order, is_active, metadata "
+                    "FROM master_dropdowns "
+                    "WHERE entity = :entity AND is_active = TRUE "
+                    "ORDER BY sort_order"
+                ),
+                {"entity": entity},
+            )
+            rows = result.mappings().all()
         return [self._convert_row(row) for row in rows]
 
-    async def _seed_default_dropdowns(self) -> None:
-        """Seed default dropdown data if the table is empty."""
+    async def _ensure_table_and_seed(self) -> None:
+        """Create master_dropdowns table if missing and seed default data."""
+        # Create table if it doesn't exist
+        await self.db.execute(text("""
+            CREATE TABLE IF NOT EXISTS master_dropdowns (
+                id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+                entity VARCHAR(100) NOT NULL,
+                value VARCHAR(255) NOT NULL,
+                label VARCHAR(255) NOT NULL,
+                sort_order INTEGER DEFAULT 0,
+                is_active BOOLEAN DEFAULT TRUE,
+                metadata JSONB,
+                created_at TIMESTAMPTZ DEFAULT now(),
+                updated_at TIMESTAMPTZ DEFAULT now(),
+                UNIQUE (entity, value)
+            )
+        """))
+        await self.db.execute(text(
+            "CREATE INDEX IF NOT EXISTS ix_master_dropdowns_entity "
+            "ON master_dropdowns (entity)"
+        ))
+        # Seed default data
         await self.db.execute(text("""
             INSERT INTO master_dropdowns (entity, value, label, sort_order, metadata) VALUES
             ('deal-stages', 'New', 'New', 0, '{"is_pipeline": true}'),
@@ -153,24 +187,38 @@ class MasterDataService:
     async def list_all_dropdowns(self) -> Dict[str, List[Dict]]:
         """
         Get all dropdown entities grouped by entity type.
-        Auto-seeds default data if the table is empty.
+        Auto-creates table and seeds data if needed.
 
         Returns:
             Dictionary with entity names as keys and lists of dropdown items as values
         """
-        result = await self.db.execute(
-            text(
-                "SELECT id, entity, value, label, sort_order, is_active, metadata "
-                "FROM master_dropdowns "
-                "WHERE is_active = TRUE "
-                "ORDER BY entity, sort_order"
+        try:
+            result = await self.db.execute(
+                text(
+                    "SELECT id, entity, value, label, sort_order, is_active, metadata "
+                    "FROM master_dropdowns "
+                    "WHERE is_active = TRUE "
+                    "ORDER BY entity, sort_order"
+                )
             )
-        )
-        rows = result.mappings().all()
+            rows = result.mappings().all()
+        except Exception:
+            # Table likely doesn't exist — create and seed it
+            await self.db.rollback()
+            await self._ensure_table_and_seed()
+            result = await self.db.execute(
+                text(
+                    "SELECT id, entity, value, label, sort_order, is_active, metadata "
+                    "FROM master_dropdowns "
+                    "WHERE is_active = TRUE "
+                    "ORDER BY entity, sort_order"
+                )
+            )
+            rows = result.mappings().all()
 
-        # Auto-seed if empty (handles fresh DBs created via create_all)
+        # Auto-seed if table exists but is empty
         if not rows:
-            await self._seed_default_dropdowns()
+            await self._ensure_table_and_seed()
             result = await self.db.execute(
                 text(
                     "SELECT id, entity, value, label, sort_order, is_active, metadata "
