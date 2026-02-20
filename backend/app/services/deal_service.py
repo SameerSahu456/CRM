@@ -197,7 +197,7 @@ class DealService:
         deal = await self.deal_repo.create(data)
 
         # Log activity
-        await log_activity(self.db, user, "create", "deal", str(deal.id), deal.name)
+        await log_activity(self.db, user, "create", "deal", str(deal.id), deal.title)
 
         return DealOut.model_validate(deal).model_dump(by_alias=True)
 
@@ -232,7 +232,7 @@ class DealService:
 
         # Log activity with changes
         changes = compute_changes(old_data, model_to_dict(deal))
-        await log_activity(self.db, user, "update", "deal", str(deal.id), deal.name, changes)
+        await log_activity(self.db, user, "update", "deal", str(deal.id), deal.title, changes)
 
         return DealOut.model_validate(deal).model_dump(by_alias=True)
 
@@ -259,7 +259,7 @@ class DealService:
         await enforce_scope(deal, "owner_id", user, self.db, resource_name="deal")
 
         # Store name before deletion
-        deal_name = deal.name
+        deal_name = deal.title
 
         # Delete deal
         await self.deal_repo.delete(deal_id)
@@ -329,7 +329,7 @@ class DealService:
             self.db.add(li)
         await self.db.flush()
 
-        await log_activity(self.db, user, "create", "deal", str(deal.id), deal.name)
+        await log_activity(self.db, user, "create", "deal", str(deal.id), deal.title)
 
         # Return with line items
         result = await self.deal_repo.get_with_line_items(deal.id)
@@ -381,7 +381,7 @@ class DealService:
             await self.db.flush()
 
         changes = compute_changes(old_data, model_to_dict(deal))
-        await log_activity(self.db, user, "update", "deal", str(deal.id), deal.name, changes)
+        await log_activity(self.db, user, "update", "deal", str(deal.id), deal.title, changes)
 
         # Notify Product Managers when deal moves to Negotiation stage
         if update_data.get("stage") == "Negotiation":
@@ -476,7 +476,7 @@ class DealService:
         """
         result = await self.db.execute(text("SELECT id FROM users WHERE role = 'productmanager'"))
         pm_users = result.fetchall()
-        entity_name = getattr(entity, "name", "Unknown")
+        entity_name = getattr(entity, "title", "Unknown")
 
         for pm in pm_users:
             notif = Notification(
@@ -500,13 +500,13 @@ class DealService:
         """
         owner_id = deal.owner_id
         if owner_id:
-            old_display = f"₹{old_value:,.0f}" if old_value else "not set"
-            new_display = f"₹{new_value:,.0f}" if new_value else "not set"
+            old_display = f"₹{float(old_value):,.0f}" if old_value else "not set"
+            new_display = f"₹{float(new_value):,.0f}" if new_value else "not set"
             notif = Notification(
                 user_id=owner_id,
                 type="value_change",
                 title="Deal value updated",
-                message=f"Deal '{deal.name}' value changed from {old_display} to {new_display}",
+                message=f"Deal '{deal.title}' value changed from {old_display} to {new_display}",
                 is_read=False,
             )
             self.db.add(notif)

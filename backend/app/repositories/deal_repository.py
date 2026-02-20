@@ -73,7 +73,7 @@ class DealRepository(BaseRepository[Deal]):
 
     async def get_pipeline_stats(self, filters: list | None = None) -> dict:
         stages = [
-            "Cold", "Proposal", "Negotiation",
+            "New", "Cold", "Proposal", "Negotiation",
             "Closed Won", "Closed Lost",
         ]
         stats = {}

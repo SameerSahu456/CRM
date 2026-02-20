@@ -59,7 +59,7 @@ class LeadRepository(BaseRepository[Lead]):
         }
 
     async def get_stats(self, filters: list | None = None) -> dict:
-        stages = ["Cold", "Proposal", "Negotiation", "Closed Won", "Closed Lost"]
+        stages = ["New", "Cold", "Proposal", "Negotiation", "Closed Won", "Closed Lost"]
         stats = {}
         for stage in stages:
             stmt = select(func.count()).select_from(Lead).where(Lead.stage == stage)

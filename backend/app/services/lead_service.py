@@ -205,7 +205,7 @@ class LeadService:
 
         # Log activity with changes
         changes = compute_changes(old_data, model_to_dict(lead))
-        await log_activity(self.db, user, "update", "lead", str(lead.id), lead.company, changes)
+        await log_activity(self.db, user, "update", "lead", str(lead.id), lead.company_name, changes)
 
         return LeadOut.model_validate(lead).model_dump(by_alias=True)
 
@@ -232,7 +232,7 @@ class LeadService:
         await enforce_scope(lead, "assigned_to", user, self.db, resource_name="lead")
 
         # Store company name before deletion
-        company_name = lead.company
+        company_name = lead.company_name
 
         # Delete lead
         await self.lead_repo.delete(lead_id)
@@ -420,7 +420,7 @@ class LeadService:
         """
         result = await self.db.execute(text("SELECT id FROM users WHERE role = 'productmanager'"))
         pm_users = result.fetchall()
-        entity_name = getattr(entity, "company_name", None) or getattr(entity, "name", "Unknown")
+        entity_name = getattr(entity, "company_name", "Unknown")
 
         for pm in pm_users:
             notif = Notification(
