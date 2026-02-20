@@ -1,6 +1,6 @@
 {
   "buildCommand": "cd frontend && npm install && npm run build",
-  "outputDirectory": "frontend/dist",
+  "outputDirectory": "dist",
   "framework": null,
   "regions": ["bom1"],
   "functions": {
