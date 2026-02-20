@@ -88,6 +88,9 @@ export const AccountsPage: React.FC = () => {
   // Summary counts
   const [typeSummary, setTypeSummary] = useState<{ hunting: number; farming: number; cold: number; total: number }>({ hunting: 0, farming: 0, cold: 0, total: 0 });
 
+  // Collections data mapped by account name
+  const [collectionsMap, setCollectionsMap] = useState<Record<string, { pending: number; partial: number; paid: number }>>({});
+
   // Dropdown data for enhanced form
   const [partners, setPartners] = useState<Partner[]>([]);
   const [users, setUsers] = useState<User[]>([]);
@@ -99,7 +102,7 @@ export const AccountsPage: React.FC = () => {
   // ---------------------------------------------------------------------------
 
   const { colWidths, onMouseDown } = useColumnResize({
-    initialWidths: [45, 200, 150, 140, 220, 130, 140],
+    initialWidths: [45, 180, 120, 130, 180, 110, 130, 200],
   });
 
   const cardClass = `premium-card ${isDark ? '' : 'shadow-soft'}`;
@@ -191,6 +194,25 @@ export const AccountsPage: React.FC = () => {
 
         // Fetch accounts for parent selection + summary counts
         await fetchSummary();
+
+        // Fetch collections data
+        try {
+          const colRes = await salesApi.collections();
+          const colData = colRes?.data ?? colRes;
+          const cMap: Record<string, { pending: number; partial: number; paid: number }> = {};
+          const addToMap = (items: any[], key: 'pending' | 'partial' | 'paid') => {
+            (items || []).forEach((item: any) => {
+              const name = (item.customerName || '').toLowerCase();
+              if (!name) return;
+              if (!cMap[name]) cMap[name] = { pending: 0, partial: 0, paid: 0 };
+              cMap[name][key] += item.totalAmount || 0;
+            });
+          };
+          addToMap(colData.pending, 'pending');
+          addToMap(colData.partialPending, 'partial');
+          addToMap(colData.paid, 'paid');
+          setCollectionsMap(cMap);
+        } catch { /* ignore */ }
       } catch (err) {
         console.error('Failed to fetch dropdown data:', err);
         setPartners([]);
@@ -448,7 +470,7 @@ export const AccountsPage: React.FC = () => {
             <table className="premium-table">
               <thead>
                 <tr className={`border-b ${isDark ? 'border-zinc-700' : 'border-slate-200'}`}>
-                  {['#', 'Name', 'Industry', 'Phone', 'Email', 'Revenue', 'Account Type'].map((label, i) => (
+                  {['#', 'Name', 'Industry', 'Phone', 'Email', 'Revenue', 'Account Type', 'Collection'].map((label, i) => (
                     <th
                       key={label}
                       className={`${hdrCell} resizable-th ${i === 0 ? 'text-center' : ''}`}
@@ -463,7 +485,7 @@ export const AccountsPage: React.FC = () => {
               <tbody>
                 {accounts.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="py-16 text-center">
+                    <td colSpan={8} className="py-16 text-center">
                       <Building2 className={`w-8 h-8 mx-auto ${isDark ? 'text-zinc-700' : 'text-slate-300'}`} />
                       <p className={`mt-2 text-sm ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
                         {hasActiveFilters ? 'No accounts match filters' : 'No accounts yet'}
@@ -508,6 +530,37 @@ export const AccountsPage: React.FC = () => {
                             {account.accountType}
                           </span>
                         ) : '-'}
+                      </td>
+                      <td className={cellBase}>
+                        {(() => {
+                          const col = collectionsMap[(account.name || '').toLowerCase()];
+                          if (!col) return <span className={isDark ? 'text-zinc-600' : 'text-slate-300'}>-</span>;
+                          return (
+                            <div className="flex items-center gap-1.5">
+                              {col.pending > 0 && (
+                                <span className={`inline-flex items-center px-1.5 py-px rounded text-[10px] font-semibold ${
+                                  isDark ? 'bg-red-900/30 text-red-400' : 'bg-red-50 text-red-600'
+                                }`} title="Pending">
+                                  {formatINR(col.pending)}
+                                </span>
+                              )}
+                              {col.partial > 0 && (
+                                <span className={`inline-flex items-center px-1.5 py-px rounded text-[10px] font-semibold ${
+                                  isDark ? 'bg-amber-900/30 text-amber-400' : 'bg-amber-50 text-amber-600'
+                                }`} title="Partial">
+                                  {formatINR(col.partial)}
+                                </span>
+                              )}
+                              {col.paid > 0 && (
+                                <span className={`inline-flex items-center px-1.5 py-px rounded text-[10px] font-semibold ${
+                                  isDark ? 'bg-emerald-900/30 text-emerald-400' : 'bg-emerald-50 text-emerald-600'
+                                }`} title="Collected">
+                                  {formatINR(col.paid)}
+                                </span>
+                              )}
+                            </div>
+                          );
+                        })()}
                       </td>
                     </tr>
                 ))}
