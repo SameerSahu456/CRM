@@ -675,7 +675,7 @@ export const CRMPage: React.FC = () => {
     }
     setIsUpdatingStage(true);
 
-    // Optimistic update for pipeline view
+    // Optimistic update for both views
     const oldStage = detailLead.stage;
     setPipelineLeads(prev => {
       const updated = { ...prev };
@@ -683,6 +683,9 @@ export const CRMPage: React.FC = () => {
       updated[newStage] = [...(updated[newStage] || []), { ...detailLead, stage: newStage }];
       return updated;
     });
+    setLeads(prev =>
+      prev.map(l => l.id === detailLead.id ? { ...l, stage: newStage } : l)
+    );
 
     try {
       const updated = await leadsApi.update(detailLead.id, { stage: newStage });
@@ -695,6 +698,9 @@ export const CRMPage: React.FC = () => {
         reverted[oldStage] = [...(reverted[oldStage] || []), detailLead];
         return reverted;
       });
+      setLeads(prev =>
+        prev.map(l => l.id === detailLead.id ? { ...l, stage: oldStage } : l)
+      );
     } finally {
       setIsUpdatingStage(false);
     }
@@ -712,7 +718,7 @@ export const CRMPage: React.FC = () => {
       return;
     }
 
-    // Optimistic update — move card instantly without reload
+    // Optimistic update — move card instantly in both views
     const oldStage = lead.stage;
     setPipelineLeads(prev => {
       const updated = { ...prev };
@@ -720,6 +726,9 @@ export const CRMPage: React.FC = () => {
       updated[newStage] = [...(updated[newStage] || []), { ...lead, stage: newStage }];
       return updated;
     });
+    setLeads(prev =>
+      prev.map(l => l.id === lead.id ? { ...l, stage: newStage } : l)
+    );
 
     try {
       await leadsApi.update(lead.id, { stage: newStage });
@@ -731,6 +740,9 @@ export const CRMPage: React.FC = () => {
         reverted[oldStage] = [...(reverted[oldStage] || []), lead];
         return reverted;
       });
+      setLeads(prev =>
+        prev.map(l => l.id === lead.id ? { ...l, stage: oldStage } : l)
+      );
     }
   };
 
@@ -950,11 +962,8 @@ export const CRMPage: React.FC = () => {
   // ---------------------------------------------------------------------------
 
   const refreshData = () => {
-    if (viewMode === 'table') {
-      fetchLeads();
-    } else {
-      fetchPipelineLeads();
-    }
+    fetchLeads();
+    fetchPipelineLeads();
   };
 
   const clearFilters = () => {

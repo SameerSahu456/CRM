@@ -715,9 +715,12 @@ export const DealsPage: React.FC = () => {
 
     setIsUpdatingStage(true);
 
-    // Optimistic update for pipeline view
+    // Optimistic update for both views
     const oldStage = detailDeal.stage;
     setPipelineDeals(prev =>
+      prev.map(d => d.id === detailDeal.id ? { ...d, stage: newStage } : d)
+    );
+    setDeals(prev =>
       prev.map(d => d.id === detailDeal.id ? { ...d, stage: newStage } : d)
     );
 
@@ -727,6 +730,9 @@ export const DealsPage: React.FC = () => {
     } catch {
       // Revert on failure
       setPipelineDeals(prev =>
+        prev.map(d => d.id === detailDeal.id ? { ...d, stage: oldStage } : d)
+      );
+      setDeals(prev =>
         prev.map(d => d.id === detailDeal.id ? { ...d, stage: oldStage } : d)
       );
     } finally {
@@ -774,9 +780,12 @@ export const DealsPage: React.FC = () => {
       return;
     }
 
-    // Optimistic update — move card instantly without reload
+    // Optimistic update — move card instantly in both views
     const oldStage = deal.stage;
     setPipelineDeals(prev =>
+      prev.map(d => d.id === deal.id ? { ...d, stage: newStage } : d)
+    );
+    setDeals(prev =>
       prev.map(d => d.id === deal.id ? { ...d, stage: newStage } : d)
     );
 
@@ -785,6 +794,9 @@ export const DealsPage: React.FC = () => {
     } catch {
       // Revert on failure
       setPipelineDeals(prev =>
+        prev.map(d => d.id === deal.id ? { ...d, stage: oldStage } : d)
+      );
+      setDeals(prev =>
         prev.map(d => d.id === deal.id ? { ...d, stage: oldStage } : d)
       );
     }
@@ -809,11 +821,8 @@ export const DealsPage: React.FC = () => {
   // ---------------------------------------------------------------------------
 
   const refreshData = () => {
-    if (viewMode === 'table') {
-      fetchDeals();
-    } else {
-      fetchPipelineDeals();
-    }
+    fetchDeals();
+    fetchPipelineDeals();
   };
 
   // ---------------------------------------------------------------------------
