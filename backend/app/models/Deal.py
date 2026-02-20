@@ -24,7 +24,7 @@ class Deal(TimestampMixin, Base):
     value: Mapped[Optional[Decimal]] = mapped_column(
         Numeric(15, 2), nullable=True
     )
-    stage: Mapped[str] = mapped_column(String(50), server_default="Cold")
+    stage: Mapped[str] = mapped_column(String(50), server_default="New")
     probability: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     owner_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         UUID(as_uuid=True), nullable=True

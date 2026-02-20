@@ -21,7 +21,7 @@ export const PipelineChartWidget: React.FC<WidgetProps> = ({ isDark, navigate, o
     fetchData();
   }, []);
 
-  const DEAL_STAGE_ORDER = ['Cold', 'Proposal', 'Negotiation', 'Closed Won', 'Closed Lost'];
+  const DEAL_STAGE_ORDER = ['New', 'Proposal', 'Cold', 'Negotiation', 'Closed Lost', 'Closed Won'];
   const pipelineStages = DEAL_STAGE_ORDER
     .filter(s => dealStatsRaw[s])
     .map(s => ({ stage: s, count: dealStatsRaw[s]?.count ?? 0, value: dealStatsRaw[s]?.value ?? 0 }));
@@ -29,7 +29,7 @@ export const PipelineChartWidget: React.FC<WidgetProps> = ({ isDark, navigate, o
   const totalDealValue = pipelineStages.reduce((sum, s) => sum + s.value, 0);
 
   const PIPELINE_COLORS: Record<string, string> = {
-    Cold: '#3b82f6', Proposal: '#a855f7', Negotiation: '#f97316', 'Closed Won': '#10b981', 'Closed Lost': '#ef4444',
+    New: '#06b6d4', Proposal: '#a855f7', Cold: '#3b82f6', Negotiation: '#f97316', 'Closed Lost': '#ef4444', 'Closed Won': '#10b981',
   };
 
   return (

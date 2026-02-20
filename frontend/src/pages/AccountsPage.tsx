@@ -4,12 +4,12 @@ import {
   IndianRupee, Loader2, AlertCircle, Building2,
   Phone, Mail, Globe, Users, MapPin, Hash,
   TrendingUp, FileText, Briefcase, User as UserIcon,
-  Download, Upload, Target, Leaf, Snowflake
+  Download, Upload, Target, Leaf, Snowflake, Wallet
 } from 'lucide-react';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigation } from '@/contexts/NavigationContext';
-import { accountsApi, partnersApi, adminApi, formatINR } from '@/services/api';
+import { accountsApi, partnersApi, adminApi, productsApi, salesApi, formatINR } from '@/services/api';
 import { exportToCsv } from '@/utils/exportCsv';
 import { Account, Contact, Deal, PaginatedResponse, Partner, User } from '@/types';
 import { EnhancedAccountForm, EnhancedAccountFormData } from '@/components/common/EnhancedAccountForm';
@@ -74,9 +74,10 @@ export const AccountsPage: React.FC = () => {
   // Detail modal
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [detailAccount, setDetailAccount] = useState<Account | null>(null);
-  const [detailTab, setDetailTab] = useState<'contacts' | 'deals'>('contacts');
+  const [detailTab, setDetailTab] = useState<'contacts' | 'deals' | 'collections'>('contacts');
   const [detailContacts, setDetailContacts] = useState<Contact[]>([]);
   const [detailDeals, setDetailDeals] = useState<Deal[]>([]);
+  const [detailCollections, setDetailCollections] = useState<any[]>([]);
   const [isDetailLoading, setIsDetailLoading] = useState(false);
 
   // Delete confirmation
@@ -91,13 +92,14 @@ export const AccountsPage: React.FC = () => {
   const [partners, setPartners] = useState<Partner[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [parentAccounts, setParentAccounts] = useState<Account[]>([]);
+  const [productsList, setProductsList] = useState<Array<{ id: string; name: string; category?: string }>>([]);
 
   // ---------------------------------------------------------------------------
   // Styling helpers
   // ---------------------------------------------------------------------------
 
   const { colWidths, onMouseDown } = useColumnResize({
-    initialWidths: [45, 200, 150, 140, 220, 130, 130, 130, 140, 130],
+    initialWidths: [45, 200, 150, 140, 220, 130, 140],
   });
 
   const cardClass = `premium-card ${isDark ? '' : 'shadow-soft'}`;
@@ -182,6 +184,10 @@ export const AccountsPage: React.FC = () => {
         // Fetch users
         const usersData = await adminApi.listUsers();
         setUsers(Array.isArray(usersData) ? usersData : []);
+
+        // Fetch products for category→product dropdown
+        const prods = await productsApi.list();
+        setProductsList(Array.isArray(prods) ? prods.map((p: any) => ({ id: p.id, name: p.name, category: p.category })) : []);
 
         // Fetch accounts for parent selection + summary counts
         await fetchSummary();
@@ -275,18 +281,23 @@ export const AccountsPage: React.FC = () => {
     setDetailTab('contacts');
     setDetailContacts([]);
     setDetailDeals([]);
+    setDetailCollections([]);
     setShowDetailModal(true);
     setIsDetailLoading(true);
     try {
-      const [contacts, deals] = await Promise.all([
+      const [contacts, deals, collectionsRes] = await Promise.all([
         accountsApi.getContacts(account.id),
         accountsApi.getDeals(account.id),
+        salesApi.list({ search: account.name, limit: '100' }),
       ]);
       setDetailContacts(Array.isArray(contacts) ? contacts : []);
       setDetailDeals(Array.isArray(deals) ? deals : []);
+      const entries = collectionsRes?.data ?? collectionsRes;
+      setDetailCollections(Array.isArray(entries) ? entries : []);
     } catch {
       setDetailContacts([]);
       setDetailDeals([]);
+      setDetailCollections([]);
     } finally {
       setIsDetailLoading(false);
     }
@@ -297,6 +308,7 @@ export const AccountsPage: React.FC = () => {
     setDetailAccount(null);
     setDetailContacts([]);
     setDetailDeals([]);
+    setDetailCollections([]);
   };
 
   // ---------------------------------------------------------------------------
@@ -436,7 +448,7 @@ export const AccountsPage: React.FC = () => {
             <table className="premium-table">
               <thead>
                 <tr className={`border-b ${isDark ? 'border-zinc-700' : 'border-slate-200'}`}>
-                  {['#', 'Name', 'Industry', 'Phone', 'Email', 'Revenue', 'Type', 'GSTIN', 'Account Type', 'Tag'].map((label, i) => (
+                  {['#', 'Name', 'Industry', 'Phone', 'Email', 'Revenue', 'Account Type'].map((label, i) => (
                     <th
                       key={label}
                       className={`${hdrCell} resizable-th ${i === 0 ? 'text-center' : ''}`}
@@ -451,7 +463,7 @@ export const AccountsPage: React.FC = () => {
               <tbody>
                 {accounts.length === 0 ? (
                   <tr>
-                    <td colSpan={10} className="py-16 text-center">
+                    <td colSpan={7} className="py-16 text-center">
                       <Building2 className={`w-8 h-8 mx-auto ${isDark ? 'text-zinc-700' : 'text-slate-300'}`} />
                       <p className={`mt-2 text-sm ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
                         {hasActiveFilters ? 'No accounts match filters' : 'No accounts yet'}
@@ -486,12 +498,6 @@ export const AccountsPage: React.FC = () => {
                       <td className={`${cellBase} ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
                         <span className="font-semibold whitespace-nowrap">{account.revenue ? formatINR(account.revenue) : '-'}</span>
                       </td>
-                      <td className={`${cellBase} ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
-                        {account.type || '-'}
-                      </td>
-                      <td className={`${cellBase} ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
-                        {account.gstinNo || '-'}
-                      </td>
                       <td className={cellBase}>
                         {account.accountType ? (
                           <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
@@ -500,17 +506,6 @@ export const AccountsPage: React.FC = () => {
                               : (isDark ? 'bg-orange-900/30 text-orange-400' : 'bg-orange-50 text-orange-700')
                           }`}>
                             {account.accountType}
-                          </span>
-                        ) : '-'}
-                      </td>
-                      <td className={cellBase}>
-                        {account.tag ? (
-                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                            account.tag === 'Digital Account'
-                              ? (isDark ? 'bg-blue-900/30 text-blue-400' : 'bg-blue-50 text-blue-700')
-                              : (isDark ? 'bg-purple-900/30 text-purple-400' : 'bg-purple-50 text-purple-700')
-                          }`}>
-                            {account.tag}
                           </span>
                         ) : '-'}
                       </td>
@@ -703,7 +698,7 @@ export const AccountsPage: React.FC = () => {
               </div>
             )}
 
-            {/* Tabs: Contacts & Deals */}
+            {/* Tabs: Contacts, Deals & Collections */}
             <div>
               <div className={`flex items-center gap-1 border-b mb-4 ${isDark ? 'border-zinc-800' : 'border-slate-200'}`}>
                 <button
@@ -734,6 +729,21 @@ export const AccountsPage: React.FC = () => {
                   <span className="flex items-center gap-1.5">
                     <TrendingUp className="w-3.5 h-3.5" />
                     Deals ({detailDeals.length})
+                  </span>
+                </button>
+                <button
+                  onClick={() => setDetailTab('collections')}
+                  className={`px-4 py-2.5 text-sm font-medium transition-colors border-b-2 -mb-px ${
+                    detailTab === 'collections'
+                      ? 'border-brand-600 text-brand-600'
+                      : isDark
+                        ? 'border-transparent text-zinc-500 hover:text-zinc-300'
+                        : 'border-transparent text-slate-400 hover:text-slate-600'
+                  }`}
+                >
+                  <span className="flex items-center gap-1.5">
+                    <Wallet className="w-3.5 h-3.5" />
+                    Collections ({detailCollections.length})
                   </span>
                 </button>
               </div>
@@ -792,7 +802,7 @@ export const AccountsPage: React.FC = () => {
                     </button>
                   </div>
                 )
-              ) : (
+              ) : detailTab === 'deals' ? (
                 detailDeals.length === 0 ? (
                   <p className={`text-sm py-4 text-center ${isDark ? 'text-zinc-600' : 'text-slate-400'}`}>
                     No deals linked to this account
@@ -830,6 +840,76 @@ export const AccountsPage: React.FC = () => {
                     ))}
                   </div>
                 )
+              ) : (
+                /* Collections tab */
+                detailCollections.length === 0 ? (
+                  <p className={`text-sm py-4 text-center ${isDark ? 'text-zinc-600' : 'text-slate-400'}`}>
+                    No collections for this account
+                  </p>
+                ) : (
+                  <div className="space-y-3 pr-1">
+                    {/* Collection summary */}
+                    {(() => {
+                      const pending = detailCollections.filter((e: any) => e.paymentStatus === 'pending');
+                      const partial = detailCollections.filter((e: any) => e.paymentStatus === 'partial');
+                      const paid = detailCollections.filter((e: any) => e.paymentStatus === 'paid');
+                      const pendingTotal = pending.reduce((s: number, e: any) => s + (e.amount || 0), 0);
+                      const partialTotal = partial.reduce((s: number, e: any) => s + (e.amount || 0), 0);
+                      const paidTotal = paid.reduce((s: number, e: any) => s + (e.amount || 0), 0);
+                      return (
+                        <div className="grid grid-cols-3 gap-2">
+                          <div className={`rounded-lg p-2.5 text-center ${isDark ? 'bg-red-900/20' : 'bg-red-50'}`}>
+                            <p className={`text-[10px] uppercase tracking-wider font-semibold ${isDark ? 'text-red-400' : 'text-red-600'}`}>Pending</p>
+                            <p className={`text-sm font-bold ${isDark ? 'text-red-400' : 'text-red-600'}`}>{formatINR(pendingTotal)}</p>
+                            <p className={`text-[10px] ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>{pending.length} orders</p>
+                          </div>
+                          <div className={`rounded-lg p-2.5 text-center ${isDark ? 'bg-amber-900/20' : 'bg-amber-50'}`}>
+                            <p className={`text-[10px] uppercase tracking-wider font-semibold ${isDark ? 'text-amber-400' : 'text-amber-600'}`}>Partial</p>
+                            <p className={`text-sm font-bold ${isDark ? 'text-amber-400' : 'text-amber-600'}`}>{formatINR(partialTotal)}</p>
+                            <p className={`text-[10px] ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>{partial.length} orders</p>
+                          </div>
+                          <div className={`rounded-lg p-2.5 text-center ${isDark ? 'bg-emerald-900/20' : 'bg-emerald-50'}`}>
+                            <p className={`text-[10px] uppercase tracking-wider font-semibold ${isDark ? 'text-emerald-400' : 'text-emerald-600'}`}>Collected</p>
+                            <p className={`text-sm font-bold ${isDark ? 'text-emerald-400' : 'text-emerald-600'}`}>{formatINR(paidTotal)}</p>
+                            <p className={`text-[10px] ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>{paid.length} orders</p>
+                          </div>
+                        </div>
+                      );
+                    })()}
+
+                    {/* Orders table */}
+                    <div className={`rounded-lg border overflow-hidden ${isDark ? 'border-zinc-800' : 'border-slate-200'}`}>
+                      <table className="w-full text-xs">
+                        <thead>
+                          <tr className={isDark ? 'bg-zinc-900/50' : 'bg-slate-50'}>
+                            <th className={`text-left px-2.5 py-1.5 text-[10px] font-semibold uppercase tracking-wider ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Date</th>
+                            <th className={`text-left px-2.5 py-1.5 text-[10px] font-semibold uppercase tracking-wider ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Product</th>
+                            <th className={`text-right px-2.5 py-1.5 text-[10px] font-semibold uppercase tracking-wider ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Amount</th>
+                            <th className={`text-center px-2.5 py-1.5 text-[10px] font-semibold uppercase tracking-wider ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Status</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {detailCollections.map((entry: any, j: number) => (
+                            <tr key={j} className={`border-t ${isDark ? 'border-zinc-800' : 'border-slate-100'}`}>
+                              <td className={`px-2.5 py-1.5 ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>{entry.saleDate ? formatDate(entry.saleDate) : '-'}</td>
+                              <td className={`px-2.5 py-1.5 ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>{entry.productName || '-'}</td>
+                              <td className={`px-2.5 py-1.5 text-right font-medium ${isDark ? 'text-white' : 'text-slate-900'}`}>{formatINR(entry.amount || 0)}</td>
+                              <td className="px-2.5 py-1.5 text-center">
+                                <span className={`inline-flex px-1.5 py-px rounded-full text-[9px] font-semibold ${
+                                  entry.paymentStatus === 'paid' ? (isDark ? 'bg-emerald-900/30 text-emerald-400' : 'bg-emerald-50 text-emerald-600')
+                                  : entry.paymentStatus === 'partial' ? (isDark ? 'bg-amber-900/30 text-amber-400' : 'bg-amber-50 text-amber-600')
+                                  : (isDark ? 'bg-red-900/30 text-red-400' : 'bg-red-50 text-red-600')
+                                }`}>
+                                  {entry.paymentStatus || 'pending'}
+                                </span>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )
               )}
             </div>
 
@@ -863,6 +943,7 @@ export const AccountsPage: React.FC = () => {
         partners={Array.isArray(partners) ? partners.map(p => ({ id: p.id, companyName: p.companyName })) : []}
         accounts={Array.isArray(parentAccounts) ? parentAccounts.map(a => ({ id: a.id, name: a.name })) : []}
         users={Array.isArray(users) ? users.map(u => ({ id: u.id, name: u.name })) : []}
+        products={productsList}
       />
     );
   };

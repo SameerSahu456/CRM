@@ -16,6 +16,7 @@ import { useDropdowns } from '@/contexts/DropdownsContext';
 import { dealsApi, accountsApi, contactsApi, salesApi, quotesApi, productsApi, partnersApi, formatINR } from '@/services/api';
 import { exportToCsv } from '@/utils/exportCsv';
 import { BulkImportModal } from '@/components/common/BulkImportModal';
+import { RichTextEditor } from '@/components/common/RichTextEditor';
 import { Deal, DealStage, Account, Contact, Product, Partner, PaginatedResponse, ActivityLog } from '@/types';
 import { useColumnResize } from '@/hooks/useColumnResize';
 
@@ -29,16 +30,18 @@ const STAGE_COLORS: Record<DealStage, {
   bg: string; text: string; darkBg: string; darkText: string;
   iconBg: string; darkIconBg: string; border: string; darkBorder: string;
 }> = {
-  Cold:           { bg: 'bg-blue-50', text: 'text-blue-700', darkBg: 'bg-blue-900/30', darkText: 'text-blue-400', iconBg: 'bg-blue-100', darkIconBg: 'bg-blue-900/20', border: 'border-blue-200', darkBorder: 'border-blue-800' },
+  New:            { bg: 'bg-cyan-50', text: 'text-cyan-700', darkBg: 'bg-cyan-900/30', darkText: 'text-cyan-400', iconBg: 'bg-cyan-100', darkIconBg: 'bg-cyan-900/20', border: 'border-cyan-200', darkBorder: 'border-cyan-800' },
   Proposal:       { bg: 'bg-amber-50', text: 'text-amber-700', darkBg: 'bg-amber-900/30', darkText: 'text-amber-400', iconBg: 'bg-amber-100', darkIconBg: 'bg-amber-900/20', border: 'border-amber-200', darkBorder: 'border-amber-800' },
+  Cold:           { bg: 'bg-blue-50', text: 'text-blue-700', darkBg: 'bg-blue-900/30', darkText: 'text-blue-400', iconBg: 'bg-blue-100', darkIconBg: 'bg-blue-900/20', border: 'border-blue-200', darkBorder: 'border-blue-800' },
   Negotiation:    { bg: 'bg-purple-50', text: 'text-purple-700', darkBg: 'bg-purple-900/30', darkText: 'text-purple-400', iconBg: 'bg-purple-100', darkIconBg: 'bg-purple-900/20', border: 'border-purple-200', darkBorder: 'border-purple-800' },
-  'Closed Won':   { bg: 'bg-emerald-50', text: 'text-emerald-700', darkBg: 'bg-emerald-900/30', darkText: 'text-emerald-400', iconBg: 'bg-emerald-100', darkIconBg: 'bg-emerald-900/20', border: 'border-emerald-200', darkBorder: 'border-emerald-800' },
   'Closed Lost':  { bg: 'bg-red-50', text: 'text-red-700', darkBg: 'bg-red-900/30', darkText: 'text-red-400', iconBg: 'bg-red-100', darkIconBg: 'bg-red-900/20', border: 'border-red-200', darkBorder: 'border-red-800' },
+  'Closed Won':   { bg: 'bg-emerald-50', text: 'text-emerald-700', darkBg: 'bg-emerald-900/30', darkText: 'text-emerald-400', iconBg: 'bg-emerald-100', darkIconBg: 'bg-emerald-900/20', border: 'border-emerald-200', darkBorder: 'border-emerald-800' },
 };
 
 const NEXT_STAGE: Record<string, DealStage> = {
-  Cold: 'Proposal',
-  Proposal: 'Negotiation',
+  New: 'Proposal',
+  Proposal: 'Cold',
+  Cold: 'Negotiation',
   Negotiation: 'Closed Won',
 };
 
@@ -92,7 +95,7 @@ interface DealFormData {
 const EMPTY_DEAL_FORM: DealFormData = {
   accountId: '',
   value: 0,
-  stage: 'Cold',
+  stage: 'New',
   closingDate: '',
   description: '',
   contactId: '',
@@ -146,7 +149,7 @@ function formatDateTime(dateStr?: string): string {
 
 function stageBadge(stage: DealStage, isDark: boolean): string {
   const base = 'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium';
-  const c = STAGE_COLORS[stage] || STAGE_COLORS['Cold']; // Fallback to Cold if stage not found
+  const c = STAGE_COLORS[stage] || STAGE_COLORS['New']; // Fallback to New if stage not found
   return `${base} ${isDark ? `${c.darkBg} ${c.darkText}` : `${c.bg} ${c.text}`}`;
 }
 
@@ -180,7 +183,7 @@ export const DealsPage: React.FC = () => {
   const [partners, setPartners] = useState<Partner[]>([]);
 
   // Summary counts
-  const [dealSummary, setDealSummary] = useState<{ total: number; cold: number; proposal: number; negotiation: number; closedWon: number; closedLost: number }>({ total: 0, cold: 0, proposal: 0, negotiation: 0, closedWon: 0, closedLost: 0 });
+  const [dealSummary, setDealSummary] = useState<{ total: number; new: number; proposal: number; cold: number; negotiation: number; closedLost: number; closedWon: number }>({ total: 0, new: 0, proposal: 0, cold: 0, negotiation: 0, closedLost: 0, closedWon: 0 });
 
   // View mode
   const [viewMode, setViewMode] = useState<'table' | 'pipeline'>('pipeline');
@@ -251,7 +254,7 @@ export const DealsPage: React.FC = () => {
     paymentStatus: 'pending', saleDate: new Date().toISOString().split('T')[0],
     partnerId: '',
     contactName: '', contactNo: '', email: '', gstin: '', panNo: '',
-    dispatchMethod: '', paymentTerms: '', orderType: 'New' as 'New' | 'Refurb',
+    dispatchMethod: '', paymentTerms: '', orderType: 'New' as 'New' | 'Refurb' | 'Rental',
     serialNumber: '', boq: '', price: 0,
   });
   const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
@@ -282,8 +285,8 @@ export const DealsPage: React.FC = () => {
   // ---------------------------------------------------------------------------
 
   const dealInitialWidths = canSeeAssignee
-    ? [45, 70, 170, 150, 130, 130, 220, 130, 160, 160, 110, 120, 100, 120, 120]
-    : [45, 70, 170, 150, 130, 130, 220, 130, 160, 160, 110, 120, 100, 120];
+    ? [45, 70, 170, 150, 130, 130, 220, 130, 160, 160, 110, 120, 120, 120]
+    : [45, 70, 170, 150, 130, 130, 220, 130, 160, 160, 110, 120, 120];
   const { colWidths: dealColWidths, onMouseDown: onDealMouseDown } = useColumnResize({
     initialWidths: dealInitialWidths,
   });
@@ -375,12 +378,13 @@ export const DealsPage: React.FC = () => {
 
   // Compute deal summary counts from pipelineDeals
   useEffect(() => {
-    const cold = pipelineDeals.filter(d => d.stage === 'Cold').length;
+    const newDeals = pipelineDeals.filter(d => d.stage === 'New').length;
     const proposal = pipelineDeals.filter(d => d.stage === 'Proposal').length;
+    const cold = pipelineDeals.filter(d => d.stage === 'Cold').length;
     const negotiation = pipelineDeals.filter(d => d.stage === 'Negotiation').length;
-    const closedWon = pipelineDeals.filter(d => d.stage === 'Closed Won').length;
     const closedLost = pipelineDeals.filter(d => d.stage === 'Closed Lost').length;
-    setDealSummary({ total: pipelineDeals.length, cold, proposal, negotiation, closedWon, closedLost });
+    const closedWon = pipelineDeals.filter(d => d.stage === 'Closed Won').length;
+    setDealSummary({ total: pipelineDeals.length, new: newDeals, proposal, cold, negotiation, closedLost, closedWon });
   }, [pipelineDeals]);
 
   // Reset to page 1 when filters change
@@ -566,6 +570,16 @@ export const DealsPage: React.FC = () => {
           ? Number(value) || 0
           : value,
       };
+      // When account changes, reset contact if it doesn't belong to the new account
+      if (name === 'accountId') {
+        const currentContact = contacts.find(c => c.id === prev.contactId);
+        if (currentContact && currentContact.accountId !== value) {
+          updated.contactId = '';
+          updated.contactNo = '';
+          updated.designation = '';
+          updated.email = '';
+        }
+      }
       // Auto-populate contact details from contacts table
       if (name === 'contactId' && value) {
         const contact = contacts.find(c => c.id === value);
@@ -1209,7 +1223,7 @@ export const DealsPage: React.FC = () => {
               <table className="premium-table" style={{ minWidth: dealColWidths.reduce((a, b) => a + b, 0) }}>
                 <thead>
                   <tr className={`border-b ${isDark ? 'border-zinc-700' : 'border-slate-200'}`}>
-                    {(['#', 'Summarise', 'Company', 'Contact Name', 'Contact No', 'Designation', 'Email', 'Location', 'Requirement', 'Quoted Requirement', 'Value', 'Stage', 'Type', ...(canSeeAssignee ? ['Assignee'] : []), 'Follow-up Date'] as string[]).map((label, i, arr) => (
+                    {(['#', 'Summarise', 'Company', 'Contact Name', 'Contact No', 'Designation', 'Email', 'Location', 'Requirement', 'Quoted Requirement', 'Value', 'Stage', ...(canSeeAssignee ? ['Assignee'] : []), 'Follow-up Date'] as string[]).map((label, i, arr) => (
                       <th
                         key={label}
                         className={`${hdrCell} resizable-th ${i === 0 || i === 1 ? 'text-center' : ''}`}
@@ -1224,7 +1238,7 @@ export const DealsPage: React.FC = () => {
                 <tbody>
                   {deals.length === 0 ? (
                     <tr>
-                      <td colSpan={canSeeAssignee ? 15 : 14} className="py-16 text-center">
+                      <td colSpan={canSeeAssignee ? 14 : 13} className="py-16 text-center">
                         <Briefcase className={`w-8 h-8 mx-auto ${isDark ? 'text-zinc-700' : 'text-slate-300'}`} />
                         <p className={`mt-2 text-sm ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
                           {hasActiveFilters ? 'No deals match filters' : 'No deals yet'}
@@ -1299,10 +1313,6 @@ export const DealsPage: React.FC = () => {
                       {/* Stage */}
                       <td className={`${cellBase}`}>
                         {renderReadCell(deal, 'stage')}
-                      </td>
-                      {/* Type */}
-                      <td className={`${cellBase}`}>
-                        {renderReadCell(deal, 'tag')}
                       </td>
                       {/* Assignee - only visible to admin/superadmin/managers */}
                       {canSeeAssignee && (
@@ -1481,21 +1491,24 @@ export const DealsPage: React.FC = () => {
         </div>
 
         {/* Move to next stage button */}
-        {nextStage && (
-          <div className={`pt-2 mt-2 border-t border-dashed ${isDark ? 'border-zinc-700' : 'border-slate-200'}`}>
-            <button
-              onClick={(e) => { e.stopPropagation(); handleMoveStage(deal, nextStage); }}
-              className={`w-full flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-lg text-[11px] font-medium transition-all ${
-                isDark
-                  ? 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700 hover:text-white'
-                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900'
-              }`}
-            >
-              <ArrowRight className="w-3 h-3" />
-              Move to {nextStage}
-            </button>
-          </div>
-        )}
+        {nextStage && (() => {
+          const tc = STAGE_COLORS[nextStage] || STAGE_COLORS['New'];
+          return (
+            <div className={`pt-2 mt-2 border-t border-dashed ${isDark ? 'border-zinc-700' : 'border-slate-200'}`}>
+              <button
+                onClick={(e) => { e.stopPropagation(); handleMoveStage(deal, nextStage); }}
+                className={`w-full flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-lg text-[11px] font-medium transition-all ${
+                  isDark
+                    ? `${tc.darkBg} ${tc.darkText} hover:opacity-80`
+                    : `${tc.bg} ${tc.text} hover:opacity-80`
+                }`}
+              >
+                {nextStage === 'Closed Won' ? <CheckCircle className="w-3 h-3" /> : <ArrowRight className="w-3 h-3" />}
+                Move to {nextStage}
+              </button>
+            </div>
+          );
+        })()}
 
         {/* Reinitiate Sales Order for Closed Won */}
         {deal.stage === 'Closed Won' && (
@@ -1550,11 +1563,11 @@ export const DealsPage: React.FC = () => {
 
     return (
       <div className="overflow-x-auto">
-        {/* All 5 stages as kanban columns */}
-        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4 min-w-[900px]">
+        {/* All 6 stages as kanban columns */}
+        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4 min-w-[1100px]">
           {DEAL_STAGES.map(stage => {
             const stageDeals = (groupedDeals[stage] || []).filter(filterDeal);
-            const c = STAGE_COLORS[stage] || STAGE_COLORS['Cold'];
+            const c = STAGE_COLORS[stage] || STAGE_COLORS['New'];
             const stageTotal = stageDeals.reduce((sum, d) => sum + (d.value || 0), 0);
             const isOver = dragOverStage === stage;
             const isTerminal = stage === 'Closed Won' || stage === 'Closed Lost';
@@ -1635,7 +1648,7 @@ export const DealsPage: React.FC = () => {
   const renderDealDetailModal = () => {
     if (!showDetailModal || !detailDeal) return null;
     const deal = detailDeal;
-    const stageColor = STAGE_COLORS[deal.stage] || STAGE_COLORS['Cold'];
+    const stageColor = STAGE_COLORS[deal.stage] || STAGE_COLORS['New'];
 
     return (
       <div className="fixed inset-0 z-50 flex items-start justify-center p-4 pt-[5vh] overflow-y-auto">
@@ -2186,28 +2199,6 @@ export const DealsPage: React.FC = () => {
               </div>
             )}
 
-            {/* Value */}
-            <div>
-              <label htmlFor="deal-value" className={labelClass}>
-                Value (INR) <span className="text-red-500">*</span>
-              </label>
-              <div className="relative">
-                <IndianRupee className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`} />
-                <input
-                  id="deal-value"
-                  name="value"
-                  type="number"
-                  min="0"
-                  step="1"
-                  placeholder="0"
-                  value={dealFormData.value || ''}
-                  onChange={handleDealFormChange}
-                  className={`${inputClass} pl-10`}
-                  required
-                />
-              </div>
-            </div>
-
             {/* Row 4: Account + Contact */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
@@ -2235,7 +2226,10 @@ export const DealsPage: React.FC = () => {
                   className={selectClass}
                 >
                   <option value="">Select contact...</option>
-                  {contacts.map(c => (
+                  {(dealFormData.accountId
+                    ? contacts.filter(c => c.accountId === dealFormData.accountId)
+                    : contacts
+                  ).map(c => (
                     <option key={c.id} value={c.id}>{c.firstName} {c.lastName}</option>
                   ))}
                 </select>
@@ -2339,25 +2333,6 @@ export const DealsPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Row 6: Type */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label htmlFor="deal-type" className={labelClass}>Type</label>
-                <select
-                  id="deal-type"
-                  name="type"
-                  value={dealFormData.type}
-                  onChange={handleDealFormChange}
-                  className={selectClass}
-                >
-                  <option value="New Business">New Business</option>
-                  <option value="Existing Business">Existing Business</option>
-                  <option value="Renewal">Renewal</option>
-                  <option value="Upsell">Upsell</option>
-                </select>
-              </div>
-            </div>
-
             {/* Row 7: Type + Lead Source */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
@@ -2422,32 +2397,37 @@ export const DealsPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Row 8: Description */}
+            {/* Value (non-mandatory, below quoted requirement) */}
             <div>
-              <label htmlFor="deal-description" className={labelClass}>Description</label>
-              <textarea
-                id="deal-description"
-                name="description"
-                rows={3}
-                placeholder="Deal description..."
-                value={dealFormData.description}
-                onChange={(e) => setDealFormData(prev => ({ ...prev, description: e.target.value }))}
-                className={inputClass}
-              />
+              <label htmlFor="deal-value" className={labelClass}>
+                Value (INR)
+              </label>
+              <div className="relative">
+                <IndianRupee className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`} />
+                <input
+                  id="deal-value"
+                  name="value"
+                  type="number"
+                  min="0"
+                  step="1"
+                  placeholder="0"
+                  value={dealFormData.value || ''}
+                  onChange={handleDealFormChange}
+                  className={`${inputClass} pl-10`}
+                />
+              </div>
             </div>
 
-            {/* Payment Flag */}
-            <div className={`p-3 rounded-xl border ${isDark ? 'border-zinc-700 bg-dark-100' : 'border-slate-200 bg-slate-50'}`}>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={dealFormData.paymentFlag || false}
-                  onChange={(e) => setDealFormData(prev => ({ ...prev, paymentFlag: e.target.checked }))}
-                  className="w-4 h-4 rounded border-slate-300 text-red-600 focus:ring-red-500"
-                />
-                <Flag className="w-4 h-4 text-red-500" />
-                <span className={`text-sm font-medium ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>Payment Pending</span>
-              </label>
+            {/* Row 8: Description (Rich Text) */}
+            <div>
+              <label className={labelClass}>Description</label>
+              <RichTextEditor
+                value={dealFormData.description}
+                onChange={(html) => setDealFormData(prev => ({ ...prev, description: html }))}
+                placeholder="Deal description..."
+                isDark={isDark}
+                minHeight="80px"
+              />
             </div>
 
             </div>
@@ -2676,15 +2656,15 @@ export const DealsPage: React.FC = () => {
               <input name="saleDate" type="date" value={closedWonOrderForm.saleDate} onChange={handleOrderChange} className={inputClass} required />
             </div>
 
-            {/* Order Type Toggle: New / Refurb */}
+            {/* Order Type Toggle: New / Refurb / Rental */}
             <div>
               <label className={labelClass}>Order Type</label>
               <div className="flex gap-2">
-                {(['New', 'Refurb'] as const).map(t => (
+                {(['New', 'Refurb', 'Rental'] as const).map(t => (
                   <button
                     key={t}
                     type="button"
-                    onClick={() => setClosedWonOrderForm(prev => ({ ...prev, orderType: t, serialNumber: t === 'Refurb' ? '' : prev.serialNumber }))}
+                    onClick={() => setClosedWonOrderForm(prev => ({ ...prev, orderType: t }))}
                     className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
                       closedWonOrderForm.orderType === t
                         ? 'bg-brand-600 text-white shadow-sm'
@@ -2696,14 +2676,6 @@ export const DealsPage: React.FC = () => {
                 ))}
               </div>
             </div>
-
-            {/* Conditional fields based on Order Type */}
-            {closedWonOrderForm.orderType === 'New' && (
-              <div>
-                <label className={labelClass}>Serial Number</label>
-                <input name="serialNumber" value={closedWonOrderForm.serialNumber} onChange={handleOrderChange} className={inputClass} placeholder="Enter serial number" />
-              </div>
-            )}
 
             {/* BOQ - shown for both New and Refurb */}
             <div>
@@ -2780,7 +2752,7 @@ export const DealsPage: React.FC = () => {
       </div>
 
       {/* Stage Summary Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
         <div className={`${cardClass} p-4 flex items-center gap-3`}>
           <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${isDark ? 'bg-blue-500/10 text-blue-400' : 'bg-blue-50 text-blue-600'}`}>
             <Handshake className="w-5 h-5" />
@@ -2791,12 +2763,12 @@ export const DealsPage: React.FC = () => {
           </div>
         </div>
         <div className={`${cardClass} p-4 flex items-center gap-3`}>
-          <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${isDark ? 'bg-sky-500/10 text-sky-400' : 'bg-sky-50 text-sky-600'}`}>
-            <Snowflake className="w-5 h-5" />
+          <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${isDark ? 'bg-cyan-500/10 text-cyan-400' : 'bg-cyan-50 text-cyan-600'}`}>
+            <Plus className="w-5 h-5" />
           </div>
           <div>
-            <p className={`text-2xl font-bold font-display ${isDark ? 'text-white' : 'text-slate-900'}`}>{dealSummary.cold}</p>
-            <p className={`text-xs ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Cold</p>
+            <p className={`text-2xl font-bold font-display ${isDark ? 'text-white' : 'text-slate-900'}`}>{dealSummary.new}</p>
+            <p className={`text-xs ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>New</p>
           </div>
         </div>
         <div className={`${cardClass} p-4 flex items-center gap-3`}>
@@ -2809,6 +2781,15 @@ export const DealsPage: React.FC = () => {
           </div>
         </div>
         <div className={`${cardClass} p-4 flex items-center gap-3`}>
+          <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${isDark ? 'bg-sky-500/10 text-sky-400' : 'bg-sky-50 text-sky-600'}`}>
+            <Snowflake className="w-5 h-5" />
+          </div>
+          <div>
+            <p className={`text-2xl font-bold font-display ${isDark ? 'text-white' : 'text-slate-900'}`}>{dealSummary.cold}</p>
+            <p className={`text-xs ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Cold</p>
+          </div>
+        </div>
+        <div className={`${cardClass} p-4 flex items-center gap-3`}>
           <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${isDark ? 'bg-purple-500/10 text-purple-400' : 'bg-purple-50 text-purple-600'}`}>
             <TrendingUp className="w-5 h-5" />
           </div>
@@ -2818,21 +2799,21 @@ export const DealsPage: React.FC = () => {
           </div>
         </div>
         <div className={`${cardClass} p-4 flex items-center gap-3`}>
-          <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${isDark ? 'bg-emerald-500/10 text-emerald-400' : 'bg-emerald-50 text-emerald-600'}`}>
-            <CheckCircle className="w-5 h-5" />
-          </div>
-          <div>
-            <p className={`text-2xl font-bold font-display ${isDark ? 'text-white' : 'text-slate-900'}`}>{dealSummary.closedWon}</p>
-            <p className={`text-xs ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Closed Won</p>
-          </div>
-        </div>
-        <div className={`${cardClass} p-4 flex items-center gap-3`}>
           <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${isDark ? 'bg-red-500/10 text-red-400' : 'bg-red-50 text-red-600'}`}>
             <XCircle className="w-5 h-5" />
           </div>
           <div>
             <p className={`text-2xl font-bold font-display ${isDark ? 'text-white' : 'text-slate-900'}`}>{dealSummary.closedLost}</p>
             <p className={`text-xs ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Closed Lost</p>
+          </div>
+        </div>
+        <div className={`${cardClass} p-4 flex items-center gap-3`}>
+          <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${isDark ? 'bg-emerald-500/10 text-emerald-400' : 'bg-emerald-50 text-emerald-600'}`}>
+            <CheckCircle className="w-5 h-5" />
+          </div>
+          <div>
+            <p className={`text-2xl font-bold font-display ${isDark ? 'text-white' : 'text-slate-900'}`}>{dealSummary.closedWon}</p>
+            <p className={`text-xs ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Closed Won</p>
           </div>
         </div>
       </div>

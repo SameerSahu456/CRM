@@ -77,10 +77,10 @@ export const ReportsPage: React.FC = () => {
   const salespersonData = (breakdown?.bySalesperson || []).sort((a, b) => b.totalAmount - a.totalAmount).slice(0, 10);
 
   // Deal pipeline
-  const DEAL_STAGE_ORDER = ['Discovery', 'Qualification', 'Needs Analysis', 'Proposal', 'Negotiation', 'Closed Won', 'Closed Lost'];
+  const DEAL_STAGE_ORDER = ['New', 'Proposal', 'Cold', 'Negotiation', 'Closed Lost', 'Closed Won'];
   const PIPELINE_COLORS: Record<string, string> = {
-    Discovery: '#06b6d4', Qualification: '#3b82f6', 'Needs Analysis': '#8b5cf6',
-    Proposal: '#a855f7', Negotiation: '#f97316', 'Closed Won': '#10b981', 'Closed Lost': '#ef4444',
+    New: '#06b6d4', Proposal: '#a855f7', Cold: '#3b82f6',
+    Negotiation: '#f97316', 'Closed Lost': '#ef4444', 'Closed Won': '#10b981',
   };
   const pipelineData = DEAL_STAGE_ORDER
     .filter(s => dealStatsRaw[s])
@@ -95,8 +95,8 @@ export const ReportsPage: React.FC = () => {
   // Lead conversion
   const leadValues = Object.values(leadStats) as number[];
   const totalLeads = leadValues.reduce((a, b) => a + b, 0);
-  const wonLeads = leadStats['Won'] ?? 0;
-  const lostLeads = leadStats['Lost'] ?? 0;
+  const wonLeads = leadStats['Closed Won'] ?? 0;
+  const lostLeads = leadStats['Closed Lost'] ?? 0;
   const conversionRate = totalLeads > 0 ? Math.round((wonLeads / totalLeads) * 100) : 0;
 
   // Chart constants

@@ -23,8 +23,8 @@ export const LeadsDistributionWidget: React.FC<WidgetProps> = ({ isDark, navigat
   const totalLeads = (Object.values(leadStats) as number[]).reduce((a, b) => a + b, 0);
 
   const LEAD_COLORS: Record<string, string> = {
-    New: '#3b82f6', Contacted: '#06b6d4', Qualified: '#f59e0b',
-    Proposal: '#a855f7', Negotiation: '#f97316', Won: '#10b981', Lost: '#ef4444',
+    New: '#06b6d4', Proposal: '#a855f7', Cold: '#3b82f6',
+    Negotiation: '#f97316', 'Closed Lost': '#ef4444', 'Closed Won': '#10b981',
   };
 
   return (

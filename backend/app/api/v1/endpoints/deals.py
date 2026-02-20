@@ -281,6 +281,24 @@ async def update_deal(
             db.add(notif)
         await db.flush()
 
+    # Notify deal owner when value is updated
+    old_value = old_data.get("value")
+    new_value = update_data.get("value")
+    if new_value is not None and str(old_value) != str(new_value):
+        owner_id = deal.owner_id
+        if owner_id:
+            old_display = f"₹{old_value:,.0f}" if old_value else "not set"
+            new_display = f"₹{new_value:,.0f}" if new_value else "not set"
+            notif = Notification(
+                user_id=owner_id,
+                type="value_change",
+                title="Deal value updated",
+                message=f"Deal '{deal.name}' value changed from {old_display} to {new_display}",
+                is_read=False,
+            )
+            db.add(notif)
+            await db.flush()
+
     # Return with line items
     result = await repo.get_with_line_items(deal.id)
     out = DealOut.model_validate(result["deal"]).model_dump(by_alias=True)

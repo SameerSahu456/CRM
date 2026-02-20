@@ -124,7 +124,6 @@ const INDUSTRIES = [
 
 const ACCOUNT_TYPES = ['Hunting', 'Farming', 'Cold'];
 const ENDCUSTOMER_CATEGORIES = ['Enterprise', 'SMB', 'Startup', 'Government', 'Education'];
-const LEAD_CATEGORIES = ['Hot', 'Warm', 'Cold'];
 const DESIGNATIONS = ['CEO', 'CFO', 'CTO', 'Manager', 'Director', 'VP', 'Other'];
 
 interface Props {
@@ -137,6 +136,7 @@ interface Props {
   partners?: Array<{ id: string; companyName: string }>;
   accounts?: Array<{ id: string; name: string }>;
   users?: Array<{ id: string; name: string }>;
+  products?: Array<{ id: string; name: string; category?: string }>;
 }
 
 export const EnhancedAccountForm: React.FC<Props> = ({
@@ -149,11 +149,19 @@ export const EnhancedAccountForm: React.FC<Props> = ({
   partners = [],
   accounts = [],
   users = [],
+  products = [],
 }) => {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
   const [formData, setFormData] = useState<EnhancedAccountFormData>(EMPTY_ENHANCED_FORM);
   const [activeTab, setActiveTab] = useState<'basic' | 'financial' | 'contact' | 'address'>('basic');
+  const [selectedProductCategory, setSelectedProductCategory] = useState('');
+
+  // Category → product filtering
+  const productCategories = [...new Set(products.map(p => p.category).filter(Boolean) as string[])].sort();
+  const filteredProducts = selectedProductCategory
+    ? products.filter(p => p.category === selectedProductCategory)
+    : products;
 
   useEffect(() => {
     if (editingAccount) {
@@ -443,21 +451,6 @@ export const EnhancedAccountForm: React.FC<Props> = ({
                           ))}
                         </select>
                       </div>
-                      <div>
-                        <label htmlFor="type" className={labelClass}>Account Type</label>
-                        <select
-                          id="type"
-                          name="type"
-                          value={formData.type}
-                          onChange={handleChange}
-                          className={selectClass}
-                        >
-                          <option value="">-None-</option>
-                          <option value="Hunting">Hunting</option>
-                          <option value="Farming">Farming</option>
-                          <option value="Cold">Cold</option>
-                        </select>
-                      </div>
                     </div>
 
                     {/* Row: Endcustomer Category + Payment Terms */}
@@ -535,18 +528,63 @@ export const EnhancedAccountForm: React.FC<Props> = ({
                       </div>
                     </div>
 
-                    {/* Products Section */}
+                    {/* Products Section — Category → Product Dropdown */}
                     <div>
-                      <label htmlFor="productsSellingToThem" className={labelClass}>Products we are selling them</label>
-                      <textarea
-                        id="productsSellingToThem"
-                        name="productsSellingToThem"
-                        rows={2}
-                        value={formData.productsSellingToThem}
-                        onChange={handleChange}
-                        className={inputClass}
-                        placeholder="List products..."
-                      />
+                      <label className={labelClass}>Products we are selling them</label>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-2">
+                        <select
+                          value={selectedProductCategory}
+                          onChange={e => setSelectedProductCategory(e.target.value)}
+                          className={selectClass}
+                        >
+                          <option value="">All Categories</option>
+                          {productCategories.map(cat => (
+                            <option key={cat} value={cat}>{cat}</option>
+                          ))}
+                        </select>
+                        <select
+                          onChange={e => {
+                            const name = e.target.value;
+                            if (!name) return;
+                            const current = formData.productsSellingToThem;
+                            const items = current ? current.split(', ').filter(Boolean) : [];
+                            if (!items.includes(name)) {
+                              setFormData(prev => ({ ...prev, productsSellingToThem: [...items, name].join(', ') }));
+                            }
+                            e.target.value = '';
+                          }}
+                          className={selectClass}
+                        >
+                          <option value="">Select product...</option>
+                          {filteredProducts.map(p => (
+                            <option key={p.id} value={p.name}>{p.name}</option>
+                          ))}
+                        </select>
+                      </div>
+                      {formData.productsSellingToThem && (
+                        <div className="flex flex-wrap gap-1.5">
+                          {formData.productsSellingToThem.split(', ').filter(Boolean).map((name, i) => (
+                            <span
+                              key={i}
+                              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${
+                                isDark ? 'bg-brand-900/30 text-brand-400' : 'bg-brand-50 text-brand-700'
+                              }`}
+                            >
+                              {name}
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const items = formData.productsSellingToThem.split(', ').filter(Boolean).filter(n => n !== name);
+                                  setFormData(prev => ({ ...prev, productsSellingToThem: items.join(', ') }));
+                                }}
+                                className="hover:text-red-500 ml-0.5"
+                              >
+                                <X className="w-3 h-3" />
+                              </button>
+                            </span>
+                          ))}
+                        </div>
+                      )}
                     </div>
 
                     <div>
@@ -560,39 +598,6 @@ export const EnhancedAccountForm: React.FC<Props> = ({
                         className={inputClass}
                         placeholder="List products..."
                       />
-                    </div>
-
-                    {/* Row: Status + Partner */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div>
-                        <label htmlFor="status" className={labelClass}>Account Status</label>
-                        <select
-                          id="status"
-                          name="status"
-                          value={formData.status}
-                          onChange={handleChange}
-                          className={selectClass}
-                        >
-                          <option value="">-None-</option>
-                          <option value="Active">Active</option>
-                          <option value="Inactive">Inactive</option>
-                        </select>
-                      </div>
-                      <div>
-                        <label htmlFor="partnerId" className={labelClass}>Partner</label>
-                        <select
-                          id="partnerId"
-                          name="partnerId"
-                          value={formData.partnerId}
-                          onChange={handleChange}
-                          className={selectClass}
-                        >
-                          <option value="">Select Partner</option>
-                          {partners.map(partner => (
-                            <option key={partner.id} value={partner.id}>{partner.companyName}</option>
-                          ))}
-                        </select>
-                      </div>
                     </div>
 
                     {/* Tag + Account Type */}
@@ -627,23 +632,8 @@ export const EnhancedAccountForm: React.FC<Props> = ({
                       </div>
                     </div>
 
-                    {/* Row: Lead Category + New Leads */}
+                    {/* Row: New Leads */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div>
-                        <label htmlFor="leadCategory" className={labelClass}>Lead Category</label>
-                        <select
-                          id="leadCategory"
-                          name="leadCategory"
-                          value={formData.leadCategory}
-                          onChange={handleChange}
-                          className={selectClass}
-                        >
-                          <option value="">-None-</option>
-                          {LEAD_CATEGORIES.map(cat => (
-                            <option key={cat} value={cat}>{cat}</option>
-                          ))}
-                        </select>
-                      </div>
                       <div>
                         <label htmlFor="newLeads" className={labelClass}>New Leads</label>
                         <input

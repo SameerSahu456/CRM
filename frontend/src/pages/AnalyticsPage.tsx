@@ -117,7 +117,7 @@ export const AnalyticsPage: React.FC = () => {
     : 0;
 
   // Transform deal stats: { "Qualification": { count, value } } → array
-  const DEAL_STAGE_ORDER = ['Discovery', 'Qualification', 'Needs Analysis', 'Proposal', 'Negotiation', 'Closed Won', 'Closed Lost'];
+  const DEAL_STAGE_ORDER = ['New', 'Proposal', 'Cold', 'Negotiation', 'Closed Lost', 'Closed Won'];
   const pipelineStages = DEAL_STAGE_ORDER
     .filter(s => dealStatsRaw[s])
     .map(s => ({
@@ -153,13 +153,13 @@ export const AnalyticsPage: React.FC = () => {
   const BRAND = isDark ? '#818cf8' : '#6366f1';
 
   const LEAD_COLORS: Record<string, string> = {
-    New: '#3b82f6', Contacted: '#06b6d4', Qualified: '#f59e0b',
-    Proposal: '#a855f7', Negotiation: '#f97316', Won: '#10b981', Lost: '#ef4444',
+    New: '#06b6d4', Proposal: '#a855f7', Cold: '#3b82f6',
+    Negotiation: '#f97316', 'Closed Lost': '#ef4444', 'Closed Won': '#10b981',
   };
 
   const PIPELINE_COLORS: Record<string, string> = {
-    Discovery: '#06b6d4', Qualification: '#3b82f6', 'Needs Analysis': '#8b5cf6',
-    Proposal: '#a855f7', Negotiation: '#f97316', 'Closed Won': '#10b981', 'Closed Lost': '#ef4444',
+    New: '#06b6d4', Proposal: '#a855f7', Cold: '#3b82f6',
+    Negotiation: '#f97316', 'Closed Lost': '#ef4444', 'Closed Won': '#10b981',
   };
 
   const leadPieData = Object.entries(leadStatsData)

@@ -19,13 +19,13 @@ export const LeadsWidget: React.FC<WidgetProps> = ({ isDark, navigate, onDetailC
     fetchData();
   }, []);
 
-  const LEAD_STAGES = ['Cold', 'Proposal', 'Negotiation', 'Closed Won', 'Closed Lost'];
+  const LEAD_STAGES = ['New', 'Proposal', 'Cold', 'Negotiation', 'Closed Lost', 'Closed Won'];
   const totalLeads = (Object.values(leadStats) as number[]).reduce((a, b) => a + b, 0);
   const wonLeads = (leadStats['Closed Won'] as number) || 0;
   const conversionRate = totalLeads > 0 ? Math.round((wonLeads / totalLeads) * 100) : 0;
 
   const LEAD_COLORS: Record<string, string> = {
-    Cold: '#3b82f6', Proposal: '#a855f7', Negotiation: '#f97316', 'Closed Won': '#10b981', 'Closed Lost': '#ef4444',
+    New: '#06b6d4', Proposal: '#a855f7', Cold: '#3b82f6', Negotiation: '#f97316', 'Closed Lost': '#ef4444', 'Closed Won': '#10b981',
   };
 
   const thClass = `text-[10px] font-semibold uppercase tracking-wider ${isDark ? 'text-zinc-500' : 'text-slate-400'}`;

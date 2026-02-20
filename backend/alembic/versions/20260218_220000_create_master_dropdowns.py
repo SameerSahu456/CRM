@@ -37,6 +37,7 @@ def upgrade() -> None:
     op.execute("""
         INSERT INTO master_dropdowns (entity, value, label, sort_order, metadata) VALUES
         -- Deal Stages
+        ('deal-stages', 'New', 'New', 0, '{"is_pipeline": true}'),
         ('deal-stages', 'Cold', 'Cold', 1, '{"is_pipeline": true}'),
         ('deal-stages', 'Proposal', 'Proposal', 2, '{"is_pipeline": true}'),
         ('deal-stages', 'Negotiation', 'Negotiation', 3, '{"is_pipeline": true}'),

@@ -69,9 +69,9 @@ export const authApi = {
 
 // Products
 export const productsApi = {
-  list: () => fetchApi<any[]>('/products/'),
-  listAll: () => fetchApi<any[]>('/products/?include_inactive=true'),
-  getById: (id: string) => fetchApi<any>(`/products/${id}`),
+  list: async () => { const res = await fetchApi<any>('/products/'); return res?.data ?? res; },
+  listAll: async () => { const res = await fetchApi<any>('/products/?include_inactive=true'); return res?.data ?? res; },
+  getById: async (id: string) => { const res = await fetchApi<any>(`/products/${id}`); return res?.data ?? res; },
   create: (data: any) =>
     fetchApi<any>('/products/', { method: 'POST', body: JSON.stringify(data) }),
   update: (id: string, data: any) =>
@@ -369,16 +369,17 @@ function snakeToCamel(obj: any): any {
 // Master Data
 export const masterDataApi = {
   list: async (entity: string) => {
-    const data = await fetchApi<any[]>(`/data/master/${entity}`);
-    return snakeToCamel(data);
+    const response = await fetchApi<any>(`/data/master/${entity}`);
+    const data = response?.data ?? response;
+    return Array.isArray(data) ? data.map(snakeToCamel) : snakeToCamel(data);
   },
   create: async (entity: string, data: any) => {
     const result = await fetchApi<any>(`/data/master/${entity}`, { method: 'POST', body: JSON.stringify(data) });
-    return snakeToCamel(result);
+    return snakeToCamel(result?.data ?? result);
   },
   update: async (entity: string, id: string, data: any) => {
     const result = await fetchApi<any>(`/data/master/${entity}/${id}`, { method: 'PUT', body: JSON.stringify(data) });
-    return snakeToCamel(result);
+    return snakeToCamel(result?.data ?? result);
   },
   delete: (entity: string, id: string) =>
     fetchApi<any>(`/data/master/${entity}/${id}`, { method: 'DELETE' }),
@@ -387,8 +388,16 @@ export const masterDataApi = {
 // Dropdowns (all dropdown entities in one call)
 export const dropdownsApi = {
   getAll: async () => {
-    const data = await fetchApi<Record<string, any[]>>('/data/master/dropdowns/all');
-    return snakeToCamel(data);
+    const response = await fetchApi<any>('/data/master/dropdowns/all');
+    const data = response?.data ?? response;
+    // Convert snake_case keys in each dropdown item
+    const result: Record<string, any[]> = {};
+    for (const [entity, items] of Object.entries(data)) {
+      if (Array.isArray(items)) {
+        result[entity] = items.map(snakeToCamel);
+      }
+    }
+    return result;
   },
 };
 

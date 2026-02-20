@@ -182,7 +182,7 @@ async def update_lead(
     update_data = body.model_dump(exclude_unset=True)
     lead = await repo.update(lead_id, update_data)
     changes = compute_changes(old_data, model_to_dict(lead))
-    await log_activity(db, user, "update", "lead", str(lead.id), lead.company, changes)
+    await log_activity(db, user, "update", "lead", str(lead.id), lead.company_name, changes)
 
     # Notify Product Managers when lead moves to Negotiation stage
     if update_data.get("stage") == "Negotiation":
@@ -190,7 +190,7 @@ async def update_lead(
             text("SELECT id FROM users WHERE role = 'productmanager'")
         )
         pm_users = result.fetchall()
-        entity_name = lead.company
+        entity_name = lead.company_name
         for pm in pm_users:
             notif = Notification(
                 user_id=pm[0],

@@ -135,7 +135,7 @@ export const WidgetDetailModal: React.FC<WidgetDetailModalProps> = ({ widgetId, 
   // --- Pipeline Detail ---
   const renderPipelineDetail = () => {
     const dealStatsRaw = data.dealStats || {};
-    const DEAL_STAGE_ORDER = ['Cold', 'Proposal', 'Negotiation', 'Closed Won', 'Closed Lost'];
+    const DEAL_STAGE_ORDER = ['New', 'Proposal', 'Cold', 'Negotiation', 'Closed Lost', 'Closed Won'];
     const pipelineStages = DEAL_STAGE_ORDER
       .filter(s => dealStatsRaw[s])
       .map(s => ({ stage: s, count: dealStatsRaw[s]?.count ?? 0, value: dealStatsRaw[s]?.value ?? 0 }));
@@ -146,7 +146,7 @@ export const WidgetDetailModal: React.FC<WidgetDetailModalProps> = ({ widgetId, 
     const dealWinRate = (wonDeals + lostDeals) > 0 ? Math.round((wonDeals / (wonDeals + lostDeals)) * 100) : 0;
 
     const PIPELINE_COLORS: Record<string, string> = {
-      Cold: '#3b82f6', Proposal: '#a855f7', Negotiation: '#f97316', 'Closed Won': '#10b981', 'Closed Lost': '#ef4444',
+      New: '#06b6d4', Proposal: '#a855f7', Cold: '#3b82f6', Negotiation: '#f97316', 'Closed Lost': '#ef4444', 'Closed Won': '#10b981',
     };
 
     return (
@@ -210,7 +210,7 @@ export const WidgetDetailModal: React.FC<WidgetDetailModalProps> = ({ widgetId, 
   // --- Pipeline Chart Detail ---
   const renderPipelineChartDetail = () => {
     const dealStatsRaw = data.dealStats || {};
-    const DEAL_STAGE_ORDER = ['Cold', 'Proposal', 'Negotiation', 'Closed Won', 'Closed Lost'];
+    const DEAL_STAGE_ORDER = ['New', 'Proposal', 'Cold', 'Negotiation', 'Closed Lost', 'Closed Won'];
     const pipelineStages = DEAL_STAGE_ORDER
       .filter(s => dealStatsRaw[s])
       .map(s => ({ stage: s, count: dealStatsRaw[s]?.count ?? 0, value: dealStatsRaw[s]?.value ?? 0 }));
@@ -218,7 +218,7 @@ export const WidgetDetailModal: React.FC<WidgetDetailModalProps> = ({ widgetId, 
     const totalDealValue = pipelineStages.reduce((sum, s) => sum + s.value, 0);
 
     const PIPELINE_COLORS: Record<string, string> = {
-      Cold: '#3b82f6', Proposal: '#a855f7', Negotiation: '#f97316', 'Closed Won': '#10b981', 'Closed Lost': '#ef4444',
+      New: '#06b6d4', Proposal: '#a855f7', Cold: '#3b82f6', Negotiation: '#f97316', 'Closed Lost': '#ef4444', 'Closed Won': '#10b981',
     };
 
     const chartData = pipelineStages.map(s => ({
@@ -265,14 +265,14 @@ export const WidgetDetailModal: React.FC<WidgetDetailModalProps> = ({ widgetId, 
   // --- Leads Detail ---
   const renderLeadsDetail = () => {
     const leadStats = data.leadStats || {};
-    const LEAD_STAGES = ['Cold', 'Proposal', 'Negotiation', 'Closed Won', 'Closed Lost'];
+    const LEAD_STAGES = ['New', 'Proposal', 'Cold', 'Negotiation', 'Closed Lost', 'Closed Won'];
     const totalLeads = (Object.values(leadStats) as number[]).reduce((a, b) => a + b, 0);
     const wonLeads = (leadStats['Closed Won'] as number) || 0;
     const lostLeads = (leadStats['Closed Lost'] as number) || 0;
     const conversionRate = totalLeads > 0 ? Math.round((wonLeads / totalLeads) * 100) : 0;
 
     const LEAD_COLORS: Record<string, string> = {
-      Cold: '#3b82f6', Proposal: '#a855f7', Negotiation: '#f97316', 'Closed Won': '#10b981', 'Closed Lost': '#ef4444',
+      New: '#06b6d4', Proposal: '#a855f7', Cold: '#3b82f6', Negotiation: '#f97316', 'Closed Lost': '#ef4444', 'Closed Won': '#10b981',
     };
 
     return (
@@ -359,7 +359,7 @@ export const WidgetDetailModal: React.FC<WidgetDetailModalProps> = ({ widgetId, 
     const leadStats = data.leadStats || {};
     const totalLeads = (Object.values(leadStats) as number[]).reduce((a, b) => a + b, 0);
     const LEAD_COLORS: Record<string, string> = {
-      Cold: '#3b82f6', Proposal: '#a855f7', Negotiation: '#f97316', 'Closed Won': '#10b981', 'Closed Lost': '#ef4444',
+      New: '#06b6d4', Proposal: '#a855f7', Cold: '#3b82f6', Negotiation: '#f97316', 'Closed Lost': '#ef4444', 'Closed Won': '#10b981',
     };
     const pieData = Object.entries(leadStats)
       .filter(([, v]) => (v as number) > 0)
@@ -876,10 +876,10 @@ export const WidgetDetailModal: React.FC<WidgetDetailModalProps> = ({ widgetId, 
 
       const d = assigneeDetail;
       const LEAD_COLORS: Record<string, string> = {
-        Cold: '#3b82f6', Proposal: '#a855f7', Negotiation: '#f97316', 'Closed Won': '#10b981', 'Closed Lost': '#ef4444',
+        New: '#06b6d4', Proposal: '#a855f7', Cold: '#3b82f6', Negotiation: '#f97316', 'Closed Lost': '#ef4444', 'Closed Won': '#10b981',
       };
       const DEAL_COLORS: Record<string, string> = {
-        Cold: '#3b82f6', Proposal: '#a855f7', Negotiation: '#f97316', 'Closed Won': '#10b981', 'Closed Lost': '#ef4444',
+        New: '#06b6d4', Proposal: '#a855f7', Cold: '#3b82f6', Negotiation: '#f97316', 'Closed Lost': '#ef4444', 'Closed Won': '#10b981',
       };
       const totalLeads = Object.values(d.leadsByStage as Record<string, number>).reduce((a, b) => a + b, 0);
       const dealEntries = Object.entries(d.dealsByStage as Record<string, { count: number; value: number }>);

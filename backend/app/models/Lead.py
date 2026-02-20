@@ -21,7 +21,7 @@ class Lead(TimestampMixin, Base):
     email: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     phone: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
     source: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
-    stage: Mapped[str] = mapped_column(String(50), server_default="Cold")
+    stage: Mapped[str] = mapped_column(String(50), server_default="New")
     priority: Mapped[str] = mapped_column(String(20), server_default="Medium")
     estimated_value: Mapped[Optional[Decimal]] = mapped_column(
         Numeric(15, 2), nullable=True

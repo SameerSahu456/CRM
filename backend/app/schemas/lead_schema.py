@@ -14,7 +14,7 @@ class LeadOut(CamelModel):
     email: Optional[str] = None
     phone: Optional[str] = None
     source: Optional[str] = None
-    stage: str = "Cold"
+    stage: str = "New"
     priority: str = "Medium"
     estimated_value: Optional[float] = None
     product_interest: Optional[str] = None
@@ -106,7 +106,7 @@ class LeadCreate(CamelModel):
     email: Optional[str] = None
     phone: Optional[str] = None
     source: Optional[str] = None
-    stage: str = "Cold"
+    stage: str = "New"
     priority: str = "Medium"
     estimated_value: Optional[float] = None
     product_interest: Optional[str] = None

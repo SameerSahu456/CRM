@@ -242,7 +242,7 @@ export interface Lead {
   updatedAt?: string;
 }
 
-export type LeadStage = 'Cold' | 'Proposal' | 'Negotiation' | 'Closed Won' | 'Closed Lost';
+export type LeadStage = 'New' | 'Proposal' | 'Cold' | 'Negotiation' | 'Closed Lost' | 'Closed Won';
 
 export interface LeadActivity {
   id: string;
@@ -485,7 +485,7 @@ export interface Deal {
   paymentFlag?: boolean;
 }
 
-export type DealStage = 'Cold' | 'Proposal' | 'Negotiation' | 'Closed Won' | 'Closed Lost';
+export type DealStage = 'New' | 'Proposal' | 'Cold' | 'Negotiation' | 'Closed Lost' | 'Closed Won';
 
 export interface DealActivity {
   id: string;

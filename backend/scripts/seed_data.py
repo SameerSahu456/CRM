@@ -285,8 +285,8 @@ class DataGenerator:
         "Email Campaign",
         "Partner",
     ]
-    LEAD_STAGES = ["Cold", "Proposal", "Negotiation", "Closed Won", "Closed Lost"]
-    DEAL_STAGES = ["Cold", "Proposal", "Negotiation", "Closed Won", "Closed Lost"]
+    LEAD_STAGES = ["New", "Cold", "Proposal", "Negotiation", "Closed Won", "Closed Lost"]
+    DEAL_STAGES = ["New", "Cold", "Proposal", "Negotiation", "Closed Won", "Closed Lost"]
     PRIORITIES = ["Low", "Medium", "High", "Urgent"]
     TASK_TYPES = ["Call", "Email", "Meeting", "Follow-up", "Demo", "Proposal"]
     TASK_STATUSES = ["pending", "in_progress", "completed", "cancelled"]

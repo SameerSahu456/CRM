@@ -369,6 +369,7 @@ class DashboardService:
 
         # ── 5. Deal pipeline stats (single query with CASE) ─────────
         deal_stages = [
+            "New",
             "Cold",
             "Proposal",
             "Negotiation",
@@ -770,6 +771,7 @@ class DashboardService:
 
         # ── Deals by stage ────────────────────────────────────────
         deal_stages = [
+            "New",
             "Cold",
             "Proposal",
             "Negotiation",

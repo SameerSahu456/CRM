@@ -354,20 +354,6 @@ export const ContactsPage: React.FC = () => {
           </select>
         </div>
 
-        {/* Filter: Type */}
-        <div className="w-full lg:w-40">
-          <select
-            value={filterType}
-            onChange={e => setFilterType(e.target.value)}
-            className={selectClass}
-          >
-            <option value="">All Types</option>
-            {CONTACT_TYPES.map(t => (
-              <option key={t} value={t}>{t}</option>
-            ))}
-          </select>
-        </div>
-
         {/* Clear Filters */}
         {hasActiveFilters && (
           <button
@@ -408,8 +394,6 @@ export const ContactsPage: React.FC = () => {
             { header: 'Designation', accessor: (r: Contact) => r.designation || r.jobTitle },
             { header: 'Department', accessor: (r: Contact) => r.department },
             { header: 'Account', accessor: (r: Contact) => r.accountName },
-            { header: 'Type', accessor: (r: Contact) => r.type },
-            { header: 'Status', accessor: (r: Contact) => r.status },
             { header: 'Preferred Contact', accessor: (r: Contact) => r.preferredContact },
             { header: 'Notes', accessor: (r: Contact) => r.notes },
           ], contacts)}
@@ -721,7 +705,6 @@ export const ContactsPage: React.FC = () => {
               ) : (
                 <InfoRow label="Account" value={contact.accountName} isDark={isDark} icon={<Building2 className="w-3.5 h-3.5" />} />
               )}
-              <InfoRow label="Type" value={contact.type} isDark={isDark} icon={<Users className="w-3.5 h-3.5" />} />
             </div>
 
             {/* Notes */}
@@ -938,39 +921,10 @@ export const ContactsPage: React.FC = () => {
                   ))}
                 </select>
               </div>
-              <div>
-                <label htmlFor="type" className={labelClass}>Type</label>
-                <select
-                  id="type"
-                  name="type"
-                  value={formData.type}
-                  onChange={handleFormChange}
-                  className={selectClass}
-                >
-                  <option value="">Select Type</option>
-                  <option value="Prospect">Prospect</option>
-                  <option value="Customer">Customer</option>
-                  <option value="Partner">Partner</option>
-                  <option value="Vendor">Vendor</option>
-                </select>
-              </div>
             </div>
 
-            {/* Row 6: Status + Preferred Contact */}
+            {/* Row 6: Preferred Contact */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label htmlFor="status" className={labelClass}>Status</label>
-                <select
-                  id="status"
-                  name="status"
-                  value={formData.status}
-                  onChange={handleFormChange}
-                  className={selectClass}
-                >
-                  <option value="Active">Active</option>
-                  <option value="Inactive">Inactive</option>
-                </select>
-              </div>
               <div>
                 <label htmlFor="preferredContact" className={labelClass}>Preferred Contact</label>
                 <select

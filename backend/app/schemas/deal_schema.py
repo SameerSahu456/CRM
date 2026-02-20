@@ -14,7 +14,7 @@ class DealOut(CamelModel):
     company: Optional[str] = None
     account_id: Optional[UUID] = None
     value: Optional[float] = None
-    stage: str = "Cold"
+    stage: str = "New"
     probability: Optional[int] = None
     owner_id: Optional[UUID] = None
     closing_date: Optional[date] = None
@@ -85,7 +85,7 @@ class DealCreate(CamelModel):
     company: Optional[str] = None
     account_id: Optional[UUID] = None
     value: Optional[float] = None
-    stage: str = "Cold"
+    stage: str = "New"
     probability: Optional[int] = None
     owner_id: Optional[UUID] = None
     closing_date: Optional[date] = None

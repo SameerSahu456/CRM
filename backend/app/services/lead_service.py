@@ -158,7 +158,7 @@ class LeadService:
         lead = await self.lead_repo.create(data)
 
         # Log activity
-        await log_activity(self.db, user, "create", "lead", str(lead.id), lead.company)
+        await log_activity(self.db, user, "create", "lead", str(lead.id), lead.company_name)
 
         return LeadOut.model_validate(lead).model_dump(by_alias=True)
 
