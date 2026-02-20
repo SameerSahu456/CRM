@@ -83,9 +83,77 @@ class MasterDataService:
         rows = result.mappings().all()
         return [self._convert_row(row) for row in rows]
 
+    async def _seed_default_dropdowns(self) -> None:
+        """Seed default dropdown data if the table is empty."""
+        await self.db.execute(text("""
+            INSERT INTO master_dropdowns (entity, value, label, sort_order, metadata) VALUES
+            ('deal-stages', 'New', 'New', 0, '{"is_pipeline": true}'),
+            ('deal-stages', 'Cold', 'Cold', 1, '{"is_pipeline": true}'),
+            ('deal-stages', 'Proposal', 'Proposal', 2, '{"is_pipeline": true}'),
+            ('deal-stages', 'Negotiation', 'Negotiation', 3, '{"is_pipeline": true}'),
+            ('deal-stages', 'Closed Won', 'Closed Won', 4, '{"is_terminal": true}'),
+            ('deal-stages', 'Closed Lost', 'Closed Lost', 5, '{"is_terminal": true}'),
+            ('deal-types', 'New Business', 'New Business', 1, NULL),
+            ('deal-types', 'Existing Business', 'Existing Business', 2, NULL),
+            ('deal-types', 'Renewal', 'Renewal', 3, NULL),
+            ('lead-sources', 'Website', 'Website', 1, NULL),
+            ('lead-sources', 'Referral', 'Referral', 2, NULL),
+            ('lead-sources', 'Cold Call', 'Cold Call', 3, NULL),
+            ('lead-sources', 'Trade Show', 'Trade Show', 4, NULL),
+            ('lead-sources', 'LinkedIn', 'LinkedIn', 5, NULL),
+            ('lead-sources', 'Email Campaign', 'Email Campaign', 6, NULL),
+            ('lead-sources', 'Partner', 'Partner', 7, NULL),
+            ('forecast-options', 'Pipeline', 'Pipeline', 1, NULL),
+            ('forecast-options', 'Best Case', 'Best Case', 2, NULL),
+            ('forecast-options', 'Commit', 'Commit', 3, NULL),
+            ('forecast-options', 'Closed', 'Closed', 4, NULL),
+            ('task-statuses', 'pending', 'Pending', 1, NULL),
+            ('task-statuses', 'in_progress', 'In Progress', 2, NULL),
+            ('task-statuses', 'completed', 'Completed', 3, NULL),
+            ('task-statuses', 'cancelled', 'Cancelled', 4, NULL),
+            ('priorities', 'Low', 'Low', 1, NULL),
+            ('priorities', 'Medium', 'Medium', 2, NULL),
+            ('priorities', 'High', 'High', 3, NULL),
+            ('priorities', 'Urgent', 'Urgent', 4, NULL),
+            ('task-types', 'Call', 'Call', 1, NULL),
+            ('task-types', 'Email', 'Email', 2, NULL),
+            ('task-types', 'Meeting', 'Meeting', 3, NULL),
+            ('task-types', 'Follow-up', 'Follow-up', 4, NULL),
+            ('task-types', 'Demo', 'Demo', 5, NULL),
+            ('task-types', 'Proposal', 'Proposal', 6, NULL),
+            ('event-types', 'meeting', 'Meeting', 1, NULL),
+            ('event-types', 'call', 'Call', 2, NULL),
+            ('event-types', 'task', 'Task', 3, NULL),
+            ('event-types', 'reminder', 'Reminder', 4, NULL),
+            ('email-statuses', 'draft', 'Draft', 1, NULL),
+            ('email-statuses', 'sent', 'Sent', 2, NULL),
+            ('email-statuses', 'delivered', 'Delivered', 3, NULL),
+            ('email-statuses', 'failed', 'Failed', 4, NULL),
+            ('template-categories', 'Sales', 'Sales', 1, NULL),
+            ('template-categories', 'Marketing', 'Marketing', 2, NULL),
+            ('template-categories', 'Support', 'Support', 3, NULL),
+            ('template-categories', 'General', 'General', 4, NULL),
+            ('contact-types', 'Primary', 'Primary', 1, NULL),
+            ('contact-types', 'Secondary', 'Secondary', 2, NULL),
+            ('contact-types', 'Billing', 'Billing', 3, NULL),
+            ('contact-types', 'Technical', 'Technical', 4, NULL),
+            ('partner-tiers', 'new', 'New', 1, NULL),
+            ('partner-tiers', 'bronze', 'Bronze', 2, NULL),
+            ('partner-tiers', 'silver', 'Silver', 3, NULL),
+            ('partner-tiers', 'gold', 'Gold', 4, NULL),
+            ('partner-tiers', 'platinum', 'Platinum', 5, NULL),
+            ('partner-statuses', 'pending', 'Pending', 1, NULL),
+            ('partner-statuses', 'approved', 'Approved', 2, NULL),
+            ('partner-statuses', 'suspended', 'Suspended', 3, NULL),
+            ('partner-statuses', 'inactive', 'Inactive', 4, NULL)
+            ON CONFLICT (entity, value) DO NOTHING
+        """))
+        await self.db.commit()
+
     async def list_all_dropdowns(self) -> Dict[str, List[Dict]]:
         """
         Get all dropdown entities grouped by entity type.
+        Auto-seeds default data if the table is empty.
 
         Returns:
             Dictionary with entity names as keys and lists of dropdown items as values
@@ -99,6 +167,19 @@ class MasterDataService:
             )
         )
         rows = result.mappings().all()
+
+        # Auto-seed if empty (handles fresh DBs created via create_all)
+        if not rows:
+            await self._seed_default_dropdowns()
+            result = await self.db.execute(
+                text(
+                    "SELECT id, entity, value, label, sort_order, is_active, metadata "
+                    "FROM master_dropdowns "
+                    "WHERE is_active = TRUE "
+                    "ORDER BY entity, sort_order"
+                )
+            )
+            rows = result.mappings().all()
 
         grouped = {}
         for row in rows:

@@ -165,10 +165,17 @@ export const DealsPage: React.FC = () => {
   const isDark = theme === 'dark';
   const canSeeAssignee = true; // Always show — backend controls data visibility via manager hierarchy
 
-  // Dropdown data from DB
-  const DEAL_STAGES = getValues('deal-stages') as DealStage[];
-  const PIPELINE_STAGES = getOptions('deal-stages').filter(o => o.metadata?.is_pipeline).map(o => o.value) as DealStage[];
-  const TERMINAL_STAGES = getOptions('deal-stages').filter(o => o.metadata?.is_terminal).map(o => o.value) as DealStage[];
+  // Dropdown data from DB (fallback to hardcoded stages if dropdowns haven't loaded)
+  const DEFAULT_STAGES: DealStage[] = ['New', 'Cold', 'Proposal', 'Negotiation', 'Closed Won', 'Closed Lost'];
+  const dropdownStages = getValues('deal-stages') as DealStage[];
+  const DEAL_STAGES = dropdownStages.length > 0 ? dropdownStages : DEFAULT_STAGES;
+  const dropdownOptions = getOptions('deal-stages');
+  const PIPELINE_STAGES = dropdownOptions.length > 0
+    ? dropdownOptions.filter(o => o.metadata?.is_pipeline).map(o => o.value) as DealStage[]
+    : ['New', 'Cold', 'Proposal', 'Negotiation'] as DealStage[];
+  const TERMINAL_STAGES = dropdownOptions.length > 0
+    ? dropdownOptions.filter(o => o.metadata?.is_terminal).map(o => o.value) as DealStage[]
+    : ['Closed Won', 'Closed Lost'] as DealStage[];
   const DEAL_TYPES = getOptions('deal-types');
   const LEAD_SOURCES = getOptions('lead-sources');
   const FORECAST_OPTIONS = getOptions('forecast-options');
@@ -606,11 +613,6 @@ export const DealsPage: React.FC = () => {
   const handleDealSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setDealFormError('');
-
-    if (!dealFormData.value) {
-      setDealFormError('Deal value is required');
-      return;
-    }
 
     // Intercept Closed Won stage change → show popup
     if (dealFormData.stage === 'Closed Won') {

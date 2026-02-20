@@ -305,8 +305,9 @@ export const CRMPage: React.FC = () => {
   const isDark = theme === 'dark';
 
   // Dropdown data from DB (fallback to hardcoded stages if dropdowns haven't loaded)
+  const DEFAULT_STAGES: LeadStage[] = ['New', 'Cold', 'Proposal', 'Negotiation', 'Closed Won', 'Closed Lost'];
   const dropdownStages = getValues('deal-stages') as LeadStage[];
-  const LEAD_STAGES = dropdownStages.length > 0 ? dropdownStages : (Object.keys(STAGE_COLORS) as LeadStage[]);
+  const LEAD_STAGES = dropdownStages.length > 0 ? dropdownStages : DEFAULT_STAGES;
   const PRIORITIES = getValues('priorities');
   const SOURCES = getOptions('lead-sources');
 
