@@ -4,7 +4,7 @@ import {
   IndianRupee, Loader2, AlertCircle, Building2,
   Phone, Mail, Globe, Users, MapPin, Hash,
   TrendingUp, FileText, Briefcase, User as UserIcon,
-  Download, Upload, Target, Leaf, Snowflake, Wallet
+  Download, Upload, Wallet
 } from 'lucide-react';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
@@ -86,7 +86,7 @@ export const AccountsPage: React.FC = () => {
 
 
   // Summary counts
-  const [typeSummary, setTypeSummary] = useState<{ hunting: number; farming: number; cold: number; total: number }>({ hunting: 0, farming: 0, cold: 0, total: 0 });
+  const [typeSummary, setTypeSummary] = useState<{ channel: number; endCustomer: number; other: number; total: number }>({ channel: 0, endCustomer: 0, other: 0, total: 0 });
 
   // Collections data mapped by account name
   const [collectionsMap, setCollectionsMap] = useState<Record<string, { pending: number; partial: number; paid: number }>>({});
@@ -117,14 +117,14 @@ export const AccountsPage: React.FC = () => {
       const allAccounts = Array.isArray(accountsData?.data) ? accountsData.data : [];
       setParentAccounts(allAccounts);
 
-      let hunting = 0, farming = 0, cold = 0;
+      let channel = 0, endCustomer = 0, other = 0;
       allAccounts.forEach((a: Account) => {
-        const t = (a.type || '').toLowerCase();
-        if (t === 'hunting') hunting++;
-        else if (t === 'farming' || t === 'recurring') farming++;
-        else if (t === 'cold') cold++;
+        const t = (a.accountType || a.type || '').toLowerCase();
+        if (t === 'channel partner' || t === 'channel') channel++;
+        else if (t === 'end customer' || t === 'endcustomer') endCustomer++;
+        else if (t) other++;
       });
-      setTypeSummary({ hunting, farming, cold, total: allAccounts.length });
+      setTypeSummary({ channel, endCustomer, other, total: allAccounts.length });
     } catch (err) {
       console.error('Failed to fetch summary:', err);
     }
@@ -1032,30 +1032,30 @@ export const AccountsPage: React.FC = () => {
           </div>
         </div>
         <div className={`${cardClass} p-4 flex items-center gap-3`}>
-          <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${isDark ? 'bg-amber-500/10 text-amber-400' : 'bg-amber-50 text-amber-600'}`}>
-            <Target className="w-5 h-5" />
-          </div>
-          <div>
-            <p className={`text-2xl font-bold font-display ${isDark ? 'text-white' : 'text-slate-900'}`}>{typeSummary.hunting}</p>
-            <p className={`text-xs ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Hunting</p>
-          </div>
-        </div>
-        <div className={`${cardClass} p-4 flex items-center gap-3`}>
           <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${isDark ? 'bg-emerald-500/10 text-emerald-400' : 'bg-emerald-50 text-emerald-600'}`}>
-            <Leaf className="w-5 h-5" />
+            <Briefcase className="w-5 h-5" />
           </div>
           <div>
-            <p className={`text-2xl font-bold font-display ${isDark ? 'text-white' : 'text-slate-900'}`}>{typeSummary.farming}</p>
-            <p className={`text-xs ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Farming</p>
+            <p className={`text-2xl font-bold font-display ${isDark ? 'text-white' : 'text-slate-900'}`}>{typeSummary.channel}</p>
+            <p className={`text-xs ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Channel Partner</p>
           </div>
         </div>
         <div className={`${cardClass} p-4 flex items-center gap-3`}>
-          <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${isDark ? 'bg-sky-500/10 text-sky-400' : 'bg-sky-50 text-sky-600'}`}>
-            <Snowflake className="w-5 h-5" />
+          <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${isDark ? 'bg-orange-500/10 text-orange-400' : 'bg-orange-50 text-orange-600'}`}>
+            <Users className="w-5 h-5" />
           </div>
           <div>
-            <p className={`text-2xl font-bold font-display ${isDark ? 'text-white' : 'text-slate-900'}`}>{typeSummary.cold}</p>
-            <p className={`text-xs ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Cold</p>
+            <p className={`text-2xl font-bold font-display ${isDark ? 'text-white' : 'text-slate-900'}`}>{typeSummary.endCustomer}</p>
+            <p className={`text-xs ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>End Customer</p>
+          </div>
+        </div>
+        <div className={`${cardClass} p-4 flex items-center gap-3`}>
+          <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${isDark ? 'bg-zinc-500/10 text-zinc-400' : 'bg-slate-50 text-slate-600'}`}>
+            <Building2 className="w-5 h-5" />
+          </div>
+          <div>
+            <p className={`text-2xl font-bold font-display ${isDark ? 'text-white' : 'text-slate-900'}`}>{typeSummary.other}</p>
+            <p className={`text-xs ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Other</p>
           </div>
         </div>
       </div>
