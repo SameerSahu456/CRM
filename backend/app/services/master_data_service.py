@@ -118,6 +118,11 @@ class MasterDataService:
             "CREATE INDEX IF NOT EXISTS ix_master_dropdowns_entity "
             "ON master_dropdowns (entity)"
         ))
+        # Remove obsolete stages
+        await self.db.execute(text(
+            "DELETE FROM master_dropdowns "
+            "WHERE entity = 'deal-stages' AND value = 'Need Analysis'"
+        ))
         # Seed default data
         await self.db.execute(text("""
             INSERT INTO master_dropdowns (entity, value, label, sort_order, metadata) VALUES
@@ -193,6 +198,11 @@ class MasterDataService:
             Dictionary with entity names as keys and lists of dropdown items as values
         """
         try:
+            # Clean up obsolete stages
+            await self.db.execute(text(
+                "DELETE FROM master_dropdowns "
+                "WHERE entity = 'deal-stages' AND value = 'Need Analysis'"
+            ))
             result = await self.db.execute(
                 text(
                     "SELECT id, entity, value, label, sort_order, is_active, metadata "
