@@ -285,13 +285,23 @@ export const DealsPage: React.FC = () => {
   // ---------------------------------------------------------------------------
 
   const dealInitialWidths = canSeeAssignee
-    ? [45, 70, 170, 150, 130, 130, 220, 130, 160, 160, 110, 120, 120, 120]
-    : [45, 70, 170, 150, 130, 130, 220, 130, 160, 160, 110, 120, 120];
+    ? [45, 70, 170, 120, 150, 130, 130, 220, 130, 160, 160, 110, 120, 120, 120]
+    : [45, 70, 170, 120, 150, 130, 130, 220, 130, 160, 160, 110, 120, 120];
   const { colWidths: dealColWidths, onMouseDown: onDealMouseDown } = useColumnResize({
     initialWidths: dealInitialWidths,
   });
 
   const cardClass = `premium-card ${isDark ? '' : 'shadow-soft'}`;
+
+  // Build a lookup: accountId → tag (channel / endcustomer)
+  const accountTagMap = React.useMemo(() => {
+    const m: Record<string, string> = {};
+    accounts.forEach((a) => {
+      const tag = (a as any).tag || a.accountType || '';
+      if (tag && a.id) m[a.id] = tag;
+    });
+    return m;
+  }, [accounts]);
   const inputClass = `w-full px-3 py-2.5 rounded-xl border text-sm transition-all ${
     isDark
       ? 'bg-dark-100 border-zinc-700 text-white placeholder-zinc-500 focus:border-brand-500'
@@ -1223,7 +1233,7 @@ export const DealsPage: React.FC = () => {
               <table className="premium-table" style={{ minWidth: dealColWidths.reduce((a, b) => a + b, 0) }}>
                 <thead>
                   <tr className={`border-b ${isDark ? 'border-zinc-700' : 'border-slate-200'}`}>
-                    {(['#', 'Summarise', 'Company', 'Contact Name', 'Contact No', 'Designation', 'Email', 'Location', 'Requirement', 'Quoted Requirement', 'Value', 'Stage', ...(canSeeAssignee ? ['Assignee'] : []), 'Follow-up Date'] as string[]).map((label, i, arr) => (
+                    {(['#', 'Summarise', 'Company', 'Account Type', 'Contact Name', 'Contact No', 'Designation', 'Email', 'Location', 'Requirement', 'Quoted Requirement', 'Value', 'Stage', ...(canSeeAssignee ? ['Assignee'] : []), 'Follow-up Date'] as string[]).map((label, i, arr) => (
                       <th
                         key={label}
                         className={`${hdrCell} resizable-th ${i === 0 || i === 1 ? 'text-center' : ''}`}
@@ -1238,7 +1248,7 @@ export const DealsPage: React.FC = () => {
                 <tbody>
                   {deals.length === 0 ? (
                     <tr>
-                      <td colSpan={canSeeAssignee ? 14 : 13} className="py-16 text-center">
+                      <td colSpan={canSeeAssignee ? 15 : 14} className="py-16 text-center">
                         <Briefcase className={`w-8 h-8 mx-auto ${isDark ? 'text-zinc-700' : 'text-slate-300'}`} />
                         <p className={`mt-2 text-sm ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
                           {hasActiveFilters ? 'No deals match filters' : 'No deals yet'}
@@ -1277,6 +1287,25 @@ export const DealsPage: React.FC = () => {
                       <td className={`${cellBase} ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
                         <span className="font-medium">{deal.company || deal.accountName || '-'}</span>
                         {deal.paymentFlag && <span title="Payment pending"><Flag className="w-3.5 h-3.5 text-red-500 fill-red-500 inline-block ml-1" /></span>}
+                      </td>
+                      {/* Account Type */}
+                      <td className={cellBase}>
+                        {(() => {
+                          const tag = deal.accountId ? (accountTagMap[deal.accountId] || '') : '';
+                          const lower = tag.toLowerCase();
+                          const isChannel = lower === 'channel' || lower === 'channel partner';
+                          const isEnd = lower === 'endcustomer' || lower === 'end customer';
+                          if (!isChannel && !isEnd) return <span className={isDark ? 'text-zinc-600' : 'text-slate-300'}>-</span>;
+                          return (
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                              isChannel
+                                ? (isDark ? 'bg-emerald-900/30 text-emerald-400' : 'bg-emerald-50 text-emerald-700')
+                                : (isDark ? 'bg-orange-900/30 text-orange-400' : 'bg-orange-50 text-orange-700')
+                            }`}>
+                              {isChannel ? 'Channel' : 'End Customer'}
+                            </span>
+                          );
+                        })()}
                       </td>
                       {/* Contact Name */}
                       <td className={`${cellBase} ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>

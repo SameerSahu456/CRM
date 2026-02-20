@@ -4,7 +4,7 @@ import {
   IndianRupee, Loader2, AlertCircle, Building2,
   Phone, Mail, Globe, Users, MapPin, Hash,
   TrendingUp, FileText, Briefcase, User as UserIcon,
-  Download, Upload, Wallet
+  Download, Upload, Wallet, Target, Leaf, Snowflake
 } from 'lucide-react';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
@@ -86,7 +86,7 @@ export const AccountsPage: React.FC = () => {
 
 
   // Summary counts
-  const [typeSummary, setTypeSummary] = useState<{ channel: number; endCustomer: number; other: number; total: number }>({ channel: 0, endCustomer: 0, other: 0, total: 0 });
+  const [typeSummary, setTypeSummary] = useState<{ channel: number; endCustomer: number; hunting: number; farming: number; cold: number; total: number }>({ channel: 0, endCustomer: 0, hunting: 0, farming: 0, cold: 0, total: 0 });
 
   // Collections data mapped by account name
   const [collectionsMap, setCollectionsMap] = useState<Record<string, { pending: number; partial: number; paid: number }>>({});
@@ -111,20 +111,48 @@ export const AccountsPage: React.FC = () => {
   // Data fetching
   // ---------------------------------------------------------------------------
 
+  const fetchCollections = useCallback(async () => {
+    try {
+      const colRes = await salesApi.collections();
+      const colData = colRes?.data ?? colRes;
+      const cMap: Record<string, { pending: number; partial: number; paid: number }> = {};
+      const addToMap = (items: any[], key: 'pending' | 'partial' | 'paid') => {
+        (items || []).forEach((item: any) => {
+          const name = (item.customerName || '').toLowerCase();
+          if (!name) return;
+          if (!cMap[name]) cMap[name] = { pending: 0, partial: 0, paid: 0 };
+          cMap[name][key] += item.totalAmount || 0;
+        });
+      };
+      addToMap(colData.pending, 'pending');
+      addToMap(colData.partialPending, 'partial');
+      addToMap(colData.paid, 'paid');
+      setCollectionsMap(cMap);
+    } catch (err) {
+      console.error('Failed to fetch collections:', err);
+    }
+  }, []);
+
   const fetchSummary = useCallback(async () => {
     try {
       const accountsData = await accountsApi.list({ limit: '1000' });
       const allAccounts = Array.isArray(accountsData?.data) ? accountsData.data : [];
       setParentAccounts(allAccounts);
 
-      let channel = 0, endCustomer = 0, other = 0;
+      let channel = 0, endCustomer = 0, hunting = 0, farming = 0, cold = 0;
       allAccounts.forEach((a: Account) => {
-        const t = (a.accountType || a.type || '').toLowerCase();
-        if (t === 'channel partner' || t === 'channel') channel++;
-        else if (t === 'end customer' || t === 'endcustomer') endCustomer++;
-        else if (t) other++;
+        const tag = ((a as any).tag || '').toLowerCase();
+        const at = (a.accountType || '').toLowerCase();
+        const t = (a.type || '').toLowerCase();
+        // Tag-based (Channel / End Customer)
+        if (tag === 'channel' || at === 'channel partner' || at === 'channel') channel++;
+        else if (tag === 'endcustomer' || tag === 'end customer' || at === 'end customer' || at === 'endcustomer') endCustomer++;
+        // Type-based (Hunting / Farming / Cold)
+        if (t === 'hunting') hunting++;
+        else if (t === 'farming' || t === 'recurring') farming++;
+        else if (t === 'cold') cold++;
       });
-      setTypeSummary({ channel, endCustomer, other, total: allAccounts.length });
+      setTypeSummary({ channel, endCustomer, hunting, farming, cold, total: allAccounts.length });
     } catch (err) {
       console.error('Failed to fetch summary:', err);
     }
@@ -176,52 +204,33 @@ export const AccountsPage: React.FC = () => {
     setPage(1);
   }, [searchTerm]);
 
-  // Fetch dropdown data for enhanced form + summary counts
+  // Fetch summary + collections independently
+  useEffect(() => {
+    fetchSummary();
+    fetchCollections();
+  }, [fetchSummary, fetchCollections]);
+
+  // Fetch dropdown data for enhanced form
   useEffect(() => {
     const fetchDropdownData = async () => {
       try {
-        // Fetch partners
         const partnersData = await partnersApi.list({ limit: '100' });
         setPartners(Array.isArray(partnersData?.data) ? partnersData.data : []);
+      } catch { setPartners([]); }
 
-        // Fetch users
-        const usersData = await adminApi.listUsers();
-        setUsers(Array.isArray(usersData) ? usersData : []);
+      try {
+        const usersRes = await adminApi.listUsers();
+        const usersArr = usersRes?.data ?? usersRes;
+        setUsers(Array.isArray(usersArr) ? usersArr : []);
+      } catch { setUsers([]); }
 
-        // Fetch products for category→product dropdown
+      try {
         const prods = await productsApi.list();
         setProductsList(Array.isArray(prods) ? prods.map((p: any) => ({ id: p.id, name: p.name, category: p.category })) : []);
-
-        // Fetch accounts for parent selection + summary counts
-        await fetchSummary();
-
-        // Fetch collections data
-        try {
-          const colRes = await salesApi.collections();
-          const colData = colRes?.data ?? colRes;
-          const cMap: Record<string, { pending: number; partial: number; paid: number }> = {};
-          const addToMap = (items: any[], key: 'pending' | 'partial' | 'paid') => {
-            (items || []).forEach((item: any) => {
-              const name = (item.customerName || '').toLowerCase();
-              if (!name) return;
-              if (!cMap[name]) cMap[name] = { pending: 0, partial: 0, paid: 0 };
-              cMap[name][key] += item.totalAmount || 0;
-            });
-          };
-          addToMap(colData.pending, 'pending');
-          addToMap(colData.partialPending, 'partial');
-          addToMap(colData.paid, 'paid');
-          setCollectionsMap(cMap);
-        } catch { /* ignore */ }
-      } catch (err) {
-        console.error('Failed to fetch dropdown data:', err);
-        setPartners([]);
-        setUsers([]);
-        setParentAccounts([]);
-      }
+      } catch { setProductsList([]); }
     };
     fetchDropdownData();
-  }, [fetchSummary]);
+  }, []);
 
   // ---------------------------------------------------------------------------
   // Form handlers
@@ -521,41 +530,49 @@ export const AccountsPage: React.FC = () => {
                         <span className="font-semibold whitespace-nowrap">{account.revenue ? formatINR(account.revenue) : '-'}</span>
                       </td>
                       <td className={cellBase}>
-                        {account.accountType ? (
-                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                            account.accountType === 'Channel Partner'
-                              ? (isDark ? 'bg-emerald-900/30 text-emerald-400' : 'bg-emerald-50 text-emerald-700')
-                              : (isDark ? 'bg-orange-900/30 text-orange-400' : 'bg-orange-50 text-orange-700')
-                          }`}>
-                            {account.accountType}
-                          </span>
-                        ) : '-'}
+                        {(() => {
+                          const tag = ((account as any).tag || account.accountType || '').toLowerCase();
+                          const isChannel = tag === 'channel' || tag === 'channel partner';
+                          const isEnd = tag === 'endcustomer' || tag === 'end customer';
+                          if (!isChannel && !isEnd) return <span className={isDark ? 'text-zinc-600' : 'text-slate-300'}>-</span>;
+                          return (
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                              isChannel
+                                ? (isDark ? 'bg-emerald-900/30 text-emerald-400' : 'bg-emerald-50 text-emerald-700')
+                                : (isDark ? 'bg-orange-900/30 text-orange-400' : 'bg-orange-50 text-orange-700')
+                            }`}>
+                              {isChannel ? 'Channel' : 'End Customer'}
+                            </span>
+                          );
+                        })()}
                       </td>
                       <td className={cellBase}>
                         {(() => {
                           const col = collectionsMap[(account.name || '').toLowerCase()];
                           if (!col) return <span className={isDark ? 'text-zinc-600' : 'text-slate-300'}>-</span>;
+                          const hasAny = col.pending > 0 || col.partial > 0 || col.paid > 0;
+                          if (!hasAny) return <span className={isDark ? 'text-zinc-600' : 'text-slate-300'}>-</span>;
                           return (
-                            <div className="flex items-center gap-1.5">
+                            <div className="flex flex-col gap-1">
                               {col.pending > 0 && (
-                                <span className={`inline-flex items-center px-1.5 py-px rounded text-[10px] font-semibold ${
+                                <span className={`inline-flex items-center gap-1 px-1.5 py-px rounded text-[10px] font-semibold ${
                                   isDark ? 'bg-red-900/30 text-red-400' : 'bg-red-50 text-red-600'
                                 }`} title="Pending">
-                                  {formatINR(col.pending)}
+                                  <span className="opacity-70">Pending:</span> {formatINR(col.pending)}
                                 </span>
                               )}
                               {col.partial > 0 && (
-                                <span className={`inline-flex items-center px-1.5 py-px rounded text-[10px] font-semibold ${
+                                <span className={`inline-flex items-center gap-1 px-1.5 py-px rounded text-[10px] font-semibold ${
                                   isDark ? 'bg-amber-900/30 text-amber-400' : 'bg-amber-50 text-amber-600'
-                                }`} title="Partial">
-                                  {formatINR(col.partial)}
+                                }`} title="Partial Pending">
+                                  <span className="opacity-70">Partial:</span> {formatINR(col.partial)}
                                 </span>
                               )}
                               {col.paid > 0 && (
-                                <span className={`inline-flex items-center px-1.5 py-px rounded text-[10px] font-semibold ${
+                                <span className={`inline-flex items-center gap-1 px-1.5 py-px rounded text-[10px] font-semibold ${
                                   isDark ? 'bg-emerald-900/30 text-emerald-400' : 'bg-emerald-50 text-emerald-600'
-                                }`} title="Collected">
-                                  {formatINR(col.paid)}
+                                }`} title="Paid / Completed">
+                                  <span className="opacity-70">Paid:</span> {formatINR(col.paid)}
                                 </span>
                               )}
                             </div>
@@ -1021,14 +1038,14 @@ export const AccountsPage: React.FC = () => {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
         <div className={`${cardClass} p-4 flex items-center gap-3`}>
           <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${isDark ? 'bg-blue-500/10 text-blue-400' : 'bg-blue-50 text-blue-600'}`}>
             <Building2 className="w-5 h-5" />
           </div>
           <div>
             <p className={`text-2xl font-bold font-display ${isDark ? 'text-white' : 'text-slate-900'}`}>{typeSummary.total}</p>
-            <p className={`text-xs ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Total Accounts</p>
+            <p className={`text-xs ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Total</p>
           </div>
         </div>
         <div className={`${cardClass} p-4 flex items-center gap-3`}>
@@ -1037,7 +1054,7 @@ export const AccountsPage: React.FC = () => {
           </div>
           <div>
             <p className={`text-2xl font-bold font-display ${isDark ? 'text-white' : 'text-slate-900'}`}>{typeSummary.channel}</p>
-            <p className={`text-xs ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Channel Partner</p>
+            <p className={`text-xs ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Channel</p>
           </div>
         </div>
         <div className={`${cardClass} p-4 flex items-center gap-3`}>
@@ -1050,12 +1067,30 @@ export const AccountsPage: React.FC = () => {
           </div>
         </div>
         <div className={`${cardClass} p-4 flex items-center gap-3`}>
-          <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${isDark ? 'bg-zinc-500/10 text-zinc-400' : 'bg-slate-50 text-slate-600'}`}>
-            <Building2 className="w-5 h-5" />
+          <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${isDark ? 'bg-amber-500/10 text-amber-400' : 'bg-amber-50 text-amber-600'}`}>
+            <Target className="w-5 h-5" />
           </div>
           <div>
-            <p className={`text-2xl font-bold font-display ${isDark ? 'text-white' : 'text-slate-900'}`}>{typeSummary.other}</p>
-            <p className={`text-xs ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Other</p>
+            <p className={`text-2xl font-bold font-display ${isDark ? 'text-white' : 'text-slate-900'}`}>{typeSummary.hunting}</p>
+            <p className={`text-xs ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Hunting</p>
+          </div>
+        </div>
+        <div className={`${cardClass} p-4 flex items-center gap-3`}>
+          <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${isDark ? 'bg-teal-500/10 text-teal-400' : 'bg-teal-50 text-teal-600'}`}>
+            <Leaf className="w-5 h-5" />
+          </div>
+          <div>
+            <p className={`text-2xl font-bold font-display ${isDark ? 'text-white' : 'text-slate-900'}`}>{typeSummary.farming}</p>
+            <p className={`text-xs ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Farming</p>
+          </div>
+        </div>
+        <div className={`${cardClass} p-4 flex items-center gap-3`}>
+          <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${isDark ? 'bg-sky-500/10 text-sky-400' : 'bg-sky-50 text-sky-600'}`}>
+            <Snowflake className="w-5 h-5" />
+          </div>
+          <div>
+            <p className={`text-2xl font-bold font-display ${isDark ? 'text-white' : 'text-slate-900'}`}>{typeSummary.cold}</p>
+            <p className={`text-xs ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Cold</p>
           </div>
         </div>
       </div>
@@ -1076,7 +1111,7 @@ export const AccountsPage: React.FC = () => {
         entity="accounts"
         entityLabel="Accounts"
         isDark={isDark}
-        onSuccess={() => { fetchAccounts(); fetchSummary(); }}
+        onSuccess={() => { fetchAccounts(); fetchSummary(); fetchCollections(); }}
       />
     </div>
   );
