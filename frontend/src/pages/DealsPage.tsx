@@ -161,21 +161,15 @@ export const DealsPage: React.FC = () => {
   const { theme } = useTheme();
   const { user } = useAuth();
   const { setActiveTab: navigate } = useNavigation();
-  const { getOptions, getValues } = useDropdowns();
+  const { getOptions } = useDropdowns();
   const isDark = theme === 'dark';
   const canSeeAssignee = true; // Always show — backend controls data visibility via manager hierarchy
 
-  // Dropdown data from DB (fallback to hardcoded stages if dropdowns haven't loaded)
-  const DEFAULT_STAGES: DealStage[] = ['New', 'Cold', 'Proposal', 'Negotiation', 'Closed Won', 'Closed Lost'];
-  const dropdownStages = getValues('deal-stages') as DealStage[];
-  const DEAL_STAGES = dropdownStages.length > 0 ? dropdownStages : DEFAULT_STAGES;
-  const dropdownOptions = getOptions('deal-stages');
-  const PIPELINE_STAGES = dropdownOptions.length > 0
-    ? dropdownOptions.filter(o => o.metadata?.is_pipeline).map(o => o.value) as DealStage[]
-    : ['New', 'Cold', 'Proposal', 'Negotiation'] as DealStage[];
-  const TERMINAL_STAGES = dropdownOptions.length > 0
-    ? dropdownOptions.filter(o => o.metadata?.is_terminal).map(o => o.value) as DealStage[]
-    : ['Closed Won', 'Closed Lost'] as DealStage[];
+  // Stage definitions (hardcoded to guarantee all stages always render)
+  const DEAL_STAGES: DealStage[] = ['New', 'Cold', 'Proposal', 'Negotiation', 'Closed Won', 'Closed Lost'];
+  const PIPELINE_STAGES: DealStage[] = ['New', 'Cold', 'Proposal', 'Negotiation'];
+  const TERMINAL_STAGES: DealStage[] = ['Closed Won', 'Closed Lost'];
+  // Other dropdown data from DB
   const DEAL_TYPES = getOptions('deal-types');
   const LEAD_SOURCES = getOptions('lead-sources');
   const FORECAST_OPTIONS = getOptions('forecast-options');
