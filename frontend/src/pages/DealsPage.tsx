@@ -298,8 +298,8 @@ export const DealsPage: React.FC = () => {
   const accountTagMap = React.useMemo(() => {
     const m: Record<string, string> = {};
     accounts.forEach((a) => {
-      const tag = (a as any).tag || a.accountType || '';
-      if (tag && a.id) m[a.id] = tag;
+      const accountType = a.accountType || '';
+      if (accountType && a.id) m[a.id] = accountType;
     });
     return m;
   }, [accounts]);

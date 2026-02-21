@@ -5,7 +5,7 @@ import {
   Phone, Mail, Globe, Users, MapPin, Hash,
   TrendingUp, FileText, Briefcase, User as UserIcon,
   Download, Upload, Wallet, Target, Leaf, Snowflake,
-  LayoutGrid, List, Filter
+  Filter
 } from 'lucide-react';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
@@ -27,15 +27,6 @@ const INDUSTRIES = [
   'Technology', 'Healthcare', 'Finance', 'Manufacturing', 'Retail',
   'Education', 'Real Estate', 'Telecom', 'Energy', 'Media', 'Government', 'Other'
 ];
-
-const KANBAN_COLUMNS = ['Hunting', 'Farming', 'Cold', 'Unassigned'] as const;
-
-const KANBAN_COLORS: Record<string, { bg: string; darkBg: string; text: string; darkText: string; border: string; darkBorder: string }> = {
-  Hunting: { bg: 'bg-amber-50', darkBg: 'bg-amber-900/20', text: 'text-amber-700', darkText: 'text-amber-400', border: 'border-amber-200', darkBorder: 'border-amber-800' },
-  Farming: { bg: 'bg-teal-50', darkBg: 'bg-teal-900/20', text: 'text-teal-700', darkText: 'text-teal-400', border: 'border-teal-200', darkBorder: 'border-teal-800' },
-  Cold: { bg: 'bg-sky-50', darkBg: 'bg-sky-900/20', text: 'text-sky-700', darkText: 'text-sky-400', border: 'border-sky-200', darkBorder: 'border-sky-800' },
-  Unassigned: { bg: 'bg-slate-50', darkBg: 'bg-zinc-900/20', text: 'text-slate-700', darkText: 'text-zinc-400', border: 'border-slate-200', darkBorder: 'border-zinc-800' },
-};
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -73,9 +64,6 @@ export const AccountsPage: React.FC = () => {
   const [totalPages, setTotalPages] = useState(1);
   const [totalRecords, setTotalRecords] = useState(0);
 
-  // View mode
-  const [viewMode, setViewMode] = useState<'list' | 'kanban'>('list');
-
   // Filters
   const [searchTerm, setSearchTerm] = useState('');
   const [industryFilter, setIndustryFilter] = useState('');
@@ -83,9 +71,6 @@ export const AccountsPage: React.FC = () => {
   const [tagFilter, setTagFilter] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
   const [showFilters, setShowFilters] = useState(false);
-
-  // Kanban data (all accounts for board view)
-  const [kanbanAccounts, setKanbanAccounts] = useState<Account[]>([]);
 
   // UI state
   const [isLoading, setIsLoading] = useState(true);
@@ -127,7 +112,7 @@ export const AccountsPage: React.FC = () => {
   // ---------------------------------------------------------------------------
 
   const { colWidths, onMouseDown } = useColumnResize({
-    initialWidths: [45, 180, 120, 130, 180, 110, 130, 200],
+    initialWidths: [45, 170, 110, 120, 110, 120, 100, 120, 120, 200],
   });
 
   const cardClass = `premium-card ${isDark ? '' : 'shadow-soft'}`;
@@ -166,7 +151,7 @@ export const AccountsPage: React.FC = () => {
 
       let channel = 0, endCustomer = 0, hunting = 0, farming = 0, cold = 0;
       allAccounts.forEach((a: Account) => {
-        const tag = ((a as any).tag || '').toLowerCase();
+        const tag = (a.tag || '').toLowerCase();
         const at = (a.accountType || '').toLowerCase();
         const t = (a.type || '').toLowerCase();
         // Tag-based (Channel / End Customer)
@@ -210,22 +195,6 @@ export const AccountsPage: React.FC = () => {
     }
   }, [page, searchTerm, industryFilter, accountTypeFilter, tagFilter, typeFilter]);
 
-  const fetchKanbanAccounts = useCallback(async () => {
-    try {
-      const params: Record<string, string> = { limit: '500' };
-      if (searchTerm) params.search = searchTerm;
-      if (industryFilter) params.industry = industryFilter;
-      if (accountTypeFilter) params.account_type = accountTypeFilter;
-      if (tagFilter) params.tag = tagFilter;
-      if (typeFilter) params.type = typeFilter;
-      const response = await accountsApi.list(params);
-      const data = Array.isArray(response?.data) ? response.data : [];
-      setKanbanAccounts(data);
-    } catch {
-      setKanbanAccounts([]);
-    }
-  }, [searchTerm, industryFilter, accountTypeFilter, tagFilter, typeFilter]);
-
   // Consume nav params (e.g. navigated from ContactsPage with accountId)
   useEffect(() => {
     const params = consumeNavParams();
@@ -241,12 +210,8 @@ export const AccountsPage: React.FC = () => {
 
   // Initial + filter-driven fetch
   useEffect(() => {
-    if (viewMode === 'list') fetchAccounts();
-  }, [fetchAccounts, viewMode]);
-
-  useEffect(() => {
-    if (viewMode === 'kanban') fetchKanbanAccounts();
-  }, [fetchKanbanAccounts, viewMode]);
+    fetchAccounts();
+  }, [fetchAccounts]);
 
   // Reset to page 1 when filters change
   useEffect(() => {
@@ -430,32 +395,6 @@ export const AccountsPage: React.FC = () => {
   const renderToolbar = () => (
     <div className={`${cardClass} p-4 space-y-3`}>
       <div className="flex flex-col lg:flex-row lg:items-center gap-3">
-        {/* View Toggle */}
-        <div className={`flex items-center rounded-xl border ${isDark ? 'border-zinc-700' : 'border-slate-200'}`}>
-          <button
-            onClick={() => setViewMode('list')}
-            className={`flex items-center gap-1.5 px-3 py-2 rounded-l-xl text-sm font-medium transition-colors ${
-              viewMode === 'list'
-                ? 'bg-brand-600 text-white'
-                : isDark ? 'text-zinc-400 hover:text-white hover:bg-zinc-800' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
-            }`}
-          >
-            <List className="w-4 h-4" />
-            List
-          </button>
-          <button
-            onClick={() => setViewMode('kanban')}
-            className={`flex items-center gap-1.5 px-3 py-2 rounded-r-xl text-sm font-medium transition-colors ${
-              viewMode === 'kanban'
-                ? 'bg-brand-600 text-white'
-                : isDark ? 'text-zinc-400 hover:text-white hover:bg-zinc-800' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
-            }`}
-          >
-            <LayoutGrid className="w-4 h-4" />
-            Board
-          </button>
-        </div>
-
         {/* Search */}
         <div className="relative flex-1 min-w-0">
           <Search className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${
@@ -615,7 +554,7 @@ export const AccountsPage: React.FC = () => {
             <table className="premium-table">
               <thead>
                 <tr className={`border-b ${isDark ? 'border-zinc-700' : 'border-slate-200'}`}>
-                  {['#', 'Name', 'Industry', 'Phone', 'Email', 'Revenue', 'Account Type', 'Collection'].map((label, i) => (
+                  {['#', 'Name', 'Industry', 'Tag 1', 'Tag 2', 'Account Type', 'Phone', 'Email', 'Revenue', 'Collection'].map((label, i) => (
                     <th
                       key={label}
                       className={`${hdrCell} resizable-th ${i === 0 ? 'text-center' : ''}`}
@@ -630,7 +569,7 @@ export const AccountsPage: React.FC = () => {
               <tbody>
                 {accounts.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="py-16 text-center">
+                    <td colSpan={10} className="py-16 text-center">
                       <Building2 className={`w-8 h-8 mx-auto ${isDark ? 'text-zinc-700' : 'text-slate-300'}`} />
                       <p className={`mt-2 text-sm ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
                         {hasActiveFilters ? 'No accounts match filters' : 'No accounts yet'}
@@ -656,6 +595,57 @@ export const AccountsPage: React.FC = () => {
                       <td className={`${cellBase} ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
                         {account.industry || '-'}
                       </td>
+                      {/* Tag 1 */}
+                      <td className={cellBase}>
+                        {(() => {
+                          const tag1 = account.tag || '';
+                          if (!tag1) return <span className={isDark ? 'text-zinc-600' : 'text-slate-300'}>-</span>;
+                          const isDigital = tag1.toLowerCase().includes('digital');
+                          return (
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                              isDigital
+                                ? (isDark ? 'bg-blue-900/30 text-blue-400' : 'bg-blue-50 text-blue-700')
+                                : (isDark ? 'bg-purple-900/30 text-purple-400' : 'bg-purple-50 text-purple-700')
+                            }`}>
+                              {tag1}
+                            </span>
+                          );
+                        })()}
+                      </td>
+                      {/* Tag 2 (Type: Hunting/Farming/Cold) */}
+                      <td className={cellBase}>
+                        {(() => {
+                          const t = (account.type || '').toLowerCase();
+                          if (!t) return <span className={isDark ? 'text-zinc-600' : 'text-slate-300'}>-</span>;
+                          const color = t === 'hunting'
+                            ? (isDark ? 'bg-amber-900/30 text-amber-400' : 'bg-amber-50 text-amber-700')
+                            : t === 'farming'
+                              ? (isDark ? 'bg-teal-900/30 text-teal-400' : 'bg-teal-50 text-teal-700')
+                              : (isDark ? 'bg-sky-900/30 text-sky-400' : 'bg-sky-50 text-sky-700');
+                          return (
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${color}`}>
+                              {account.type}
+                            </span>
+                          );
+                        })()}
+                      </td>
+                      {/* Account Type (Channel Partner / End Customer) */}
+                      <td className={cellBase}>
+                        {(() => {
+                          const at = (account.accountType || '').toLowerCase();
+                          if (!at) return <span className={isDark ? 'text-zinc-600' : 'text-slate-300'}>-</span>;
+                          const isChannel = at === 'channel partner';
+                          return (
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                              isChannel
+                                ? (isDark ? 'bg-emerald-900/30 text-emerald-400' : 'bg-emerald-50 text-emerald-700')
+                                : (isDark ? 'bg-orange-900/30 text-orange-400' : 'bg-orange-50 text-orange-700')
+                            }`}>
+                              {account.accountType}
+                            </span>
+                          );
+                        })()}
+                      </td>
                       <td className={`${cellBase} ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
                         <span className="whitespace-nowrap">{account.phone || '-'}</span>
                       </td>
@@ -664,23 +654,6 @@ export const AccountsPage: React.FC = () => {
                       </td>
                       <td className={`${cellBase} ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
                         <span className="font-semibold whitespace-nowrap">{account.revenue ? formatINR(account.revenue) : '-'}</span>
-                      </td>
-                      <td className={cellBase}>
-                        {(() => {
-                          const tag = ((account as any).tag || account.accountType || '').toLowerCase();
-                          const isChannel = tag === 'channel' || tag === 'channel partner';
-                          const isEnd = tag === 'endcustomer' || tag === 'end customer';
-                          if (!isChannel && !isEnd) return <span className={isDark ? 'text-zinc-600' : 'text-slate-300'}>-</span>;
-                          return (
-                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                              isChannel
-                                ? (isDark ? 'bg-emerald-900/30 text-emerald-400' : 'bg-emerald-50 text-emerald-700')
-                                : (isDark ? 'bg-orange-900/30 text-orange-400' : 'bg-orange-50 text-orange-700')
-                            }`}>
-                              {isChannel ? 'Channel' : 'End Customer'}
-                            </span>
-                          );
-                        })()}
                       </td>
                       <td className={cellBase}>
                         {(() => {
@@ -800,84 +773,6 @@ export const AccountsPage: React.FC = () => {
       )}
     </div>
   );
-
-  // ---------------------------------------------------------------------------
-  // Render: Kanban Board
-  // ---------------------------------------------------------------------------
-
-  const renderKanban = () => {
-    const grouped: Record<string, Account[]> = { Hunting: [], Farming: [], Cold: [], Unassigned: [] };
-    kanbanAccounts.forEach(acc => {
-      const t = (acc.type || '').trim();
-      if (t === 'Hunting' || t === 'Farming' || t === 'Cold') {
-        grouped[t].push(acc);
-      } else {
-        grouped.Unassigned.push(acc);
-      }
-    });
-
-    return (
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-        {KANBAN_COLUMNS.map(col => {
-          const c = KANBAN_COLORS[col];
-          const items = grouped[col];
-          return (
-            <div key={col} className={`rounded-2xl border ${isDark ? c.darkBorder : c.border} ${isDark ? 'bg-dark-50' : 'bg-white'} flex flex-col min-h-[200px]`}>
-              {/* Column Header */}
-              <div className={`px-4 py-3 rounded-t-2xl flex items-center justify-between ${isDark ? c.darkBg : c.bg}`}>
-                <span className={`text-sm font-semibold ${isDark ? c.darkText : c.text}`}>{col}</span>
-                <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${isDark ? 'bg-zinc-800 text-zinc-300' : 'bg-white text-slate-600'}`}>
-                  {items.length}
-                </span>
-              </div>
-              {/* Cards */}
-              <div className="flex-1 p-2 space-y-2 overflow-y-auto max-h-[60vh]">
-                {items.length === 0 ? (
-                  <p className={`text-xs text-center py-6 ${isDark ? 'text-zinc-600' : 'text-slate-400'}`}>No accounts</p>
-                ) : items.map(acc => (
-                  <div
-                    key={acc.id}
-                    onClick={() => openDetailModal(acc)}
-                    className={`p-3 rounded-xl border cursor-pointer transition-all hover:shadow-md ${
-                      isDark ? 'border-zinc-800 bg-dark-100 hover:border-zinc-700' : 'border-slate-100 bg-white hover:border-slate-300'
-                    }`}
-                  >
-                    <p className={`text-sm font-semibold truncate ${isDark ? 'text-white' : 'text-slate-900'}`}>{acc.name}</p>
-                    <div className="flex items-center gap-2 mt-1.5">
-                      {acc.industry && (
-                        <span className={`text-[10px] px-1.5 py-px rounded-full font-medium ${isDark ? 'bg-zinc-800 text-zinc-400' : 'bg-slate-100 text-slate-500'}`}>
-                          {acc.industry}
-                        </span>
-                      )}
-                      {acc.accountType && (
-                        <span className={`text-[10px] px-1.5 py-px rounded-full font-medium ${
-                          (acc.accountType || '').toLowerCase().includes('channel')
-                            ? isDark ? 'bg-emerald-900/30 text-emerald-400' : 'bg-emerald-50 text-emerald-700'
-                            : isDark ? 'bg-orange-900/30 text-orange-400' : 'bg-orange-50 text-orange-700'
-                        }`}>
-                          {(acc.accountType || '').toLowerCase().includes('channel') ? 'Channel' : 'End Customer'}
-                        </span>
-                      )}
-                    </div>
-                    {acc.revenue ? (
-                      <p className={`text-xs font-semibold mt-1.5 ${isDark ? 'text-emerald-400' : 'text-emerald-600'}`}>
-                        {formatINR(acc.revenue)}
-                      </p>
-                    ) : null}
-                    {acc.ownerName && (
-                      <p className={`text-[10px] mt-1 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
-                        {acc.ownerName}
-                      </p>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    );
-  };
 
   // ---------------------------------------------------------------------------
   // Render: Detail Modal
@@ -1311,8 +1206,8 @@ export const AccountsPage: React.FC = () => {
       {/* Toolbar */}
       {renderToolbar()}
 
-      {/* Content: List or Kanban */}
-      {viewMode === 'list' ? renderTable() : renderKanban()}
+      {/* Content */}
+      {renderTable()}
 
       {/* Modals */}
       {renderFormModal()}
