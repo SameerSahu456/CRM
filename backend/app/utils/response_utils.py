@@ -48,7 +48,10 @@ def success_response(
     }
     
     if pagination is not None:
-        response["pagination"] = pagination.model_dump(by_alias=True)
+        if isinstance(pagination, dict):
+            response["pagination"] = pagination
+        else:
+            response["pagination"] = pagination.model_dump(by_alias=True)
     
     return response
 
