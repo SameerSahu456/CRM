@@ -49,6 +49,9 @@ class AccountService:
         status: Optional[str] = None,
         industry: Optional[str] = None,
         search: Optional[str] = None,
+        account_type: Optional[str] = None,
+        tag: Optional[str] = None,
+        type_filter: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         List accounts with filtering and pagination.
@@ -60,6 +63,9 @@ class AccountService:
             status: Optional status filter
             industry: Optional industry filter
             search: Optional search term for account name
+            account_type: Optional account type filter (Channel Partner/End Customer)
+            tag: Optional tag filter (Digital Account/Existing Account)
+            type_filter: Optional type filter (Hunting/Farming/Cold)
 
         Returns:
             Dictionary with 'data' (list of accounts) and 'pagination' metadata
@@ -72,6 +78,12 @@ class AccountService:
             filters.append(Account.industry == industry)
         if search:
             filters.append(Account.name.ilike(f"%{search}%"))
+        if account_type:
+            filters.append(Account.account_type == account_type)
+        if tag:
+            filters.append(Account.tag == tag)
+        if type_filter:
+            filters.append(Account.type == type_filter)
 
         # Apply access control: non-admin users only see their team's accounts
         scoped_ids = await get_scoped_user_ids(user, self.db)

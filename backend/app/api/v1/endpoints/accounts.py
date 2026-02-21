@@ -38,6 +38,9 @@ async def list_accounts(
     status: Optional[str] = Query(None, description="Filter by status"),
     industry: Optional[str] = Query(None, description="Filter by industry"),
     search: Optional[str] = Query(None, description="Search by account name"),
+    account_type: Optional[str] = Query(None, description="Filter by account type"),
+    tag: Optional[str] = Query(None, description="Filter by tag"),
+    type: Optional[str] = Query(None, description="Filter by type (Hunting/Farming/Cold)"),
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> Dict[str, Any]:
@@ -60,6 +63,9 @@ async def list_accounts(
         status=status,
         industry=industry,
         search=search,
+        account_type=account_type,
+        tag=tag,
+        type_filter=type,
     )
 
     return paginated_response(

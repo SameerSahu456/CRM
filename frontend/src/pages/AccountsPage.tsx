@@ -4,12 +4,13 @@ import {
   IndianRupee, Loader2, AlertCircle, Building2,
   Phone, Mail, Globe, Users, MapPin, Hash,
   TrendingUp, FileText, Briefcase, User as UserIcon,
-  Download, Upload, Wallet, Target, Leaf, Snowflake
+  Download, Upload, Wallet, Target, Leaf, Snowflake,
+  LayoutGrid, List, Filter
 } from 'lucide-react';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigation } from '@/contexts/NavigationContext';
-import { accountsApi, partnersApi, adminApi, productsApi, salesApi, formatINR } from '@/services/api';
+import { accountsApi, partnersApi, adminApi, salesApi, formatINR } from '@/services/api';
 import { exportToCsv } from '@/utils/exportCsv';
 import { Account, Contact, Deal, PaginatedResponse, Partner, User } from '@/types';
 import { EnhancedAccountForm, EnhancedAccountFormData } from '@/components/common/EnhancedAccountForm';
@@ -21,6 +22,20 @@ import { useColumnResize } from '@/hooks/useColumnResize';
 // ---------------------------------------------------------------------------
 
 const PAGE_SIZE = 10;
+
+const INDUSTRIES = [
+  'Technology', 'Healthcare', 'Finance', 'Manufacturing', 'Retail',
+  'Education', 'Real Estate', 'Telecom', 'Energy', 'Media', 'Government', 'Other'
+];
+
+const KANBAN_COLUMNS = ['Hunting', 'Farming', 'Cold', 'Unassigned'] as const;
+
+const KANBAN_COLORS: Record<string, { bg: string; darkBg: string; text: string; darkText: string; border: string; darkBorder: string }> = {
+  Hunting: { bg: 'bg-amber-50', darkBg: 'bg-amber-900/20', text: 'text-amber-700', darkText: 'text-amber-400', border: 'border-amber-200', darkBorder: 'border-amber-800' },
+  Farming: { bg: 'bg-teal-50', darkBg: 'bg-teal-900/20', text: 'text-teal-700', darkText: 'text-teal-400', border: 'border-teal-200', darkBorder: 'border-teal-800' },
+  Cold: { bg: 'bg-sky-50', darkBg: 'bg-sky-900/20', text: 'text-sky-700', darkText: 'text-sky-400', border: 'border-sky-200', darkBorder: 'border-sky-800' },
+  Unassigned: { bg: 'bg-slate-50', darkBg: 'bg-zinc-900/20', text: 'text-slate-700', darkText: 'text-zinc-400', border: 'border-slate-200', darkBorder: 'border-zinc-800' },
+};
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -58,8 +73,19 @@ export const AccountsPage: React.FC = () => {
   const [totalPages, setTotalPages] = useState(1);
   const [totalRecords, setTotalRecords] = useState(0);
 
+  // View mode
+  const [viewMode, setViewMode] = useState<'list' | 'kanban'>('list');
+
   // Filters
   const [searchTerm, setSearchTerm] = useState('');
+  const [industryFilter, setIndustryFilter] = useState('');
+  const [accountTypeFilter, setAccountTypeFilter] = useState('');
+  const [tagFilter, setTagFilter] = useState('');
+  const [typeFilter, setTypeFilter] = useState('');
+  const [showFilters, setShowFilters] = useState(false);
+
+  // Kanban data (all accounts for board view)
+  const [kanbanAccounts, setKanbanAccounts] = useState<Account[]>([]);
 
   // UI state
   const [isLoading, setIsLoading] = useState(true);
@@ -95,7 +121,6 @@ export const AccountsPage: React.FC = () => {
   const [partners, setPartners] = useState<Partner[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [parentAccounts, setParentAccounts] = useState<Account[]>([]);
-  const [productsList, setProductsList] = useState<Array<{ id: string; name: string; category?: string }>>([]);
 
   // ---------------------------------------------------------------------------
   // Styling helpers
@@ -167,6 +192,10 @@ export const AccountsPage: React.FC = () => {
         limit: String(PAGE_SIZE),
       };
       if (searchTerm) params.search = searchTerm;
+      if (industryFilter) params.industry = industryFilter;
+      if (accountTypeFilter) params.account_type = accountTypeFilter;
+      if (tagFilter) params.tag = tagFilter;
+      if (typeFilter) params.type = typeFilter;
 
       const response: PaginatedResponse<Account> = await accountsApi.list(params);
       setAccounts(response.data);
@@ -179,7 +208,23 @@ export const AccountsPage: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [page, searchTerm]);
+  }, [page, searchTerm, industryFilter, accountTypeFilter, tagFilter, typeFilter]);
+
+  const fetchKanbanAccounts = useCallback(async () => {
+    try {
+      const params: Record<string, string> = { limit: '500' };
+      if (searchTerm) params.search = searchTerm;
+      if (industryFilter) params.industry = industryFilter;
+      if (accountTypeFilter) params.account_type = accountTypeFilter;
+      if (tagFilter) params.tag = tagFilter;
+      if (typeFilter) params.type = typeFilter;
+      const response = await accountsApi.list(params);
+      const data = Array.isArray(response?.data) ? response.data : [];
+      setKanbanAccounts(data);
+    } catch {
+      setKanbanAccounts([]);
+    }
+  }, [searchTerm, industryFilter, accountTypeFilter, tagFilter, typeFilter]);
 
   // Consume nav params (e.g. navigated from ContactsPage with accountId)
   useEffect(() => {
@@ -196,13 +241,17 @@ export const AccountsPage: React.FC = () => {
 
   // Initial + filter-driven fetch
   useEffect(() => {
-    fetchAccounts();
-  }, [fetchAccounts]);
+    if (viewMode === 'list') fetchAccounts();
+  }, [fetchAccounts, viewMode]);
+
+  useEffect(() => {
+    if (viewMode === 'kanban') fetchKanbanAccounts();
+  }, [fetchKanbanAccounts, viewMode]);
 
   // Reset to page 1 when filters change
   useEffect(() => {
     setPage(1);
-  }, [searchTerm]);
+  }, [searchTerm, industryFilter, accountTypeFilter, tagFilter, typeFilter]);
 
   // Fetch summary + collections independently
   useEffect(() => {
@@ -223,11 +272,6 @@ export const AccountsPage: React.FC = () => {
         const usersArr = usersRes?.data ?? usersRes;
         setUsers(Array.isArray(usersArr) ? usersArr : []);
       } catch { setUsers([]); }
-
-      try {
-        const prods = await productsApi.list();
-        setProductsList(Array.isArray(prods) ? prods.map((p: any) => ({ id: p.id, name: p.name, category: p.category })) : []);
-      } catch { setProductsList([]); }
     };
     fetchDropdownData();
   }, []);
@@ -362,16 +406,56 @@ export const AccountsPage: React.FC = () => {
   // Misc helpers
   // ---------------------------------------------------------------------------
 
-  const hasActiveFilters = searchTerm;
+  const hasActiveFilters = searchTerm || industryFilter || accountTypeFilter || tagFilter || typeFilter;
+
+  const clearAllFilters = () => {
+    setSearchTerm('');
+    setIndustryFilter('');
+    setAccountTypeFilter('');
+    setTagFilter('');
+    setTypeFilter('');
+  };
 
 
   // ---------------------------------------------------------------------------
   // Render: Toolbar
   // ---------------------------------------------------------------------------
 
+  const filterSelectClass = `px-3 py-2.5 rounded-xl border text-sm transition-all ${
+    isDark
+      ? 'bg-dark-100 border-zinc-700 text-white focus:border-brand-500'
+      : 'bg-white border-slate-200 text-slate-900 focus:border-brand-500'
+  } focus:outline-none focus:ring-1 focus:ring-brand-500`;
+
   const renderToolbar = () => (
-    <div className={`${cardClass} p-4`}>
+    <div className={`${cardClass} p-4 space-y-3`}>
       <div className="flex flex-col lg:flex-row lg:items-center gap-3">
+        {/* View Toggle */}
+        <div className={`flex items-center rounded-xl border ${isDark ? 'border-zinc-700' : 'border-slate-200'}`}>
+          <button
+            onClick={() => setViewMode('list')}
+            className={`flex items-center gap-1.5 px-3 py-2 rounded-l-xl text-sm font-medium transition-colors ${
+              viewMode === 'list'
+                ? 'bg-brand-600 text-white'
+                : isDark ? 'text-zinc-400 hover:text-white hover:bg-zinc-800' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
+            }`}
+          >
+            <List className="w-4 h-4" />
+            List
+          </button>
+          <button
+            onClick={() => setViewMode('kanban')}
+            className={`flex items-center gap-1.5 px-3 py-2 rounded-r-xl text-sm font-medium transition-colors ${
+              viewMode === 'kanban'
+                ? 'bg-brand-600 text-white'
+                : isDark ? 'text-zinc-400 hover:text-white hover:bg-zinc-800' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
+            }`}
+          >
+            <LayoutGrid className="w-4 h-4" />
+            Board
+          </button>
+        </div>
+
         {/* Search */}
         <div className="relative flex-1 min-w-0">
           <Search className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${
@@ -389,6 +473,21 @@ export const AccountsPage: React.FC = () => {
             } focus:outline-none focus:ring-1 focus:ring-brand-500`}
           />
         </div>
+
+        {/* Filters Toggle */}
+        <button
+          onClick={() => setShowFilters(!showFilters)}
+          className={`flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-normal transition-colors whitespace-nowrap ${
+            showFilters || hasActiveFilters
+              ? 'bg-brand-600 text-white'
+              : isDark
+                ? 'text-zinc-400 border border-zinc-700 hover:bg-zinc-800'
+                : 'text-slate-500 border border-slate-200 hover:bg-slate-50'
+          }`}
+        >
+          <Filter className="w-4 h-4" />
+          Filters{hasActiveFilters ? ' (active)' : ''}
+        </button>
 
         {/* Bulk Import */}
         <button
@@ -443,6 +542,43 @@ export const AccountsPage: React.FC = () => {
           New Account
         </button>
       </div>
+
+      {/* Filter Row */}
+      {showFilters && (
+        <div className="flex flex-wrap items-center gap-3">
+          <select value={industryFilter} onChange={e => setIndustryFilter(e.target.value)} className={filterSelectClass}>
+            <option value="">All Industries</option>
+            {INDUSTRIES.map(ind => <option key={ind} value={ind}>{ind}</option>)}
+          </select>
+          <select value={accountTypeFilter} onChange={e => setAccountTypeFilter(e.target.value)} className={filterSelectClass}>
+            <option value="">All Account Types</option>
+            <option value="Channel Partner">Channel Partner</option>
+            <option value="End Customer">End Customer</option>
+          </select>
+          <select value={tagFilter} onChange={e => setTagFilter(e.target.value)} className={filterSelectClass}>
+            <option value="">All Tags (Tag 1)</option>
+            <option value="Digital Account">Digital Account</option>
+            <option value="Existing Account">Existing Account</option>
+          </select>
+          <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)} className={filterSelectClass}>
+            <option value="">All Types (Tag 2)</option>
+            <option value="Hunting">Hunting</option>
+            <option value="Farming">Farming</option>
+            <option value="Cold">Cold</option>
+          </select>
+          {hasActiveFilters && (
+            <button
+              onClick={clearAllFilters}
+              className={`flex items-center gap-1 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${
+                isDark ? 'text-red-400 hover:bg-red-900/20' : 'text-red-600 hover:bg-red-50'
+              }`}
+            >
+              <X className="w-3.5 h-3.5" />
+              Clear
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 
@@ -664,6 +800,84 @@ export const AccountsPage: React.FC = () => {
       )}
     </div>
   );
+
+  // ---------------------------------------------------------------------------
+  // Render: Kanban Board
+  // ---------------------------------------------------------------------------
+
+  const renderKanban = () => {
+    const grouped: Record<string, Account[]> = { Hunting: [], Farming: [], Cold: [], Unassigned: [] };
+    kanbanAccounts.forEach(acc => {
+      const t = (acc.type || '').trim();
+      if (t === 'Hunting' || t === 'Farming' || t === 'Cold') {
+        grouped[t].push(acc);
+      } else {
+        grouped.Unassigned.push(acc);
+      }
+    });
+
+    return (
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+        {KANBAN_COLUMNS.map(col => {
+          const c = KANBAN_COLORS[col];
+          const items = grouped[col];
+          return (
+            <div key={col} className={`rounded-2xl border ${isDark ? c.darkBorder : c.border} ${isDark ? 'bg-dark-50' : 'bg-white'} flex flex-col min-h-[200px]`}>
+              {/* Column Header */}
+              <div className={`px-4 py-3 rounded-t-2xl flex items-center justify-between ${isDark ? c.darkBg : c.bg}`}>
+                <span className={`text-sm font-semibold ${isDark ? c.darkText : c.text}`}>{col}</span>
+                <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${isDark ? 'bg-zinc-800 text-zinc-300' : 'bg-white text-slate-600'}`}>
+                  {items.length}
+                </span>
+              </div>
+              {/* Cards */}
+              <div className="flex-1 p-2 space-y-2 overflow-y-auto max-h-[60vh]">
+                {items.length === 0 ? (
+                  <p className={`text-xs text-center py-6 ${isDark ? 'text-zinc-600' : 'text-slate-400'}`}>No accounts</p>
+                ) : items.map(acc => (
+                  <div
+                    key={acc.id}
+                    onClick={() => openDetailModal(acc)}
+                    className={`p-3 rounded-xl border cursor-pointer transition-all hover:shadow-md ${
+                      isDark ? 'border-zinc-800 bg-dark-100 hover:border-zinc-700' : 'border-slate-100 bg-white hover:border-slate-300'
+                    }`}
+                  >
+                    <p className={`text-sm font-semibold truncate ${isDark ? 'text-white' : 'text-slate-900'}`}>{acc.name}</p>
+                    <div className="flex items-center gap-2 mt-1.5">
+                      {acc.industry && (
+                        <span className={`text-[10px] px-1.5 py-px rounded-full font-medium ${isDark ? 'bg-zinc-800 text-zinc-400' : 'bg-slate-100 text-slate-500'}`}>
+                          {acc.industry}
+                        </span>
+                      )}
+                      {acc.accountType && (
+                        <span className={`text-[10px] px-1.5 py-px rounded-full font-medium ${
+                          (acc.accountType || '').toLowerCase().includes('channel')
+                            ? isDark ? 'bg-emerald-900/30 text-emerald-400' : 'bg-emerald-50 text-emerald-700'
+                            : isDark ? 'bg-orange-900/30 text-orange-400' : 'bg-orange-50 text-orange-700'
+                        }`}>
+                          {(acc.accountType || '').toLowerCase().includes('channel') ? 'Channel' : 'End Customer'}
+                        </span>
+                      )}
+                    </div>
+                    {acc.revenue ? (
+                      <p className={`text-xs font-semibold mt-1.5 ${isDark ? 'text-emerald-400' : 'text-emerald-600'}`}>
+                        {formatINR(acc.revenue)}
+                      </p>
+                    ) : null}
+                    {acc.ownerName && (
+                      <p className={`text-[10px] mt-1 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
+                        {acc.ownerName}
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
 
   // ---------------------------------------------------------------------------
   // Render: Detail Modal
@@ -1013,7 +1227,6 @@ export const AccountsPage: React.FC = () => {
         partners={Array.isArray(partners) ? partners.map(p => ({ id: p.id, companyName: p.companyName })) : []}
         accounts={Array.isArray(parentAccounts) ? parentAccounts.map(a => ({ id: a.id, name: a.name })) : []}
         users={Array.isArray(users) ? users.map(u => ({ id: u.id, name: u.name })) : []}
-        products={productsList}
       />
     );
   };
@@ -1098,8 +1311,8 @@ export const AccountsPage: React.FC = () => {
       {/* Toolbar */}
       {renderToolbar()}
 
-      {/* Table */}
-      {renderTable()}
+      {/* Content: List or Kanban */}
+      {viewMode === 'list' ? renderTable() : renderKanban()}
 
       {/* Modals */}
       {renderFormModal()}

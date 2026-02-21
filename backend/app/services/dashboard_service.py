@@ -120,7 +120,7 @@ class DashboardService:
         lead_stmt = (
             select(func.count())
             .select_from(Lead)
-            .where(Lead.stage.notin_(["Won", "Lost"]))
+            .where(Lead.stage.notin_(["Closed Won", "Closed Lost"]))
         )
         lead_stmt = self._apply_lead_scope(lead_stmt, scoped_ids)
         active_leads = (await self.db.execute(lead_stmt)).scalar_one()
@@ -357,7 +357,7 @@ class DashboardService:
         active_leads = (await self.db.execute(lead_count_stmt)).scalar_one()
 
         # ── 4. Lead stats by stage (single query with CASE) ─────────
-        lead_stages = ["Cold", "Proposal", "Negotiation", "Closed Won", "Closed Lost"]
+        lead_stages = ["New", "Cold", "Proposal", "Negotiation", "Closed Won", "Closed Lost"]
         lead_cases = [
             func.count().filter(Lead.stage == s).label(s.lower().replace(" ", "_"))
             for s in lead_stages
@@ -573,7 +573,7 @@ class DashboardService:
                 Lead.assigned_to,
                 func.count().label("cnt"),
             )
-            .where(Lead.stage.notin_(["Won", "Lost"]))
+            .where(Lead.stage.notin_(["Closed Won", "Closed Lost"]))
             .group_by(Lead.assigned_to),
             scoped_ids,
         )
@@ -722,7 +722,7 @@ class DashboardService:
                 select(func.count())
                 .select_from(Lead)
                 .where(
-                    Lead.assigned_to.in_(target_ids), Lead.stage.notin_(["Won", "Lost"])
+                    Lead.assigned_to.in_(target_ids), Lead.stage.notin_(["Closed Won", "Closed Lost"])
                 )
             )
         ).scalar_one()
@@ -753,7 +753,7 @@ class DashboardService:
         ).one()
 
         # ── Leads by stage ────────────────────────────────────────
-        lead_stages = ["Cold", "Proposal", "Negotiation", "Closed Won", "Closed Lost"]
+        lead_stages = ["New", "Cold", "Proposal", "Negotiation", "Closed Won", "Closed Lost"]
         lead_cases = [
             func.count().filter(Lead.stage == s).label(s.lower().replace(" ", "_"))
             for s in lead_stages

@@ -21,6 +21,7 @@ from app.schemas.calendar_event_schema import (
     CalendarEventOut,
     CalendarEventUpdate,
 )
+from app.utils.scoping import get_scoped_user_ids
 
 
 class CalendarEventService:
@@ -60,9 +61,10 @@ class CalendarEventService:
         """
         filters = []
 
-        # Sales users only see their own events
-        if user.role == "sales":
-            filters.append(CalendarEvent.owner_id == user.id)
+        # Apply hierarchy-based scoping (admins see all, others see own + subordinates)
+        scoped_ids = await get_scoped_user_ids(user, self.db)
+        if scoped_ids is not None:
+            filters.append(CalendarEvent.owner_id.in_(scoped_ids))
 
         result = await self.event_repo.get_with_owner(
             page=page, limit=limit, filters=filters or None
@@ -98,9 +100,10 @@ class CalendarEventService:
         """
         filters = []
 
-        # Sales users only see their own events
-        if user.role == "sales":
-            filters.append(CalendarEvent.owner_id == user.id)
+        # Apply hierarchy-based scoping (admins see all, others see own + subordinates)
+        scoped_ids = await get_scoped_user_ids(user, self.db)
+        if scoped_ids is not None:
+            filters.append(CalendarEvent.owner_id.in_(scoped_ids))
 
         items = await self.event_repo.get_by_range(
             start_date=start_date,

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   X, Building2, Phone, Mail, Globe, MapPin, Hash, IndianRupee,
-  Users, Loader2, AlertCircle, CheckCircle, FileText, Upload,
+  Users, Loader2, AlertCircle, CheckCircle, FileText,
   User as UserIcon, Copy, Briefcase
 } from 'lucide-react';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -21,14 +21,10 @@ export interface EnhancedAccountFormData {
 
   // Description Information
   description: string;
-  groupName: string;
 
   // Account Information
   parentAccountId: string;
-  endcustomerCategory: string;
   paymentTerms: string;
-  productsSellingToThem: string;
-  productsTheySell: string;
 
   // Financial & Legal
   gstinNo: string;
@@ -39,10 +35,8 @@ export interface EnhancedAccountFormData {
   // Partner & Lead Info
   partnerId: string;
   leadCategory: string;
-  newLeads: number;
 
   // Documents
-  accountImage: string;
   referencesDoc: string;
   bankStatementDoc: string;
 
@@ -81,20 +75,14 @@ export const EMPTY_ENHANCED_FORM: EnhancedAccountFormData = {
   type: '',
   status: 'Active',
   description: '',
-  groupName: '',
   parentAccountId: '',
-  endcustomerCategory: '',
   paymentTerms: '',
-  productsSellingToThem: '',
-  productsTheySell: '',
   gstinNo: '',
   panNo: '',
   revenue: 0,
   employees: 0,
   partnerId: '',
   leadCategory: '',
-  newLeads: 0,
-  accountImage: '',
   referencesDoc: '',
   bankStatementDoc: '',
   contactName: '',
@@ -123,7 +111,6 @@ const INDUSTRIES = [
 ];
 
 const ACCOUNT_TYPES = ['Hunting', 'Farming', 'Cold'];
-const ENDCUSTOMER_CATEGORIES = ['Enterprise', 'SMB', 'Startup', 'Government', 'Education'];
 const DESIGNATIONS = ['CEO', 'CFO', 'CTO', 'Manager', 'Director', 'VP', 'Other'];
 
 interface Props {
@@ -136,7 +123,6 @@ interface Props {
   partners?: Array<{ id: string; companyName: string }>;
   accounts?: Array<{ id: string; name: string }>;
   users?: Array<{ id: string; name: string }>;
-  products?: Array<{ id: string; name: string; category?: string }>;
 }
 
 export const EnhancedAccountForm: React.FC<Props> = ({
@@ -149,19 +135,11 @@ export const EnhancedAccountForm: React.FC<Props> = ({
   partners = [],
   accounts = [],
   users = [],
-  products = [],
 }) => {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
   const [formData, setFormData] = useState<EnhancedAccountFormData>(EMPTY_ENHANCED_FORM);
   const [activeTab, setActiveTab] = useState<'basic' | 'financial' | 'contact' | 'address'>('basic');
-  const [selectedProductCategory, setSelectedProductCategory] = useState('');
-
-  // Category → product filtering
-  const productCategories = [...new Set(products.map(p => p.category).filter(Boolean) as string[])].sort();
-  const filteredProducts = selectedProductCategory
-    ? products.filter(p => p.category === selectedProductCategory)
-    : products;
 
   useEffect(() => {
     if (editingAccount) {
@@ -175,20 +153,14 @@ export const EnhancedAccountForm: React.FC<Props> = ({
         status: editingAccount.status || 'Active',
         ownerId: editingAccount.ownerId,
         description: editingAccount.description || '',
-        groupName: editingAccount.groupName || '',
         parentAccountId: editingAccount.parentAccountId || '',
-        endcustomerCategory: editingAccount.endcustomerCategory || '',
         paymentTerms: editingAccount.paymentTerms || '',
-        productsSellingToThem: editingAccount.productsSellingToThem || '',
-        productsTheySell: editingAccount.productsTheySell || '',
         gstinNo: editingAccount.gstinNo || '',
         panNo: editingAccount.panNo || '',
         revenue: editingAccount.revenue || 0,
         employees: editingAccount.employees || 0,
         partnerId: editingAccount.partnerId || '',
         leadCategory: editingAccount.leadCategory || '',
-        newLeads: editingAccount.newLeads || 0,
-        accountImage: editingAccount.accountImage || '',
         referencesDoc: editingAccount.referencesDoc || '',
         bankStatementDoc: editingAccount.bankStatementDoc || '',
         contactName: editingAccount.contactName || '',
@@ -320,31 +292,6 @@ export const EnhancedAccountForm: React.FC<Props> = ({
             {/* Basic Info Tab */}
             {activeTab === 'basic' && (
               <div className="space-y-5">
-                {/* Account Image */}
-                <div>
-                  <label className={labelClass}>Account Image</label>
-                  <div className={`border-2 border-dashed rounded-xl p-6 text-center ${
-                    isDark ? 'border-zinc-700 hover:border-zinc-600' : 'border-slate-200 hover:border-slate-300'
-                  }`}>
-                    <Upload className={`w-8 h-8 mx-auto mb-2 ${isDark ? 'text-zinc-600' : 'text-slate-300'}`} />
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={(e) => handleFileChange(e, 'accountImage')}
-                      className="hidden"
-                      id="accountImage"
-                    />
-                    <label htmlFor="accountImage" className="cursor-pointer text-sm text-brand-600 hover:text-brand-700">
-                      Choose file
-                    </label>
-                    {formData.accountImage && (
-                      <p className={`text-xs mt-1 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
-                        {formData.accountImage}
-                      </p>
-                    )}
-                  </div>
-                </div>
-
                 {/* Description */}
                 <div>
                   <label htmlFor="description" className={labelClass}>Description</label>
@@ -356,20 +303,6 @@ export const EnhancedAccountForm: React.FC<Props> = ({
                     onChange={handleChange}
                     className={inputClass}
                     placeholder="Account description..."
-                  />
-                </div>
-
-                {/* Group */}
-                <div>
-                  <label htmlFor="groupName" className={labelClass}>Group</label>
-                  <input
-                    id="groupName"
-                    name="groupName"
-                    type="text"
-                    value={formData.groupName}
-                    onChange={handleChange}
-                    className={inputClass}
-                    placeholder="Group name"
                   />
                 </div>
 
@@ -434,8 +367,55 @@ export const EnhancedAccountForm: React.FC<Props> = ({
                       </div>
                     </div>
 
-                    {/* Row: Parent Account + Account Type */}
+                    {/* Row: Tag 1 + Tag 2 */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label htmlFor="tag" className={labelClass}>Tag 1</label>
+                        <select
+                          id="tag"
+                          name="tag"
+                          value={formData.tag}
+                          onChange={handleChange}
+                          className={selectClass}
+                        >
+                          <option value="">-None-</option>
+                          <option value="Digital Account">Digital Account</option>
+                          <option value="Existing Account">Existing Account</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label htmlFor="type" className={labelClass}>Tag 2</label>
+                        <select
+                          id="type"
+                          name="type"
+                          value={formData.type}
+                          onChange={handleChange}
+                          className={selectClass}
+                        >
+                          <option value="">-None-</option>
+                          {ACCOUNT_TYPES.map(t => (
+                            <option key={t} value={t}>{t}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+
+                    {/* Row: Account Type + Parent Account */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label htmlFor="accountType" className={labelClass}>Account Type</label>
+                        <select
+                          id="accountType"
+                          name="accountType"
+                          value={formData.accountType}
+                          onChange={handleChange}
+                          className={selectClass}
+                        >
+                          <option value="">-None-</option>
+                          <option value="Channel Partner">Channel Partner</option>
+                          <option value="End Customer">End Customer</option>
+                        </select>
+                      </div>
                       <div>
                         <label htmlFor="parentAccountId" className={labelClass}>Parent Account</label>
                         <select
@@ -453,23 +433,8 @@ export const EnhancedAccountForm: React.FC<Props> = ({
                       </div>
                     </div>
 
-                    {/* Row: Endcustomer Category + Payment Terms */}
+                    {/* Row: Payment Terms */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div>
-                        <label htmlFor="endcustomerCategory" className={labelClass}>Endcustomer Accounts Category</label>
-                        <select
-                          id="endcustomerCategory"
-                          name="endcustomerCategory"
-                          value={formData.endcustomerCategory}
-                          onChange={handleChange}
-                          className={selectClass}
-                        >
-                          <option value="">-None-</option>
-                          {ENDCUSTOMER_CATEGORIES.map(cat => (
-                            <option key={cat} value={cat}>{cat}</option>
-                          ))}
-                        </select>
-                      </div>
                       <div>
                         <label htmlFor="paymentTerms" className={labelClass}>Payment Terms</label>
                         <select
@@ -528,126 +493,6 @@ export const EnhancedAccountForm: React.FC<Props> = ({
                       </div>
                     </div>
 
-                    {/* Products Section — Category → Product Dropdown */}
-                    <div>
-                      <label className={labelClass}>Products we are selling them</label>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-2">
-                        <select
-                          value={selectedProductCategory}
-                          onChange={e => setSelectedProductCategory(e.target.value)}
-                          className={selectClass}
-                        >
-                          <option value="">All Categories</option>
-                          {productCategories.map(cat => (
-                            <option key={cat} value={cat}>{cat}</option>
-                          ))}
-                        </select>
-                        <select
-                          onChange={e => {
-                            const name = e.target.value;
-                            if (!name) return;
-                            const current = formData.productsSellingToThem;
-                            const items = current ? current.split(', ').filter(Boolean) : [];
-                            if (!items.includes(name)) {
-                              setFormData(prev => ({ ...prev, productsSellingToThem: [...items, name].join(', ') }));
-                            }
-                            e.target.value = '';
-                          }}
-                          className={selectClass}
-                        >
-                          <option value="">Select product...</option>
-                          {filteredProducts.map(p => (
-                            <option key={p.id} value={p.name}>{p.name}</option>
-                          ))}
-                        </select>
-                      </div>
-                      {formData.productsSellingToThem && (
-                        <div className="flex flex-wrap gap-1.5">
-                          {formData.productsSellingToThem.split(', ').filter(Boolean).map((name, i) => (
-                            <span
-                              key={i}
-                              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${
-                                isDark ? 'bg-brand-900/30 text-brand-400' : 'bg-brand-50 text-brand-700'
-                              }`}
-                            >
-                              {name}
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  const items = formData.productsSellingToThem.split(', ').filter(Boolean).filter(n => n !== name);
-                                  setFormData(prev => ({ ...prev, productsSellingToThem: items.join(', ') }));
-                                }}
-                                className="hover:text-red-500 ml-0.5"
-                              >
-                                <X className="w-3 h-3" />
-                              </button>
-                            </span>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-
-                    <div>
-                      <label htmlFor="productsTheySell" className={labelClass}>Products they are selling</label>
-                      <textarea
-                        id="productsTheySell"
-                        name="productsTheySell"
-                        rows={2}
-                        value={formData.productsTheySell}
-                        onChange={handleChange}
-                        className={inputClass}
-                        placeholder="List products..."
-                      />
-                    </div>
-
-                    {/* Tag + Account Type */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div>
-                        <label htmlFor="tag" className={labelClass}>Tag</label>
-                        <select
-                          id="tag"
-                          name="tag"
-                          value={formData.tag}
-                          onChange={handleChange}
-                          className={selectClass}
-                        >
-                          <option value="">-None-</option>
-                          <option value="Digital Account">Digital Account</option>
-                          <option value="Existing Account">Existing Account</option>
-                        </select>
-                      </div>
-                      <div>
-                        <label htmlFor="accountType" className={labelClass}>Account Type</label>
-                        <select
-                          id="accountType"
-                          name="accountType"
-                          value={formData.accountType}
-                          onChange={handleChange}
-                          className={selectClass}
-                        >
-                          <option value="">-None-</option>
-                          <option value="Channel Partner">Channel Partner</option>
-                          <option value="End Customer">End Customer</option>
-                        </select>
-                      </div>
-                    </div>
-
-                    {/* Row: New Leads */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div>
-                        <label htmlFor="newLeads" className={labelClass}>New Leads</label>
-                        <input
-                          id="newLeads"
-                          name="newLeads"
-                          type="number"
-                          min="0"
-                          value={formData.newLeads}
-                          onChange={handleChange}
-                          className={inputClass}
-                          placeholder="0"
-                        />
-                      </div>
-                    </div>
                   </div>
                 </div>
 
