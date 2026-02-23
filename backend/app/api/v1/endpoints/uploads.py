@@ -14,6 +14,17 @@ from app.utils.storage import get_file
 router = APIRouter()
 
 
+@router.get("/debug-db")
+async def debug_db():
+    """Temporary: test if file_uploads table can be created."""
+    from app.utils.storage import _ensure_table
+    try:
+        await _ensure_table()
+        return {"status": "ok", "message": "file_uploads table ready"}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+
 @router.post("/")
 async def upload_file_endpoint(
     file: UploadFile = File(...),
