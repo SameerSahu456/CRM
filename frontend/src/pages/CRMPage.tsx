@@ -12,7 +12,7 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigation } from '@/contexts/NavigationContext';
 import { useDropdowns } from '@/contexts/DropdownsContext';
-import { leadsApi, dealsApi, partnersApi, productsApi, adminApi, accountsApi, contactsApi, uploadsApi, formatINR } from '@/services/api';
+import { leadsApi, dealsApi, partnersApi, productsApi, adminApi, accountsApi, contactsApi, uploadsApi, salesApi, formatINR } from '@/services/api';
 import { exportToCsv } from '@/utils/exportCsv';
 import { Lead, LeadStage, PaginatedResponse, Partner, Product, User, ActivityLog } from '@/types';
 import { BulkImportModal } from '@/components/common/BulkImportModal';
@@ -398,6 +398,19 @@ export const CRMPage: React.FC = () => {
   const [msmeFile, setMsmeFile] = useState<File | null>(null);
   const [panFile, setPanFile] = useState<File | null>(null);
   const [aadharFile, setAadharFile] = useState<File | null>(null);
+  // Sales order form (for Closed Won)
+  const [closedWonOrderForm, setClosedWonOrderForm] = useState({
+    quantity: 1, amount: 0, poNumber: '', invoiceNo: '',
+    paymentStatus: 'pending', saleDate: new Date().toISOString().split('T')[0],
+    partnerId: '',
+    contactName: '', contactNo: '', email: '', gstin: '', panNo: '',
+    dispatchMethod: '', paymentTerms: '', orderType: 'New' as 'New' | 'Refurb' | 'Rental',
+    serialNumber: '', boq: '', price: 0,
+  });
+  const [closedWonDescription, setClosedWonDescription] = useState('');
+  const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
+  const [productSearch, setProductSearch] = useState('');
+  const [productDropdownOpen, setProductDropdownOpen] = useState(false);
 
   // Delete confirmation
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
@@ -774,6 +787,19 @@ export const CRMPage: React.FC = () => {
     setMsmeFile(null);
     setPanFile(null);
     setAadharFile(null);
+    setClosedWonOrderForm({
+      quantity: 1, amount: lead.estimatedValue || 0, poNumber: '', invoiceNo: '',
+      paymentStatus: 'pending', saleDate: new Date().toISOString().split('T')[0],
+      partnerId: '',
+      contactName: lead.contactPerson || '', contactNo: lead.phone || '', email: lead.email || '',
+      gstin: '', panNo: '',
+      dispatchMethod: '', paymentTerms: '', orderType: 'New',
+      serialNumber: '', boq: '', price: 0,
+    });
+    setClosedWonDescription(lead.description || '');
+    setSelectedProductIds([]);
+    setProductSearch('');
+    setProductDropdownOpen(false);
     setClosedWonError('');
     setShowClosedWonModal(true);
   };
@@ -801,6 +827,18 @@ export const CRMPage: React.FC = () => {
     }
     if (!aadharFile) {
       setClosedWonError('Aadhar Card is mandatory');
+      return;
+    }
+    if (selectedProductIds.length === 0) {
+      setClosedWonError('Please select at least one product');
+      return;
+    }
+    if (closedWonOrderForm.amount <= 0) {
+      setClosedWonError('Amount must be greater than 0');
+      return;
+    }
+    if (!closedWonOrderForm.saleDate) {
+      setClosedWonError('Sale date is required');
       return;
     }
 
@@ -849,20 +887,48 @@ export const CRMPage: React.FC = () => {
         msmeCertificateUrl: msmeUrl,
       });
 
-      // 4. Create a deal in "New" stage from the lead data
-      await dealsApi.create({
+      // 4. Create a deal in "Closed Won" stage from the lead data
+      const dealRes = await dealsApi.create({
         title: lead.companyName || closedWonForm.accountName,
         company: lead.companyName || closedWonForm.accountName,
         accountId: account.id,
-        value: lead.estimatedValue || 0,
-        stage: 'New',
-        description: lead.description || '',
+        value: closedWonOrderForm.amount || lead.estimatedValue || 0,
+        stage: 'Closed Won',
+        description: closedWonDescription || lead.description || '',
         leadSource: lead.source || '',
         ownerId: user?.id,
         lineItems: [],
       });
+      const deal = dealRes?.data ?? dealRes;
 
-      // 5. Delete the lead so it no longer appears in leads
+      // 5. Create sales entry
+      await salesApi.create({
+        partnerId: closedWonOrderForm.partnerId || undefined,
+        salespersonId: user?.id,
+        customerName: closedWonForm.accountName || undefined,
+        quantity: closedWonOrderForm.quantity,
+        amount: closedWonOrderForm.amount,
+        poNumber: closedWonOrderForm.poNumber || undefined,
+        invoiceNo: closedWonOrderForm.invoiceNo || undefined,
+        paymentStatus: closedWonOrderForm.paymentStatus,
+        saleDate: closedWonOrderForm.saleDate,
+        description: closedWonDescription || undefined,
+        dealId: deal?.id || undefined,
+        productIds: selectedProductIds,
+        contactName: closedWonOrderForm.contactName || undefined,
+        contactNo: closedWonOrderForm.contactNo || undefined,
+        email: closedWonOrderForm.email || undefined,
+        gstin: closedWonOrderForm.gstin || undefined,
+        panNo: closedWonOrderForm.panNo || undefined,
+        dispatchMethod: closedWonOrderForm.dispatchMethod || undefined,
+        paymentTerms: closedWonOrderForm.paymentTerms || undefined,
+        orderType: closedWonOrderForm.orderType || undefined,
+        serialNumber: closedWonOrderForm.serialNumber || undefined,
+        boq: closedWonOrderForm.boq || undefined,
+        price: closedWonOrderForm.price || undefined,
+      });
+
+      // 6. Delete the lead so it no longer appears in leads
       await leadsApi.delete(lead.id);
 
       setShowClosedWonModal(false);
@@ -2736,10 +2802,18 @@ export const CRMPage: React.FC = () => {
       setClosedWonForm(prev => ({ ...prev, [name]: value }));
     };
 
+    const handleOrderChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+      const { name, value } = e.target;
+      setClosedWonOrderForm(prev => ({
+        ...prev,
+        [name]: (name === 'quantity' || name === 'amount' || name === 'price') ? Number(value) || 0 : value,
+      }));
+    };
+
     return (
       <div className="fixed inset-0 z-50 flex items-start justify-center p-4 pt-[5vh] overflow-y-auto">
         <div className="fixed inset-0 bg-black/50 animate-backdrop" onClick={() => setShowClosedWonModal(false)} />
-        <div className={`relative w-full max-w-lg rounded-2xl animate-fade-in-up ${
+        <div className={`relative w-full max-w-2xl rounded-2xl animate-fade-in-up ${
           isDark ? 'bg-dark-50 border border-zinc-800' : 'bg-white shadow-premium'
         }`}>
           <form onSubmit={handleClosedWonSubmit}>
@@ -2750,7 +2824,7 @@ export const CRMPage: React.FC = () => {
               <div className="flex items-center gap-2">
                 <CheckCircle className="w-5 h-5 text-emerald-500" />
                 <h2 className={`text-lg font-semibold font-display ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                  Closed Won — Create Account
+                  Closed Won — Create Account & Sales Order
                 </h2>
               </div>
               <button type="button" onClick={() => setShowClosedWonModal(false)} className={`p-2 rounded-lg ${isDark ? 'text-zinc-400 hover:bg-zinc-800' : 'text-slate-400 hover:bg-slate-100'}`}>
@@ -2760,7 +2834,7 @@ export const CRMPage: React.FC = () => {
 
             <div className="p-6 space-y-5 max-h-[65vh] overflow-y-auto">
               <p className={`text-sm ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>
-                Lead "<strong>{lead.companyName}</strong>" is being marked as Closed Won. Create an account and contact.
+                Lead "<strong>{lead.companyName}</strong>" is being marked as Closed Won. Create an account, contact, and sales order.
               </p>
 
               {closedWonError && (
@@ -2883,6 +2957,184 @@ export const CRMPage: React.FC = () => {
                   </div>
                 </div>
               </div>
+
+              {/* ── Sales Order Form ── */}
+              <div className={`rounded-xl p-4 space-y-4 ${isDark ? 'bg-zinc-900/50 border border-zinc-800' : 'bg-slate-50 border border-slate-200'}`}>
+                <h3 className={`text-sm font-semibold ${isDark ? 'text-zinc-200' : 'text-slate-800'}`}>Sales Order Details</h3>
+
+                {/* Product Selection */}
+                <div className="relative">
+                  <label className={labelClass}>Products <span className="text-red-500">*</span></label>
+                  <button
+                    type="button"
+                    onClick={() => setProductDropdownOpen(prev => !prev)}
+                    className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl border text-sm text-left transition-colors ${
+                      isDark
+                        ? 'bg-dark-100 border-zinc-700 text-zinc-300 hover:border-zinc-500'
+                        : 'bg-white border-slate-200 text-slate-700 hover:border-slate-400'
+                    }`}
+                  >
+                    <span className={selectedProductIds.length === 0 ? (isDark ? 'text-zinc-500' : 'text-slate-400') : ''}>
+                      {selectedProductIds.length === 0
+                        ? '-- Select Products --'
+                        : `${selectedProductIds.length} product(s) selected`}
+                    </span>
+                    <ChevronDown className={`w-4 h-4 transition-transform ${productDropdownOpen ? 'rotate-180' : ''} ${isDark ? 'text-zinc-500' : 'text-slate-400'}`} />
+                  </button>
+                  {productDropdownOpen && (
+                    <div className={`absolute z-10 left-0 right-0 mt-1 rounded-xl border shadow-lg ${
+                      isDark ? 'bg-dark-100 border-zinc-700' : 'bg-white border-slate-200'
+                    }`}>
+                      <div className="p-2">
+                        <input
+                          type="text"
+                          placeholder="Search products..."
+                          value={productSearch}
+                          onChange={e => setProductSearch(e.target.value)}
+                          className={`${inputClass} text-sm`}
+                          autoFocus
+                        />
+                      </div>
+                      <div className="max-h-48 overflow-y-auto px-2 pb-2 space-y-1">
+                        {products.length === 0 ? (
+                          <p className={`text-xs px-2 py-3 text-center ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>No products found</p>
+                        ) : products.filter(p => p.isActive && p.name.toLowerCase().includes(productSearch.toLowerCase())).map(product => (
+                          <label key={product.id} className={`flex items-center gap-2.5 px-2.5 py-2 rounded-lg cursor-pointer transition-colors ${
+                            selectedProductIds.includes(product.id)
+                              ? isDark ? 'bg-brand-900/30 text-brand-300' : 'bg-brand-50 text-brand-700'
+                              : isDark ? 'hover:bg-zinc-800 text-zinc-300' : 'hover:bg-slate-100 text-slate-700'
+                          }`}>
+                            <input
+                              type="checkbox"
+                              checked={selectedProductIds.includes(product.id)}
+                              onChange={() => {
+                                setSelectedProductIds(prev =>
+                                  prev.includes(product.id) ? prev.filter(id => id !== product.id) : [...prev, product.id]
+                                );
+                              }}
+                              className="rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+                            />
+                            <span className="text-sm">{product.name}</span>
+                            {product.basePrice ? <span className={`text-xs ml-auto ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>{formatINR(product.basePrice)}</span> : null}
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Contact Info */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div>
+                    <label className={labelClass}>Contact Name</label>
+                    <input name="contactName" value={closedWonOrderForm.contactName} onChange={handleOrderChange} className={inputClass} placeholder="Contact person" />
+                  </div>
+                  <div>
+                    <label className={labelClass}>Contact No</label>
+                    <input name="contactNo" value={closedWonOrderForm.contactNo} onChange={handleOrderChange} className={inputClass} placeholder="+91..." />
+                  </div>
+                  <div>
+                    <label className={labelClass}>Email</label>
+                    <input name="email" type="email" value={closedWonOrderForm.email} onChange={handleOrderChange} className={inputClass} placeholder="email@example.com" />
+                  </div>
+                </div>
+
+                {/* Company Details */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className={labelClass}>GSTIN</label>
+                    <input name="gstin" value={closedWonOrderForm.gstin} onChange={handleOrderChange} className={inputClass} placeholder="22AAAAA0000A1Z5" />
+                  </div>
+                  <div>
+                    <label className={labelClass}>PAN No</label>
+                    <input name="panNo" value={closedWonOrderForm.panNo} onChange={handleOrderChange} className={inputClass} placeholder="AAAAA0000A" />
+                  </div>
+                </div>
+
+                {/* Quantity, Price & Amount */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div>
+                    <label className={labelClass}>Quantity</label>
+                    <input name="quantity" type="number" min="1" value={closedWonOrderForm.quantity} onChange={handleOrderChange} className={inputClass} />
+                  </div>
+                  <div>
+                    <label className={labelClass}>Price (per unit)</label>
+                    <input name="price" type="number" min="0" step="0.01" value={closedWonOrderForm.price} onChange={handleOrderChange} className={inputClass} />
+                  </div>
+                  <div>
+                    <label className={labelClass}>Amount <span className="text-red-500">*</span></label>
+                    <input name="amount" type="number" min="0" step="0.01" value={closedWonOrderForm.amount} onChange={handleOrderChange} className={inputClass} required />
+                  </div>
+                </div>
+
+                {/* Dispatch Method & Payment Terms */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className={labelClass}>Dispatch Method</label>
+                    <select name="dispatchMethod" value={closedWonOrderForm.dispatchMethod} onChange={handleOrderChange} className={selectClass}>
+                      <option value="">-- Select --</option>
+                      <option value="Air">Air</option>
+                      <option value="Road">Road</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className={labelClass}>Payment Terms</label>
+                    <input name="paymentTerms" value={closedWonOrderForm.paymentTerms} onChange={handleOrderChange} className={inputClass} placeholder="e.g. Net 30" />
+                  </div>
+                </div>
+
+                {/* Sale Date */}
+                <div>
+                  <label className={labelClass}>Sale Date <span className="text-red-500">*</span></label>
+                  <input name="saleDate" type="date" value={closedWonOrderForm.saleDate} onChange={handleOrderChange} className={inputClass} required />
+                </div>
+
+                {/* Order Type Toggle */}
+                <div>
+                  <label className={labelClass}>Order Type</label>
+                  <div className="flex gap-2">
+                    {(['New', 'Refurb', 'Rental'] as const).map(t => (
+                      <button
+                        key={t}
+                        type="button"
+                        onClick={() => setClosedWonOrderForm(prev => ({ ...prev, orderType: t }))}
+                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                          closedWonOrderForm.orderType === t
+                            ? 'bg-brand-600 text-white shadow-sm'
+                            : isDark ? 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                        }`}
+                      >
+                        {t}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* BOQ */}
+                <div>
+                  <label className={labelClass}>BOQ (Bill of Quantities)</label>
+                  <textarea
+                    name="boq"
+                    rows={3}
+                    placeholder="Enter BOQ details..."
+                    value={closedWonOrderForm.boq}
+                    onChange={handleOrderChange}
+                    className={inputClass}
+                  />
+                </div>
+
+                {/* Description */}
+                <div>
+                  <label className={labelClass}>Description</label>
+                  <textarea
+                    rows={2}
+                    placeholder="Description of the sales order..."
+                    value={closedWonDescription}
+                    onChange={e => setClosedWonDescription(e.target.value)}
+                    className={inputClass}
+                  />
+                </div>
+              </div>
             </div>
 
             {/* Footer */}
@@ -2894,7 +3146,7 @@ export const CRMPage: React.FC = () => {
                 {isClosedWonSubmitting ? (
                   <><Loader2 className="w-4 h-4 animate-spin" /> Creating...</>
                 ) : (
-                  <><CheckCircle className="w-4 h-4" /> Create Account & Close Won</>
+                  <><CheckCircle className="w-4 h-4" /> Create Account & Sales Order</>
                 )}
               </button>
             </div>
