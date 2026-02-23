@@ -152,11 +152,11 @@ export const leadsApi = {
 
 // Dashboard
 export const dashboardApi = {
-  getStats: () => fetchApi<any>('/data/dashboard/'),
-  monthlyStats: () => fetchApi<any>('/data/dashboard/monthly-stats'),
-  growthStats: () => fetchApi<any>('/data/dashboard/growth-stats'),
-  getAll: () => fetchApi<any>('/data/dashboard/all'),
-  getAssigneeDetail: (userId: string) => fetchApi<any>(`/data/dashboard/assignee/${userId}`),
+  getStats: async () => { const res = await fetchApi<any>('/data/dashboard/'); return res?.data ?? res; },
+  monthlyStats: async () => { const res = await fetchApi<any>('/data/dashboard/monthly-stats'); return res?.data ?? res; },
+  growthStats: async () => { const res = await fetchApi<any>('/data/dashboard/growth-stats'); return res?.data ?? res; },
+  getAll: async () => { const res = await fetchApi<any>('/data/dashboard/all'); return res?.data ?? res; },
+  getAssigneeDetail: async (userId: string) => { const res = await fetchApi<any>(`/data/dashboard/assignee/${userId}`); return res?.data ?? res; },
   getPreferences: () => fetchApi<any>('/auth/me/dashboard-preferences'),
   updatePreferences: (prefs: any) =>
     fetchApi<any>('/auth/me/dashboard-preferences', {
