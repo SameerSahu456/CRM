@@ -1430,30 +1430,6 @@ export const CRMPage: React.FC = () => {
             {formatDate(lead.nextFollowUp)}
           </p>
         )}
-
-        {/* Move to next stage / Closed Won button */}
-        {(() => {
-          const idx = LEAD_STAGES.indexOf(lead.stage);
-          const nextStage = idx >= 0 && idx < LEAD_STAGES.length - 1 ? LEAD_STAGES[idx + 1] : null;
-          const targetStage = lead.stage === 'Negotiation' ? 'Closed Won' as LeadStage : nextStage;
-          if (!targetStage) return null;
-          const tc = STAGE_COLORS[targetStage] || STAGE_COLORS.New;
-          return (
-            <div className={`pt-2 mt-2 border-t border-dashed ${isDark ? 'border-zinc-700' : 'border-slate-200'}`}>
-              <button
-                onClick={(e) => { e.stopPropagation(); handlePipelineMoveStage(lead, targetStage); }}
-                className={`w-full flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-lg text-[11px] font-medium transition-all ${
-                  isDark
-                    ? `${tc.darkBg} ${tc.darkText} hover:opacity-80`
-                    : `${tc.bg} ${tc.text} hover:opacity-80`
-                }`}
-              >
-                {targetStage === 'Closed Won' ? <CheckCircle className="w-3 h-3" /> : <ArrowRight className="w-3 h-3" />}
-                Move to {targetStage}
-              </button>
-            </div>
-          );
-        })()}
       </div>
     );
   };

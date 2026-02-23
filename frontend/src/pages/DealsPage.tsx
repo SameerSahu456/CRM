@@ -1456,8 +1456,6 @@ export const DealsPage: React.FC = () => {
   // ---------------------------------------------------------------------------
 
   const renderPipelineCard = (deal: Deal) => {
-    const nextStage = NEXT_STAGE[deal.stage];
-
     return (
       <div
         key={deal.id}
@@ -1473,10 +1471,10 @@ export const DealsPage: React.FC = () => {
             : 'bg-white border-slate-200 hover:border-slate-300'
         }`}
       >
-        {/* Account & Edit */}
+        {/* Product Detail (Title) & Edit */}
         <div className="flex items-start justify-between gap-2 mb-1.5">
           <h4 className={`text-sm font-semibold truncate flex items-center gap-1 ${isDark ? 'text-white' : 'text-slate-900'}`}>
-            {deal.accountName || 'Untitled Deal'}
+            {deal.title || 'Untitled Deal'}
             {deal.paymentFlag && <span title="Payment pending"><Flag className="w-3.5 h-3.5 text-red-500 fill-red-500 flex-shrink-0" /></span>}
           </h4>
           <button
@@ -1489,14 +1487,15 @@ export const DealsPage: React.FC = () => {
           </button>
         </div>
 
-        {/* Value */}
-        {deal.value ? (
-          <p className={`text-xs font-semibold mb-1.5 ${isDark ? 'text-emerald-400' : 'text-emerald-600'}`}>
-            {formatINR(deal.value)}
+        {/* Company Name */}
+        {deal.accountName && (
+          <p className={`text-[11px] flex items-center gap-1 mb-1 ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>
+            <Briefcase className="w-3 h-3 flex-shrink-0" />
+            <span className="truncate">{deal.accountName}</span>
           </p>
-        ) : null}
+        )}
 
-        {/* Contact Person */}
+        {/* Company SPOC */}
         {deal.contactName && (
           <p className={`text-[11px] flex items-center gap-1 mb-1 ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>
             <UserIcon className="w-3 h-3 flex-shrink-0" />
@@ -1504,49 +1503,20 @@ export const DealsPage: React.FC = () => {
           </p>
         )}
 
-        {/* Owner */}
+        {/* Pricing */}
+        {deal.value ? (
+          <p className={`text-xs font-semibold mb-1 ${isDark ? 'text-emerald-400' : 'text-emerald-600'}`}>
+            {formatINR(deal.value)}
+          </p>
+        ) : null}
+
+        {/* Assignee */}
         {deal.ownerName && (
-          <p className={`text-[11px] flex items-center gap-1 mb-1 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
-            <Briefcase className="w-3 h-3 flex-shrink-0" />
+          <p className={`text-[11px] flex items-center gap-1 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
+            <UserIcon className="w-3 h-3 flex-shrink-0" />
             <span className="truncate">{deal.ownerName}</span>
           </p>
         )}
-
-        {/* Closing Date & Probability */}
-        <div className="flex items-center gap-2 flex-wrap">
-          {deal.closingDate && (
-            <p className={`text-[11px] flex items-center gap-1 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
-              <Calendar className="w-3 h-3" />
-              {formatDate(deal.closingDate)}
-            </p>
-          )}
-          {deal.probability != null && deal.probability > 0 && (
-            <p className={`text-[11px] flex items-center gap-1 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
-              <Target className="w-3 h-3" />
-              {deal.probability}%
-            </p>
-          )}
-        </div>
-
-        {/* Move to next stage button */}
-        {nextStage && (() => {
-          const tc = STAGE_COLORS[nextStage] || STAGE_COLORS['New'];
-          return (
-            <div className={`pt-2 mt-2 border-t border-dashed ${isDark ? 'border-zinc-700' : 'border-slate-200'}`}>
-              <button
-                onClick={(e) => { e.stopPropagation(); handleMoveStage(deal, nextStage); }}
-                className={`w-full flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-lg text-[11px] font-medium transition-all ${
-                  isDark
-                    ? `${tc.darkBg} ${tc.darkText} hover:opacity-80`
-                    : `${tc.bg} ${tc.text} hover:opacity-80`
-                }`}
-              >
-                {nextStage === 'Closed Won' ? <CheckCircle className="w-3 h-3" /> : <ArrowRight className="w-3 h-3" />}
-                Move to {nextStage}
-              </button>
-            </div>
-          );
-        })()}
 
         {/* Reinitiate Sales Order for Closed Won */}
         {deal.stage === 'Closed Won' && (
