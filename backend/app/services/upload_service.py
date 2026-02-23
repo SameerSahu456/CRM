@@ -34,7 +34,10 @@ class UploadService:
         ext = file.filename.split(".")[-1] if file.filename else "pdf"
         unique_name = f"{uuid.uuid4()}.{ext}"
         url = await upload_file(
-            file_bytes, unique_name, file.content_type or "application/pdf"
+            file_bytes,
+            unique_name,
+            file.content_type or "application/pdf",
+            original_filename=file.filename,
         )
         return {"url": url, "filename": file.filename}
 
