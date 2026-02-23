@@ -491,9 +491,10 @@ export const uploadsApi = {
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
-      throw new Error(err.detail || 'Upload failed');
+      throw new Error(err.message || err.detail || 'Upload failed');
     }
-    return res.json();
+    const json = await res.json();
+    return json?.data ?? json;
   },
 };
 
