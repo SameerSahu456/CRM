@@ -43,8 +43,20 @@ async def crm_exception_handler(request: Request, exc: CRMException) -> JSONResp
 
 async def generic_exception_handler(request: Request, exc: Exception) -> JSONResponse:
     import traceback
-    traceback.print_exc()
+    import time
+
+    error_id = str(int(time.time() * 1000))
+    tb = traceback.format_exc()
+    print(f"[Error ID: {error_id}] {request.method} {request.url.path}")
+    print(f"[Error ID: {error_id}] {type(exc).__name__}: {exc}")
+    print(f"[Error ID: {error_id}] Traceback:\n{tb}")
     return JSONResponse(
         status_code=500,
-        content={"code": 500, "data": None, "message": str(exc)},
+        content={
+            "code": 500,
+            "data": None,
+            "message": str(exc),
+            "errorId": error_id,
+            "errorType": type(exc).__name__,
+        },
     )
