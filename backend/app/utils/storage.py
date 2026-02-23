@@ -2,32 +2,37 @@ from __future__ import annotations
 
 import base64
 
-from sqlalchemy import select, text
+from sqlalchemy import text
 
-from app.database import async_session
-from app.models.file_upload import FileUpload
+from app.database import engine
 
 _table_ensured = False
 
+_CREATE_TABLE = """
+CREATE TABLE IF NOT EXISTS file_uploads (
+    id SERIAL PRIMARY KEY,
+    filename VARCHAR(255) NOT NULL,
+    original_filename VARCHAR(255) NOT NULL,
+    content_type VARCHAR(100) NOT NULL,
+    data TEXT NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+)
+"""
+
+_INSERT = """
+INSERT INTO file_uploads (filename, original_filename, content_type, data)
+VALUES (:filename, :original_filename, :content_type, :data)
+RETURNING id
+"""
+
 
 async def _ensure_table() -> None:
-    """Create file_uploads table if it doesn't exist (idempotent)."""
     global _table_ensured
     if _table_ensured:
         return
-    async with async_session() as session:
-        await session.execute(text("""
-            CREATE TABLE IF NOT EXISTS file_uploads (
-                id SERIAL PRIMARY KEY,
-                filename VARCHAR(255) NOT NULL,
-                original_filename VARCHAR(255) NOT NULL,
-                content_type VARCHAR(100) NOT NULL,
-                data TEXT NOT NULL,
-                created_at TIMESTAMPTZ DEFAULT NOW(),
-                updated_at TIMESTAMPTZ DEFAULT NOW()
-            )
-        """))
-        await session.commit()
+    async with engine.begin() as conn:
+        await conn.execute(text(_CREATE_TABLE))
     _table_ensured = True
 
 
@@ -42,24 +47,36 @@ async def upload_file(
 
     encoded = base64.b64encode(file_bytes).decode("ascii")
 
-    record = FileUpload(
-        filename=file_name,
-        original_filename=original_filename or file_name,
-        content_type=content_type,
-        data=encoded,
-    )
-    async with async_session() as session:
-        session.add(record)
-        await session.commit()
-        await session.refresh(record)
-
-    return f"/api/uploads/files/{record.id}"
-
-
-async def get_file(file_id: int) -> FileUpload | None:
-    """Retrieve a file record from DB by ID."""
-    async with async_session() as session:
-        result = await session.execute(
-            select(FileUpload).where(FileUpload.id == file_id)
+    async with engine.begin() as conn:
+        result = await conn.execute(
+            text(_INSERT),
+            {
+                "filename": file_name,
+                "original_filename": original_filename or file_name,
+                "content_type": content_type,
+                "data": encoded,
+            },
         )
-        return result.scalar_one_or_none()
+        row = result.fetchone()
+        file_id = row[0]
+
+    return f"/api/uploads/files/{file_id}"
+
+
+_SELECT = "SELECT id, filename, original_filename, content_type, data FROM file_uploads WHERE id = :id"
+
+
+async def get_file(file_id: int) -> dict | None:
+    """Retrieve a file record from DB by ID."""
+    async with engine.begin() as conn:
+        result = await conn.execute(text(_SELECT), {"id": file_id})
+        row = result.fetchone()
+        if not row:
+            return None
+        return {
+            "id": row[0],
+            "filename": row[1],
+            "original_filename": row[2],
+            "content_type": row[3],
+            "data": row[4],
+        }

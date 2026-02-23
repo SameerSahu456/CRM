@@ -36,9 +36,9 @@ async def serve_file(file_id: int):
     record = await get_file(file_id)
     if not record:
         return Response(status_code=404, content="File not found")
-    file_bytes = base64.b64decode(record.data)
+    file_bytes = base64.b64decode(record["data"])
     return Response(
         content=file_bytes,
-        media_type=record.content_type,
-        headers={"Content-Disposition": f'inline; filename="{record.original_filename}"'},
+        media_type=record["content_type"],
+        headers={"Content-Disposition": f'inline; filename="{record["original_filename"]}"'},
     )
