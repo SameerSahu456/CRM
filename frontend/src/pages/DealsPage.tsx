@@ -725,8 +725,10 @@ export const DealsPage: React.FC = () => {
     );
 
     try {
-      const updated = await dealsApi.update(detailDeal.id, { stage: newStage });
-      setDetailDeal(updated);
+      const res = await dealsApi.update(detailDeal.id, { stage: newStage });
+      setDetailDeal(res?.data ?? res);
+      // Re-sync from server to ensure consistency
+      fetchPipelineDeals();
     } catch {
       // Revert on failure
       setPipelineDeals(prev =>
@@ -791,6 +793,8 @@ export const DealsPage: React.FC = () => {
 
     try {
       await dealsApi.update(deal.id, { stage: newStage });
+      // Re-sync from server to ensure consistency
+      fetchPipelineDeals();
     } catch {
       // Revert on failure
       setPipelineDeals(prev =>

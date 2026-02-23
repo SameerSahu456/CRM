@@ -688,8 +688,10 @@ export const CRMPage: React.FC = () => {
     );
 
     try {
-      const updated = await leadsApi.update(detailLead.id, { stage: newStage });
-      setDetailLead(updated);
+      const res = await leadsApi.update(detailLead.id, { stage: newStage });
+      setDetailLead(res?.data ?? res);
+      // Re-sync from server to ensure consistency
+      fetchPipelineLeads();
     } catch {
       // Revert on failure
       setPipelineLeads(prev => {
@@ -732,6 +734,8 @@ export const CRMPage: React.FC = () => {
 
     try {
       await leadsApi.update(lead.id, { stage: newStage });
+      // Re-sync from server to ensure consistency
+      fetchPipelineLeads();
     } catch {
       // Revert on failure
       setPipelineLeads(prev => {
