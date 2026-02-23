@@ -17,6 +17,15 @@ async def _ensure_schema() -> None:
     """Ensure new columns exist on production DB (idempotent)."""
     migrations = [
         "ALTER TABLE deals ADD COLUMN IF NOT EXISTS type_of_order VARCHAR(100)",
+        """CREATE TABLE IF NOT EXISTS file_uploads (
+            id SERIAL PRIMARY KEY,
+            filename VARCHAR(255) NOT NULL,
+            original_filename VARCHAR(255) NOT NULL,
+            content_type VARCHAR(100) NOT NULL,
+            data TEXT NOT NULL,
+            created_at TIMESTAMPTZ DEFAULT NOW(),
+            updated_at TIMESTAMPTZ DEFAULT NOW()
+        )""",
     ]
     async with engine.begin() as conn:
         for stmt in migrations:

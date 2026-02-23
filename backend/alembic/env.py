@@ -44,6 +44,7 @@ from app.models.carepack import Carepack
 from app.models.sales_entry import SalesEntry
 from app.models.activity_log import ActivityLog
 from app.models.notification import Notification
+from app.models.file_upload import FileUpload
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
