@@ -1,15 +1,40 @@
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.staticfiles import StaticFiles
+from sqlalchemy import text
 
 from app.api.v1.router import api_router
 from app.config import settings
+from app.database import engine
 from app.exceptions import CRMException, crm_exception_handler, generic_exception_handler
 
+
+async def _ensure_schema() -> None:
+    """Ensure new columns exist on production DB (idempotent)."""
+    migrations = [
+        "ALTER TABLE deals ADD COLUMN IF NOT EXISTS type_of_order VARCHAR(100)",
+    ]
+    async with engine.begin() as conn:
+        for stmt in migrations:
+            await conn.execute(text(stmt))
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Run lightweight schema migrations on startup."""
+    try:
+        await _ensure_schema()
+    except Exception:
+        pass  # Don't block app startup if migration fails
+    yield
+
+
 app = FastAPI(
+    lifespan=lifespan,
     title="Comprint CRM API",
     version="1.0.0",
     # Optimize for production

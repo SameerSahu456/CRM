@@ -554,7 +554,7 @@ export const AccountsPage: React.FC = () => {
             <table className="premium-table">
               <thead>
                 <tr className={`border-b ${isDark ? 'border-zinc-700' : 'border-slate-200'}`}>
-                  {['#', 'Name', 'Industry', 'Tag 1', 'Tag 2', 'Account Type', 'Phone', 'Email', 'Revenue', 'Collection'].map((label, i) => (
+                  {['#', 'Name', 'Industry', 'Tag 1', 'Tag 2', 'Account Type', 'Phone', 'Email', 'Revenue', 'Overdue'].map((label, i) => (
                     <th
                       key={label}
                       className={`${hdrCell} resizable-th ${i === 0 ? 'text-center' : ''}`}
