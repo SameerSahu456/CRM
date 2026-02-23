@@ -1525,10 +1525,16 @@ export const DealsPage: React.FC = () => {
 
         {/* Order Type */}
         {deal.typeOfOrder && (
-          <p className={`text-[11px] flex items-center gap-1 mb-1 ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>
+          <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-semibold mb-1 ${
+            deal.typeOfOrder === 'New'
+              ? isDark ? 'bg-blue-900/30 text-blue-400' : 'bg-blue-50 text-blue-700'
+              : deal.typeOfOrder === 'Rental'
+                ? isDark ? 'bg-purple-900/30 text-purple-400' : 'bg-purple-50 text-purple-700'
+                : isDark ? 'bg-amber-900/30 text-amber-400' : 'bg-amber-50 text-amber-700'
+          }`}>
             <Tag className="w-3 h-3 flex-shrink-0" />
-            <span className="truncate">{deal.typeOfOrder}</span>
-          </p>
+            {deal.typeOfOrder}
+          </span>
         )}
 
         {/* Assignee */}
