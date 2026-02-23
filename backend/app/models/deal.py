@@ -46,6 +46,9 @@ class Deal(TimestampMixin, Base):
     product_manager: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     expected_revenue: Mapped[Optional[Decimal]] = mapped_column(Numeric(15, 2), nullable=True)
 
+    # Order Info
+    type_of_order: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+
     # Forms Info
     bandwidth_required: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     product_configuration: Mapped[Optional[str]] = mapped_column(Text, nullable=True)

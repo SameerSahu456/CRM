@@ -483,6 +483,7 @@ export interface Deal {
   requirement?: string;
   quotedRequirement?: string;
   paymentFlag?: boolean;
+  typeOfOrder?: string;
 }
 
 export type DealStage = 'New' | 'Proposal' | 'Cold' | 'Negotiation' | 'Closed Lost' | 'Closed Won';

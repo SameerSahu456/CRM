@@ -37,6 +37,7 @@ class DealOut(CamelModel):
     lead_category: Optional[str] = None
     product_manager: Optional[str] = None
     expected_revenue: Optional[float] = None
+    type_of_order: Optional[str] = None
     bandwidth_required: Optional[str] = None
     product_configuration: Optional[str] = None
     rental_duration: Optional[str] = None
@@ -102,6 +103,7 @@ class DealCreate(CamelModel):
     lead_category: Optional[str] = None
     product_manager: Optional[str] = None
     expected_revenue: Optional[float] = None
+    type_of_order: Optional[str] = None
     bandwidth_required: Optional[str] = None
     product_configuration: Optional[str] = None
     rental_duration: Optional[str] = None
@@ -167,6 +169,7 @@ class DealUpdate(CamelModel):
     lead_category: Optional[str] = None
     product_manager: Optional[str] = None
     expected_revenue: Optional[float] = None
+    type_of_order: Optional[str] = None
     bandwidth_required: Optional[str] = None
     product_configuration: Optional[str] = None
     rental_duration: Optional[str] = None

@@ -897,6 +897,7 @@ export const CRMPage: React.FC = () => {
         description: closedWonDescription || lead.description || '',
         leadSource: lead.source || '',
         ownerId: user?.id,
+        typeOfOrder: lead.typeOfOrder || undefined,
         lineItems: [],
       });
       const deal = dealRes?.data ?? dealRes;

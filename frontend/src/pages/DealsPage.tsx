@@ -7,7 +7,7 @@ import {
   Handshake, FileText, Briefcase, DollarSign,
   Layers, Snowflake,
   Download, Upload,
-  MapPin, Phone, Mail, Send, MessageSquare, Flag
+  MapPin, Phone, Mail, Send, MessageSquare, Flag, Tag
 } from 'lucide-react';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
@@ -90,6 +90,7 @@ interface DealFormData {
   requirement: string;
   quotedRequirement: string;
   paymentFlag: boolean;
+  typeOfOrder: string;
 }
 
 const EMPTY_DEAL_FORM: DealFormData = {
@@ -113,6 +114,7 @@ const EMPTY_DEAL_FORM: DealFormData = {
   requirement: '',
   quotedRequirement: '',
   paymentFlag: false,
+  typeOfOrder: '',
 };
 
 // ---------------------------------------------------------------------------
@@ -263,6 +265,9 @@ export const DealsPage: React.FC = () => {
   const [productDropdownOpen, setProductDropdownOpen] = useState(false);
   const [closedWonExistingEntryId, setClosedWonExistingEntryId] = useState<string | null>(null);
 
+  // Overdue amount map: dealId → overdue amount (only for non-paid sales entries)
+  const [dealOverdueMap, setDealOverdueMap] = useState<Record<string, number>>({});
+
   // Inline quote builder state (inside deal detail for Channel tag)
   interface InlineLineItem {
     productId: string;
@@ -294,15 +299,6 @@ export const DealsPage: React.FC = () => {
 
   const cardClass = `premium-card ${isDark ? '' : 'shadow-soft'}`;
 
-  // Build a lookup: accountId → tag (channel / endcustomer)
-  const accountTagMap = React.useMemo(() => {
-    const m: Record<string, string> = {};
-    accounts.forEach((a) => {
-      const accountType = a.accountType || '';
-      if (accountType && a.id) m[a.id] = accountType;
-    });
-    return m;
-  }, [accounts]);
   const inputClass = `w-full px-3 py-2.5 rounded-xl border text-sm transition-all ${
     isDark
       ? 'bg-dark-100 border-zinc-700 text-white placeholder-zinc-500 focus:border-brand-500'
@@ -387,6 +383,26 @@ export const DealsPage: React.FC = () => {
     }
   }, [viewMode, fetchDeals, fetchPipelineDeals]);
 
+  // Fetch overdue amounts for deals shown in the table
+  useEffect(() => {
+    if (deals.length === 0) { setDealOverdueMap({}); return; }
+    (async () => {
+      try {
+        const res = await salesApi.list({ limit: '100' });
+        const entries: any[] = res?.data ?? res ?? [];
+        const m: Record<string, number> = {};
+        for (const e of entries) {
+          if (e.dealId && e.paymentStatus !== 'paid') {
+            m[e.dealId] = (m[e.dealId] || 0) + (Number(e.amount) || 0);
+          }
+        }
+        setDealOverdueMap(m);
+      } catch {
+        // non-critical
+      }
+    })();
+  }, [deals]);
+
   // Compute deal summary counts from pipelineDeals
   useEffect(() => {
     const newDeals = pipelineDeals.filter(d => d.stage === 'New').length;
@@ -436,6 +452,7 @@ export const DealsPage: React.FC = () => {
       requirement: deal.requirement || '',
       quotedRequirement: deal.quotedRequirement || '',
       paymentFlag: deal.paymentFlag || false,
+      typeOfOrder: deal.typeOfOrder || '',
     });
     setEditingDealId(deal.id);
     setDealFormError('');
@@ -1242,7 +1259,7 @@ export const DealsPage: React.FC = () => {
               <table className="premium-table" style={{ minWidth: dealColWidths.reduce((a, b) => a + b, 0) }}>
                 <thead>
                   <tr className={`border-b ${isDark ? 'border-zinc-700' : 'border-slate-200'}`}>
-                    {(['#', 'Summarise', 'Company', 'Account Type', 'Contact Name', 'Contact No', 'Designation', 'Email', 'Location', 'Requirement', 'Quoted Requirement', 'Value', 'Stage', ...(canSeeAssignee ? ['Assignee'] : []), 'Follow-up Date'] as string[]).map((label, i, arr) => (
+                    {(['#', 'Summarise', 'Company', 'Overdue', 'Contact Name', 'Contact No', 'Designation', 'Email', 'Location', 'Requirement', 'Quoted Requirement', 'Value', 'Stage', ...(canSeeAssignee ? ['Assignee'] : []), 'Follow-up Date'] as string[]).map((label, i, arr) => (
                       <th
                         key={label}
                         className={`${hdrCell} resizable-th ${i === 0 || i === 1 ? 'text-center' : ''}`}
@@ -1297,24 +1314,12 @@ export const DealsPage: React.FC = () => {
                         <span className="font-medium">{deal.company || deal.accountName || '-'}</span>
                         {deal.paymentFlag && <span title="Payment pending"><Flag className="w-3.5 h-3.5 text-red-500 fill-red-500 inline-block ml-1" /></span>}
                       </td>
-                      {/* Account Type */}
+                      {/* Overdue */}
                       <td className={cellBase}>
-                        {(() => {
-                          const tag = deal.accountId ? (accountTagMap[deal.accountId] || '') : '';
-                          const lower = tag.toLowerCase();
-                          const isChannel = lower === 'channel' || lower === 'channel partner';
-                          const isEnd = lower === 'endcustomer' || lower === 'end customer';
-                          if (!isChannel && !isEnd) return <span className={isDark ? 'text-zinc-600' : 'text-slate-300'}>-</span>;
-                          return (
-                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                              isChannel
-                                ? (isDark ? 'bg-emerald-900/30 text-emerald-400' : 'bg-emerald-50 text-emerald-700')
-                                : (isDark ? 'bg-orange-900/30 text-orange-400' : 'bg-orange-50 text-orange-700')
-                            }`}>
-                              {isChannel ? 'Channel' : 'End Customer'}
-                            </span>
-                          );
-                        })()}
+                        {dealOverdueMap[deal.id]
+                          ? <span className={`font-medium ${isDark ? 'text-red-400' : 'text-red-600'}`}>{formatINR(dealOverdueMap[deal.id])}</span>
+                          : <span className={isDark ? 'text-zinc-600' : 'text-slate-300'}>-</span>
+                        }
                       </td>
                       {/* Contact Name */}
                       <td className={`${cellBase} ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
@@ -1509,6 +1514,14 @@ export const DealsPage: React.FC = () => {
             {formatINR(deal.value)}
           </p>
         ) : null}
+
+        {/* Order Type */}
+        {deal.typeOfOrder && (
+          <p className={`text-[11px] flex items-center gap-1 mb-1 ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>
+            <Tag className="w-3 h-3 flex-shrink-0" />
+            <span className="truncate">{deal.typeOfOrder}</span>
+          </p>
+        )}
 
         {/* Assignee */}
         {deal.ownerName && (
@@ -2376,6 +2389,23 @@ export const DealsPage: React.FC = () => {
                   <option value="Other">Other</option>
                 </select>
               </div>
+            </div>
+
+            {/* Order Type */}
+            <div>
+              <label htmlFor="deal-typeOfOrder" className={labelClass}>Order Type</label>
+              <select
+                id="deal-typeOfOrder"
+                name="typeOfOrder"
+                value={dealFormData.typeOfOrder}
+                onChange={handleDealFormChange}
+                className={selectClass}
+              >
+                <option value="">Select order type...</option>
+                <option value="New">New</option>
+                <option value="Refurb">Refurb</option>
+                <option value="Rental">Rental</option>
+              </select>
             </div>
 
             {/* Requirements */}
