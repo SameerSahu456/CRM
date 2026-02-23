@@ -291,8 +291,8 @@ export const DealsPage: React.FC = () => {
   // ---------------------------------------------------------------------------
 
   const dealInitialWidths = canSeeAssignee
-    ? [45, 70, 170, 120, 150, 130, 130, 220, 130, 160, 160, 110, 120, 120, 120]
-    : [45, 70, 170, 120, 150, 130, 130, 220, 130, 160, 160, 110, 120, 120];
+    ? [45, 70, 170, 120, 150, 130, 130, 220, 130, 160, 160, 110, 120, 100, 120, 120]
+    : [45, 70, 170, 120, 150, 130, 130, 220, 130, 160, 160, 110, 120, 100, 120];
   const { colWidths: dealColWidths, onMouseDown: onDealMouseDown } = useColumnResize({
     initialWidths: dealInitialWidths,
   });
@@ -1259,7 +1259,7 @@ export const DealsPage: React.FC = () => {
               <table className="premium-table" style={{ minWidth: dealColWidths.reduce((a, b) => a + b, 0) }}>
                 <thead>
                   <tr className={`border-b ${isDark ? 'border-zinc-700' : 'border-slate-200'}`}>
-                    {(['#', 'Summarise', 'Company', 'Overdue', 'Contact Name', 'Contact No', 'Designation', 'Email', 'Location', 'Requirement', 'Quoted Requirement', 'Value', 'Stage', ...(canSeeAssignee ? ['Assignee'] : []), 'Follow-up Date'] as string[]).map((label, i, arr) => (
+                    {(['#', 'Summarise', 'Company', 'Overdue', 'Contact Name', 'Contact No', 'Designation', 'Email', 'Location', 'Requirement', 'Quoted Requirement', 'Value', 'Stage', 'Order Type', ...(canSeeAssignee ? ['Assignee'] : []), 'Follow-up Date'] as string[]).map((label, i, arr) => (
                       <th
                         key={label}
                         className={`${hdrCell} resizable-th ${i === 0 || i === 1 ? 'text-center' : ''}`}
@@ -1274,7 +1274,7 @@ export const DealsPage: React.FC = () => {
                 <tbody>
                   {deals.length === 0 ? (
                     <tr>
-                      <td colSpan={canSeeAssignee ? 15 : 14} className="py-16 text-center">
+                      <td colSpan={canSeeAssignee ? 16 : 15} className="py-16 text-center">
                         <Briefcase className={`w-8 h-8 mx-auto ${isDark ? 'text-zinc-700' : 'text-slate-300'}`} />
                         <p className={`mt-2 text-sm ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
                           {hasActiveFilters ? 'No deals match filters' : 'No deals yet'}
@@ -1356,6 +1356,10 @@ export const DealsPage: React.FC = () => {
                       {/* Stage */}
                       <td className={`${cellBase}`}>
                         {renderReadCell(deal, 'stage')}
+                      </td>
+                      {/* Order Type */}
+                      <td className={`${cellBase} ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
+                        {deal.typeOfOrder || '-'}
                       </td>
                       {/* Assignee - only visible to admin/superadmin/managers */}
                       {canSeeAssignee && (
@@ -1784,6 +1788,7 @@ export const DealsPage: React.FC = () => {
                 <DetailInfoRow label="Type" value={deal.tag} isDark={isDark} icon={<Layers className="w-3.5 h-3.5" />} />
                 <DetailInfoRow label="Forecast" value={deal.forecast} isDark={isDark} icon={<Target className="w-3.5 h-3.5" />} />
                 <DetailInfoRow label="Lead Source" value={deal.leadSource} isDark={isDark} icon={<TrendingUp className="w-3.5 h-3.5" />} />
+                <DetailInfoRow label="Order Type" value={deal.typeOfOrder} isDark={isDark} icon={<Tag className="w-3.5 h-3.5" />} />
               </div>
 
               {/* Requirements */}
