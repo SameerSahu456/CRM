@@ -1474,6 +1474,7 @@ export const CRMPage: React.FC = () => {
                 onDrop={e => {
                   e.preventDefault();
                   setDragOverStage(null);
+                  setDraggedLeadId(null);
                   const leadId = e.dataTransfer.getData('text/plain');
                   if (!leadId) return;
                   const allLeads = Object.values(pipelineLeads).flat();

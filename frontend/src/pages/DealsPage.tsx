@@ -101,7 +101,7 @@ const EMPTY_DEAL_FORM: DealFormData = {
   contactId: '',
   nextStep: '',
   forecast: 'Pipeline',
-  type: 'New Business',
+  type: '',
   leadSource: '',
   tag: '',
   contactNo: '',
@@ -1587,6 +1587,7 @@ export const DealsPage: React.FC = () => {
                 onDrop={e => {
                   e.preventDefault();
                   setDragOverStage(null);
+                  setDraggedDealId(null);
                   const dealId = e.dataTransfer.getData('text/plain');
                   if (!dealId) return;
                   const deal = pipelineDeals.find(d => d.id === dealId);
