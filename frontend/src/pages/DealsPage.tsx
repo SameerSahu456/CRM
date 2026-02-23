@@ -678,12 +678,17 @@ export const DealsPage: React.FC = () => {
       if (!payload.closingDate) delete payload.closingDate;
 
       if (editingDealId) {
-        await dealsApi.update(editingDealId, payload);
+        const res = await dealsApi.update(editingDealId, payload);
+        const updated = res?.data ?? res;
+        // Keep detail view in sync if open
+        if (detailDeal && detailDeal.id === editingDealId) {
+          setDetailDeal({ ...detailDeal, ...updated });
+        }
       } else {
         await dealsApi.create({ ...payload, ownerId: user?.id });
       }
       closeDealModal();
-      refreshData();
+      await Promise.all([fetchDeals(), fetchPipelineDeals()]);
     } catch (err: any) {
       setDealFormError(err.message || 'Failed to save deal');
     } finally {
@@ -841,9 +846,8 @@ export const DealsPage: React.FC = () => {
   // Refresh helper
   // ---------------------------------------------------------------------------
 
-  const refreshData = () => {
-    fetchDeals();
-    fetchPipelineDeals();
+  const refreshData = async () => {
+    await Promise.all([fetchDeals(), fetchPipelineDeals()]);
   };
 
   // ---------------------------------------------------------------------------
