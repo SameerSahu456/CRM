@@ -1,10 +1,8 @@
 from contextlib import asynccontextmanager
-from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
-from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text
 
 from app.api.v1.router import api_router
@@ -68,14 +66,6 @@ app.add_exception_handler(CRMException, crm_exception_handler)
 app.add_exception_handler(Exception, generic_exception_handler)
 
 app.include_router(api_router, prefix=settings.API_PREFIX)
-
-# Serve uploaded files from local storage (skip on serverless/Vercel)
-upload_dir = Path(settings.UPLOAD_DIR)
-try:
-    upload_dir.mkdir(parents=True, exist_ok=True)
-    app.mount("/files", StaticFiles(directory=str(upload_dir)), name="uploaded-files")
-except OSError:
-    pass  # Read-only filesystem (Vercel serverless)
 
 
 @app.get("/api/status")
