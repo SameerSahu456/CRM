@@ -659,32 +659,14 @@ export const AccountsPage: React.FC = () => {
                         {(() => {
                           const col = collectionsMap[(account.name || '').toLowerCase()];
                           if (!col) return <span className={isDark ? 'text-zinc-600' : 'text-slate-300'}>-</span>;
-                          const hasAny = col.pending > 0 || col.partial > 0 || col.paid > 0;
-                          if (!hasAny) return <span className={isDark ? 'text-zinc-600' : 'text-slate-300'}>-</span>;
+                          const overdue = (col.pending || 0) + (col.partial || 0);
+                          if (overdue <= 0) return <span className={isDark ? 'text-zinc-600' : 'text-slate-300'}>-</span>;
                           return (
-                            <div className="flex flex-col gap-1">
-                              {col.pending > 0 && (
-                                <span className={`inline-flex items-center gap-1 px-1.5 py-px rounded text-[10px] font-semibold ${
-                                  isDark ? 'bg-red-900/30 text-red-400' : 'bg-red-50 text-red-600'
-                                }`} title="Pending">
-                                  <span className="opacity-70">Pending:</span> {formatINR(col.pending)}
-                                </span>
-                              )}
-                              {col.partial > 0 && (
-                                <span className={`inline-flex items-center gap-1 px-1.5 py-px rounded text-[10px] font-semibold ${
-                                  isDark ? 'bg-amber-900/30 text-amber-400' : 'bg-amber-50 text-amber-600'
-                                }`} title="Partial Pending">
-                                  <span className="opacity-70">Partial:</span> {formatINR(col.partial)}
-                                </span>
-                              )}
-                              {col.paid > 0 && (
-                                <span className={`inline-flex items-center gap-1 px-1.5 py-px rounded text-[10px] font-semibold ${
-                                  isDark ? 'bg-emerald-900/30 text-emerald-400' : 'bg-emerald-50 text-emerald-600'
-                                }`} title="Paid / Completed">
-                                  <span className="opacity-70">Paid:</span> {formatINR(col.paid)}
-                                </span>
-                              )}
-                            </div>
+                            <span className={`inline-flex items-center px-1.5 py-px rounded text-[10px] font-semibold ${
+                              isDark ? 'bg-red-900/30 text-red-400' : 'bg-red-50 text-red-600'
+                            }`}>
+                              {formatINR(overdue)}
+                            </span>
                           );
                         })()}
                       </td>
