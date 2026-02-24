@@ -2197,7 +2197,12 @@ export const CRMPage: React.FC = () => {
                     </div>
                     <div>
                       <label htmlFor="typeOfOrder" className={labelClass}>Type of Order</label>
-                      <input id="typeOfOrder" name="typeOfOrder" type="text" placeholder="Order type" value={leadFormData.typeOfOrder} onChange={handleLeadFormChange} className={inputClass} />
+                      <select id="typeOfOrder" name="typeOfOrder" value={leadFormData.typeOfOrder} onChange={handleLeadFormChange} className={inputClass}>
+                        <option value="">Select order type</option>
+                        <option value="New">New</option>
+                        <option value="Refurb">Refurb</option>
+                        <option value="Rental">Rental</option>
+                      </select>
                     </div>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

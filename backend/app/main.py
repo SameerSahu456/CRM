@@ -129,17 +129,32 @@ ALTER TABLE contacts ADD COLUMN IF NOT EXISTS other_country VARCHAR(100);
 
 
 async def _ensure_schema() -> None:
-    """Run all migrations as a single SQL batch (one DB round trip)."""
+    """Run migrations only if needed (checks DB first)."""
     global _schema_ensured
     if _schema_ensured:
         return
     try:
         async with engine.begin() as conn:
+            # Quick check: if the last column we added exists, skip migration
+            result = await conn.execute(text(
+                "SELECT 1 FROM information_schema.columns "
+                "WHERE table_name='contacts' AND column_name='other_country' LIMIT 1"
+            ))
+            if result.fetchone():
+                # Also ensure file_uploads table exists
+                result2 = await conn.execute(text(
+                    "SELECT 1 FROM information_schema.tables "
+                    "WHERE table_name='file_uploads' LIMIT 1"
+                ))
+                if result2.fetchone():
+                    _schema_ensured = True
+                    return
+            # Columns missing — run full migration
             await conn.execute(text(_MIGRATION_SQL))
         _schema_ensured = True
     except Exception as e:
         print(f"[SCHEMA MIGRATION] Error: {e}")
-        _schema_ensured = True  # Don't retry on every request if it fails
+        _schema_ensured = True
 
 
 @asynccontextmanager
