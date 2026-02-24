@@ -846,11 +846,16 @@ export const CRMPage: React.FC = () => {
     setClosedWonError('');
     try {
       // 1. Upload documents
-      const [gstResult, panResult, aadharResult] = await Promise.all([
-        uploadsApi.upload(gstFile),
-        uploadsApi.upload(panFile),
-        uploadsApi.upload(aadharFile),
-      ]);
+      let gstResult, panResult, aadharResult;
+      try {
+        [gstResult, panResult, aadharResult] = await Promise.all([
+          uploadsApi.upload(gstFile),
+          uploadsApi.upload(panFile),
+          uploadsApi.upload(aadharFile),
+        ]);
+      } catch (e: any) {
+        throw new Error(`Upload failed: ${e.message}`);
+      }
       let msmeUrl: string | undefined;
       if (msmeFile) {
         const msmeResult = await uploadsApi.upload(msmeFile);
@@ -858,79 +863,101 @@ export const CRMPage: React.FC = () => {
       }
 
       // 2. Create account
-      const accountRes = await accountsApi.create({
-        name: closedWonForm.accountName,
-        industry: closedWonForm.industry || undefined,
-        type: closedWonForm.type || undefined,
-        phone: closedWonForm.phone || undefined,
-        email: closedWonForm.email || undefined,
-        location: closedWonForm.location || undefined,
-        status: 'active',
-        ownerId: user?.id,
-      });
-      const account = accountRes?.data ?? accountRes;
+      let account;
+      try {
+        const accountRes = await accountsApi.create({
+          name: closedWonForm.accountName,
+          industry: closedWonForm.industry || undefined,
+          type: closedWonForm.type || undefined,
+          phone: closedWonForm.phone || undefined,
+          email: closedWonForm.email || undefined,
+          location: closedWonForm.location || undefined,
+          status: 'active',
+          ownerId: user?.id,
+        });
+        account = accountRes?.data ?? accountRes;
+      } catch (e: any) {
+        throw new Error(`Account creation failed: ${e.message}`);
+      }
 
       // 3. Create contact with document URLs
-      await contactsApi.create({
-        firstName: closedWonForm.contactFirstName,
-        lastName: closedWonForm.contactLastName || undefined,
-        email: closedWonForm.contactEmail || undefined,
-        phone: closedWonForm.contactPhone || undefined,
-        designation: closedWonForm.contactDesignation || undefined,
-        department: closedWonForm.contactDepartment || undefined,
-        accountId: account.id,
-        status: 'active',
-        ownerId: user?.id,
-        gstCertificateUrl: gstResult.url,
-        panCardUrl: panResult.url,
-        aadharCardUrl: aadharResult.url,
-        msmeCertificateUrl: msmeUrl,
-      });
+      try {
+        await contactsApi.create({
+          firstName: closedWonForm.contactFirstName,
+          lastName: closedWonForm.contactLastName || undefined,
+          email: closedWonForm.contactEmail || undefined,
+          phone: closedWonForm.contactPhone || undefined,
+          designation: closedWonForm.contactDesignation || undefined,
+          department: closedWonForm.contactDepartment || undefined,
+          accountId: account.id,
+          status: 'active',
+          ownerId: user?.id,
+          gstCertificateUrl: gstResult.url,
+          panCardUrl: panResult.url,
+          aadharCardUrl: aadharResult.url,
+          msmeCertificateUrl: msmeUrl,
+        });
+      } catch (e: any) {
+        throw new Error(`Contact creation failed: ${e.message}`);
+      }
 
       // 4. Create a deal in "Closed Won" stage from the lead data
-      const dealRes = await dealsApi.create({
-        title: lead.companyName || closedWonForm.accountName,
-        company: lead.companyName || closedWonForm.accountName,
-        accountId: account.id,
-        value: closedWonOrderForm.amount || lead.estimatedValue || 0,
-        stage: 'Closed Won',
-        description: closedWonDescription || lead.description || '',
-        leadSource: lead.source || '',
-        ownerId: user?.id,
-        typeOfOrder: lead.typeOfOrder || undefined,
-        lineItems: [],
-      });
-      const deal = dealRes?.data ?? dealRes;
+      let deal;
+      try {
+        const dealRes = await dealsApi.create({
+          title: lead.companyName || closedWonForm.accountName,
+          company: lead.companyName || closedWonForm.accountName,
+          accountId: account.id,
+          value: closedWonOrderForm.amount || lead.estimatedValue || 0,
+          stage: 'Closed Won',
+          description: closedWonDescription || lead.description || '',
+          leadSource: lead.source || '',
+          ownerId: user?.id,
+          typeOfOrder: lead.typeOfOrder || undefined,
+          lineItems: [],
+        });
+        deal = dealRes?.data ?? dealRes;
+      } catch (e: any) {
+        throw new Error(`Deal creation failed: ${e.message}`);
+      }
 
       // 5. Create sales entry
-      await salesApi.create({
-        partnerId: closedWonOrderForm.partnerId || undefined,
-        salespersonId: user?.id,
-        customerName: closedWonForm.accountName || undefined,
-        quantity: closedWonOrderForm.quantity,
-        amount: closedWonOrderForm.amount,
-        poNumber: closedWonOrderForm.poNumber || undefined,
-        invoiceNo: closedWonOrderForm.invoiceNo || undefined,
-        paymentStatus: closedWonOrderForm.paymentStatus,
-        saleDate: closedWonOrderForm.saleDate,
-        description: closedWonDescription || undefined,
-        dealId: deal?.id || undefined,
-        productIds: selectedProductIds,
-        contactName: closedWonOrderForm.contactName || undefined,
-        contactNo: closedWonOrderForm.contactNo || undefined,
-        email: closedWonOrderForm.email || undefined,
-        gstin: closedWonOrderForm.gstin || undefined,
-        panNo: closedWonOrderForm.panNo || undefined,
-        dispatchMethod: closedWonOrderForm.dispatchMethod || undefined,
-        paymentTerms: closedWonOrderForm.paymentTerms || undefined,
-        orderType: closedWonOrderForm.orderType || undefined,
-        serialNumber: closedWonOrderForm.serialNumber || undefined,
-        boq: closedWonOrderForm.boq || undefined,
-        price: closedWonOrderForm.price || undefined,
-      });
+      try {
+        await salesApi.create({
+          partnerId: closedWonOrderForm.partnerId || undefined,
+          salespersonId: user?.id,
+          customerName: closedWonForm.accountName || undefined,
+          quantity: closedWonOrderForm.quantity,
+          amount: closedWonOrderForm.amount,
+          poNumber: closedWonOrderForm.poNumber || undefined,
+          invoiceNo: closedWonOrderForm.invoiceNo || undefined,
+          paymentStatus: closedWonOrderForm.paymentStatus,
+          saleDate: closedWonOrderForm.saleDate,
+          description: closedWonDescription || undefined,
+          dealId: deal?.id || undefined,
+          productIds: selectedProductIds,
+          contactName: closedWonOrderForm.contactName || undefined,
+          contactNo: closedWonOrderForm.contactNo || undefined,
+          email: closedWonOrderForm.email || undefined,
+          gstin: closedWonOrderForm.gstin || undefined,
+          panNo: closedWonOrderForm.panNo || undefined,
+          dispatchMethod: closedWonOrderForm.dispatchMethod || undefined,
+          paymentTerms: closedWonOrderForm.paymentTerms || undefined,
+          orderType: closedWonOrderForm.orderType || undefined,
+          serialNumber: closedWonOrderForm.serialNumber || undefined,
+          boq: closedWonOrderForm.boq || undefined,
+          price: closedWonOrderForm.price || undefined,
+        });
+      } catch (e: any) {
+        throw new Error(`Sales entry creation failed: ${e.message}`);
+      }
 
       // 6. Delete the lead so it no longer appears in leads
-      await leadsApi.delete(lead.id);
+      try {
+        await leadsApi.delete(lead.id);
+      } catch (e: any) {
+        console.warn('Lead delete failed (non-blocking):', e.message);
+      }
 
       setShowClosedWonModal(false);
       setClosedWonLeadRef(null);
