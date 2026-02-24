@@ -1,24 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { ShoppingCart } from 'lucide-react';
 import { AnalyticsCard } from '../AnalyticsCard';
 import { WidgetProps, GrowthData } from '@/types';
-import { dashboardApi } from '@/services/api';
+import { useDashboardData } from '@/contexts/DashboardDataContext';
 import { formatCompact } from '@/utils/dashboard';
 
 export const RecentSalesWidget: React.FC<WidgetProps> = ({ isDark, navigate, onDetailClick }) => {
-  const [growth, setGrowth] = useState<GrowthData | null>(null);
-
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const all = await dashboardApi.getAll();
-        setGrowth(all.growth);
-      } catch {
-        // Best-effort
-      }
-    };
-    fetchData();
-  }, []);
+  const { data: all } = useDashboardData();
+  const growth: GrowthData | null = all?.growth ?? null;
 
   return (
     <AnalyticsCard

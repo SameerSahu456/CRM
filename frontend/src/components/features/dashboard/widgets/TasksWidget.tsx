@@ -1,23 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { CheckSquare } from 'lucide-react';
 import { AnalyticsCard } from '../AnalyticsCard';
 import { WidgetProps, TaskStatsData } from '@/types';
-import { dashboardApi } from '@/services/api';
+import { useDashboardData } from '@/contexts/DashboardDataContext';
 
 export const TasksWidget: React.FC<WidgetProps> = ({ isDark, navigate, onDetailClick }) => {
-  const [taskStatsData, setTaskStatsData] = useState<TaskStatsData | null>(null);
-
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const all = await dashboardApi.getAll();
-        setTaskStatsData(all.taskStats || null);
-      } catch {
-        // Best-effort
-      }
-    };
-    fetchData();
-  }, []);
+  const { data: all } = useDashboardData();
+  const taskStatsData: TaskStatsData | null = all?.taskStats || null;
 
   const tasksCompleted = taskStatsData?.completed ?? 0;
   const tasksPending = (taskStatsData?.pending ?? 0) + (taskStatsData?.in_progress ?? 0);

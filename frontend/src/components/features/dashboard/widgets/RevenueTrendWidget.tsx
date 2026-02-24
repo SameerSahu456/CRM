@@ -1,25 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { BarChart3 } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { AnalyticsCard } from '../AnalyticsCard';
 import { WidgetProps, MonthlyStat } from '@/types';
-import { dashboardApi, formatINR } from '@/services/api';
+import { formatINR } from '@/services/api';
+import { useDashboardData } from '@/contexts/DashboardDataContext';
 import { pctChange } from '@/utils/dashboard';
 
 export const RevenueTrendWidget: React.FC<WidgetProps> = ({ isDark, navigate, onDetailClick }) => {
-  const [monthly, setMonthly] = useState<MonthlyStat[]>([]);
-
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const all = await dashboardApi.getAll();
-        setMonthly(Array.isArray(all.monthlyStats) ? all.monthlyStats : []);
-      } catch {
-        // Best-effort
-      }
-    };
-    fetchData();
-  }, []);
+  const { data: all } = useDashboardData();
+  const monthly: MonthlyStat[] = Array.isArray(all?.monthlyStats) ? all.monthlyStats : [];
 
   const monthlyChange = monthly.length >= 2 ? pctChange(monthly[monthly.length - 1].revenue, monthly[monthly.length - 2].revenue) : 0;
 

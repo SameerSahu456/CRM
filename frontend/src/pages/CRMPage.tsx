@@ -343,6 +343,7 @@ export const CRMPage: React.FC = () => {
   // UI state
   const [isLoading, setIsLoading] = useState(true);
   const tableLoadedRef = useRef(false);
+  const dropdownsLoadedRef = useRef(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [tableError, setTableError] = useState('');
 
@@ -489,6 +490,7 @@ export const CRMPage: React.FC = () => {
   }, []);
 
   const fetchDropdownData = useCallback(async () => {
+    if (dropdownsLoadedRef.current) return;
     try {
       const [productsList, partnersResponse, usersList] = await Promise.all([
         productsApi.list(),
@@ -499,15 +501,11 @@ export const CRMPage: React.FC = () => {
       const partnerData = partnersResponse?.data ?? partnersResponse;
       setPartners(Array.isArray(partnerData) ? partnerData : []);
       setUsers(Array.isArray(usersList) ? usersList : []);
+      dropdownsLoadedRef.current = true;
     } catch {
       // Dropdown data failure is non-critical
     }
   }, []);
-
-  // Initial load
-  useEffect(() => {
-    fetchDropdownData();
-  }, [fetchDropdownData]);
 
   // Fetch based on view mode (always fetch pipeline leads for summary cards)
   useEffect(() => {
@@ -539,6 +537,7 @@ export const CRMPage: React.FC = () => {
   // ---------------------------------------------------------------------------
 
   const openCreateLeadModal = () => {
+    fetchDropdownData();
     setLeadFormData({ ...EMPTY_LEAD_FORM });
     setEditingLeadId(null);
     setLeadFormError('');
@@ -546,6 +545,7 @@ export const CRMPage: React.FC = () => {
   };
 
   const openEditLeadModal = (lead: Lead) => {
+    fetchDropdownData();
     setLeadFormData({
       ...EMPTY_LEAD_FORM,
       companyName: lead.companyName || '',
@@ -768,6 +768,7 @@ export const CRMPage: React.FC = () => {
   // ---------------------------------------------------------------------------
 
   const openClosedWonModal = (lead: Lead, source: 'detail' | 'pipeline') => {
+    fetchDropdownData();
     setClosedWonLeadRef({ lead, source });
     setClosedWonForm({
       accountName: lead.companyName || '',
@@ -980,6 +981,7 @@ export const CRMPage: React.FC = () => {
   // ---------------------------------------------------------------------------
 
   const openConvertModal = (lead: Lead) => {
+    fetchDropdownData();
     setConvertLeadId(lead.id);
     setConvertForm({
       ...EMPTY_CONVERT_FORM,

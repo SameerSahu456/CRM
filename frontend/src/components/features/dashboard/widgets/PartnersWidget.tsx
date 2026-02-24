@@ -1,26 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { Building2 } from 'lucide-react';
 import { AnalyticsCard } from '../AnalyticsCard';
 import { WidgetProps, DashboardData, BreakdownData } from '@/types';
-import { dashboardApi } from '@/services/api';
+import { useDashboardData } from '@/contexts/DashboardDataContext';
 import { formatCompact } from '@/utils/dashboard';
 
 export const PartnersWidget: React.FC<WidgetProps> = ({ isDark, navigate, onDetailClick }) => {
-  const [stats, setStats] = useState<DashboardData | null>(null);
-  const [breakdownData, setBreakdownData] = useState<BreakdownData>({ byProduct: [], byPartner: [], bySalesperson: [] });
-
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const all = await dashboardApi.getAll();
-        setStats(all.stats);
-        setBreakdownData(all.breakdown || { byProduct: [], byPartner: [], bySalesperson: [] });
-      } catch {
-        // Best-effort
-      }
-    };
-    fetchData();
-  }, []);
+  const { data: all } = useDashboardData();
+  const stats: DashboardData | null = all?.stats ?? null;
+  const breakdownData: BreakdownData = all?.breakdown || { byProduct: [], byPartner: [], bySalesperson: [] };
 
   const sortedPartners = [...breakdownData.byPartner].sort((a, b) => b.totalAmount - a.totalAmount);
   const totalPartnerDeals = sortedPartners.reduce((s, p) => s + p.count, 0);

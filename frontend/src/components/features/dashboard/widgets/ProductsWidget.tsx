@@ -1,24 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { Package } from 'lucide-react';
 import { AnalyticsCard } from '../AnalyticsCard';
 import { WidgetProps, BreakdownData } from '@/types';
-import { dashboardApi } from '@/services/api';
+import { useDashboardData } from '@/contexts/DashboardDataContext';
 import { formatCompact } from '@/utils/dashboard';
 
 export const ProductsWidget: React.FC<WidgetProps> = ({ isDark, navigate, onDetailClick }) => {
-  const [breakdownData, setBreakdownData] = useState<BreakdownData>({ byProduct: [], byPartner: [], bySalesperson: [] });
-
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const all = await dashboardApi.getAll();
-        setBreakdownData(all.breakdown || { byProduct: [], byPartner: [], bySalesperson: [] });
-      } catch {
-        // Best-effort
-      }
-    };
-    fetchData();
-  }, []);
+  const { data: all } = useDashboardData();
+  const breakdownData: BreakdownData = all?.breakdown || { byProduct: [], byPartner: [], bySalesperson: [] };
 
   const sortedProducts = [...breakdownData.byProduct].sort((a, b) => b.totalAmount - a.totalAmount);
   const totalProductRevenue = sortedProducts.reduce((s, p) => s + p.totalAmount, 0);

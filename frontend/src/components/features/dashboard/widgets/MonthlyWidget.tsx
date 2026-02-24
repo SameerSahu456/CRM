@@ -1,25 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { Calendar } from 'lucide-react';
 import { LineChart, Line, ResponsiveContainer } from 'recharts';
 import { AnalyticsCard } from '../AnalyticsCard';
 import { WidgetProps, MonthlyStat } from '@/types';
-import { dashboardApi } from '@/services/api';
+import { useDashboardData } from '@/contexts/DashboardDataContext';
 import { formatCompact, pctChange } from '@/utils/dashboard';
 
 export const MonthlyWidget: React.FC<WidgetProps> = ({ isDark, navigate, onDetailClick }) => {
-  const [monthly, setMonthly] = useState<MonthlyStat[]>([]);
-
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const all = await dashboardApi.getAll();
-        setMonthly(Array.isArray(all.monthlyStats) ? all.monthlyStats : []);
-      } catch {
-        // Best-effort
-      }
-    };
-    fetchData();
-  }, []);
+  const { data: all } = useDashboardData();
+  const monthly: MonthlyStat[] = Array.isArray(all?.monthlyStats) ? all.monthlyStats : [];
 
   const monthlyWithChange = monthly.slice(-6).map((m, i, arr) => {
     const prev = i > 0 ? arr[i - 1].revenue : 0;

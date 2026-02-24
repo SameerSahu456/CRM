@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { UserCheck } from 'lucide-react';
 import { AnalyticsCard } from '../AnalyticsCard';
 import { WidgetProps } from '@/types';
-import { dashboardApi } from '@/services/api';
+import { useDashboardData } from '@/contexts/DashboardDataContext';
 import { formatCompact } from '@/utils/dashboard';
 
 interface AssigneeRow {
@@ -17,19 +17,8 @@ interface AssigneeRow {
 }
 
 export const AssigneeSummaryWidget: React.FC<WidgetProps> = ({ isDark, onDetailClick }) => {
-  const [rows, setRows] = useState<AssigneeRow[]>([]);
-
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const all = await dashboardApi.getAll();
-        setRows(all.assigneeSummary || []);
-      } catch {
-        // Best-effort
-      }
-    };
-    fetchData();
-  }, []);
+  const { data: all } = useDashboardData();
+  const rows: AssigneeRow[] = all?.assigneeSummary || [];
 
   const totalSales = rows.reduce((s, r) => s + r.salesAmount, 0);
   const totalPartners = rows.reduce((s, r) => s + r.partners, 0);

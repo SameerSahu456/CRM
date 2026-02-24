@@ -206,6 +206,7 @@ export const DealsPage: React.FC = () => {
   const tableLoadedRef = useRef(false);
   const [isPipelineLoading, setIsPipelineLoading] = useState(true);
   const pipelineLoadedRef = useRef(false);
+  const dropdownsLoadedRef = useRef(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [tableError, setTableError] = useState('');
 
@@ -351,6 +352,7 @@ export const DealsPage: React.FC = () => {
   }, []);
 
   const fetchDropdownData = useCallback(async () => {
+    if (dropdownsLoadedRef.current) return;
     try {
       const [accountsResponse, contactsResponse, productsList, partnersResponse] = await Promise.all([
         accountsApi.list({ limit: '100' }),
@@ -365,15 +367,11 @@ export const DealsPage: React.FC = () => {
       setProducts(Array.isArray(productsList) ? productsList : []);
       const partData = partnersResponse?.data ?? partnersResponse;
       setPartners(Array.isArray(partData) ? partData : []);
+      dropdownsLoadedRef.current = true;
     } catch {
       // Dropdown data failure is non-critical
     }
   }, []);
-
-  // Initial load
-  useEffect(() => {
-    fetchDropdownData();
-  }, [fetchDropdownData]);
 
   // Fetch based on view mode — always fetch pipeline for summary cards
   useEffect(() => {
@@ -424,6 +422,7 @@ export const DealsPage: React.FC = () => {
   // ---------------------------------------------------------------------------
 
   const openCreateDealModal = () => {
+    fetchDropdownData();
     setDealFormData({ ...EMPTY_DEAL_FORM });
     setEditingDealId(null);
     setDealFormError('');
@@ -431,6 +430,7 @@ export const DealsPage: React.FC = () => {
   };
 
   const openEditDealModal = (deal: Deal) => {
+    fetchDropdownData();
     setDealFormData({
       accountId: deal.accountId || '',
       value: deal.value || 0,

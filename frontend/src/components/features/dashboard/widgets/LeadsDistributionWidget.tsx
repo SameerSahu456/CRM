@@ -1,24 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { Users } from 'lucide-react';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
 import { AnalyticsCard } from '../AnalyticsCard';
 import { WidgetProps } from '@/types';
-import { dashboardApi } from '@/services/api';
+import { useDashboardData } from '@/contexts/DashboardDataContext';
 
 export const LeadsDistributionWidget: React.FC<WidgetProps> = ({ isDark, navigate, onDetailClick }) => {
-  const [leadStats, setLeadStats] = useState<Record<string, number>>({});
-
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const all = await dashboardApi.getAll();
-        setLeadStats(all.leadStats || {});
-      } catch {
-        // Best-effort
-      }
-    };
-    fetchData();
-  }, []);
+  const { data } = useDashboardData();
+  const leadStats: Record<string, number> = data?.leadStats || {};
 
   const totalLeads = (Object.values(leadStats) as number[]).reduce((a, b) => a + b, 0);
 

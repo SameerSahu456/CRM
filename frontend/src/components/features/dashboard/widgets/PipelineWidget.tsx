@@ -1,24 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { Layers } from 'lucide-react';
 import { AnalyticsCard } from '../AnalyticsCard';
 import { WidgetProps } from '@/types';
-import { dashboardApi } from '@/services/api';
+import { useDashboardData } from '@/contexts/DashboardDataContext';
 import { formatCompact } from '@/utils/dashboard';
 
 export const PipelineWidget: React.FC<WidgetProps> = ({ isDark, navigate, onDetailClick }) => {
-  const [dealStatsRaw, setDealStatsRaw] = useState<Record<string, { count: number; value: number }>>({});
-
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const all = await dashboardApi.getAll();
-        setDealStatsRaw(all.dealStats || {});
-      } catch {
-        // Best-effort
-      }
-    };
-    fetchData();
-  }, []);
+  const { data } = useDashboardData();
+  const dealStatsRaw: Record<string, { count: number; value: number }> = data?.dealStats || {};
 
   const DEAL_STAGE_ORDER = ['New', 'Proposal', 'Cold', 'Negotiation', 'Closed Lost', 'Closed Won'];
   const pipelineStages = DEAL_STAGE_ORDER

@@ -11,6 +11,7 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useView } from '@/contexts/ViewContext';
 import { useNavigation } from '@/contexts/NavigationContext';
+import { DashboardDataProvider } from '@/contexts/DashboardDataContext';
 
 
 export const DashboardContainer: React.FC = () => {
@@ -60,6 +61,7 @@ export const DashboardContainer: React.FC = () => {
   const visibleWidgets = accessibleWidgets.filter(w => isWidgetVisible(w.id));
 
   return (
+    <DashboardDataProvider>
     <div className="p-3 sm:p-4 lg:p-6 space-y-4 sm:space-y-5 animate-fade-in-up">
       {/* Customization Button */}
       <div className="flex justify-end mb-4">
@@ -138,5 +140,6 @@ export const DashboardContainer: React.FC = () => {
         />
       )}
     </div>
+    </DashboardDataProvider>
   );
 };

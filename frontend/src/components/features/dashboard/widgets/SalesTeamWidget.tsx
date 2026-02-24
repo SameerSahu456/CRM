@@ -1,26 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { Users } from 'lucide-react';
 import { AnalyticsCard } from '../AnalyticsCard';
 import { WidgetProps, BreakdownData, GrowthData } from '@/types';
-import { dashboardApi } from '@/services/api';
+import { useDashboardData } from '@/contexts/DashboardDataContext';
 import { formatCompact, pctChange } from '@/utils/dashboard';
 
 export const SalesTeamWidget: React.FC<WidgetProps> = ({ isDark, navigate, onDetailClick }) => {
-  const [breakdownData, setBreakdownData] = useState<BreakdownData>({ byProduct: [], byPartner: [], bySalesperson: [] });
-  const [growth, setGrowth] = useState<GrowthData | null>(null);
-
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const all = await dashboardApi.getAll();
-        setBreakdownData(all.breakdown || { byProduct: [], byPartner: [], bySalesperson: [] });
-        setGrowth(all.growth);
-      } catch {
-        // Best-effort
-      }
-    };
-    fetchData();
-  }, []);
+  const { data: all } = useDashboardData();
+  const breakdownData: BreakdownData = all?.breakdown || { byProduct: [], byPartner: [], bySalesperson: [] };
+  const growth: GrowthData | null = all?.growth ?? null;
 
   const sortedSalespersons = [...breakdownData.bySalesperson].sort((a, b) => b.totalAmount - a.totalAmount);
   const totalSalesAmount = sortedSalespersons.reduce((s, sp) => s + sp.totalAmount, 0);
