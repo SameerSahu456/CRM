@@ -24,6 +24,7 @@ from app.services.account_service import AccountService
 from app.utils.response_utils import (
     created_response,
     deleted_response,
+    filter_fields,
     paginated_response,
     success_response,
 )
@@ -41,6 +42,7 @@ async def list_accounts(
     account_type: Optional[str] = Query(None, description="Filter by account type"),
     tag: Optional[str] = Query(None, description="Filter by tag"),
     type: Optional[str] = Query(None, description="Filter by type (Hunting/Farming/Cold)"),
+    fields: Optional[str] = Query(None, description="Comma-separated camelCase field names to return"),
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> Dict[str, Any]:
@@ -68,8 +70,9 @@ async def list_accounts(
         type_filter=type,
     )
 
+    data = filter_fields(result["data"], fields) if fields else result["data"]
     return paginated_response(
-        data=result["data"],
+        data=data,
         page=page,
         limit=limit,
         total=result["pagination"]["total"],

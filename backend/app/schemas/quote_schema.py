@@ -14,6 +14,7 @@ class QuoteLineItemOut(CamelModel):
     description: Optional[str] = None
     quantity: int = 1
     unit_price: float
+    discount_pct: float = 0
     line_total: float
     sort_order: int = 0
     product_name: Optional[str] = None
@@ -24,6 +25,7 @@ class QuoteLineItemCreate(CamelModel):
     description: Optional[str] = None
     quantity: int = 1
     unit_price: float
+    discount_pct: float = 0
     line_total: float
     sort_order: int = 0
 

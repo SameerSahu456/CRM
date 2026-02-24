@@ -10,7 +10,7 @@ import {
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigation } from '@/contexts/NavigationContext';
-import { accountsApi, partnersApi, adminApi, salesApi, formatINR } from '@/services/api';
+import { accountsApi, partnersApi, adminApi, salesApi, formatINR, ACCOUNT_LIST_FIELDS } from '@/services/api';
 import { exportToCsv } from '@/utils/exportCsv';
 import { Account, Contact, Deal, PaginatedResponse, Partner, User } from '@/types';
 import { EnhancedAccountForm, EnhancedAccountFormData } from '@/components/common/EnhancedAccountForm';
@@ -145,7 +145,7 @@ export const AccountsPage: React.FC = () => {
 
   const fetchSummary = useCallback(async () => {
     try {
-      const accountsData = await accountsApi.list({ limit: '1000' });
+      const accountsData = await accountsApi.list({ limit: '1000', fields: 'id,name,tag,accountType,type' });
       const allAccounts = Array.isArray(accountsData?.data) ? accountsData.data : [];
       setParentAccounts(allAccounts);
 
@@ -181,6 +181,7 @@ export const AccountsPage: React.FC = () => {
       if (accountTypeFilter) params.account_type = accountTypeFilter;
       if (tagFilter) params.tag = tagFilter;
       if (typeFilter) params.type = typeFilter;
+      params.fields = ACCOUNT_LIST_FIELDS;
 
       const response: PaginatedResponse<Account> = await accountsApi.list(params);
       setAccounts(response.data);

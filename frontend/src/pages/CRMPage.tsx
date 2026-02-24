@@ -12,7 +12,7 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigation } from '@/contexts/NavigationContext';
 import { useDropdowns } from '@/contexts/DropdownsContext';
-import { leadsApi, dealsApi, partnersApi, productsApi, adminApi, accountsApi, contactsApi, uploadsApi, salesApi, formatINR } from '@/services/api';
+import { leadsApi, dealsApi, partnersApi, productsApi, adminApi, accountsApi, contactsApi, uploadsApi, salesApi, formatINR, LEAD_LIST_FIELDS, LEAD_KANBAN_FIELDS } from '@/services/api';
 import { exportToCsv } from '@/utils/exportCsv';
 import { Lead, LeadStage, PaginatedResponse, Partner, Product, User, ActivityLog } from '@/types';
 import { BulkImportModal } from '@/components/common/BulkImportModal';
@@ -457,6 +457,7 @@ export const CRMPage: React.FC = () => {
       if (filterPriority) params.priority = filterPriority;
       if (filterSource) params.source = filterSource;
       if (searchTerm) params.search = searchTerm;
+      params.fields = LEAD_LIST_FIELDS;
 
       const response: PaginatedResponse<Lead> = await leadsApi.list(params);
       setLeads(response.data);
@@ -474,7 +475,7 @@ export const CRMPage: React.FC = () => {
   const fetchPipelineLeads = useCallback(async () => {
     if (!pipelineLoadedRef.current) setIsPipelineLoading(true);
     try {
-      const response: PaginatedResponse<Lead> = await leadsApi.list({ limit: '100' });
+      const response: PaginatedResponse<Lead> = await leadsApi.list({ limit: '100', fields: LEAD_KANBAN_FIELDS });
       const grouped: Record<string, Lead[]> = {};
       response.data.forEach(lead => {
         if (!grouped[lead.stage]) grouped[lead.stage] = [];

@@ -108,6 +108,15 @@ export const partnersApi = {
     }),
 };
 
+// Field constants for list views (reduces API payload ~85%)
+export const DEAL_LIST_FIELDS = 'id,title,company,accountName,contactName,contactNo,designation,email,location,requirement,quotedRequirement,value,stage,typeOfOrder,ownerName,nextFollowUp,paymentFlag';
+export const DEAL_KANBAN_FIELDS = 'id,title,accountName,contactName,value,typeOfOrder,ownerName,stage,paymentFlag';
+export const LEAD_LIST_FIELDS = 'id,companyName,contactPerson,phone,designation,email,location,source,requirement,quotedRequirement,estimatedValue,stage,tag,assignedToName,nextFollowUp';
+export const LEAD_KANBAN_FIELDS = 'id,companyName,contactPerson,estimatedValue,stage,priority,nextFollowUp';
+export const ACCOUNT_LIST_FIELDS = 'id,name,industry,tag,type,accountType,phone,email,revenue';
+export const CONTACT_LIST_FIELDS = 'id,firstName,lastName,email,phone,designation,jobTitle,accountName,accountId';
+export const SALES_LIST_FIELDS = 'id,saleDate,customerName,productName,productNames,quantity,amount,poNumber,invoiceNo,paymentStatus';
+
 // Sales Entries
 export const salesApi = {
   list: (params?: Record<string, string>) => {
@@ -251,7 +260,10 @@ export const dealsApi = {
     return fetchApi<any>(`/deals/${qs}`);
   },
   stats: () => fetchApi<any>('/deals/stats'),
-  pipeline: () => fetchApi<any>('/deals/pipeline'),
+  pipeline: (params?: Record<string, string>) => {
+    const qs = params ? '?' + new URLSearchParams(params).toString() : '';
+    return fetchApi<any>(`/deals/pipeline${qs}`);
+  },
   getById: (id: string) => fetchApi<any>(`/deals/${id}`),
   create: (data: any) =>
     fetchApi<any>('/deals/', { method: 'POST', body: JSON.stringify(data) }),

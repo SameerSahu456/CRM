@@ -16,17 +16,24 @@
     "@react-spring/three": "^10.0.3",
     "@react-three/fiber": "^8.18.0",
     "@shadergradient/react": "^2.4.20",
+    "@tailwindcss/vite": "^4.2.1",
     "@tiptap/extension-placeholder": "^3.19.0",
     "@tiptap/pm": "^3.19.0",
     "@tiptap/react": "^3.19.0",
     "@tiptap/starter-kit": "^3.19.0",
+    "@untitledui/icons": "^0.0.21",
     "camera-controls": "^3.1.2",
     "lucide-react": "^0.556.0",
     "react": "^18.3.1",
+    "react-aria-components": "^1.15.1",
     "react-dom": "^18.3.1",
     "react-is": "^18.3.1",
     "react-router-dom": "^6.30.3",
     "recharts": "^3.5.1",
+    "tailwind-merge": "^3.5.0",
+    "tailwindcss": "^4.2.1",
+    "tailwindcss-animate": "^1.0.7",
+    "tailwindcss-react-aria-components": "^2.0.1",
     "three": "^0.182.0",
     "three-stdlib": "^2.36.1",
     "use-sync-external-store": "^1.6.0"
@@ -41,4 +48,3 @@
     "vite": "^6.2.0"
   }
 }
-

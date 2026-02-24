@@ -29,6 +29,7 @@ from app.services.lead_service import LeadService
 from app.utils.response_utils import (
     created_response,
     deleted_response,
+    filter_fields,
     paginated_response,
     success_response,
 )
@@ -44,6 +45,7 @@ async def list_leads(
     priority: Optional[str] = Query(None, description="Filter by priority"),
     assigned_to: Optional[str] = Query(None, description="Filter by assigned user"),
     source: Optional[str] = Query(None, description="Filter by source"),
+    fields: Optional[str] = Query(None, description="Comma-separated camelCase field names to return"),
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> Dict[str, Any]:
@@ -69,8 +71,9 @@ async def list_leads(
         source=source,
     )
 
+    data = filter_fields(result["data"], fields) if fields else result["data"]
     return paginated_response(
-        data=result["data"],
+        data=data,
         page=page,
         limit=limit,
         total=result["pagination"]["total"],

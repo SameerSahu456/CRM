@@ -13,6 +13,7 @@ from app.services.sales_entry_service import SalesEntryService
 from app.utils.response_utils import (
     created_response,
     deleted_response,
+    filter_fields,
     paginated_response,
     success_response,
 )
@@ -34,30 +35,12 @@ async def list_sales_entries(
     vertical_id: str = Query(None, description="Filter by vertical ID"),
     deal_id: str = Query(None, description="Filter by deal ID"),
     search: str = Query(None, description="Search by customer name"),
+    fields: str = Query(None, description="Comma-separated camelCase field names to return"),
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> Dict[str, Any]:
     """
     List sales entries with extensive filtering and pagination.
-
-    Args:
-        page: Page number
-        limit: Items per page
-        partner_id: Filter by partner ID
-        product_id: Filter by product ID
-        salesperson_id: Filter by salesperson ID
-        payment_status: Filter by payment status
-        from_date: Filter by sale date from
-        to_date: Filter by sale date to
-        location_id: Filter by location ID
-        vertical_id: Filter by vertical ID
-        deal_id: Filter by deal ID
-        search: Search by customer name
-        user: Current user
-        db: Database session
-
-    Returns:
-        Paginated list of sales entries with related names
     """
     service = SalesEntryService(db)
     result = await service.list_sales_entries(
@@ -76,8 +59,9 @@ async def list_sales_entries(
         search=search,
     )
 
+    data = filter_fields(result["data"], fields) if fields else result["data"]
     return paginated_response(
-        data=result["data"],
+        data=data,
         page=page,
         limit=limit,
         total=result["pagination"]["total"],

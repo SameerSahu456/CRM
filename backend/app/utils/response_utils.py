@@ -142,6 +142,15 @@ def paginated_response(
     )
 
 
+def filter_fields(data: List[Dict[str, Any]], fields: Optional[str]) -> List[Dict[str, Any]]:
+    """Filter list of dicts to only include specified keys. Always includes 'id'."""
+    if not fields:
+        return data
+    keys = {f.strip() for f in fields.split(",")}
+    keys.add("id")
+    return [{k: v for k, v in item.items() if k in keys} for item in data]
+
+
 def no_content_response() -> Dict[str, Any]:
     """
     Create a standardized response for operations with no content (204).

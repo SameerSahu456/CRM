@@ -10,7 +10,7 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigation } from '@/contexts/NavigationContext';
 import { useDropdowns } from '@/contexts/DropdownsContext';
-import { contactsApi, accountsApi } from '@/services/api';
+import { contactsApi, accountsApi, CONTACT_LIST_FIELDS } from '@/services/api';
 import { exportToCsv } from '@/utils/exportCsv';
 import { Contact, Account, PaginatedResponse } from '@/types';
 import { BulkImportModal } from '@/components/common/BulkImportModal';
@@ -153,6 +153,7 @@ export const ContactsPage: React.FC = () => {
       if (filterType) params.type = filterType;
       if (filterAccountId) params.accountId = filterAccountId;
       if (searchTerm) params.search = searchTerm;
+      params.fields = CONTACT_LIST_FIELDS;
 
       const response: PaginatedResponse<Contact> = await contactsApi.list(params);
       setContacts(response.data);

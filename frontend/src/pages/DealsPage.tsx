@@ -13,7 +13,7 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigation } from '@/contexts/NavigationContext';
 import { useDropdowns } from '@/contexts/DropdownsContext';
-import { dealsApi, accountsApi, contactsApi, salesApi, quotesApi, productsApi, partnersApi, formatINR } from '@/services/api';
+import { dealsApi, accountsApi, contactsApi, salesApi, quotesApi, productsApi, partnersApi, formatINR, DEAL_LIST_FIELDS, DEAL_KANBAN_FIELDS } from '@/services/api';
 import { exportToCsv } from '@/utils/exportCsv';
 import { BulkImportModal } from '@/components/common/BulkImportModal';
 import { RichTextEditor } from '@/components/common/RichTextEditor';
@@ -323,6 +323,7 @@ export const DealsPage: React.FC = () => {
       if (filterStage) params.stage = filterStage;
       if (filterAccount) params.accountId = filterAccount;
       if (searchTerm) params.search = searchTerm;
+      params.fields = DEAL_LIST_FIELDS;
 
       const response: PaginatedResponse<Deal> = await dealsApi.list(params);
       setDeals(response.data);
@@ -340,7 +341,7 @@ export const DealsPage: React.FC = () => {
   const fetchPipelineDeals = useCallback(async () => {
     if (!pipelineLoadedRef.current) setIsPipelineLoading(true);
     try {
-      const data = await dealsApi.pipeline();
+      const data = await dealsApi.pipeline({ fields: DEAL_KANBAN_FIELDS });
       const allDeals: Deal[] = Array.isArray(data) ? data : (data?.data ?? []);
       setPipelineDeals(allDeals);
       pipelineLoadedRef.current = true;
@@ -386,7 +387,7 @@ export const DealsPage: React.FC = () => {
     if (deals.length === 0) { setDealOverdueMap({}); return; }
     (async () => {
       try {
-        const res = await salesApi.list({ limit: '100' });
+        const res = await salesApi.list({ limit: '100', fields: 'id,dealId,paymentStatus,amount' });
         const entries: any[] = res?.data ?? res ?? [];
         const m: Record<string, number> = {};
         for (const e of entries) {

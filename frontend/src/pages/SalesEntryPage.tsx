@@ -6,7 +6,7 @@ import {
 } from 'lucide-react';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
-import { salesApi, productsApi, partnersApi, formatINR } from '@/services/api';
+import { salesApi, productsApi, partnersApi, formatINR, SALES_LIST_FIELDS } from '@/services/api';
 import { exportToCsv } from '@/utils/exportCsv';
 import { SalesEntry, Product, Partner, PaginatedResponse } from '@/types';
 import { BulkImportModal } from '@/components/common/BulkImportModal';
@@ -146,6 +146,7 @@ export const SalesEntryPage: React.FC = () => {
       if (searchTerm) params.search = searchTerm;
       if (filterFromDate) params.fromDate = filterFromDate;
       if (filterToDate) params.toDate = filterToDate;
+      params.fields = SALES_LIST_FIELDS;
 
       const response: PaginatedResponse<SalesEntry> = await salesApi.list(params);
       setSales(response.data);

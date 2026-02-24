@@ -46,7 +46,7 @@ const PageLoader = () => (
   <div className="flex items-center justify-center h-full min-h-[400px]">
     <div className="flex flex-col items-center gap-3">
       <Loader2 className="w-8 h-8 text-brand-600 animate-spin" />
-      <p className="text-sm text-slate-500 dark:text-zinc-400">Loading page...</p>
+      <p className="text-sm text-gray-500 dark:text-zinc-400">Loading page...</p>
     </div>
   </div>
 );
@@ -56,7 +56,6 @@ const LayoutShell: React.FC = () => {
   const { activeTab } = useNavigation();
   const [visitedPages, setVisitedPages] = useState<Set<NavigationItem>>(() => new Set([activeTab]));
 
-  // Track visited pages — once a page is visited, keep it mounted
   useEffect(() => {
     setVisitedPages(prev => {
       if (prev.has(activeTab)) return prev;
@@ -77,10 +76,8 @@ const LayoutShell: React.FC = () => {
           onMenuClick={() => setSidebarOpen(true)}
           title={pageTitles[activeTab] || 'Dashboard'}
         />
-        <main className="flex-1 overflow-y-auto bg-slate-50 dark:bg-dark-100 safe-area-bottom">
-          {/* Outlet handles index redirect & catch-all — renders null for normal pages */}
+        <main className="flex-1 overflow-y-auto bg-gray-50 dark:bg-dark-100 safe-area-bottom">
           <Outlet />
-          {/* Keep-alive pages: once visited, stay mounted and hidden when inactive */}
           {Array.from(visitedPages).map(page => {
             const PageComponent = PAGE_COMPONENTS[page];
             if (!PageComponent) return null;
@@ -107,10 +104,10 @@ export const RootLayout: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-dark-100">
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-dark-100">
         <div className="flex flex-col items-center gap-3">
           <Loader2 className="w-8 h-8 text-brand-600 animate-spin" />
-          <p className="text-sm text-slate-500 dark:text-zinc-400">Loading...</p>
+          <p className="text-sm text-gray-500 dark:text-zinc-400">Loading...</p>
         </div>
       </div>
     );

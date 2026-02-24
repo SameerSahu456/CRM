@@ -24,6 +24,7 @@ from app.services.contact_service import ContactService
 from app.utils.response_utils import (
     created_response,
     deleted_response,
+    filter_fields,
     paginated_response,
     success_response,
 )
@@ -39,6 +40,7 @@ async def list_contacts(
     status: Optional[str] = Query(None, description="Filter by status"),
     type: Optional[str] = Query(None, description="Filter by type"),
     search: Optional[str] = Query(None, description="Search by name"),
+    fields: Optional[str] = Query(None, description="Comma-separated camelCase field names to return"),
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> Dict[str, Any]:
@@ -64,8 +66,9 @@ async def list_contacts(
         search=search,
     )
 
+    data = filter_fields(result["data"], fields) if fields else result["data"]
     return paginated_response(
-        data=result["data"],
+        data=data,
         page=page,
         limit=limit,
         total=result["pagination"]["total"],

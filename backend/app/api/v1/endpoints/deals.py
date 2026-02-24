@@ -28,6 +28,7 @@ from app.services.deal_service import DealService
 from app.utils.response_utils import (
     created_response,
     deleted_response,
+    filter_fields,
     paginated_response,
     success_response,
 )
@@ -42,6 +43,7 @@ async def list_deals(
     stage: Optional[str] = Query(None, description="Filter by stage"),
     account_id: Optional[str] = Query(None, description="Filter by account"),
     owner: Optional[str] = Query(None, description="Filter by owner"),
+    fields: Optional[str] = Query(None, description="Comma-separated camelCase field names to return"),
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> Dict[str, Any]:
@@ -66,8 +68,9 @@ async def list_deals(
         owner=owner,
     )
 
+    data = filter_fields(result["data"], fields) if fields else result["data"]
     return paginated_response(
-        data=result["data"],
+        data=data,
         page=page,
         limit=limit,
         total=result["pagination"]["total"],
@@ -98,6 +101,7 @@ async def deal_stats(
 
 @router.get("/pipeline")
 async def deal_pipeline(
+    fields: Optional[str] = Query(None, description="Comma-separated camelCase field names to return"),
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> Dict[str, Any]:
@@ -115,8 +119,9 @@ async def deal_pipeline(
     service = DealService(db)
     result = await service.get_pipeline_data(user=user)
 
+    data = filter_fields(result["data"], fields) if fields else result["data"]
     return paginated_response(
-        data=result["data"],
+        data=data,
         page=1,
         limit=1000,
         total=result["pagination"]["total"],
