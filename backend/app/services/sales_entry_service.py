@@ -235,6 +235,14 @@ class SalesEntryService:
         )
         return SalesEntryOut.model_validate(entry).model_dump(by_alias=True)
 
+    async def get_sales_entry_by_id(self, entry_id: str, user: User) -> Dict[str, Any]:
+        """Get a single sales entry by ID."""
+        entry = await self.sales_entry_repo.get_by_id(entry_id)
+        if not entry:
+            raise NotFoundException("Sales entry not found")
+        await enforce_scope(entry, "salesperson_id", user, self.db, resource_name="sales entry")
+        return SalesEntryOut.model_validate(entry).model_dump(by_alias=True)
+
     async def update_sales_entry(
         self,
         entry_id: str,

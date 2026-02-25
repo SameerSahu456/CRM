@@ -2,12 +2,13 @@ import React, { useState, Suspense } from 'react';
 import { DndContext, closestCenter, DragEndEvent, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { SortableContext, rectSortingStrategy } from '@dnd-kit/sortable';
 import { Settings, Loader2 } from 'lucide-react';
+import { cx } from '@/utils/cx';
+import { Button } from '@/components/ui';
 import { useDashboardLayout } from '@/hooks/useDashboardLayout';
 import { WidgetWrapper } from './WidgetWrapper';
 import { WidgetLibrary } from '@/components/common/WidgetLibrary';
 import { WidgetDetailModal } from './WidgetDetailModal';
 import { WIDGET_REGISTRY } from '@/config/widgetRegistry';
-import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useView } from '@/contexts/ViewContext';
 import { useNavigation } from '@/contexts/NavigationContext';
@@ -15,11 +16,9 @@ import { DashboardDataProvider } from '@/contexts/DashboardDataContext';
 
 
 export const DashboardContainer: React.FC = () => {
-  const { theme } = useTheme();
   const { user } = useAuth();
   const { currentView } = useView();
   const { setActiveTab: navigate } = useNavigation();
-  const isDark = theme === 'dark';
 
   const { accessibleWidgets, reorderWidgets, isLoading, isWidgetVisible } = useDashboardLayout();
   const [showLibrary, setShowLibrary] = useState(false);
@@ -65,13 +64,7 @@ export const DashboardContainer: React.FC = () => {
     <div className="p-3 sm:p-4 lg:p-6 space-y-4 sm:space-y-5 animate-fade-in-up">
       {/* Customization Button */}
       <div className="flex justify-end mb-4">
-        <button
-          onClick={() => setShowLibrary(true)}
-          className="btn-premium flex items-center gap-2 px-4 py-2 rounded-xl bg-brand-600 text-white hover:bg-brand-700 transition-all shadow-sm hover:shadow-md"
-        >
-          <Settings className="w-4 h-4" />
-          Customize Widgets
-        </button>
+        <Button icon={<Settings className="w-4 h-4" />} onClick={() => setShowLibrary(true)} shine>Customize Widgets</Button>
       </div>
 
       {/* Drag-and-Drop Grid */}
@@ -96,9 +89,10 @@ export const DashboardContainer: React.FC = () => {
                 <WidgetWrapper key={widget.id} id={widget.id}>
                   <Suspense
                     fallback={
-                      <div className={`rounded-2xl p-5 flex items-center justify-center h-40 ${
-                        isDark ? 'bg-[rgba(8,14,30,0.6)] border border-white/[0.07]' : 'bg-white/50 backdrop-blur-xl shadow-soft'
-                      }`}>
+                      <div className={cx(
+                        'rounded-2xl p-5 flex items-center justify-center h-40',
+                        'bg-white/50 backdrop-blur-xl shadow-soft dark:bg-[rgba(8,14,30,0.6)] dark:border dark:border-white/[0.07]'
+                      )}>
                         <Loader2 className="w-6 h-6 animate-spin text-brand-600" />
                       </div>
                     }
@@ -108,7 +102,6 @@ export const DashboardContainer: React.FC = () => {
                       style={{ animationDelay: `${index * 60}ms` }}
                     >
                       <WidgetComponent
-                        isDark={isDark}
                         user={user}
                         currentView={currentView}
                         navigate={navigate}
@@ -134,7 +127,6 @@ export const DashboardContainer: React.FC = () => {
       {selectedWidgetId && (
         <WidgetDetailModal
           widgetId={selectedWidgetId}
-          isDark={isDark}
           onClose={() => setSelectedWidgetId(null)}
           navigate={navigate}
         />

@@ -4,7 +4,7 @@ import { AnalyticsCard } from '../AnalyticsCard';
 import { WidgetProps } from '@/types';
 import { useDashboardData } from '@/contexts/DashboardDataContext';
 
-export const LeadsWidget: React.FC<WidgetProps> = ({ isDark, navigate, onDetailClick }) => {
+export const LeadsWidget: React.FC<WidgetProps> = ({ navigate, onDetailClick }) => {
   const { data } = useDashboardData();
   const leadStats: Record<string, number> = data?.leadStats || {};
 
@@ -17,41 +17,42 @@ export const LeadsWidget: React.FC<WidgetProps> = ({ isDark, navigate, onDetailC
     New: '#06b6d4', Proposal: '#a855f7', Cold: '#3b82f6', Negotiation: '#f97316', 'Closed Lost': '#ef4444', 'Closed Won': '#10b981',
   };
 
-  const thClass = `text-[10px] font-semibold uppercase tracking-wider ${isDark ? 'text-zinc-500' : 'text-slate-400'}`;
-  const tdClass = `text-xs ${isDark ? 'text-zinc-300' : 'text-slate-700'}`;
-  const tdBold = `text-xs font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`;
-  const rowBorder = isDark ? 'border-zinc-800/50' : 'border-slate-100';
+  const strokeBg = document.documentElement.classList.contains('dark') ? '#1a2535' : '#f1f5f9';
+
+  const thClass = 'text-[10px] font-semibold uppercase tracking-wider text-slate-400 dark:text-zinc-500';
+  const tdClass = 'text-xs text-slate-700 dark:text-zinc-300';
+  const tdBold = 'text-xs font-semibold text-slate-900 dark:text-white';
+  const rowBorder = 'border-slate-100 dark:border-zinc-800/50';
 
   return (
     <AnalyticsCard
       icon={<Target className="w-4 h-4" />}
-      iconBg={isDark ? 'bg-orange-900/30' : 'bg-orange-50'}
-      iconColor={isDark ? 'text-orange-400' : 'text-orange-600'}
+      iconBg="bg-orange-50 dark:bg-orange-900/30"
+      iconColor="text-orange-600 dark:text-orange-400"
       title="Leads"
-      titleColor={isDark ? 'text-orange-400' : 'text-orange-700'}
+      titleColor="text-orange-700 dark:text-orange-400"
       subtitle="Funnel Analysis"
-      isDark={isDark}
       onClick={() => onDetailClick?.()}
     >
       {/* Big metric */}
       <div className="flex items-baseline justify-between mb-4">
         <div>
-          <p className={`text-2xl font-bold tracking-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>
+          <p className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
             {totalLeads}
           </p>
-          <p className={`text-[10px] uppercase tracking-wider mt-0.5 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
+          <p className="text-[10px] uppercase tracking-wider mt-0.5 text-slate-400 dark:text-zinc-500">
             Total Leads
           </p>
         </div>
         <div className="text-right">
-          <p className={`text-lg font-bold ${isDark ? 'text-emerald-400' : 'text-emerald-600'}`}>{conversionRate}%</p>
-          <p className={`text-[10px] uppercase tracking-wider ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Conversion</p>
+          <p className="text-lg font-bold text-emerald-600 dark:text-emerald-400">{conversionRate}%</p>
+          <p className="text-[10px] uppercase tracking-wider text-slate-400 dark:text-zinc-500">Conversion</p>
         </div>
       </div>
 
       {totalLeads === 0 ? (
-        <div className={`h-24 flex items-center justify-center rounded-xl ${isDark ? 'bg-zinc-900/50' : 'bg-slate-50'}`}>
-          <p className={`text-xs ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>No leads data</p>
+        <div className="h-24 flex items-center justify-center rounded-xl bg-slate-50 dark:bg-zinc-900/50">
+          <p className="text-xs text-slate-400 dark:text-zinc-500">No leads data</p>
         </div>
       ) : (
         <div className="max-h-[200px] overflow-y-auto">
@@ -76,7 +77,7 @@ export const LeadsWidget: React.FC<WidgetProps> = ({ isDark, navigate, onDetailC
                       </div>
                     </td>
                     <td className={`${tdBold} py-1.5 text-right`}>{count}</td>
-                    <td className={`text-xs py-1.5 text-right ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>{pct}%</td>
+                    <td className="text-xs py-1.5 text-right text-slate-400 dark:text-zinc-500">{pct}%</td>
                   </tr>
                 );
               })}
@@ -86,18 +87,18 @@ export const LeadsWidget: React.FC<WidgetProps> = ({ isDark, navigate, onDetailC
           <div className={`flex items-center justify-center gap-4 pt-3 mt-3 border-t ${rowBorder}`}>
             <div className="relative w-12 h-12">
               <svg className="w-full h-full -rotate-90" viewBox="0 0 48 48">
-                <circle cx="24" cy="24" r="18" fill="none" stroke={isDark ? '#1a2535' : '#f1f5f9'} strokeWidth="4" />
+                <circle cx="24" cy="24" r="18" fill="none" stroke={strokeBg} strokeWidth="4" />
                 <circle cx="24" cy="24" r="18" fill="none" stroke="#10b981" strokeWidth="4"
                   strokeLinecap="round" strokeDasharray={`${2 * Math.PI * 18}`}
                   strokeDashoffset={`${2 * Math.PI * 18 * (1 - conversionRate / 100)}`} />
               </svg>
               <div className="absolute inset-0 flex items-center justify-center">
-                <span className={`text-[10px] font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>{conversionRate}%</span>
+                <span className="text-[10px] font-bold text-slate-900 dark:text-white">{conversionRate}%</span>
               </div>
             </div>
             <div>
-              <p className={`text-xs font-medium ${isDark ? 'text-white' : 'text-slate-900'}`}>Won: {wonLeads}</p>
-              <p className={`text-[10px] ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Lost: {(leadStats['Closed Lost'] as number) || 0}</p>
+              <p className="text-xs font-medium text-slate-900 dark:text-white">Won: {wonLeads}</p>
+              <p className="text-[10px] text-slate-400 dark:text-zinc-500">Lost: {(leadStats['Closed Lost'] as number) || 0}</p>
             </div>
           </div>
         </div>

@@ -5,9 +5,11 @@ import { AnalyticsCard } from '../AnalyticsCard';
 import { WidgetProps } from '@/types';
 import { useDashboardData } from '@/contexts/DashboardDataContext';
 
-export const LeadsDistributionWidget: React.FC<WidgetProps> = ({ isDark, navigate, onDetailClick }) => {
+export const LeadsDistributionWidget: React.FC<WidgetProps> = ({ navigate, onDetailClick }) => {
   const { data } = useDashboardData();
   const leadStats: Record<string, number> = data?.leadStats || {};
+
+  const isDark = document.documentElement.classList.contains('dark');
 
   const totalLeads = (Object.values(leadStats) as number[]).reduce((a, b) => a + b, 0);
 
@@ -19,17 +21,16 @@ export const LeadsDistributionWidget: React.FC<WidgetProps> = ({ isDark, navigat
   return (
     <AnalyticsCard
       icon={<Users className="w-4 h-4" />}
-      iconBg={isDark ? 'bg-blue-900/30' : 'bg-blue-50'}
-      iconColor={isDark ? 'text-blue-400' : 'text-blue-600'}
+      iconBg="bg-blue-50 dark:bg-blue-900/30"
+      iconColor="text-blue-600 dark:text-blue-400"
       title="Leads Distribution"
-      titleColor={isDark ? 'text-blue-400' : 'text-blue-700'}
+      titleColor="text-blue-700 dark:text-blue-400"
       subtitle={`${totalLeads} total leads`}
-      isDark={isDark}
       onClick={() => onDetailClick?.()}
     >
       {totalLeads === 0 ? (
-        <div className={`h-44 flex items-center justify-center rounded-xl ${isDark ? 'bg-zinc-900/50' : 'bg-slate-50'}`}>
-          <p className={`text-xs ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>No leads data</p>
+        <div className="h-44 flex items-center justify-center rounded-xl bg-slate-50 dark:bg-zinc-900/50">
+          <p className="text-xs text-slate-400 dark:text-zinc-500">No leads data</p>
         </div>
       ) : (() => {
         const pieData = Object.entries(leadStats)
@@ -57,7 +58,7 @@ export const LeadsDistributionWidget: React.FC<WidgetProps> = ({ isDark, navigat
               {pieData.map(d => (
                 <div key={d.name} className="flex items-center gap-1.5">
                   <div className="w-2 h-2 rounded-full" style={{ backgroundColor: d.fill }} />
-                  <span className={`text-[10px] ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>{d.name} ({d.value})</span>
+                  <span className="text-[10px] text-slate-500 dark:text-zinc-400">{d.name} ({d.value})</span>
                 </div>
               ))}
             </div>

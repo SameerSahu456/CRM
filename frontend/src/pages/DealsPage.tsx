@@ -9,7 +9,6 @@ import {
   Download, Upload,
   MapPin, Phone, Mail, Send, MessageSquare, Flag, Tag
 } from 'lucide-react';
-import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigation } from '@/contexts/NavigationContext';
 import { useDropdowns } from '@/contexts/DropdownsContext';
@@ -19,12 +18,23 @@ import { BulkImportModal } from '@/components/common/BulkImportModal';
 import { RichTextEditor } from '@/components/common/RichTextEditor';
 import { Deal, DealStage, Account, Contact, Product, Partner, PaginatedResponse, ActivityLog } from '@/types';
 import { useColumnResize } from '@/hooks/useColumnResize';
+import { Card, Button, Input, Select, Modal, Badge, Alert, Pagination, Textarea } from '@/components/ui';
+import { cx } from '@/utils/cx';
 
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
 
 const PAGE_SIZE = 10;
+
+const STAGE_BADGE_VARIANT: Record<DealStage, 'cyan' | 'amber' | 'blue' | 'purple' | 'red' | 'emerald'> = {
+  New: 'cyan',
+  Proposal: 'amber',
+  Cold: 'blue',
+  Negotiation: 'purple',
+  'Closed Lost': 'red',
+  'Closed Won': 'emerald',
+};
 
 const STAGE_COLORS: Record<DealStage, {
   bg: string; text: string; darkBg: string; darkText: string;
@@ -149,22 +159,14 @@ function formatDateTime(dateStr?: string): string {
   }
 }
 
-function stageBadge(stage: DealStage, isDark: boolean): string {
-  const base = 'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium';
-  const c = STAGE_COLORS[stage] || STAGE_COLORS['New']; // Fallback to New if stage not found
-  return `${base} ${isDark ? `${c.darkBg} ${c.darkText}` : `${c.bg} ${c.text}`}`;
-}
-
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 
 export const DealsPage: React.FC = () => {
-  const { theme } = useTheme();
   const { user } = useAuth();
   const { setActiveTab: navigate } = useNavigation();
   const { getOptions } = useDropdowns();
-  const isDark = theme === 'dark';
   const canSeeAssignee = true; // Always show — backend controls data visibility via manager hierarchy
 
   // Stage definitions (hardcoded to guarantee all stages always render)
@@ -298,16 +300,6 @@ export const DealsPage: React.FC = () => {
     initialWidths: dealInitialWidths,
   });
 
-  const cardClass = `premium-card ${isDark ? '' : 'shadow-soft'}`;
-
-  const inputClass = `w-full px-3 py-2.5 rounded-xl border text-sm transition-all ${
-    isDark
-      ? 'bg-dark-100 border-zinc-700 text-white placeholder-zinc-500 focus:border-brand-500'
-      : 'bg-white border-slate-200 text-slate-900 placeholder-slate-400 focus:border-brand-500'
-  } focus:outline-none focus:ring-1 focus:ring-brand-500`;
-  const labelClass = `block text-sm font-medium mb-1.5 ${isDark ? 'text-slate-300' : 'text-slate-700'}`;
-  const selectClass = `${inputClass} appearance-none cursor-pointer`;
-
   // ---------------------------------------------------------------------------
   // Data fetching
   // ---------------------------------------------------------------------------
@@ -430,30 +422,36 @@ export const DealsPage: React.FC = () => {
     setShowDealModal(true);
   };
 
-  const openEditDealModal = (deal: Deal) => {
+  const openEditDealModal = async (deal: Deal) => {
     fetchDropdownData();
+    // Fetch full record to avoid partial-field overwrites
+    let full = deal;
+    try {
+      const res = await dealsApi.getById(deal.id);
+      full = res?.data ?? res;
+    } catch { /* fall back to list data */ }
     setDealFormData({
-      accountId: deal.accountId || '',
-      value: deal.value || 0,
-      stage: deal.stage,
-      closingDate: deal.closingDate ? deal.closingDate.split('T')[0] : '',
-      description: deal.description || '',
-      contactId: deal.contactId || '',
-      nextStep: deal.nextStep || '',
-      forecast: deal.forecast || 'Pipeline',
-      type: deal.type || 'New Business',
-      leadSource: deal.leadSource || '',
-      tag: deal.tag || '',
-      contactNo: deal.contactNo || '',
-      designation: deal.designation || '',
-      email: deal.email || '',
-      location: deal.location || '',
-      nextFollowUp: deal.nextFollowUp ? deal.nextFollowUp.split('T')[0] : '',
-      probability: deal.probability ?? 0,
-      requirement: deal.requirement || '',
-      quotedRequirement: deal.quotedRequirement || '',
-      paymentFlag: deal.paymentFlag || false,
-      typeOfOrder: deal.typeOfOrder || '',
+      accountId: full.accountId || '',
+      value: full.value || 0,
+      stage: full.stage,
+      closingDate: full.closingDate ? full.closingDate.split('T')[0] : '',
+      description: full.description || '',
+      contactId: full.contactId || '',
+      nextStep: full.nextStep || '',
+      forecast: full.forecast || 'Pipeline',
+      type: full.type || 'New Business',
+      leadSource: full.leadSource || '',
+      tag: full.tag || '',
+      contactNo: full.contactNo || '',
+      designation: full.designation || '',
+      email: full.email || '',
+      location: full.location || '',
+      nextFollowUp: full.nextFollowUp ? full.nextFollowUp.split('T')[0] : '',
+      probability: full.probability ?? 0,
+      requirement: full.requirement || '',
+      quotedRequirement: full.quotedRequirement || '',
+      paymentFlag: full.paymentFlag || false,
+      typeOfOrder: full.typeOfOrder || '',
     });
     setEditingDealId(deal.id);
     setDealFormError('');
@@ -1034,7 +1032,7 @@ export const DealsPage: React.FC = () => {
       case 'value':
         return <span className="font-semibold whitespace-nowrap">{deal.value ? formatINR(deal.value) : '-'}</span>;
       case 'stage':
-        return <span className={stageBadge(deal.stage, isDark)}>{deal.stage}</span>;
+        return <Badge variant={STAGE_BADGE_VARIANT[deal.stage] || 'gray'}>{deal.stage}</Badge>;
       case 'closingDate':
         return <span className="whitespace-nowrap">{deal.closingDate ? formatDate(deal.closingDate) : '-'}</span>;
       case 'type':
@@ -1042,13 +1040,9 @@ export const DealsPage: React.FC = () => {
       case 'tag':
         if (!deal.tag) return '-';
         return (
-          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-            deal.tag === 'Channel'
-              ? (isDark ? 'bg-indigo-900/30 text-indigo-400' : 'bg-indigo-50 text-indigo-700')
-              : (isDark ? 'bg-teal-900/30 text-teal-400' : 'bg-teal-50 text-teal-700')
-          }`}>
+          <Badge variant={deal.tag === 'Channel' ? 'purple' : 'cyan'}>
             {deal.tag}
-          </span>
+          </Badge>
         );
       default: return '-';
     }
@@ -1071,30 +1065,30 @@ export const DealsPage: React.FC = () => {
   // ---------------------------------------------------------------------------
 
   const renderToolbar = () => (
-    <div className={`${cardClass} p-4`}>
+    <Card padding="none" className="p-4">
       <div className="flex flex-col lg:flex-row lg:items-center gap-3">
         {/* View Toggle */}
-        <div className={`flex items-center rounded-xl border p-0.5 ${
-          isDark ? 'border-zinc-700 bg-dark-100' : 'border-slate-200 bg-slate-50'
-        }`}>
+        <div className="flex items-center rounded-xl border p-0.5 border-gray-200 bg-gray-50 dark:border-zinc-700 dark:bg-dark-100">
           <button
             onClick={() => setViewMode('table')}
-            className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-all ${
+            className={cx(
+              'flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-all',
               viewMode === 'table'
                 ? 'bg-brand-600 text-white shadow-sm'
-                : isDark ? 'text-zinc-400 hover:text-white' : 'text-slate-500 hover:text-slate-700'
-            }`}
+                : 'text-gray-500 hover:text-gray-700 dark:text-zinc-400 dark:hover:text-white'
+            )}
           >
             <List className="w-3.5 h-3.5" />
             List View
           </button>
           <button
             onClick={() => setViewMode('pipeline')}
-            className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-all ${
+            className={cx(
+              'flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-all',
               viewMode === 'pipeline'
                 ? 'bg-brand-600 text-white shadow-sm'
-                : isDark ? 'text-zinc-400 hover:text-white' : 'text-slate-500 hover:text-slate-700'
-            }`}
+                : 'text-gray-500 hover:text-gray-700 dark:text-zinc-400 dark:hover:text-white'
+            )}
           >
             <LayoutGrid className="w-3.5 h-3.5" />
             Kanban Board
@@ -1103,81 +1097,57 @@ export const DealsPage: React.FC = () => {
 
         {/* Search */}
         <div className="relative flex-1 min-w-0">
-          <Search className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${
-            isDark ? 'text-zinc-500' : 'text-slate-400'
-          }`} />
-          <input
+          <Input
             type="text"
             placeholder="Search deals..."
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
-            className={`w-full pl-10 pr-4 py-2.5 rounded-xl border text-sm transition-all ${
-              isDark
-                ? 'bg-dark-100 border-zinc-700 text-white placeholder-zinc-500 focus:border-brand-500'
-                : 'bg-white border-slate-200 text-slate-900 placeholder-slate-400 focus:border-brand-500'
-            } focus:outline-none focus:ring-1 focus:ring-brand-500`}
+            icon={<Search className="w-4 h-4" />}
           />
         </div>
 
         {/* Filter: Stage */}
         <div className="w-full lg:w-44">
-          <select
+          <Select
             value={filterStage}
             onChange={e => setFilterStage(e.target.value)}
-            className={selectClass}
           >
             <option value="">All Stages</option>
             {DEAL_STAGES.map(s => (
               <option key={s} value={s}>{s}</option>
             ))}
-          </select>
+          </Select>
         </div>
 
         {/* Filter: Account */}
         <div className="w-full lg:w-44">
-          <select
+          <Select
             value={filterAccount}
             onChange={e => setFilterAccount(e.target.value)}
-            className={selectClass}
           >
             <option value="">All Accounts</option>
             {accounts.map(a => (
               <option key={a.id} value={a.id}>{a.name}</option>
             ))}
-          </select>
+          </Select>
         </div>
 
         {/* Clear Filters */}
         {hasActiveFilters && (
-          <button
-            onClick={clearFilters}
-            className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium transition-colors ${
-              isDark
-                ? 'text-zinc-400 hover:text-white hover:bg-zinc-800'
-                : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100'
-            }`}
-          >
-            <X className="w-3.5 h-3.5" />
+          <Button variant="ghost" size="sm" onClick={clearFilters} icon={<X className="w-3.5 h-3.5" />}>
             Clear
-          </button>
+          </Button>
         )}
 
         {/* Bulk Import */}
-        <button
-          onClick={() => setShowBulkImport(true)}
-          title="Import from CSV"
-          className={`flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-normal transition-colors whitespace-nowrap ${
-            isDark
-              ? 'text-zinc-400 border border-zinc-700 hover:bg-zinc-800'
-              : 'text-slate-500 border border-slate-200 hover:bg-slate-50'
-          }`}
-        >
-          <Upload className="w-4 h-4" />
+        <Button variant="secondary" size="sm" onClick={() => setShowBulkImport(true)} icon={<Upload className="w-4 h-4" />}>
           Import
-        </button>
+        </Button>
 
         {/* Export CSV */}
-        <button
+        <Button
+          variant="secondary"
+          size="sm"
           onClick={() => exportToCsv('deals', [
             { header: 'Company', accessor: (r: Deal) => r.company || r.accountName },
             { header: 'Contact Name', accessor: (r: Deal) => r.contactName },
@@ -1200,27 +1170,17 @@ export const DealsPage: React.FC = () => {
             { header: 'Description', accessor: (r: Deal) => r.description },
           ], deals)}
           disabled={deals.length === 0}
-          title="Export to Excel"
-          className={`flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-normal transition-colors whitespace-nowrap ${
-            isDark
-              ? 'text-zinc-400 border border-zinc-700 hover:bg-zinc-800 disabled:opacity-30'
-              : 'text-slate-500 border border-slate-200 hover:bg-slate-50 disabled:opacity-30'
-          }`}
+          icon={<Download className="w-4 h-4" />}
         >
-          <Download className="w-4 h-4" />
           Export
-        </button>
+        </Button>
 
         {/* New Deal */}
-        <button
-          onClick={openCreateDealModal}
-          className="flex items-center gap-2 px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-sm font-medium transition-all btn-premium whitespace-nowrap"
-        >
-          <Plus className="w-4 h-4" />
+        <Button onClick={openCreateDealModal} icon={<Plus className="w-4 h-4" />} shine>
           New Deal
-        </button>
+        </Button>
       </div>
-    </div>
+    </Card>
   );
 
   // ---------------------------------------------------------------------------
@@ -1228,25 +1188,22 @@ export const DealsPage: React.FC = () => {
   // ---------------------------------------------------------------------------
 
   const renderTableView = () => {
-    const cellBase = `px-3 py-2.5 text-sm ${isDark ? 'border-zinc-800' : 'border-slate-100'}`;
-    const hdrCell = `px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wider ${isDark ? 'text-zinc-400 bg-dark-100' : 'text-slate-500 bg-slate-50'}`;
+    const cellBase = 'px-3 py-2.5 text-sm border-gray-100 dark:border-zinc-800';
+    const hdrCell = 'px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 bg-gray-50 dark:text-zinc-400 dark:bg-dark-100';
 
     return (
-      <div className={`${cardClass} overflow-hidden`}>
+      <Card padding="none" className="overflow-hidden">
         {tableError && (
-          <div className={`m-4 p-3 rounded-xl flex items-center gap-2 text-sm ${
-            isDark
-              ? 'bg-red-900/20 border border-red-800 text-red-400'
-              : 'bg-red-50 border border-red-200 text-red-700'
-          }`}>
-            <AlertCircle className="w-4 h-4 flex-shrink-0" />
-            {tableError}
+          <div className="m-4">
+            <Alert variant="error" icon={<AlertCircle className="w-4 h-4" />}>
+              {tableError}
+            </Alert>
           </div>
         )}
 
         {/* Record count */}
         {totalRecords > 0 && (
-          <div className={`px-4 py-2 text-xs ${isDark ? 'text-zinc-500 border-b border-zinc-800' : 'text-slate-400 border-b border-slate-100'}`}>
+          <div className="px-4 py-2 text-xs text-gray-400 border-b border-gray-100 dark:text-zinc-500 dark:border-zinc-800">
             {totalRecords} deal{totalRecords !== 1 ? 's' : ''} total
           </div>
         )}
@@ -1254,7 +1211,7 @@ export const DealsPage: React.FC = () => {
         {isLoading ? (
           <div className="flex flex-col items-center justify-center py-20">
             <Loader2 className="w-8 h-8 text-brand-600 animate-spin" />
-            <p className={`mt-3 text-sm ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>
+            <p className="mt-3 text-sm text-gray-500 dark:text-zinc-400">
               Loading deals...
             </p>
           </div>
@@ -1263,7 +1220,7 @@ export const DealsPage: React.FC = () => {
             <div className="overflow-x-auto">
               <table className="premium-table" style={{ minWidth: dealColWidths.reduce((a, b) => a + b, 0) }}>
                 <thead>
-                  <tr className={`border-b ${isDark ? 'border-zinc-700' : 'border-slate-200'}`}>
+                  <tr className="border-b border-gray-200 dark:border-zinc-700">
                     {(['#', 'Summarise', 'Company', 'Overdue', 'Contact Name', 'Contact No', 'Designation', 'Email', 'Location', 'Requirement', 'Quoted Requirement', 'Value', 'Stage', 'Order Type', ...(canSeeAssignee ? ['Assignee'] : []), 'Follow-up Date'] as string[]).map((label, i, arr) => (
                       <th
                         key={label}
@@ -1280,8 +1237,8 @@ export const DealsPage: React.FC = () => {
                   {deals.length === 0 ? (
                     <tr>
                       <td colSpan={canSeeAssignee ? 16 : 15} className="py-16 text-center">
-                        <Briefcase className={`w-8 h-8 mx-auto ${isDark ? 'text-zinc-700' : 'text-slate-300'}`} />
-                        <p className={`mt-2 text-sm ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
+                        <Briefcase className="w-8 h-8 mx-auto text-gray-300 dark:text-zinc-700" />
+                        <p className="mt-2 text-sm text-gray-400 dark:text-zinc-500">
                           {hasActiveFilters ? 'No deals match filters' : 'No deals yet'}
                         </p>
                       </td>
@@ -1290,90 +1247,82 @@ export const DealsPage: React.FC = () => {
                     <tr
                       key={deal.id}
                       onClick={() => openDealDetailModal(deal)}
-                      className={`border-b cursor-pointer transition-colors ${
-                        isDark
-                          ? 'border-zinc-800 hover:bg-zinc-800/50'
-                          : 'border-slate-100 hover:bg-slate-50'
-                      }`}
+                      className="border-b cursor-pointer transition-colors border-gray-100 hover:bg-gray-50 dark:border-zinc-800 dark:hover:bg-zinc-800/50"
                     >
                       {/* # */}
-                      <td className={`${cellBase} text-center ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
+                      <td className={cx(cellBase, 'text-center text-gray-400 dark:text-zinc-500')}>
                         {(page - 1) * PAGE_SIZE + idx + 1}
                       </td>
                       {/* Summarise */}
-                      <td className={`${cellBase} text-center`}>
+                      <td className={cx(cellBase, 'text-center')}>
                         <button
                           onClick={(e) => { e.stopPropagation(); setSummariseDeal(deal); setShowSummariseModal(true); }}
                           title="Summarise"
-                          className={`p-1.5 rounded-lg transition-colors ${
-                            isDark
-                              ? 'text-zinc-400 hover:text-brand-400 hover:bg-brand-900/20'
-                              : 'text-slate-400 hover:text-brand-600 hover:bg-brand-50'
-                          }`}
+                          className="p-1.5 rounded-lg transition-colors text-gray-400 hover:text-brand-600 hover:bg-brand-50 dark:text-zinc-400 dark:hover:text-brand-400 dark:hover:bg-brand-900/20"
                         >
                           <FileText className="w-4 h-4" />
                         </button>
                       </td>
                       {/* Company */}
-                      <td className={`${cellBase} ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
+                      <td className={cx(cellBase, 'text-gray-700 dark:text-zinc-300')}>
                         <span className="font-medium">{deal.company || deal.accountName || '-'}</span>
                         {deal.paymentFlag && <span title="Payment pending"><Flag className="w-3.5 h-3.5 text-red-500 fill-red-500 inline-block ml-1" /></span>}
                       </td>
                       {/* Overdue */}
                       <td className={cellBase}>
                         {dealOverdueMap[deal.id]
-                          ? <span className={`font-medium ${isDark ? 'text-red-400' : 'text-red-600'}`}>{formatINR(dealOverdueMap[deal.id])}</span>
-                          : <span className={isDark ? 'text-zinc-600' : 'text-slate-300'}>-</span>
+                          ? <span className="font-medium text-red-600 dark:text-red-400">{formatINR(dealOverdueMap[deal.id])}</span>
+                          : <span className="text-gray-300 dark:text-zinc-600">-</span>
                         }
                       </td>
                       {/* Contact Name */}
-                      <td className={`${cellBase} ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
+                      <td className={cx(cellBase, 'text-gray-700 dark:text-zinc-300')}>
                         {deal.contactName || '-'}
                       </td>
                       {/* Contact No */}
-                      <td className={`${cellBase} ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
+                      <td className={cx(cellBase, 'text-gray-700 dark:text-zinc-300')}>
                         {deal.contactNo || '-'}
                       </td>
                       {/* Designation */}
-                      <td className={`${cellBase} ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
+                      <td className={cx(cellBase, 'text-gray-700 dark:text-zinc-300')}>
                         {deal.designation || '-'}
                       </td>
                       {/* Email */}
-                      <td className={`${cellBase} ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
+                      <td className={cx(cellBase, 'text-gray-700 dark:text-zinc-300')}>
                         <span className="truncate block max-w-[140px]">{deal.email || '-'}</span>
                       </td>
                       {/* Location */}
-                      <td className={`${cellBase} ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
+                      <td className={cx(cellBase, 'text-gray-700 dark:text-zinc-300')}>
                         {deal.location || '-'}
                       </td>
                       {/* Requirement */}
-                      <td className={`${cellBase} ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
+                      <td className={cx(cellBase, 'text-gray-700 dark:text-zinc-300')}>
                         <span className="truncate block max-w-[150px]">{deal.requirement || '-'}</span>
                       </td>
                       {/* Quoted Requirement */}
-                      <td className={`${cellBase} ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
+                      <td className={cx(cellBase, 'text-gray-700 dark:text-zinc-300')}>
                         <span className="truncate block max-w-[150px]">{deal.quotedRequirement || '-'}</span>
                       </td>
                       {/* Value */}
-                      <td className={`${cellBase}`}>
+                      <td className={cellBase}>
                         {renderReadCell(deal, 'value')}
                       </td>
                       {/* Stage */}
-                      <td className={`${cellBase}`}>
+                      <td className={cellBase}>
                         {renderReadCell(deal, 'stage')}
                       </td>
                       {/* Order Type */}
-                      <td className={`${cellBase} ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
+                      <td className={cx(cellBase, 'text-gray-700 dark:text-zinc-300')}>
                         {deal.typeOfOrder || '-'}
                       </td>
                       {/* Assignee - only visible to admin/superadmin/managers */}
                       {canSeeAssignee && (
-                        <td className={`${cellBase} ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
+                        <td className={cx(cellBase, 'text-gray-700 dark:text-zinc-300')}>
                           {deal.ownerName || '-'}
                         </td>
                       )}
                       {/* Follow-up Date */}
-                      <td className={`${cellBase} ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
+                      <td className={cx(cellBase, 'text-gray-700 dark:text-zinc-300')}>
                         {deal.nextFollowUp ? formatDate(deal.nextFollowUp) : '-'}
                       </td>
                     </tr>
@@ -1384,84 +1333,18 @@ export const DealsPage: React.FC = () => {
 
             {/* Pagination */}
             {deals.length > 0 && (
-              <div className={`flex flex-col sm:flex-row items-center justify-between gap-3 px-4 py-3 border-t ${
-                isDark ? 'border-zinc-800' : 'border-slate-100'
-              }`}>
-                <p className={`text-xs ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
-                  Showing {(page - 1) * PAGE_SIZE + 1}
-                  {' '}&ndash;{' '}
-                  {Math.min(page * PAGE_SIZE, totalRecords)} of {totalRecords} deals
-                </p>
-
-                <div className="flex items-center gap-1">
-                  <button
-                    onClick={() => setPage(p => Math.max(1, p - 1))}
-                    disabled={page <= 1}
-                    className={`p-2 rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed ${
-                      isDark
-                        ? 'text-zinc-400 hover:text-white hover:bg-zinc-800'
-                        : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100'
-                    }`}
-                  >
-                    <ChevronLeft className="w-4 h-4" />
-                  </button>
-
-                  {Array.from({ length: totalPages }, (_, i) => i + 1)
-                    .filter(p => {
-                      if (p === 1 || p === totalPages) return true;
-                      if (Math.abs(p - page) <= 1) return true;
-                      return false;
-                    })
-                    .reduce<(number | 'ellipsis')[]>((acc, p, idx, arr) => {
-                      if (idx > 0) {
-                        const prev = arr[idx - 1];
-                        if (p - prev > 1) acc.push('ellipsis');
-                      }
-                      acc.push(p);
-                      return acc;
-                    }, [])
-                    .map((item, idx) =>
-                      item === 'ellipsis' ? (
-                        <span
-                          key={`ellipsis-${idx}`}
-                          className={`px-1 text-xs ${isDark ? 'text-zinc-600' : 'text-slate-300'}`}
-                        >
-                          ...
-                        </span>
-                      ) : (
-                        <button
-                          key={item}
-                          onClick={() => setPage(item as number)}
-                          className={`min-w-[32px] h-8 rounded-lg text-xs font-medium transition-colors ${
-                            page === item
-                              ? 'bg-brand-600 text-white'
-                              : isDark
-                                ? 'text-zinc-400 hover:text-white hover:bg-zinc-800'
-                                : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100'
-                          }`}
-                        >
-                          {item}
-                        </button>
-                      )
-                    )}
-
-                  <button
-                    onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                    disabled={page >= totalPages}
-                    className={`p-2 rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed ${
-                      isDark
-                        ? 'text-zinc-400 hover:text-white hover:bg-zinc-800'
-                        : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100'
-                    }`}
-                  >
-                    <ChevronRight className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
+              <Pagination
+                currentPage={page}
+                totalPages={totalPages}
+                totalItems={totalRecords}
+                pageSize={PAGE_SIZE}
+                onPageChange={setPage}
+                className="border-t border-gray-100 dark:border-zinc-800"
+              />
             )}
           </>
         )}
-      </div>
+      </Card>
     );
   };
 
@@ -1477,25 +1360,21 @@ export const DealsPage: React.FC = () => {
         onDragStart={e => { e.dataTransfer.setData('text/plain', deal.id); setDraggedDealId(deal.id); }}
         onDragEnd={() => { setDraggedDealId(null); setDragOverStage(null); }}
         onClick={() => openDealDetailModal(deal)}
-        className={`p-3 rounded-xl border cursor-grab active:cursor-grabbing transition-all hover:shadow-md ${
-          draggedDealId === deal.id ? 'opacity-40 scale-95' : ''
-        } ${
-          isDark
-            ? 'bg-dark-100 border-zinc-700 hover:border-zinc-600'
-            : 'bg-white border-slate-200 hover:border-slate-300'
-        }`}
+        className={cx(
+          'p-3 rounded-xl border cursor-grab active:cursor-grabbing transition-all hover:shadow-md',
+          draggedDealId === deal.id && 'opacity-40 scale-95',
+          'bg-white border-gray-200 hover:border-gray-300 dark:bg-dark-100 dark:border-zinc-700 dark:hover:border-zinc-600'
+        )}
       >
         {/* Product Detail (Title) & Edit */}
         <div className="flex items-start justify-between gap-2 mb-1.5">
-          <h4 className={`text-sm font-semibold truncate flex items-center gap-1 ${isDark ? 'text-white' : 'text-slate-900'}`}>
+          <h4 className="text-sm font-semibold truncate flex items-center gap-1 text-gray-900 dark:text-white">
             {deal.title || 'Untitled Deal'}
             {deal.paymentFlag && <span title="Payment pending"><Flag className="w-3.5 h-3.5 text-red-500 fill-red-500 flex-shrink-0" /></span>}
           </h4>
           <button
             onClick={(e) => { e.stopPropagation(); openEditDealModal(deal); }}
-            className={`p-1 rounded-lg flex-shrink-0 transition-colors ${
-              isDark ? 'text-zinc-500 hover:text-brand-400 hover:bg-brand-900/20' : 'text-slate-400 hover:text-brand-600 hover:bg-brand-50'
-            }`}
+            className="p-1 rounded-lg flex-shrink-0 transition-colors text-gray-400 hover:text-brand-600 hover:bg-brand-50 dark:text-zinc-500 dark:hover:text-brand-400 dark:hover:bg-brand-900/20"
           >
             <Edit2 className="w-3 h-3" />
           </button>
@@ -1503,7 +1382,7 @@ export const DealsPage: React.FC = () => {
 
         {/* Company Name */}
         {deal.accountName && (
-          <p className={`text-[11px] flex items-center gap-1 mb-1 ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>
+          <p className="text-[11px] flex items-center gap-1 mb-1 text-gray-500 dark:text-zinc-400">
             <Briefcase className="w-3 h-3 flex-shrink-0" />
             <span className="truncate">{deal.accountName}</span>
           </p>
@@ -1511,7 +1390,7 @@ export const DealsPage: React.FC = () => {
 
         {/* Company SPOC */}
         {deal.contactName && (
-          <p className={`text-[11px] flex items-center gap-1 mb-1 ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>
+          <p className="text-[11px] flex items-center gap-1 mb-1 text-gray-500 dark:text-zinc-400">
             <UserIcon className="w-3 h-3 flex-shrink-0" />
             <span className="truncate">{deal.contactName}</span>
           </p>
@@ -1519,28 +1398,26 @@ export const DealsPage: React.FC = () => {
 
         {/* Pricing */}
         {deal.value ? (
-          <p className={`text-xs font-semibold mb-1 ${isDark ? 'text-emerald-400' : 'text-emerald-600'}`}>
+          <p className="text-xs font-semibold mb-1 text-emerald-600 dark:text-emerald-400">
             {formatINR(deal.value)}
           </p>
         ) : null}
 
         {/* Order Type */}
         {deal.typeOfOrder && (
-          <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-semibold mb-1 ${
-            deal.typeOfOrder === 'New'
-              ? isDark ? 'bg-blue-900/30 text-blue-400' : 'bg-blue-50 text-blue-700'
-              : deal.typeOfOrder === 'Rental'
-                ? isDark ? 'bg-purple-900/30 text-purple-400' : 'bg-purple-50 text-purple-700'
-                : isDark ? 'bg-amber-900/30 text-amber-400' : 'bg-amber-50 text-amber-700'
-          }`}>
+          <Badge
+            size="sm"
+            variant={deal.typeOfOrder === 'New' ? 'blue' : deal.typeOfOrder === 'Rental' ? 'purple' : 'amber'}
+            className="mb-1"
+          >
             <Tag className="w-3 h-3 flex-shrink-0" />
             {deal.typeOfOrder}
-          </span>
+          </Badge>
         )}
 
         {/* Assignee */}
         {deal.ownerName && (
-          <p className={`text-[11px] flex items-center gap-1 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
+          <p className="text-[11px] flex items-center gap-1 text-gray-400 dark:text-zinc-500">
             <UserIcon className="w-3 h-3 flex-shrink-0" />
             <span className="truncate">{deal.ownerName}</span>
           </p>
@@ -1548,14 +1425,10 @@ export const DealsPage: React.FC = () => {
 
         {/* Reinitiate Sales Order for Closed Won */}
         {deal.stage === 'Closed Won' && (
-          <div className={`pt-2 mt-2 border-t border-dashed ${isDark ? 'border-zinc-700' : 'border-slate-200'}`}>
+          <div className="pt-2 mt-2 border-t border-dashed border-gray-200 dark:border-zinc-700">
             <button
               onClick={(e) => { e.stopPropagation(); handleReinitiateSalesOrder(deal); }}
-              className={`w-full flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-lg text-[11px] font-medium transition-all ${
-                isDark
-                  ? 'bg-emerald-900/30 text-emerald-400 hover:bg-emerald-900/50'
-                  : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
-              }`}
+              className="w-full flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-lg text-[11px] font-medium transition-all bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-900/30 dark:text-emerald-400 dark:hover:bg-emerald-900/50"
             >
               <FileText className="w-3 h-3" />
               Reinitiate Sales Order
@@ -1571,7 +1444,7 @@ export const DealsPage: React.FC = () => {
       return (
         <div className="flex flex-col items-center justify-center py-20">
           <Loader2 className="w-8 h-8 text-brand-600 animate-spin" />
-          <p className={`mt-3 text-sm ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>
+          <p className="mt-3 text-sm text-gray-500 dark:text-zinc-400">
             Loading kanban board...
           </p>
         </div>
@@ -1608,8 +1481,16 @@ export const DealsPage: React.FC = () => {
             const isOver = dragOverStage === stage;
             const isTerminal = stage === 'Closed Won' || stage === 'Closed Lost';
             return (
-              <div
+              <Card
                 key={stage}
+                padding="none"
+                className={cx(
+                  'p-3 min-h-[200px] transition-all',
+                  isOver && 'ring-2 ring-brand-500 ring-inset',
+                  isTerminal && (stage === 'Closed Won'
+                    ? 'border-emerald-200 dark:border-emerald-900/50'
+                    : 'border-red-200 dark:border-red-900/50')
+                )}
                 onDragOver={e => { e.preventDefault(); setDragOverStage(stage); }}
                 onDragLeave={() => setDragOverStage(null)}
                 onDrop={e => {
@@ -1623,39 +1504,30 @@ export const DealsPage: React.FC = () => {
                     handleMoveStage(deal, stage as DealStage);
                   }
                 }}
-                className={`${cardClass} p-3 min-h-[200px] transition-all ${isOver ? 'ring-2 ring-brand-500 ring-inset' : ''} ${
-                  isTerminal ? (stage === 'Closed Won'
-                    ? (isDark ? 'border-emerald-900/50' : 'border-emerald-200')
-                    : (isDark ? 'border-red-900/50' : 'border-red-200')
-                  ) : ''
-                }`}
               >
                 {/* Column header */}
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2">
                     {isTerminal ? (
                       stage === 'Closed Won'
-                        ? <CheckCircle className={`w-4 h-4 ${isDark ? 'text-emerald-400' : 'text-emerald-600'}`} />
-                        : <XCircle className={`w-4 h-4 ${isDark ? 'text-red-400' : 'text-red-600'}`} />
+                        ? <CheckCircle className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                        : <XCircle className="w-4 h-4 text-red-600 dark:text-red-400" />
                     ) : (
-                      <div className={`w-2 h-2 rounded-full ${isDark ? c.darkText.replace('text-', 'bg-') : c.text.replace('text-', 'bg-')}`} />
+                      <div className={cx('w-2 h-2 rounded-full', c.text.replace('text-', 'bg-'), `dark:${c.darkText.replace('text-', 'bg-')}`)} />
                     )}
-                    <h3 className={`text-sm font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>{stage}</h3>
+                    <h3 className="text-sm font-semibold text-gray-900 dark:text-white">{stage}</h3>
                   </div>
-                  <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
-                    isDark ? 'bg-zinc-800 text-zinc-400' : 'bg-slate-100 text-slate-500'
-                  }`}>
-                    {stageDeals.length}
-                  </span>
+                  <Badge variant="gray" size="sm">{stageDeals.length}</Badge>
                 </div>
 
                 {/* Stage total */}
                 {stageTotal > 0 && (
-                  <p className={`text-xs font-semibold mb-3 ${
+                  <p className={cx(
+                    'text-xs font-semibold mb-3',
                     stage === 'Closed Lost'
-                      ? (isDark ? 'text-red-400' : 'text-red-600')
-                      : (isDark ? 'text-emerald-400' : 'text-emerald-600')
-                  }`}>
+                      ? 'text-red-600 dark:text-red-400'
+                      : 'text-emerald-600 dark:text-emerald-400'
+                  )}>
                     {formatINR(stageTotal)}
                   </p>
                 )}
@@ -1663,14 +1535,14 @@ export const DealsPage: React.FC = () => {
                 {/* Cards */}
                 <div className="space-y-2">
                   {stageDeals.length === 0 ? (
-                    <p className={`text-xs text-center py-6 ${isDark ? 'text-zinc-600' : 'text-slate-300'}`}>
+                    <p className="text-xs text-center py-6 text-gray-300 dark:text-zinc-600">
                       {isOver ? 'Drop here' : 'No deals'}
                     </p>
                   ) : (
                     stageDeals.map(deal => renderPipelineCard(deal))
                   )}
                 </div>
-              </div>
+              </Card>
             );
           })}
         </div>
@@ -1690,28 +1562,28 @@ export const DealsPage: React.FC = () => {
     return (
       <div className="fixed inset-0 z-50 flex items-start justify-center p-4 pt-[5vh] overflow-y-auto">
         <div className="fixed inset-0 bg-black/50 animate-backdrop" onClick={closeDealDetailModal} />
-        <div className={`relative w-full max-w-2xl max-h-[85vh] rounded-2xl animate-fade-in-up flex flex-col overflow-hidden ${
-          isDark ? 'bg-dark-50 border border-zinc-800' : 'bg-white shadow-premium'
-        }`}>
+        <div className={cx(
+          'relative w-full max-w-2xl max-h-[85vh] rounded-2xl animate-fade-in-up flex flex-col overflow-hidden',
+          'bg-white shadow-premium dark:bg-dark-50 dark:border dark:border-zinc-800'
+        )}>
           {/* Header */}
-          <div className={`flex-shrink-0 flex items-center justify-between px-6 py-4 border-b ${
-            isDark ? 'bg-dark-50 border-zinc-800' : 'bg-white border-slate-200'
-          }`}>
+          <div className="flex-shrink-0 flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-white dark:bg-dark-50 dark:border-zinc-800">
             <div className="flex items-center gap-3 min-w-0 flex-1">
-              <h2 className={`text-lg font-semibold font-display truncate ${isDark ? 'text-white' : 'text-slate-900'}`}>
+              <h2 className="text-lg font-semibold font-display truncate text-gray-900 dark:text-white">
                 {deal.accountName || 'Deal Details'}
               </h2>
               <div className="flex items-center gap-2 flex-shrink-0">
-                <label className={`text-xs font-medium whitespace-nowrap ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>Stage:</label>
+                <label className="text-xs font-medium whitespace-nowrap text-gray-500 dark:text-zinc-400">Stage:</label>
                 <select
                   value={deal.stage}
                   onChange={e => handleUpdateStage(e.target.value as DealStage)}
                   disabled={isUpdatingStage}
-                  className={`px-2 py-1 rounded-lg border text-xs font-medium transition-all cursor-pointer ${
-                    isDark
-                      ? `${stageColor.darkBg} ${stageColor.darkText} border-zinc-700 bg-dark-100`
-                      : `${stageColor.bg} ${stageColor.text} border-slate-200`
-                  } focus:outline-none focus:ring-1 focus:ring-brand-500 disabled:opacity-50`}
+                  className={cx(
+                    'px-2 py-1 rounded-lg border text-xs font-medium transition-all cursor-pointer',
+                    stageColor.bg, stageColor.text, 'border-gray-200',
+                    `dark:${stageColor.darkBg}`, `dark:${stageColor.darkText}`, 'dark:border-zinc-700 dark:bg-dark-100',
+                    'focus:outline-none focus:ring-1 focus:ring-brand-500 disabled:opacity-50'
+                  )}
                 >
                   {DEAL_STAGES.map(s => (
                     <option key={s} value={s}>{s}</option>
@@ -1721,48 +1593,43 @@ export const DealsPage: React.FC = () => {
               </div>
             </div>
             <div className="flex items-center gap-2 flex-shrink-0">
-              <button
+              <Button
+                variant="ghost"
+                size="xs"
                 onClick={() => { closeDealDetailModal(); openEditDealModal(deal); }}
-                className={`p-2 rounded-lg transition-colors ${
-                  isDark ? 'text-zinc-400 hover:text-white hover:bg-zinc-800' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100'
-                }`}
+                icon={<Edit2 className="w-4 h-4" />}
                 title="Edit"
-              >
-                <Edit2 className="w-4 h-4" />
-              </button>
+              />
               {deleteConfirmId === deal.id ? (
                 <div className="flex items-center gap-1">
-                  <button
+                  <Button
+                    variant="danger"
+                    size="xs"
                     onClick={() => { handleDelete(deal.id); closeDealDetailModal(); }}
-                    className="px-2 py-1 rounded-lg text-xs font-medium bg-red-600 text-white hover:bg-red-700 transition-colors"
                   >
                     Confirm
-                  </button>
-                  <button
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="xs"
                     onClick={() => setDeleteConfirmId(null)}
-                    className={`px-2 py-1 rounded-lg text-xs font-medium transition-colors ${
-                      isDark ? 'text-zinc-400 hover:bg-zinc-800' : 'text-slate-500 hover:bg-slate-100'
-                    }`}
                   >
                     Cancel
-                  </button>
+                  </Button>
                 </div>
               ) : (
-                <button
+                <Button
+                  variant="ghost"
+                  size="xs"
                   onClick={() => setDeleteConfirmId(deal.id)}
-                  className={`p-2 rounded-lg transition-colors ${
-                    isDark ? 'text-zinc-400 hover:text-red-400 hover:bg-red-900/20' : 'text-slate-400 hover:text-red-600 hover:bg-red-50'
-                  }`}
+                  icon={<Trash2 className="w-4 h-4" />}
+                  className="hover:text-red-600 dark:hover:text-red-400"
                   title="Delete"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
+                />
               )}
               <button
                 onClick={closeDealDetailModal}
-                className={`p-2 rounded-lg transition-colors ${
-                  isDark ? 'text-zinc-400 hover:text-white hover:bg-zinc-800' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100'
-                }`}
+                className="p-2 rounded-lg transition-colors text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:text-zinc-400 dark:hover:text-white dark:hover:bg-zinc-800"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -1774,52 +1641,50 @@ export const DealsPage: React.FC = () => {
             <div className="p-6 space-y-6">
               {/* Deal Value Highlight */}
               {deal.value ? (
-                <div className={`flex items-center gap-3 p-4 rounded-xl ${
-                  isDark ? 'bg-emerald-900/10 border border-emerald-900/30' : 'bg-emerald-50 border border-emerald-100'
-                }`}>
-                  <IndianRupee className={`w-6 h-6 ${isDark ? 'text-emerald-400' : 'text-emerald-600'}`} />
+                <div className="flex items-center gap-3 p-4 rounded-xl bg-emerald-50 border border-emerald-100 dark:bg-emerald-900/10 dark:border-emerald-900/30">
+                  <IndianRupee className="w-6 h-6 text-emerald-600 dark:text-emerald-400" />
                   <div>
-                    <p className={`text-xs font-medium ${isDark ? 'text-emerald-400/70' : 'text-emerald-600/70'}`}>Deal Value</p>
-                    <p className={`text-xl font-bold ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`}>{formatINR(deal.value)}</p>
+                    <p className="text-xs font-medium text-emerald-600/70 dark:text-emerald-400/70">Deal Value</p>
+                    <p className="text-xl font-bold text-emerald-700 dark:text-emerald-400">{formatINR(deal.value)}</p>
                   </div>
                 </div>
               ) : null}
 
               {/* Info Grid */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <DetailInfoRow label="Account" value={deal.accountName} isDark={isDark} icon={<Building2 className="w-3.5 h-3.5" />} />
-                <DetailInfoRow label="Contact" value={deal.contactName} isDark={isDark} icon={<UserIcon className="w-3.5 h-3.5" />} />
-                <DetailInfoRow label="Contact No" value={deal.contactNo} isDark={isDark} icon={<Phone className="w-3.5 h-3.5" />} />
-                <DetailInfoRow label="Email" value={deal.email} isDark={isDark} icon={<Mail className="w-3.5 h-3.5" />} />
-                <DetailInfoRow label="Designation" value={deal.designation} isDark={isDark} icon={<Briefcase className="w-3.5 h-3.5" />} />
-                <DetailInfoRow label="Location" value={deal.location} isDark={isDark} icon={<MapPin className="w-3.5 h-3.5" />} />
-                <DetailInfoRow label="Owner" value={deal.ownerName} isDark={isDark} icon={<UserIcon className="w-3.5 h-3.5" />} />
-                <DetailInfoRow label="Closing Date" value={deal.closingDate ? formatDate(deal.closingDate) : undefined} isDark={isDark} icon={<Calendar className="w-3.5 h-3.5" />} />
-                <DetailInfoRow label="Type" value={deal.type} isDark={isDark} icon={<Briefcase className="w-3.5 h-3.5" />} />
-                <DetailInfoRow label="Type" value={deal.tag} isDark={isDark} icon={<Layers className="w-3.5 h-3.5" />} />
-                <DetailInfoRow label="Forecast" value={deal.forecast} isDark={isDark} icon={<Target className="w-3.5 h-3.5" />} />
-                <DetailInfoRow label="Lead Source" value={deal.leadSource} isDark={isDark} icon={<TrendingUp className="w-3.5 h-3.5" />} />
-                <DetailInfoRow label="Order Type" value={deal.typeOfOrder} isDark={isDark} icon={<Tag className="w-3.5 h-3.5" />} />
+                <DetailInfoRow label="Account" value={deal.accountName} icon={<Building2 className="w-3.5 h-3.5" />} />
+                <DetailInfoRow label="Contact" value={deal.contactName} icon={<UserIcon className="w-3.5 h-3.5" />} />
+                <DetailInfoRow label="Contact No" value={deal.contactNo} icon={<Phone className="w-3.5 h-3.5" />} />
+                <DetailInfoRow label="Email" value={deal.email} icon={<Mail className="w-3.5 h-3.5" />} />
+                <DetailInfoRow label="Designation" value={deal.designation} icon={<Briefcase className="w-3.5 h-3.5" />} />
+                <DetailInfoRow label="Location" value={deal.location} icon={<MapPin className="w-3.5 h-3.5" />} />
+                <DetailInfoRow label="Owner" value={deal.ownerName} icon={<UserIcon className="w-3.5 h-3.5" />} />
+                <DetailInfoRow label="Closing Date" value={deal.closingDate ? formatDate(deal.closingDate) : undefined} icon={<Calendar className="w-3.5 h-3.5" />} />
+                <DetailInfoRow label="Type" value={deal.type} icon={<Briefcase className="w-3.5 h-3.5" />} />
+                <DetailInfoRow label="Type" value={deal.tag} icon={<Layers className="w-3.5 h-3.5" />} />
+                <DetailInfoRow label="Forecast" value={deal.forecast} icon={<Target className="w-3.5 h-3.5" />} />
+                <DetailInfoRow label="Lead Source" value={deal.leadSource} icon={<TrendingUp className="w-3.5 h-3.5" />} />
+                <DetailInfoRow label="Order Type" value={deal.typeOfOrder} icon={<Tag className="w-3.5 h-3.5" />} />
               </div>
 
               {/* Requirements */}
               {(deal.requirement || deal.quotedRequirement) && (
                 <div className="space-y-3">
-                  <h4 className={`text-xs font-semibold uppercase tracking-wider ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
+                  <h4 className="text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-zinc-500">
                     Requirements
                   </h4>
                   {deal.requirement && (
                     <div>
-                      <span className={`text-xs font-medium ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>Requirement (User Provided)</span>
-                      <p className={`text-sm whitespace-pre-wrap mt-1 ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
+                      <span className="text-xs font-medium text-gray-500 dark:text-zinc-400">Requirement (User Provided)</span>
+                      <p className="text-sm whitespace-pre-wrap mt-1 text-gray-700 dark:text-zinc-300">
                         {deal.requirement}
                       </p>
                     </div>
                   )}
                   {deal.quotedRequirement && (
                     <div>
-                      <span className={`text-xs font-medium ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>Quoted Requirement (What We Serve)</span>
-                      <p className={`text-sm whitespace-pre-wrap mt-1 ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
+                      <span className="text-xs font-medium text-gray-500 dark:text-zinc-400">Quoted Requirement (What We Serve)</span>
+                      <p className="text-sm whitespace-pre-wrap mt-1 text-gray-700 dark:text-zinc-300">
                         {deal.quotedRequirement}
                       </p>
                     </div>
@@ -1830,20 +1695,20 @@ export const DealsPage: React.FC = () => {
               {/* Next Step */}
               {deal.nextStep && (
                 <div>
-                  <h4 className={`text-xs font-semibold uppercase tracking-wider mb-2 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
+                  <h4 className="text-xs font-semibold uppercase tracking-wider mb-2 text-gray-400 dark:text-zinc-500">
                     Next Step
                   </h4>
-                  <p className={`text-sm ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>{deal.nextStep}</p>
+                  <p className="text-sm text-gray-700 dark:text-zinc-300">{deal.nextStep}</p>
                 </div>
               )}
 
               {/* Description */}
               {deal.description && (
                 <div>
-                  <h4 className={`text-xs font-semibold uppercase tracking-wider mb-2 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
+                  <h4 className="text-xs font-semibold uppercase tracking-wider mb-2 text-gray-400 dark:text-zinc-500">
                     Description
                   </h4>
-                  <p className={`text-sm whitespace-pre-wrap ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>{deal.description}</p>
+                  <p className="text-sm whitespace-pre-wrap text-gray-700 dark:text-zinc-300">{deal.description}</p>
                 </div>
               )}
 
@@ -1852,141 +1717,115 @@ export const DealsPage: React.FC = () => {
                 <div>
                   <button
                     onClick={() => setInlineQuoteOpen(prev => !prev)}
-                    className={`w-full flex items-center justify-between p-3 rounded-xl border transition-all ${
-                      isDark
-                        ? 'border-indigo-800 bg-indigo-900/10 hover:bg-indigo-900/20 text-indigo-400'
-                        : 'border-indigo-200 bg-indigo-50 hover:bg-indigo-100 text-indigo-700'
-                    }`}
+                    className="w-full flex items-center justify-between p-3 rounded-xl border transition-all border-indigo-200 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 dark:border-indigo-800 dark:bg-indigo-900/10 dark:hover:bg-indigo-900/20 dark:text-indigo-400"
                   >
                     <div className="flex items-center gap-2">
                       <FileText className="w-4 h-4" />
                       <span className="text-sm font-semibold">Quote Builder</span>
                     </div>
-                    <ChevronDown className={`w-4 h-4 transition-transform ${inlineQuoteOpen ? 'rotate-180' : ''}`} />
+                    <ChevronDown className={cx('w-4 h-4 transition-transform', inlineQuoteOpen && 'rotate-180')} />
                   </button>
 
                   {inlineQuoteOpen && (
-                    <div className={`mt-3 p-4 rounded-xl border space-y-4 ${
-                      isDark ? 'border-zinc-800 bg-dark-100' : 'border-slate-200 bg-slate-50'
-                    }`}>
+                    <div className="mt-3 p-4 rounded-xl border space-y-4 border-gray-200 bg-gray-50 dark:border-zinc-800 dark:bg-dark-100">
                       {inlineQuoteError && (
-                        <div className={`p-2 rounded-lg flex items-center gap-2 text-xs ${
-                          isDark ? 'bg-red-900/20 border border-red-800 text-red-400' : 'bg-red-50 border border-red-200 text-red-700'
-                        }`}>
-                          <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
+                        <Alert variant="error" icon={<AlertCircle className="w-3.5 h-3.5" />}>
                           {inlineQuoteError}
-                        </div>
+                        </Alert>
                       )}
                       {inlineQuoteSuccess && (
-                        <div className={`p-2 rounded-lg flex items-center gap-2 text-xs ${
-                          isDark ? 'bg-emerald-900/20 border border-emerald-800 text-emerald-400' : 'bg-emerald-50 border border-emerald-200 text-emerald-700'
-                        }`}>
-                          <CheckCircle className="w-3.5 h-3.5 flex-shrink-0" />
+                        <Alert variant="success" icon={<CheckCircle className="w-3.5 h-3.5" />}>
                           {inlineQuoteSuccess}
-                        </div>
+                        </Alert>
                       )}
 
                       {/* Line Items */}
                       <div className="space-y-2">
                         <div className="flex items-center justify-between">
-                          <h5 className={`text-xs font-semibold uppercase tracking-wider ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
+                          <h5 className="text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-zinc-500">
                             Line Items
                           </h5>
                         </div>
                         {inlineLineItems.map((li, idx) => (
-                          <div key={idx} className={`p-3 rounded-lg border space-y-2 ${
-                            isDark ? 'border-zinc-700 bg-dark-50' : 'border-slate-200 bg-white'
-                          }`}>
+                          <div key={idx} className="p-3 rounded-lg border space-y-2 border-gray-200 bg-white dark:border-zinc-700 dark:bg-dark-50">
                             <div className="flex items-center justify-between gap-2">
-                              <select
+                              <Select
                                 value={li.productId}
                                 onChange={e => handleInlineLineItemChange(idx, 'productId', e.target.value)}
-                                className={`flex-1 px-2 py-1.5 rounded-lg border text-xs ${
-                                  isDark ? 'bg-dark-100 border-zinc-700 text-white' : 'bg-white border-slate-200 text-slate-900'
-                                }`}
+                                className="flex-1 !text-xs !py-1.5"
                               >
                                 <option value="">Select product...</option>
                                 {products.map(p => (
                                   <option key={p.id} value={p.id}>{p.name}</option>
                                 ))}
-                              </select>
+                              </Select>
                               {inlineLineItems.length > 1 && (
                                 <button
                                   onClick={() => setInlineLineItems(prev => prev.filter((_, i) => i !== idx))}
-                                  className={`p-1 rounded-lg transition-colors ${
-                                    isDark ? 'text-zinc-500 hover:text-red-400' : 'text-slate-400 hover:text-red-500'
-                                  }`}
+                                  className="p-1 rounded-lg transition-colors text-gray-400 hover:text-red-500 dark:text-zinc-500 dark:hover:text-red-400"
                                 >
                                   <Trash2 className="w-3 h-3" />
                                 </button>
                               )}
                             </div>
-                            <input
+                            <Input
                               type="text"
                               placeholder="Description"
                               value={li.description}
                               onChange={e => handleInlineLineItemChange(idx, 'description', e.target.value)}
-                              className={`w-full px-2 py-1.5 rounded-lg border text-xs ${
-                                isDark ? 'bg-dark-100 border-zinc-700 text-white placeholder-zinc-500' : 'bg-white border-slate-200 text-slate-900 placeholder-slate-400'
-                              }`}
+                              className="!text-xs !py-1.5"
                             />
                             <div className="grid grid-cols-3 gap-2">
                               <div>
-                                <label className={`text-[10px] ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Qty</label>
-                                <input
+                                <label className="text-[10px] text-gray-400 dark:text-zinc-500">Qty</label>
+                                <Input
                                   type="number"
-                                  min="1"
+                                  min={1}
                                   value={li.quantity}
                                   onChange={e => handleInlineLineItemChange(idx, 'quantity', Number(e.target.value) || 0)}
-                                  className={`w-full px-2 py-1.5 rounded-lg border text-xs ${
-                                    isDark ? 'bg-dark-100 border-zinc-700 text-white' : 'bg-white border-slate-200 text-slate-900'
-                                  }`}
+                                  className="!text-xs !py-1.5"
                                 />
                               </div>
                               <div>
-                                <label className={`text-[10px] ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Unit Price</label>
-                                <input
+                                <label className="text-[10px] text-gray-400 dark:text-zinc-500">Unit Price</label>
+                                <Input
                                   type="number"
-                                  min="0"
+                                  min={0}
                                   value={li.unitPrice}
                                   onChange={e => handleInlineLineItemChange(idx, 'unitPrice', Number(e.target.value) || 0)}
-                                  className={`w-full px-2 py-1.5 rounded-lg border text-xs ${
-                                    isDark ? 'bg-dark-100 border-zinc-700 text-white' : 'bg-white border-slate-200 text-slate-900'
-                                  }`}
+                                  className="!text-xs !py-1.5"
                                 />
                               </div>
                             </div>
-                            <div className={`text-right text-xs font-medium ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
+                            <div className="text-right text-xs font-medium text-gray-700 dark:text-zinc-300">
                               Line Total: {formatINR(li.quantity * li.unitPrice)}
                             </div>
                           </div>
                         ))}
 
-                        <button
+                        <Button
+                          variant="secondary"
+                          size="xs"
                           onClick={() => setInlineLineItems(prev => [...prev, { ...emptyLineItem }])}
-                          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                            isDark ? 'text-zinc-400 border border-zinc-700 hover:bg-zinc-800' : 'text-slate-500 border border-slate-200 hover:bg-slate-100'
-                          }`}
+                          icon={<Plus className="w-3 h-3" />}
                         >
-                          <Plus className="w-3 h-3" /> Add Item
-                        </button>
+                          Add Item
+                        </Button>
                       </div>
 
                       {/* Tax & Notes */}
                       <div className="grid grid-cols-2 gap-3">
                         <div>
-                          <label className={`text-[10px] font-medium ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Tax Rate %</label>
-                          <input
+                          <label className="text-[10px] font-medium text-gray-400 dark:text-zinc-500">Tax Rate %</label>
+                          <Input
                             type="number"
-                            min="0"
+                            min={0}
                             value={inlineTaxRate}
                             onChange={e => setInlineTaxRate(Number(e.target.value) || 0)}
-                            className={`w-full px-2 py-1.5 rounded-lg border text-xs ${
-                              isDark ? 'bg-dark-100 border-zinc-700 text-white' : 'bg-white border-slate-200 text-slate-900'
-                            }`}
+                            className="!text-xs !py-1.5"
                           />
                         </div>
-                        <div className={`flex flex-col justify-end text-right text-xs space-y-0.5 ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
+                        <div className="flex flex-col justify-end text-right text-xs space-y-0.5 text-gray-700 dark:text-zinc-300">
                           {(() => {
                             const subtotal = inlineLineItems.reduce((sum, li) => sum + li.quantity * li.unitPrice, 0);
                             const tax = subtotal * (inlineTaxRate / 100);
@@ -2002,43 +1841,37 @@ export const DealsPage: React.FC = () => {
                       </div>
 
                       <div>
-                        <label className={`text-[10px] font-medium ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Notes</label>
-                        <textarea
+                        <label className="text-[10px] font-medium text-gray-400 dark:text-zinc-500">Notes</label>
+                        <Textarea
                           rows={2}
                           placeholder="Quote notes..."
                           value={inlineQuoteNotes}
                           onChange={e => setInlineQuoteNotes(e.target.value)}
-                          className={`w-full px-2 py-1.5 rounded-lg border text-xs ${
-                            isDark ? 'bg-dark-100 border-zinc-700 text-white placeholder-zinc-500' : 'bg-white border-slate-200 text-slate-900 placeholder-slate-400'
-                          }`}
+                          className="!text-xs !py-1.5"
                         />
                       </div>
 
                       <div>
-                        <label className={`text-[10px] font-medium ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Terms & Conditions</label>
-                        <textarea
+                        <label className="text-[10px] font-medium text-gray-400 dark:text-zinc-500">Terms & Conditions</label>
+                        <Textarea
                           rows={2}
                           placeholder="Terms..."
                           value={inlineQuoteTerms}
                           onChange={e => setInlineQuoteTerms(e.target.value)}
-                          className={`w-full px-2 py-1.5 rounded-lg border text-xs ${
-                            isDark ? 'bg-dark-100 border-zinc-700 text-white placeholder-zinc-500' : 'bg-white border-slate-200 text-slate-900 placeholder-slate-400'
-                          }`}
+                          className="!text-xs !py-1.5"
                         />
                       </div>
 
                       {/* Submit */}
-                      <button
+                      <Button
                         onClick={handleInlineQuoteSubmit}
-                        disabled={inlineQuoteSaving}
-                        className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-xs font-medium transition-all disabled:opacity-50"
+                        loading={inlineQuoteSaving}
+                        icon={<FileText className="w-3.5 h-3.5" />}
+                        className="w-full"
+                        size="sm"
                       >
-                        {inlineQuoteSaving ? (
-                          <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Creating...</>
-                        ) : (
-                          <><FileText className="w-3.5 h-3.5" /> Create Quote</>
-                        )}
-                      </button>
+                        {inlineQuoteSaving ? 'Creating...' : 'Create Quote'}
+                      </Button>
                     </div>
                   )}
                 </div>
@@ -2046,17 +1879,15 @@ export const DealsPage: React.FC = () => {
 
               {/* Add Activity */}
               <div>
-                <h4 className={`text-xs font-semibold uppercase tracking-wider mb-3 flex items-center gap-1.5 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
+                <h4 className="text-xs font-semibold uppercase tracking-wider mb-3 flex items-center gap-1.5 text-gray-400 dark:text-zinc-500">
                   <MessageSquare className="w-3.5 h-3.5" /> Add Activity
                 </h4>
-                <div className={`p-3 rounded-xl border space-y-2 ${isDark ? 'border-zinc-800 bg-zinc-900/50' : 'border-slate-100 bg-slate-50'}`}>
+                <div className="p-3 rounded-xl border space-y-2 border-gray-100 bg-gray-50 dark:border-zinc-800 dark:bg-zinc-900/50">
                   <div className="flex gap-2">
-                    <select
+                    <Select
                       value={activityType}
                       onChange={e => setActivityType(e.target.value)}
-                      className={`text-xs px-2 py-1.5 rounded-lg border appearance-none cursor-pointer ${
-                        isDark ? 'bg-dark-100 border-zinc-700 text-white' : 'bg-white border-slate-200 text-slate-900'
-                      } focus:outline-none focus:border-brand-500`}
+                      className="!text-xs !px-2 !py-1.5 !w-auto"
                     >
                       <option value="note">Note</option>
                       <option value="call">Call</option>
@@ -2064,66 +1895,59 @@ export const DealsPage: React.FC = () => {
                       <option value="meeting">Meeting</option>
                       <option value="follow_up">Follow-up</option>
                       <option value="task">Task</option>
-                    </select>
-                    <input
+                    </Select>
+                    <Input
                       type="text"
                       placeholder="Activity title..."
                       value={activityTitle}
                       onChange={e => setActivityTitle(e.target.value)}
                       onKeyDown={e => e.key === 'Enter' && handleAddDealActivity()}
-                      className={`flex-1 text-xs px-2 py-1.5 rounded-lg border ${
-                        isDark ? 'bg-dark-100 border-zinc-700 text-white placeholder-zinc-500' : 'bg-white border-slate-200 text-slate-900 placeholder-slate-400'
-                      } focus:outline-none focus:border-brand-500`}
+                      className="flex-1 !text-xs !py-1.5"
                     />
                   </div>
-                  <textarea
+                  <Textarea
                     rows={2}
                     placeholder="Description (optional)..."
                     value={activityDesc}
                     onChange={e => setActivityDesc(e.target.value)}
-                    className={`w-full text-xs px-2 py-1.5 rounded-lg border resize-none ${
-                      isDark ? 'bg-dark-100 border-zinc-700 text-white placeholder-zinc-500' : 'bg-white border-slate-200 text-slate-900 placeholder-slate-400'
-                    } focus:outline-none focus:border-brand-500`}
+                    className="!text-xs !py-1.5 !min-h-0 !resize-none"
                   />
-                  <button
+                  <Button
+                    size="xs"
                     onClick={handleAddDealActivity}
-                    disabled={!activityTitle.trim() || isAddingActivity}
-                    className="flex items-center gap-1.5 px-3 py-1.5 bg-brand-600 hover:bg-brand-700 text-white rounded-lg text-xs font-medium transition-all disabled:opacity-50"
+                    disabled={!activityTitle.trim()}
+                    loading={isAddingActivity}
+                    icon={isAddingActivity ? undefined : <Send className="w-3 h-3" />}
                   >
-                    {isAddingActivity ? <Loader2 className="w-3 h-3 animate-spin" /> : <Send className="w-3 h-3" />}
                     {isAddingActivity ? 'Adding...' : 'Add Activity'}
-                  </button>
+                  </Button>
                 </div>
               </div>
 
               {/* Activities */}
               {activities.length > 0 && (
                 <div>
-                  <h4 className={`text-xs font-semibold uppercase tracking-wider mb-3 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
+                  <h4 className="text-xs font-semibold uppercase tracking-wider mb-3 text-gray-400 dark:text-zinc-500">
                     Activities
                   </h4>
                   <div className="space-y-2 max-h-[200px] overflow-y-auto pr-1">
                     {activities.map((act: any) => (
                       <div
                         key={act.id}
-                        className={`p-3 rounded-xl border text-xs ${
-                          isDark ? 'border-zinc-800 bg-zinc-900/50' : 'border-slate-100 bg-slate-50'
-                        }`}
+                        className="p-3 rounded-xl border text-xs border-gray-100 bg-gray-50 dark:border-zinc-800 dark:bg-zinc-900/50"
                       >
                         <div className="flex items-center justify-between mb-1">
-                          <span className={`font-medium ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
+                          <span className="font-medium text-gray-700 dark:text-zinc-300">
                             {act.title}
                           </span>
-                          <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
-                            isDark ? 'bg-zinc-800 text-zinc-400' : 'bg-slate-200 text-slate-500'
-                          }`}>
+                          <Badge variant="gray" size="sm">
                             {act.activityType || act.activity_type}
-                          </span>
+                          </Badge>
                         </div>
                         {act.description && (
-                          <p className={`${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>{act.description}</p>
+                          <p className="text-gray-400 dark:text-zinc-500">{act.description}</p>
                         )}
-                        <div className={`flex items-center justify-between mt-1 ${isDark ? 'text-zinc-600' : 'text-slate-400'}`}>
+                        <div className="flex items-center justify-between mt-1 text-gray-400 dark:text-zinc-600">
                           {act.createdByName && <span>by {act.createdByName}</span>}
                           {act.createdAt && <span>{new Date(act.createdAt).toLocaleDateString()}</span>}
                         </div>
@@ -2135,7 +1959,7 @@ export const DealsPage: React.FC = () => {
 
               {/* Audit Trail */}
               <div>
-                <h4 className={`text-xs font-semibold uppercase tracking-wider mb-3 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
+                <h4 className="text-xs font-semibold uppercase tracking-wider mb-3 text-gray-400 dark:text-zinc-500">
                   Audit Trail
                 </h4>
                 {isAuditLoading ? (
@@ -2143,7 +1967,7 @@ export const DealsPage: React.FC = () => {
                     <Loader2 className="w-5 h-5 text-brand-600 animate-spin" />
                   </div>
                 ) : auditLogs.length === 0 ? (
-                  <p className={`text-sm py-4 text-center ${isDark ? 'text-zinc-600' : 'text-slate-400'}`}>
+                  <p className="text-sm py-4 text-center text-gray-400 dark:text-zinc-600">
                     No audit history
                   </p>
                 ) : (
@@ -2151,25 +1975,23 @@ export const DealsPage: React.FC = () => {
                     {auditLogs.map(log => (
                       <div
                         key={log.id}
-                        className={`p-3 rounded-xl border text-xs ${
-                          isDark ? 'border-zinc-800 bg-zinc-900/50' : 'border-slate-100 bg-slate-50'
-                        }`}
+                        className="p-3 rounded-xl border text-xs border-gray-100 bg-gray-50 dark:border-zinc-800 dark:bg-zinc-900/50"
                       >
                         <div className="flex items-center justify-between mb-1">
-                          <span className={`font-medium ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
+                          <span className="font-medium text-gray-700 dark:text-zinc-300">
                             {log.action}
                           </span>
-                          <span className={isDark ? 'text-zinc-600' : 'text-slate-400'}>
+                          <span className="text-gray-400 dark:text-zinc-600">
                             {log.createdAt ? new Date(log.createdAt).toLocaleDateString() : ''}
                           </span>
                         </div>
                         {log.userName && (
-                          <p className={isDark ? 'text-zinc-500' : 'text-slate-400'}>
+                          <p className="text-gray-400 dark:text-zinc-500">
                             by {log.userName}
                           </p>
                         )}
                         {log.changes && log.changes.length > 0 && (
-                          <div className={`mt-1 space-y-0.5 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
+                          <div className="mt-1 space-y-0.5 text-gray-400 dark:text-zinc-500">
                             {log.changes.map((c, i) => (
                               <p key={i}>{c.field}: {c.old || '(empty)'} → {c.new || '(empty)'}</p>
                             ))}
@@ -2182,9 +2004,7 @@ export const DealsPage: React.FC = () => {
               </div>
 
               {/* Timestamps */}
-              <div className={`flex items-center gap-4 text-[11px] pt-2 border-t ${
-                isDark ? 'border-zinc-800 text-zinc-600' : 'border-slate-100 text-slate-400'
-              }`}>
+              <div className="flex items-center gap-4 text-[11px] pt-2 border-t border-gray-100 text-gray-400 dark:border-zinc-800 dark:text-zinc-600">
                 {deal.createdAt && <span>Created: {formatDate(deal.createdAt)}</span>}
                 {deal.updatedAt && <span>Updated: {formatDate(deal.updatedAt)}</span>}
               </div>
@@ -2203,318 +2023,217 @@ export const DealsPage: React.FC = () => {
     if (!showDealModal) return null;
 
     return (
-      <div className="fixed inset-0 z-50 flex items-start justify-center pt-[5vh] overflow-y-auto p-4">
-        <div className="absolute inset-0 bg-black/50 animate-backdrop" onClick={closeDealModal} />
-        <div className={`relative w-full max-w-xl max-h-[85vh] rounded-2xl animate-fade-in-up flex flex-col overflow-hidden ${
-          isDark ? 'bg-dark-50 border border-zinc-800' : 'bg-white shadow-premium'
-        }`}>
-          {/* Header */}
-          <div className={`flex-shrink-0 flex items-center justify-between px-6 py-4 border-b ${
-            isDark ? 'bg-dark-50 border-zinc-800' : 'bg-white border-slate-200'
-          }`}>
-            <h2 className={`text-lg font-semibold font-display ${isDark ? 'text-white' : 'text-slate-900'}`}>
-              {editingDealId ? 'Edit Deal' : 'New Deal'}
-            </h2>
-            <button
-              onClick={closeDealModal}
-              className={`p-2 rounded-lg transition-colors ${
-                isDark ? 'text-zinc-400 hover:text-white hover:bg-zinc-800' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100'
-              }`}
+      <Modal
+        open={showDealModal}
+        onClose={closeDealModal}
+        title={editingDealId ? 'Edit Deal' : 'New Deal'}
+        size="xl"
+      >
+        <form onSubmit={handleDealSubmit} className="space-y-5">
+          {dealFormError && (
+            <Alert variant="error" icon={<AlertCircle className="w-4 h-4" />}>
+              {dealFormError}
+            </Alert>
+          )}
+
+          {/* Row 4: Account + Contact */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Select
+              label="Account"
+              name="accountId"
+              value={dealFormData.accountId}
+              onChange={handleDealFormChange}
             >
-              <X className="w-5 h-5" />
-            </button>
+              <option value="">Select account...</option>
+              {accounts.map(a => (
+                <option key={a.id} value={a.id}>{a.name}</option>
+              ))}
+            </Select>
+            <Select
+              label="Contact"
+              name="contactId"
+              value={dealFormData.contactId}
+              onChange={handleDealFormChange}
+            >
+              <option value="">Select contact...</option>
+              {(dealFormData.accountId
+                ? contacts.filter(c => c.accountId === dealFormData.accountId)
+                : contacts
+              ).map(c => (
+                <option key={c.id} value={c.id}>{c.firstName} {c.lastName}</option>
+              ))}
+            </Select>
           </div>
 
-          {/* Form */}
-          <form onSubmit={handleDealSubmit} className="flex-1 overflow-y-auto pb-6">
-            <div className="p-6 space-y-5">
-            {dealFormError && (
-              <div className={`p-3 rounded-xl flex items-center gap-2 text-sm ${
-                isDark ? 'bg-red-900/20 border border-red-800 text-red-400' : 'bg-red-50 border border-red-200 text-red-700'
-              }`}>
-                <AlertCircle className="w-4 h-4 flex-shrink-0" />
-                {dealFormError}
-              </div>
-            )}
+          {/* Row 5: Closing Date + Next Follow-up */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Input
+              label="Closing Date"
+              name="closingDate"
+              type="date"
+              value={dealFormData.closingDate}
+              onChange={handleDealFormChange}
+              icon={<Calendar className="w-4 h-4" />}
+            />
+            <Input
+              label="Next Follow-up"
+              name="nextFollowUp"
+              type="date"
+              value={dealFormData.nextFollowUp}
+              onChange={handleDealFormChange}
+              icon={<Calendar className="w-4 h-4" />}
+            />
+          </div>
 
-            {/* Row 4: Account + Contact */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label htmlFor="deal-accountId" className={labelClass}>Account</label>
-                <select
-                  id="deal-accountId"
-                  name="accountId"
-                  value={dealFormData.accountId}
-                  onChange={handleDealFormChange}
-                  className={selectClass}
-                >
-                  <option value="">Select account...</option>
-                  {accounts.map(a => (
-                    <option key={a.id} value={a.id}>{a.name}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label htmlFor="deal-contactId" className={labelClass}>Contact</label>
-                <select
-                  id="deal-contactId"
-                  name="contactId"
-                  value={dealFormData.contactId}
-                  onChange={handleDealFormChange}
-                  className={selectClass}
-                >
-                  <option value="">Select contact...</option>
-                  {(dealFormData.accountId
-                    ? contacts.filter(c => c.accountId === dealFormData.accountId)
-                    : contacts
-                  ).map(c => (
-                    <option key={c.id} value={c.id}>{c.firstName} {c.lastName}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
+          {/* Row 5b: Contact No + Designation */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Input
+              label="Contact No"
+              name="contactNo"
+              type="text"
+              placeholder="Phone number"
+              value={dealFormData.contactNo}
+              onChange={handleDealFormChange}
+              icon={<Phone className="w-4 h-4" />}
+            />
+            <Input
+              label="Designation"
+              name="designation"
+              type="text"
+              placeholder="e.g. Manager, Director"
+              value={dealFormData.designation}
+              onChange={handleDealFormChange}
+            />
+          </div>
 
-            {/* Row 5: Closing Date + Next Follow-up */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label htmlFor="deal-closingDate" className={labelClass}>Closing Date</label>
-                <div className="relative">
-                  <Calendar className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`} />
-                  <input
-                    id="deal-closingDate"
-                    name="closingDate"
-                    type="date"
-                    value={dealFormData.closingDate}
-                    onChange={handleDealFormChange}
-                    className={`${inputClass} pl-10`}
-                  />
-                </div>
-              </div>
-              <div>
-                <label htmlFor="deal-nextFollowUp" className={labelClass}>Next Follow-up</label>
-                <div className="relative">
-                  <Calendar className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`} />
-                  <input
-                    id="deal-nextFollowUp"
-                    name="nextFollowUp"
-                    type="date"
-                    value={dealFormData.nextFollowUp}
-                    onChange={handleDealFormChange}
-                    className={`${inputClass} pl-10`}
-                  />
-                </div>
-              </div>
-            </div>
+          {/* Row 5c: Email + Location */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Input
+              label="Email"
+              name="email"
+              type="email"
+              placeholder="email@example.com"
+              value={dealFormData.email}
+              onChange={handleDealFormChange}
+              icon={<Mail className="w-4 h-4" />}
+            />
+            <Input
+              label="Location"
+              name="location"
+              type="text"
+              placeholder="City, State"
+              value={dealFormData.location}
+              onChange={handleDealFormChange}
+              icon={<MapPin className="w-4 h-4" />}
+            />
+          </div>
 
-            {/* Row 5b: Contact No + Designation */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label htmlFor="deal-contactNo" className={labelClass}>Contact No</label>
-                <div className="relative">
-                  <Phone className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`} />
-                  <input
-                    id="deal-contactNo"
-                    name="contactNo"
-                    type="text"
-                    placeholder="Phone number"
-                    value={dealFormData.contactNo}
-                    onChange={handleDealFormChange}
-                    className={`${inputClass} pl-10`}
-                  />
-                </div>
-              </div>
-              <div>
-                <label htmlFor="deal-designation" className={labelClass}>Designation</label>
-                <input
-                  id="deal-designation"
-                  name="designation"
-                  type="text"
-                  placeholder="e.g. Manager, Director"
-                  value={dealFormData.designation}
-                  onChange={handleDealFormChange}
-                  className={inputClass}
-                />
-              </div>
-            </div>
+          {/* Row 7: Type + Lead Source */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Select
+              label="Type"
+              name="tag"
+              value={dealFormData.tag}
+              onChange={handleDealFormChange}
+            >
+              <option value="">Select type...</option>
+              <option value="Channel">Channel</option>
+              <option value="End Customer">End Customer</option>
+            </Select>
+            <Select
+              label="Lead Source"
+              name="leadSource"
+              value={dealFormData.leadSource}
+              onChange={handleDealFormChange}
+            >
+              <option value="">Select source...</option>
+              <option value="Website">Website</option>
+              <option value="Referral">Referral</option>
+              <option value="Cold Call">Cold Call</option>
+              <option value="Event">Event</option>
+              <option value="Partner">Partner</option>
+              <option value="Other">Other</option>
+            </Select>
+          </div>
 
-            {/* Row 5c: Email + Location */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label htmlFor="deal-email" className={labelClass}>Email</label>
-                <div className="relative">
-                  <Mail className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`} />
-                  <input
-                    id="deal-email"
-                    name="email"
-                    type="email"
-                    placeholder="email@example.com"
-                    value={dealFormData.email}
-                    onChange={handleDealFormChange}
-                    className={`${inputClass} pl-10`}
-                  />
-                </div>
-              </div>
-              <div>
-                <label htmlFor="deal-location" className={labelClass}>Location</label>
-                <div className="relative">
-                  <MapPin className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`} />
-                  <input
-                    id="deal-location"
-                    name="location"
-                    type="text"
-                    placeholder="City, State"
-                    value={dealFormData.location}
-                    onChange={handleDealFormChange}
-                    className={`${inputClass} pl-10`}
-                  />
-                </div>
-              </div>
-            </div>
+          {/* Order Type */}
+          <Select
+            label="Order Type"
+            name="typeOfOrder"
+            value={dealFormData.typeOfOrder}
+            onChange={handleDealFormChange}
+          >
+            <option value="">Select order type...</option>
+            <option value="New">New</option>
+            <option value="Refurb">Refurb</option>
+            <option value="Rental">Rental</option>
+          </Select>
 
-            {/* Row 7: Type + Lead Source */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label htmlFor="deal-tag" className={labelClass}>Type</label>
-                <select
-                  id="deal-tag"
-                  name="tag"
-                  value={dealFormData.tag}
-                  onChange={handleDealFormChange}
-                  className={selectClass}
-                >
-                  <option value="">Select type...</option>
-                  <option value="Channel">Channel</option>
-                  <option value="End Customer">End Customer</option>
-                </select>
-              </div>
-              <div>
-                <label htmlFor="deal-leadSource" className={labelClass}>Lead Source</label>
-                <select
-                  id="deal-leadSource"
-                  name="leadSource"
-                  value={dealFormData.leadSource}
-                  onChange={handleDealFormChange}
-                  className={selectClass}
-                >
-                  <option value="">Select source...</option>
-                  <option value="Website">Website</option>
-                  <option value="Referral">Referral</option>
-                  <option value="Cold Call">Cold Call</option>
-                  <option value="Event">Event</option>
-                  <option value="Partner">Partner</option>
-                  <option value="Other">Other</option>
-                </select>
-              </div>
-            </div>
+          {/* Requirements */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Textarea
+              label="Requirement (User Provided)"
+              name="requirement"
+              rows={3}
+              placeholder="What the user/lead requires..."
+              value={dealFormData.requirement}
+              onChange={(e) => setDealFormData(prev => ({ ...prev, requirement: e.target.value }))}
+            />
+            <Textarea
+              label="Quoted Requirement (What We Serve)"
+              name="quotedRequirement"
+              rows={3}
+              placeholder="What we are offering/serving..."
+              value={dealFormData.quotedRequirement}
+              onChange={(e) => setDealFormData(prev => ({ ...prev, quotedRequirement: e.target.value }))}
+            />
+          </div>
 
-            {/* Order Type */}
-            <div>
-              <label htmlFor="deal-typeOfOrder" className={labelClass}>Order Type</label>
-              <select
-                id="deal-typeOfOrder"
-                name="typeOfOrder"
-                value={dealFormData.typeOfOrder}
-                onChange={handleDealFormChange}
-                className={selectClass}
-              >
-                <option value="">Select order type...</option>
-                <option value="New">New</option>
-                <option value="Refurb">Refurb</option>
-                <option value="Rental">Rental</option>
-              </select>
-            </div>
+          {/* Value (non-mandatory, below quoted requirement) */}
+          <Input
+            label="Value (INR)"
+            name="value"
+            type="number"
+            min={0}
+            step={1}
+            placeholder="0"
+            value={dealFormData.value || ''}
+            onChange={handleDealFormChange}
+            icon={<IndianRupee className="w-4 h-4" />}
+          />
 
-            {/* Requirements */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label htmlFor="deal-requirement" className={labelClass}>Requirement (User Provided)</label>
-                <textarea
-                  id="deal-requirement"
-                  name="requirement"
-                  rows={3}
-                  placeholder="What the user/lead requires..."
-                  value={dealFormData.requirement}
-                  onChange={(e) => setDealFormData(prev => ({ ...prev, requirement: e.target.value }))}
-                  className={inputClass}
-                />
-              </div>
-              <div>
-                <label htmlFor="deal-quotedRequirement" className={labelClass}>Quoted Requirement (What We Serve)</label>
-                <textarea
-                  id="deal-quotedRequirement"
-                  name="quotedRequirement"
-                  rows={3}
-                  placeholder="What we are offering/serving..."
-                  value={dealFormData.quotedRequirement}
-                  onChange={(e) => setDealFormData(prev => ({ ...prev, quotedRequirement: e.target.value }))}
-                  className={inputClass}
-                />
-              </div>
-            </div>
+          {/* Row 8: Description (Rich Text) */}
+          <div>
+            <label className="block text-sm font-medium mb-1.5 text-gray-700 dark:text-gray-300">Description</label>
+            <RichTextEditor
+              value={dealFormData.description}
+              onChange={(html) => setDealFormData(prev => ({ ...prev, description: html }))}
+              placeholder="Deal description..."
+              minHeight="80px"
+            />
+          </div>
 
-            {/* Value (non-mandatory, below quoted requirement) */}
-            <div>
-              <label htmlFor="deal-value" className={labelClass}>
-                Value (INR)
-              </label>
-              <div className="relative">
-                <IndianRupee className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`} />
-                <input
-                  id="deal-value"
-                  name="value"
-                  type="number"
-                  min="0"
-                  step="1"
-                  placeholder="0"
-                  value={dealFormData.value || ''}
-                  onChange={handleDealFormChange}
-                  className={`${inputClass} pl-10`}
-                />
-              </div>
-            </div>
-
-            {/* Row 8: Description (Rich Text) */}
-            <div>
-              <label className={labelClass}>Description</label>
-              <RichTextEditor
-                value={dealFormData.description}
-                onChange={(html) => setDealFormData(prev => ({ ...prev, description: html }))}
-                placeholder="Deal description..."
-                isDark={isDark}
-                minHeight="80px"
-              />
-            </div>
-
-            </div>
-            {/* Footer - sticky at bottom */}
-            <div className={`sticky bottom-0 flex items-center justify-end gap-3 px-6 py-4 border-t ${
-              isDark ? 'bg-dark-50 border-zinc-800' : 'bg-white border-slate-200'
-            }`}>
-              <button
-                type="button"
-                onClick={closeDealModal}
-                disabled={isSubmitting}
-                className={`px-4 py-2.5 rounded-xl text-sm font-medium transition-colors ${
-                  isDark ? 'text-zinc-400 hover:text-white hover:bg-zinc-800' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                } disabled:opacity-50`}
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={isSubmitting}
-                className="flex items-center gap-2 px-5 py-2.5 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-sm font-medium transition-all btn-premium disabled:opacity-50"
-              >
-                {isSubmitting ? (
-                  <><Loader2 className="w-4 h-4 animate-spin" /> Saving...</>
-                ) : (
-                  <><CheckCircle className="w-4 h-4" /> {editingDealId ? 'Update Deal' : 'Create Deal'}</>
-                )}
-              </button>
-            </div>
-          </form>
-        </div>
-      </div>
+          {/* Footer - sticky at bottom */}
+          <div className="sticky bottom-0 flex items-center justify-end gap-3 pt-4 border-t border-gray-200 bg-white dark:bg-[rgba(8,14,30,0.95)] dark:border-zinc-800">
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={closeDealModal}
+              disabled={isSubmitting}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              loading={isSubmitting}
+              icon={isSubmitting ? undefined : <CheckCircle className="w-4 h-4" />}
+              shine
+            >
+              {isSubmitting ? 'Saving...' : (editingDealId ? 'Update Deal' : 'Create Deal')}
+            </Button>
+          </div>
+        </form>
+      </Modal>
     );
   };
 
@@ -2534,257 +2253,187 @@ export const DealsPage: React.FC = () => {
     };
 
     return (
-      <div className="fixed inset-0 z-50 flex items-start justify-center p-4 pt-[5vh] overflow-y-auto">
-        <div className="fixed inset-0 bg-black/50 animate-backdrop" onClick={closeClosedWonModal} />
-        <div className={`relative w-full max-w-lg rounded-2xl animate-fade-in-up ${
-          isDark ? 'bg-dark-50 border border-zinc-800' : 'bg-white shadow-premium'
-        }`}>
-          {/* Header */}
-          <div className={`flex items-center justify-between px-6 py-4 border-b ${
-            isDark ? 'border-zinc-800' : 'border-slate-200'
-          }`}>
-            <div className="flex items-center gap-2">
-              <CheckCircle className="w-5 h-5 text-emerald-500" />
-              <h2 className={`text-lg font-semibold font-display ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                Sales Order Form
-              </h2>
-            </div>
-            <button onClick={closeClosedWonModal} className={`p-2 rounded-lg transition-colors ${
-              isDark ? 'text-zinc-400 hover:text-white hover:bg-zinc-800' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100'
-            }`}>
-              <X className="w-5 h-5" />
-            </button>
-          </div>
+      <Modal
+        open={showClosedWonModal}
+        onClose={closeClosedWonModal}
+        title="Sales Order Form"
+        icon={<CheckCircle className="w-5 h-5 text-emerald-500" />}
+        size="xl"
+        footer={
+          <>
+            <Button variant="ghost" onClick={closeClosedWonModal} disabled={closedWonSaving}>
+              Cancel
+            </Button>
+            <Button
+              variant="success"
+              onClick={handleClosedWonSubmit}
+              loading={closedWonSaving}
+              icon={closedWonSaving ? undefined : <CheckCircle className="w-4 h-4" />}
+            >
+              {closedWonSaving
+                ? (closedWonExistingEntryId ? 'Updating...' : 'Creating Sale...')
+                : (closedWonExistingEntryId ? 'Update Sales Order' : 'Close Deal & Create Sale')
+              }
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          {closedWonError && (
+            <Alert variant="error" icon={<AlertCircle className="w-4 h-4" />}>
+              {closedWonError}
+            </Alert>
+          )}
 
-          {/* Body */}
-          <div className="p-6 space-y-4 max-h-[65vh] overflow-y-auto">
-            {closedWonError && (
-              <div className={`p-3 rounded-xl flex items-center gap-2 text-sm ${
-                isDark ? 'bg-red-900/20 border border-red-800 text-red-400' : 'bg-red-50 border border-red-200 text-red-700'
-              }`}>
-                <AlertCircle className="w-4 h-4 flex-shrink-0" />
-                {closedWonError}
+          <p className="text-sm text-gray-500 dark:text-zinc-400">
+            {closedWonExistingEntryId ? 'Update the sales order for this deal.' : 'Fill in the sales order details. A sales entry will be created for this deal.'}
+          </p>
+
+          {/* Company Name (auto-filled from account) */}
+          <Input
+            label="Company Name"
+            name="customerName"
+            value={closedWonOrderForm.customerName}
+            onChange={handleOrderChange}
+            placeholder="Company name"
+            readOnly
+            className="bg-gray-50 dark:bg-dark-200"
+          />
+
+          {/* Product Selection (click-to-open dropdown) */}
+          <div className="relative">
+            <label className="block text-sm font-medium mb-1.5 text-gray-700 dark:text-gray-300">Products <span className="text-red-500">*</span></label>
+            <button
+              type="button"
+              onClick={() => setProductDropdownOpen(prev => !prev)}
+              className={cx(
+                'w-full flex items-center justify-between px-3 py-2.5 rounded-xl border text-sm text-left transition-colors',
+                'bg-white border-gray-200 text-gray-700 hover:border-gray-400',
+                'dark:bg-dark-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:border-zinc-500'
+              )}
+            >
+              <span className={selectedProductIds.length === 0 ? 'text-gray-400 dark:text-zinc-500' : ''}>
+                {selectedProductIds.length === 0
+                  ? '-- Select Products --'
+                  : `${selectedProductIds.length} product(s) selected`}
+              </span>
+              <ChevronDown className={cx('w-4 h-4 transition-transform text-gray-400 dark:text-zinc-500', productDropdownOpen && 'rotate-180')} />
+            </button>
+            {productDropdownOpen && (
+              <div className="absolute z-10 left-0 right-0 mt-1 rounded-xl border shadow-lg bg-white border-gray-200 dark:bg-dark-100 dark:border-zinc-700">
+                <div className="p-2">
+                  <Input
+                    type="text"
+                    placeholder="Search products..."
+                    value={productSearch}
+                    onChange={e => setProductSearch(e.target.value)}
+                    autoFocus
+                  />
+                </div>
+                <div className="max-h-48 overflow-y-auto px-2 pb-2 space-y-1">
+                  {products.length === 0 ? (
+                    <p className="text-xs px-2 py-3 text-center text-gray-400 dark:text-zinc-500">No products found</p>
+                  ) : products.filter(p => p.isActive && p.name.toLowerCase().includes(productSearch.toLowerCase())).map(product => (
+                    <label key={product.id} className={cx(
+                      'flex items-center gap-2.5 px-2.5 py-2 rounded-lg cursor-pointer transition-colors',
+                      selectedProductIds.includes(product.id)
+                        ? 'bg-brand-50 text-brand-700 dark:bg-brand-900/30 dark:text-brand-300'
+                        : 'hover:bg-gray-100 text-gray-700 dark:hover:bg-zinc-800 dark:text-zinc-300'
+                    )}>
+                      <input
+                        type="checkbox"
+                        checked={selectedProductIds.includes(product.id)}
+                        onChange={() => {
+                          setSelectedProductIds(prev =>
+                            prev.includes(product.id) ? prev.filter(id => id !== product.id) : [...prev, product.id]
+                          );
+                        }}
+                        className="rounded border-gray-300 text-brand-600 focus:ring-brand-500"
+                      />
+                      <span className="text-sm">{product.name}</span>
+                      {product.basePrice ? <span className="text-xs ml-auto text-gray-400 dark:text-zinc-500">{formatINR(product.basePrice)}</span> : null}
+                    </label>
+                  ))}
+                </div>
               </div>
             )}
+          </div>
 
-            <p className={`text-sm ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>
-              {closedWonExistingEntryId ? 'Update the sales order for this deal.' : 'Fill in the sales order details. A sales entry will be created for this deal.'}
-            </p>
+          {/* Contact Info */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <Input label="Contact Name" name="contactName" value={closedWonOrderForm.contactName} onChange={handleOrderChange} placeholder="Contact person" />
+            <Input label="Contact No" name="contactNo" value={closedWonOrderForm.contactNo} onChange={handleOrderChange} placeholder="+91..." />
+            <Input label="Email" name="email" type="email" value={closedWonOrderForm.email} onChange={handleOrderChange} placeholder="email@example.com" />
+          </div>
 
-            {/* Company Name (auto-filled from account) */}
-            <div>
-              <label className={labelClass}>Company Name</label>
-              <input
-                name="customerName"
-                value={closedWonOrderForm.customerName}
-                onChange={handleOrderChange}
-                className={`${inputClass} ${isDark ? 'bg-dark-200' : 'bg-slate-50'}`}
-                placeholder="Company name"
-                readOnly
-              />
-            </div>
+          {/* Company Details */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <Input label="GSTIN" name="gstin" value={closedWonOrderForm.gstin} onChange={handleOrderChange} placeholder="22AAAAA0000A1Z5" />
+            <Input label="PAN No" name="panNo" value={closedWonOrderForm.panNo} onChange={handleOrderChange} placeholder="AAAAA0000A" />
+          </div>
 
-            {/* Product Selection (click-to-open dropdown) */}
-            <div className="relative">
-              <label className={labelClass}>Products <span className="text-red-500">*</span></label>
-              <button
-                type="button"
-                onClick={() => setProductDropdownOpen(prev => !prev)}
-                className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl border text-sm text-left transition-colors ${
-                  isDark
-                    ? 'bg-dark-100 border-zinc-700 text-zinc-300 hover:border-zinc-500'
-                    : 'bg-white border-slate-200 text-slate-700 hover:border-slate-400'
-                }`}
-              >
-                <span className={selectedProductIds.length === 0 ? (isDark ? 'text-zinc-500' : 'text-slate-400') : ''}>
-                  {selectedProductIds.length === 0
-                    ? '-- Select Products --'
-                    : `${selectedProductIds.length} product(s) selected`}
-                </span>
-                <ChevronDown className={`w-4 h-4 transition-transform ${productDropdownOpen ? 'rotate-180' : ''} ${isDark ? 'text-zinc-500' : 'text-slate-400'}`} />
-              </button>
-              {productDropdownOpen && (
-                <div className={`absolute z-10 left-0 right-0 mt-1 rounded-xl border shadow-lg ${
-                  isDark ? 'bg-dark-100 border-zinc-700' : 'bg-white border-slate-200'
-                }`}>
-                  <div className="p-2">
-                    <input
-                      type="text"
-                      placeholder="Search products..."
-                      value={productSearch}
-                      onChange={e => setProductSearch(e.target.value)}
-                      className={`${inputClass} text-sm`}
-                      autoFocus
-                    />
-                  </div>
-                  <div className="max-h-48 overflow-y-auto px-2 pb-2 space-y-1">
-                    {products.length === 0 ? (
-                      <p className={`text-xs px-2 py-3 text-center ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>No products found</p>
-                    ) : products.filter(p => p.isActive && p.name.toLowerCase().includes(productSearch.toLowerCase())).map(product => (
-                      <label key={product.id} className={`flex items-center gap-2.5 px-2.5 py-2 rounded-lg cursor-pointer transition-colors ${
-                        selectedProductIds.includes(product.id)
-                          ? isDark ? 'bg-brand-900/30 text-brand-300' : 'bg-brand-50 text-brand-700'
-                          : isDark ? 'hover:bg-zinc-800 text-zinc-300' : 'hover:bg-slate-100 text-slate-700'
-                      }`}>
-                        <input
-                          type="checkbox"
-                          checked={selectedProductIds.includes(product.id)}
-                          onChange={() => {
-                            setSelectedProductIds(prev =>
-                              prev.includes(product.id) ? prev.filter(id => id !== product.id) : [...prev, product.id]
-                            );
-                          }}
-                          className="rounded border-slate-300 text-brand-600 focus:ring-brand-500"
-                        />
-                        <span className="text-sm">{product.name}</span>
-                        {product.basePrice ? <span className={`text-xs ml-auto ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>{formatINR(product.basePrice)}</span> : null}
-                      </label>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
+          {/* Quantity, Price & Amount */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <Input label="Quantity" name="quantity" type="number" min={1} value={closedWonOrderForm.quantity} onChange={handleOrderChange} />
+            <Input label="Price (per unit)" name="price" type="number" min={0} step={0.01} value={closedWonOrderForm.price} onChange={handleOrderChange} />
+            <Input label="Amount *" name="amount" type="number" min={0} step={0.01} value={closedWonOrderForm.amount} onChange={handleOrderChange} required />
+          </div>
 
-            {/* Contact Info */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div>
-                <label className={labelClass}>Contact Name</label>
-                <input name="contactName" value={closedWonOrderForm.contactName} onChange={handleOrderChange} className={inputClass} placeholder="Contact person" />
-              </div>
-              <div>
-                <label className={labelClass}>Contact No</label>
-                <input name="contactNo" value={closedWonOrderForm.contactNo} onChange={handleOrderChange} className={inputClass} placeholder="+91..." />
-              </div>
-              <div>
-                <label className={labelClass}>Email</label>
-                <input name="email" type="email" value={closedWonOrderForm.email} onChange={handleOrderChange} className={inputClass} placeholder="email@example.com" />
-              </div>
-            </div>
+          {/* Dispatch Method & Payment Terms */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <Select label="Dispatch Method" name="dispatchMethod" value={closedWonOrderForm.dispatchMethod} onChange={handleOrderChange}>
+              <option value="">-- Select --</option>
+              <option value="Air">Air</option>
+              <option value="Road">Road</option>
+            </Select>
+            <Input label="Payment Terms" name="paymentTerms" value={closedWonOrderForm.paymentTerms} onChange={handleOrderChange} placeholder="e.g. Net 30" />
+          </div>
 
-            {/* Company Details */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label className={labelClass}>GSTIN</label>
-                <input name="gstin" value={closedWonOrderForm.gstin} onChange={handleOrderChange} className={inputClass} placeholder="22AAAAA0000A1Z5" />
-              </div>
-              <div>
-                <label className={labelClass}>PAN No</label>
-                <input name="panNo" value={closedWonOrderForm.panNo} onChange={handleOrderChange} className={inputClass} placeholder="AAAAA0000A" />
-              </div>
-            </div>
+          {/* Sale Date */}
+          <Input label="Sale Date *" name="saleDate" type="date" value={closedWonOrderForm.saleDate} onChange={handleOrderChange} required />
 
-            {/* Quantity, Price & Amount */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div>
-                <label className={labelClass}>Quantity</label>
-                <input name="quantity" type="number" min="1" value={closedWonOrderForm.quantity} onChange={handleOrderChange} className={inputClass} />
-              </div>
-              <div>
-                <label className={labelClass}>Price (per unit)</label>
-                <input name="price" type="number" min="0" step="0.01" value={closedWonOrderForm.price} onChange={handleOrderChange} className={inputClass} />
-              </div>
-              <div>
-                <label className={labelClass}>Amount <span className="text-red-500">*</span></label>
-                <input name="amount" type="number" min="0" step="0.01" value={closedWonOrderForm.amount} onChange={handleOrderChange} className={inputClass} required />
-              </div>
-            </div>
-
-            {/* Dispatch Method & Payment Terms */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label className={labelClass}>Dispatch Method</label>
-                <select name="dispatchMethod" value={closedWonOrderForm.dispatchMethod} onChange={handleOrderChange} className={selectClass}>
-                  <option value="">-- Select --</option>
-                  <option value="Air">Air</option>
-                  <option value="Road">Road</option>
-                </select>
-              </div>
-              <div>
-                <label className={labelClass}>Payment Terms</label>
-                <input name="paymentTerms" value={closedWonOrderForm.paymentTerms} onChange={handleOrderChange} className={inputClass} placeholder="e.g. Net 30" />
-              </div>
-            </div>
-
-            {/* Sale Date */}
-            <div>
-              <label className={labelClass}>Sale Date <span className="text-red-500">*</span></label>
-              <input name="saleDate" type="date" value={closedWonOrderForm.saleDate} onChange={handleOrderChange} className={inputClass} required />
-            </div>
-
-            {/* Order Type Toggle: New / Refurb / Rental */}
-            <div>
-              <label className={labelClass}>Order Type</label>
-              <div className="flex gap-2">
-                {(['New', 'Refurb', 'Rental'] as const).map(t => (
-                  <button
-                    key={t}
-                    type="button"
-                    onClick={() => setClosedWonOrderForm(prev => ({ ...prev, orderType: t }))}
-                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                      closedWonOrderForm.orderType === t
-                        ? 'bg-brand-600 text-white shadow-sm'
-                        : isDark ? 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                    }`}
-                  >
-                    {t}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* BOQ - shown for both New and Refurb */}
-            <div>
-              <label className={labelClass}>BOQ (Bill of Quantities)</label>
-              <textarea
-                name="boq"
-                rows={3}
-                placeholder="Enter BOQ details..."
-                value={closedWonOrderForm.boq}
-                onChange={handleOrderChange}
-                className={inputClass}
-              />
-            </div>
-
-            {/* Description */}
-            <div>
-              <label className={labelClass}>Description</label>
-              <textarea
-                rows={2}
-                placeholder="Description of the sales order..."
-                value={closedWonDescription}
-                onChange={e => setClosedWonDescription(e.target.value)}
-                className={inputClass}
-              />
+          {/* Order Type Toggle: New / Refurb / Rental */}
+          <div>
+            <label className="block text-sm font-medium mb-1.5 text-gray-700 dark:text-gray-300">Order Type</label>
+            <div className="flex gap-2">
+              {(['New', 'Refurb', 'Rental'] as const).map(t => (
+                <button
+                  key={t}
+                  type="button"
+                  onClick={() => setClosedWonOrderForm(prev => ({ ...prev, orderType: t }))}
+                  className={cx(
+                    'px-4 py-2 rounded-lg text-sm font-medium transition-all',
+                    closedWonOrderForm.orderType === t
+                      ? 'bg-brand-600 text-white shadow-sm'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-700'
+                  )}
+                >
+                  {t}
+                </button>
+              ))}
             </div>
           </div>
 
-          {/* Footer */}
-          <div className={`flex items-center justify-end gap-3 px-6 py-4 border-t ${
-            isDark ? 'border-zinc-800' : 'border-slate-200'
-          }`}>
-            <button
-              onClick={closeClosedWonModal}
-              disabled={closedWonSaving}
-              className={`px-4 py-2.5 rounded-xl text-sm font-medium transition-colors ${
-                isDark ? 'text-zinc-400 hover:text-white hover:bg-zinc-800' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-              } disabled:opacity-50`}
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleClosedWonSubmit}
-              disabled={closedWonSaving}
-              className="flex items-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-medium transition-all disabled:opacity-50"
-            >
-              {closedWonSaving ? (
-                <><Loader2 className="w-4 h-4 animate-spin" /> {closedWonExistingEntryId ? 'Updating...' : 'Creating Sale...'}</>
-              ) : (
-                <><CheckCircle className="w-4 h-4" /> {closedWonExistingEntryId ? 'Update Sales Order' : 'Close Deal & Create Sale'}</>
-              )}
-            </button>
-          </div>
+          {/* BOQ - shown for both New and Refurb */}
+          <Textarea
+            label="BOQ (Bill of Quantities)"
+            name="boq"
+            rows={3}
+            placeholder="Enter BOQ details..."
+            value={closedWonOrderForm.boq}
+            onChange={handleOrderChange}
+          />
+
+          {/* Description */}
+          <Textarea
+            label="Description"
+            rows={2}
+            placeholder="Description of the sales order..."
+            value={closedWonDescription}
+            onChange={e => setClosedWonDescription(e.target.value)}
+          />
         </div>
-      </div>
+      </Modal>
     );
   };
 
@@ -2797,10 +2446,10 @@ export const DealsPage: React.FC = () => {
       {/* Page header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className={`text-xl font-bold font-display ${isDark ? 'text-white' : 'text-slate-900'}`}>
+          <h1 className="text-xl font-bold font-display text-gray-900 dark:text-white">
             Deals
           </h1>
-          <p className={`text-sm mt-0.5 ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>
+          <p className="text-sm mt-0.5 text-gray-500 dark:text-zinc-400">
             Track and manage deal opportunities through your sales stages
           </p>
         </div>
@@ -2808,69 +2457,25 @@ export const DealsPage: React.FC = () => {
 
       {/* Stage Summary Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
-        <div className={`${cardClass} p-4 flex items-center gap-3`}>
-          <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${isDark ? 'bg-blue-500/10 text-blue-400' : 'bg-blue-50 text-blue-600'}`}>
-            <Handshake className="w-5 h-5" />
-          </div>
-          <div>
-            <p className={`text-2xl font-bold font-display ${isDark ? 'text-white' : 'text-slate-900'}`}>{dealSummary.total}</p>
-            <p className={`text-xs ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Total</p>
-          </div>
-        </div>
-        <div className={`${cardClass} p-4 flex items-center gap-3`}>
-          <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${isDark ? 'bg-cyan-500/10 text-cyan-400' : 'bg-cyan-50 text-cyan-600'}`}>
-            <Plus className="w-5 h-5" />
-          </div>
-          <div>
-            <p className={`text-2xl font-bold font-display ${isDark ? 'text-white' : 'text-slate-900'}`}>{dealSummary.new}</p>
-            <p className={`text-xs ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>New</p>
-          </div>
-        </div>
-        <div className={`${cardClass} p-4 flex items-center gap-3`}>
-          <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${isDark ? 'bg-amber-500/10 text-amber-400' : 'bg-amber-50 text-amber-600'}`}>
-            <FileText className="w-5 h-5" />
-          </div>
-          <div>
-            <p className={`text-2xl font-bold font-display ${isDark ? 'text-white' : 'text-slate-900'}`}>{dealSummary.proposal}</p>
-            <p className={`text-xs ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Proposal</p>
-          </div>
-        </div>
-        <div className={`${cardClass} p-4 flex items-center gap-3`}>
-          <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${isDark ? 'bg-sky-500/10 text-sky-400' : 'bg-sky-50 text-sky-600'}`}>
-            <Snowflake className="w-5 h-5" />
-          </div>
-          <div>
-            <p className={`text-2xl font-bold font-display ${isDark ? 'text-white' : 'text-slate-900'}`}>{dealSummary.cold}</p>
-            <p className={`text-xs ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Cold</p>
-          </div>
-        </div>
-        <div className={`${cardClass} p-4 flex items-center gap-3`}>
-          <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${isDark ? 'bg-purple-500/10 text-purple-400' : 'bg-purple-50 text-purple-600'}`}>
-            <TrendingUp className="w-5 h-5" />
-          </div>
-          <div>
-            <p className={`text-2xl font-bold font-display ${isDark ? 'text-white' : 'text-slate-900'}`}>{dealSummary.negotiation}</p>
-            <p className={`text-xs ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Negotiation</p>
-          </div>
-        </div>
-        <div className={`${cardClass} p-4 flex items-center gap-3`}>
-          <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${isDark ? 'bg-red-500/10 text-red-400' : 'bg-red-50 text-red-600'}`}>
-            <XCircle className="w-5 h-5" />
-          </div>
-          <div>
-            <p className={`text-2xl font-bold font-display ${isDark ? 'text-white' : 'text-slate-900'}`}>{dealSummary.closedLost}</p>
-            <p className={`text-xs ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Closed Lost</p>
-          </div>
-        </div>
-        <div className={`${cardClass} p-4 flex items-center gap-3`}>
-          <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${isDark ? 'bg-emerald-500/10 text-emerald-400' : 'bg-emerald-50 text-emerald-600'}`}>
-            <CheckCircle className="w-5 h-5" />
-          </div>
-          <div>
-            <p className={`text-2xl font-bold font-display ${isDark ? 'text-white' : 'text-slate-900'}`}>{dealSummary.closedWon}</p>
-            <p className={`text-xs ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Closed Won</p>
-          </div>
-        </div>
+        {[
+          { icon: <Handshake className="w-5 h-5" />, count: dealSummary.total, label: 'Total', color: 'bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400' },
+          { icon: <Plus className="w-5 h-5" />, count: dealSummary.new, label: 'New', color: 'bg-cyan-50 text-cyan-600 dark:bg-cyan-500/10 dark:text-cyan-400' },
+          { icon: <FileText className="w-5 h-5" />, count: dealSummary.proposal, label: 'Proposal', color: 'bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400' },
+          { icon: <Snowflake className="w-5 h-5" />, count: dealSummary.cold, label: 'Cold', color: 'bg-sky-50 text-sky-600 dark:bg-sky-500/10 dark:text-sky-400' },
+          { icon: <TrendingUp className="w-5 h-5" />, count: dealSummary.negotiation, label: 'Negotiation', color: 'bg-purple-50 text-purple-600 dark:bg-purple-500/10 dark:text-purple-400' },
+          { icon: <XCircle className="w-5 h-5" />, count: dealSummary.closedLost, label: 'Closed Lost', color: 'bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400' },
+          { icon: <CheckCircle className="w-5 h-5" />, count: dealSummary.closedWon, label: 'Closed Won', color: 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400' },
+        ].map(({ icon, count, label, color }) => (
+          <Card key={label} padding="none" className="p-4 flex items-center gap-3">
+            <div className={cx('w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0', color)}>
+              {icon}
+            </div>
+            <div>
+              <p className="text-2xl font-bold font-display text-gray-900 dark:text-white">{count}</p>
+              <p className="text-xs text-gray-400 dark:text-zinc-500">{label}</p>
+            </div>
+          </Card>
+        ))}
       </div>
 
       {/* Toolbar */}
@@ -2889,59 +2494,42 @@ export const DealsPage: React.FC = () => {
         onClose={() => setShowBulkImport(false)}
         entity="deals"
         entityLabel="Deals"
-        isDark={isDark}
         onSuccess={() => fetchDeals()}
       />
 
       {/* Summarise Modal */}
-      {showSummariseModal && summariseDeal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={() => setShowSummariseModal(false)}>
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
-          <div
-            className={`relative w-full max-w-lg rounded-2xl shadow-2xl border p-6 ${
-              isDark ? 'bg-zinc-900 border-zinc-700' : 'bg-white border-slate-200'
-            }`}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between mb-4">
-              <h3 className={`text-lg font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                Deal Summary
-              </h3>
-              <button
-                onClick={() => setShowSummariseModal(false)}
-                className={`p-1.5 rounded-lg transition-colors ${
-                  isDark ? 'text-zinc-400 hover:text-white hover:bg-zinc-800' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100'
-                }`}
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <div className="space-y-3">
-              {[
-                { label: 'Company', value: summariseDeal.company || summariseDeal.accountName },
-                { label: 'Contact Name', value: summariseDeal.contactName },
-                { label: 'Contact No', value: summariseDeal.contactNo },
-                { label: 'Designation', value: summariseDeal.designation },
-                { label: 'Email', value: summariseDeal.email },
-                { label: 'Location', value: summariseDeal.location },
-                { label: 'Stage', value: summariseDeal.stage },
-                { label: 'Value', value: summariseDeal.value ? formatINR(summariseDeal.value) : undefined },
-                { label: 'Type', value: summariseDeal.tag },
-                { label: 'Requirement', value: summariseDeal.requirement },
-                { label: 'Quoted Requirement', value: summariseDeal.quotedRequirement },
-                { label: 'Follow-up Date', value: summariseDeal.nextFollowUp ? formatDate(summariseDeal.nextFollowUp) : undefined },
-                { label: 'Description', value: summariseDeal.description },
-                { label: 'Next Step', value: summariseDeal.nextStep },
-              ].filter(item => item.value).map(item => (
-                <div key={item.label} className="flex justify-between">
-                  <span className={`text-sm font-medium ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>{item.label}</span>
-                  <span className={`text-sm text-right max-w-[60%] ${isDark ? 'text-zinc-200' : 'text-slate-700'}`}>{item.value}</span>
-                </div>
-              ))}
-            </div>
+      <Modal
+        open={showSummariseModal && !!summariseDeal}
+        onClose={() => setShowSummariseModal(false)}
+        title="Deal Summary"
+        size="lg"
+      >
+        {summariseDeal && (
+          <div className="space-y-3">
+            {[
+              { label: 'Company', value: summariseDeal.company || summariseDeal.accountName },
+              { label: 'Contact Name', value: summariseDeal.contactName },
+              { label: 'Contact No', value: summariseDeal.contactNo },
+              { label: 'Designation', value: summariseDeal.designation },
+              { label: 'Email', value: summariseDeal.email },
+              { label: 'Location', value: summariseDeal.location },
+              { label: 'Stage', value: summariseDeal.stage },
+              { label: 'Value', value: summariseDeal.value ? formatINR(summariseDeal.value) : undefined },
+              { label: 'Type', value: summariseDeal.tag },
+              { label: 'Requirement', value: summariseDeal.requirement },
+              { label: 'Quoted Requirement', value: summariseDeal.quotedRequirement },
+              { label: 'Follow-up Date', value: summariseDeal.nextFollowUp ? formatDate(summariseDeal.nextFollowUp) : undefined },
+              { label: 'Description', value: summariseDeal.description },
+              { label: 'Next Step', value: summariseDeal.nextStep },
+            ].filter(item => item.value).map(item => (
+              <div key={item.label} className="flex justify-between">
+                <span className="text-sm font-medium text-gray-500 dark:text-zinc-400">{item.label}</span>
+                <span className="text-sm text-right max-w-[60%] text-gray-700 dark:text-zinc-200">{item.value}</span>
+              </div>
+            ))}
           </div>
-        </div>
-      )}
+        )}
+      </Modal>
     </div>
   );
 };
@@ -2953,18 +2541,17 @@ export const DealsPage: React.FC = () => {
 const DetailInfoRow: React.FC<{
   label: string;
   value?: string;
-  isDark: boolean;
   icon?: React.ReactNode;
-}> = ({ label, value, isDark, icon }) => (
-  <div className={`flex items-start gap-2 p-2.5 rounded-lg ${isDark ? 'bg-dark-100' : 'bg-slate-50'}`}>
+}> = ({ label, value, icon }) => (
+  <div className="flex items-start gap-2 p-2.5 rounded-lg bg-gray-50 dark:bg-dark-100">
     {icon && (
-      <span className={`mt-0.5 flex-shrink-0 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
+      <span className="mt-0.5 flex-shrink-0 text-gray-400 dark:text-zinc-500">
         {icon}
       </span>
     )}
     <div className="min-w-0">
-      <p className={`text-[11px] font-medium ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>{label}</p>
-      <p className={`text-sm ${isDark ? 'text-white' : 'text-slate-900'}`}>
+      <p className="text-[11px] font-medium text-gray-400 dark:text-zinc-500">{label}</p>
+      <p className="text-sm text-gray-900 dark:text-white">
         {value || '-'}
       </p>
     </div>

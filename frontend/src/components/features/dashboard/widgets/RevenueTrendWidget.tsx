@@ -7,27 +7,28 @@ import { formatINR } from '@/services/api';
 import { useDashboardData } from '@/contexts/DashboardDataContext';
 import { pctChange } from '@/utils/dashboard';
 
-export const RevenueTrendWidget: React.FC<WidgetProps> = ({ isDark, navigate, onDetailClick }) => {
+export const RevenueTrendWidget: React.FC<WidgetProps> = ({ navigate, onDetailClick }) => {
   const { data: all } = useDashboardData();
   const monthly: MonthlyStat[] = Array.isArray(all?.monthlyStats) ? all.monthlyStats : [];
+
+  const isDark = document.documentElement.classList.contains('dark');
 
   const monthlyChange = monthly.length >= 2 ? pctChange(monthly[monthly.length - 1].revenue, monthly[monthly.length - 2].revenue) : 0;
 
   return (
     <AnalyticsCard
       icon={<BarChart3 className="w-4 h-4" />}
-      iconBg={isDark ? 'bg-brand-900/30' : 'bg-brand-50'}
-      iconColor={isDark ? 'text-brand-400' : 'text-brand-600'}
+      iconBg="bg-brand-50 dark:bg-brand-900/30"
+      iconColor="text-brand-600 dark:text-brand-400"
       title="Revenue Trend"
-      titleColor={isDark ? 'text-brand-400' : 'text-brand-700'}
+      titleColor="text-brand-700 dark:text-brand-400"
       subtitle={`Last ${monthly.length} months`}
       badge={monthlyChange !== 0 ? { value: monthlyChange } : undefined}
-      isDark={isDark}
       onClick={() => onDetailClick?.()}
     >
       {monthly.length === 0 ? (
-        <div className={`h-44 flex items-center justify-center rounded-xl ${isDark ? 'bg-zinc-900/50' : 'bg-slate-50'}`}>
-          <p className={`text-xs ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>No data</p>
+        <div className="h-44 flex items-center justify-center rounded-xl bg-slate-50 dark:bg-zinc-900/50">
+          <p className="text-xs text-slate-400 dark:text-zinc-500">No data</p>
         </div>
       ) : (
         <ResponsiveContainer width="100%" height={200}>

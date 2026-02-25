@@ -72,7 +72,6 @@ export interface DashboardPreferences {
 }
 
 export interface WidgetProps {
-  isDark: boolean;
   user: User | null;
   currentView: ViewAccess;
   navigate: (tab: NavigationItem) => void;

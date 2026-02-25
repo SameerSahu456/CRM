@@ -8,7 +8,6 @@ interface RichTextEditorProps {
   value: string;
   onChange: (html: string) => void;
   placeholder?: string;
-  isDark: boolean;
   minHeight?: string;
 }
 
@@ -16,7 +15,6 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
   value,
   onChange,
   placeholder = 'Enter description...',
-  isDark,
   minHeight = '60px',
 }) => {
   const editor = useEditor({
@@ -45,30 +43,22 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
 
   if (!editor) return null;
 
+  const isDark = document.documentElement.classList.contains('dark');
+
   const btnClass = (active: boolean) =>
     `p-1 rounded transition-colors ${
       active
-        ? isDark
-          ? 'bg-zinc-600 text-white'
-          : 'bg-slate-300 text-slate-900'
-        : isDark
-          ? 'text-zinc-400 hover:text-white hover:bg-zinc-700'
-          : 'text-slate-500 hover:text-slate-900 hover:bg-slate-200'
+        ? 'bg-slate-300 text-slate-900 dark:bg-zinc-600 dark:text-white'
+        : 'text-slate-500 hover:text-slate-900 hover:bg-slate-200 dark:text-zinc-400 dark:hover:text-white dark:hover:bg-zinc-700'
     }`;
 
   return (
     <div
-      className={`rounded-lg border text-xs transition-all ${
-        isDark
-          ? 'bg-dark-100 border-zinc-700 focus-within:border-brand-500'
-          : 'bg-white border-slate-200 focus-within:border-brand-500'
-      } focus-within:ring-1 focus-within:ring-brand-500`}
+      className={`rounded-lg border text-xs transition-all bg-white border-slate-200 dark:bg-dark-100 dark:border-zinc-700 focus-within:border-brand-500 focus-within:ring-1 focus-within:ring-brand-500`}
     >
       {/* Toolbar */}
       <div
-        className={`flex items-center gap-0.5 px-1.5 py-1 border-b ${
-          isDark ? 'border-zinc-700' : 'border-slate-200'
-        }`}
+        className="flex items-center gap-0.5 px-1.5 py-1 border-b border-slate-200 dark:border-zinc-700"
       >
         <button
           type="button"

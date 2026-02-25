@@ -1,16 +1,17 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
-  Plus, Search, Trash2, X, ChevronLeft, ChevronRight,
+  Plus, Search, Trash2, X,
   IndianRupee, CheckCircle, Loader2, AlertCircle,
-  Download, Upload, Edit2, List as ListIcon,
+  Download, Upload, Edit2,
 } from 'lucide-react';
-import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { salesApi, productsApi, partnersApi, formatINR, SALES_LIST_FIELDS } from '@/services/api';
 import { exportToCsv } from '@/utils/exportCsv';
 import { SalesEntry, Product, Partner, PaginatedResponse } from '@/types';
 import { BulkImportModal } from '@/components/common/BulkImportModal';
 import { useColumnResize } from '@/hooks/useColumnResize';
+import { Card, Button, Input, Select, Textarea, Modal, Badge, Alert, Pagination } from '@/components/ui';
+import { cx } from '@/utils/cx';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -55,19 +56,18 @@ const PAGE_SIZE = 20;
 // Helpers
 // ---------------------------------------------------------------------------
 
-function paymentBadge(status: string, isDark: boolean): string {
-  const base = 'inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium';
+function paymentBadgeVariant(status: string): 'success' | 'warning' | 'error' | 'gray' {
   switch (status) {
     case 'paid':
-      return `${base} ${isDark ? 'bg-emerald-900/30 text-emerald-400' : 'bg-emerald-50 text-emerald-700'}`;
+      return 'success';
     case 'pending':
-      return `${base} ${isDark ? 'bg-amber-900/30 text-amber-400' : 'bg-amber-50 text-amber-700'}`;
+      return 'warning';
     case 'overdue':
-      return `${base} ${isDark ? 'bg-red-900/30 text-red-400' : 'bg-red-50 text-red-700'}`;
+      return 'error';
     case 'cancelled':
-      return `${base} ${isDark ? 'bg-zinc-800 text-zinc-400' : 'bg-slate-100 text-slate-500'}`;
+      return 'gray';
     default:
-      return `${base} ${isDark ? 'bg-zinc-800 text-zinc-400' : 'bg-slate-100 text-slate-500'}`;
+      return 'gray';
   }
 }
 
@@ -89,9 +89,7 @@ function formatDate(dateStr: string): string {
 // ---------------------------------------------------------------------------
 
 export const SalesEntryPage: React.FC = () => {
-  const { theme } = useTheme();
   const { user } = useAuth();
-  const isDark = theme === 'dark';
 
   // Data
   const [showBulkImport, setShowBulkImport] = useState(false);
@@ -205,18 +203,23 @@ export const SalesEntryPage: React.FC = () => {
     setShowModal(true);
   };
 
-  const openEditModal = (entry: SalesEntry) => {
+  const openEditModal = async (entry: SalesEntry) => {
+    // Fetch full record to avoid partial-field overwrites
+    let full: any = entry;
+    try {
+      full = await salesApi.getById(entry.id);
+    } catch { /* fall back to list data */ }
     setFormData({
-      partnerId: entry.partnerId || '',
-      productId: entry.productId || '',
-      customerName: entry.customerName || '',
-      quantity: entry.quantity || 1,
-      amount: entry.amount || 0,
-      poNumber: entry.poNumber || '',
-      invoiceNo: entry.invoiceNo || '',
-      paymentStatus: entry.paymentStatus || 'pending',
-      saleDate: entry.saleDate ? entry.saleDate.split('T')[0] : '',
-      notes: entry.notes || '',
+      partnerId: full.partnerId || '',
+      productId: full.productId || '',
+      customerName: full.customerName || '',
+      quantity: full.quantity || 1,
+      amount: full.amount || 0,
+      poNumber: full.poNumber || '',
+      invoiceNo: full.invoiceNo || '',
+      paymentStatus: full.paymentStatus || 'pending',
+      saleDate: full.saleDate ? full.saleDate.split('T')[0] : '',
+      notes: full.notes || '',
     });
     setEditingId(entry.id);
     setFormError('');
@@ -322,13 +325,6 @@ export const SalesEntryPage: React.FC = () => {
     initialWidths: [50, 120, 160, 140, 130, 70, 130, 120, 110, 100],
   });
 
-  const cardClass = `premium-card ${isDark ? '' : 'shadow-soft'}`;
-  const selectFilterClass = `w-full px-3 py-2 rounded-xl border text-sm transition-all appearance-none cursor-pointer ${
-    isDark
-      ? 'bg-dark-100 border-zinc-700 text-white focus:border-brand-500'
-      : 'bg-white border-slate-200 text-slate-900 focus:border-brand-500'
-  } focus:outline-none focus:ring-1 focus:ring-brand-500`;
-
   // ---------------------------------------------------------------------------
   // Render
   // ---------------------------------------------------------------------------
@@ -336,64 +332,60 @@ export const SalesEntryPage: React.FC = () => {
   return (
     <div className="p-3 sm:p-4 lg:p-6 space-y-4 animate-fade-in-up">
       {/* Toolbar */}
-      <div className={`${cardClass} px-3 py-2.5 space-y-2`}>
+      <Card padding="none" className="px-3 py-2.5 space-y-2">
         {/* Row 1: Search + Filters */}
         <div className="flex flex-col lg:flex-row lg:items-center gap-2">
           <div className="relative flex-1 min-w-0">
-            <Search className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`} />
-            <input
+            <Input
               type="text"
               placeholder="Search customer..."
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
-              className={`w-full pl-10 pr-4 py-2.5 rounded-xl border text-sm ${
-                isDark
-                  ? 'bg-dark-100 border-zinc-700 text-white placeholder-zinc-500 focus:border-brand-500'
-                  : 'bg-white border-slate-200 text-slate-900 placeholder-slate-400 focus:border-brand-500'
-              } focus:outline-none`}
+              icon={<Search className="w-4 h-4" />}
             />
           </div>
-          <select value={filterPaymentStatus} onChange={e => setFilterPaymentStatus(e.target.value)} className={`${selectFilterClass} lg:w-36`}>
+          <Select
+            value={filterPaymentStatus}
+            onChange={e => setFilterPaymentStatus(e.target.value)}
+            className="lg:w-36"
+          >
             <option value="">All Status</option>
             {PAYMENT_STATUSES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
-          </select>
+          </Select>
           <div className="flex items-center gap-2">
-            <input
+            <Input
               type="date"
               value={filterFromDate}
               onChange={e => setFilterFromDate(e.target.value)}
-              className={`${selectFilterClass} w-[150px]`}
+              className="w-[150px]"
               title="From date"
             />
-            <span className={`text-xs ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>to</span>
-            <input
+            <span className="text-xs text-slate-400 dark:text-zinc-500">to</span>
+            <Input
               type="date"
               value={filterToDate}
               onChange={e => setFilterToDate(e.target.value)}
-              className={`${selectFilterClass} w-[150px]`}
+              className="w-[150px]"
               title="To date"
             />
           </div>
           {hasActiveFilters && (
-            <button onClick={clearFilters} className={`flex items-center gap-1 px-3 py-2 rounded-lg text-xs font-medium ${
-              isDark ? 'text-zinc-400 hover:text-white hover:bg-zinc-800' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100'
-            }`}>
-              <X className="w-3 h-3" /> Clear Filters
-            </button>
+            <Button variant="ghost" size="xs" onClick={clearFilters} icon={<X className="w-3 h-3" />}>
+              Clear Filters
+            </Button>
           )}
-          <button
+          <Button
+            variant="secondary"
+            size="sm"
             onClick={() => setShowBulkImport(true)}
             title="Import from CSV"
-            className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-colors whitespace-nowrap ${
-              isDark
-                ? 'text-zinc-400 border border-zinc-700 hover:bg-zinc-800'
-                : 'text-slate-500 border border-slate-200 hover:bg-slate-50'
-            }`}
+            icon={<Upload className="w-3.5 h-3.5" />}
           >
-            <Upload className="w-3.5 h-3.5" />
             Import
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="secondary"
+            size="sm"
             onClick={() => exportToCsv('sales_entries', [
               { header: 'Date', accessor: (r: SalesEntry) => r.saleDate ? r.saleDate.split('T')[0] : '' },
               { header: 'Account', accessor: (r: SalesEntry) => r.customerName },
@@ -408,78 +400,67 @@ export const SalesEntryPage: React.FC = () => {
             ], sales)}
             disabled={sales.length === 0}
             title="Export to CSV"
-            className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-colors whitespace-nowrap ${
-              isDark
-                ? 'text-zinc-400 border border-zinc-700 hover:bg-zinc-800 disabled:opacity-30'
-                : 'text-slate-500 border border-slate-200 hover:bg-slate-50 disabled:opacity-30'
-            }`}
+            icon={<Download className="w-3.5 h-3.5" />}
           >
-            <Download className="w-3.5 h-3.5" />
             Export
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="primary"
+            size="md"
             onClick={openCreateModal}
-            className="flex items-center gap-2 px-4 py-2 bg-brand-600 text-white rounded-xl text-sm font-medium hover:bg-brand-700 transition-all whitespace-nowrap"
+            icon={<Plus className="w-4 h-4" />}
           >
-            <Plus className="w-4 h-4" />
             Add Entry
-          </button>
+          </Button>
         </div>
-      </div>
+      </Card>
 
       {/* Status messages */}
       {tableError && (
-        <div className={`px-3 py-2 rounded-lg flex items-center gap-2 text-sm ${
-          isDark ? 'bg-red-900/20 border border-red-800 text-red-400' : 'bg-red-50 border border-red-200 text-red-700'
-        }`}>
-          <AlertCircle className="w-4 h-4 flex-shrink-0" />
+        <Alert variant="error" icon={<AlertCircle className="w-4 h-4" />} onClose={() => setTableError('')}>
           {tableError}
-          <button onClick={() => setTableError('')} className="ml-auto"><X className="w-3.5 h-3.5" /></button>
-        </div>
+        </Alert>
       )}
       {successMsg && (
-        <div className={`px-3 py-2 rounded-lg flex items-center gap-2 text-sm ${
-          isDark ? 'bg-emerald-900/20 border border-emerald-800 text-emerald-400' : 'bg-emerald-50 border border-emerald-200 text-emerald-700'
-        }`}>
-          <CheckCircle className="w-4 h-4 flex-shrink-0" />
+        <Alert variant="success" icon={<CheckCircle className="w-4 h-4" />}>
           {successMsg}
-        </div>
+        </Alert>
       )}
 
       {/* Data Table */}
-      <div className={`${cardClass} overflow-hidden`}>
+      <Card padding="none" className="overflow-hidden">
         {isLoading ? (
           <div className="flex flex-col items-center justify-center py-16">
             <Loader2 className="w-6 h-6 text-brand-600 animate-spin" />
-            <p className={`mt-2 text-sm ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>Loading...</p>
+            <p className="mt-2 text-sm text-slate-500 dark:text-zinc-400">Loading...</p>
           </div>
         ) : sales.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16">
-            <IndianRupee className={`w-8 h-8 ${isDark ? 'text-zinc-700' : 'text-slate-300'}`} />
-            <p className={`mt-2 text-sm ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
+            <IndianRupee className="w-8 h-8 text-slate-300 dark:text-zinc-700" />
+            <p className="mt-2 text-sm text-slate-400 dark:text-zinc-500">
               {hasActiveFilters ? 'No entries match filters' : 'No entries yet'}
             </p>
             {!hasActiveFilters && (
-              <button
+              <Button
+                variant="primary"
+                size="md"
                 onClick={openCreateModal}
-                className="mt-3 flex items-center gap-2 px-4 py-2 bg-brand-600 text-white rounded-xl text-sm font-medium hover:bg-brand-700 transition-colors"
+                icon={<Plus className="w-4 h-4" />}
+                className="mt-3"
               >
-                <Plus className="w-4 h-4" />
                 Add Entry
-              </button>
+              </Button>
             )}
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="premium-table">
               <thead>
-                <tr className={`border-b ${isDark ? 'border-zinc-800' : 'border-slate-100'}`}>
+                <tr className="border-b border-slate-100 dark:border-zinc-800">
                   {['#', 'Date', 'Account', 'Product', 'Customer', 'Qty', 'Amount', 'PO #', 'Invoice #', 'Status'].map((h, i) => (
                     <th
                       key={h}
-                      className={`px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider resizable-th ${
-                        isDark ? 'text-zinc-500' : 'text-slate-400'
-                      }`}
+                      className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider resizable-th text-slate-400 dark:text-zinc-500"
                       style={{ width: salesColWidths[i] }}
                     >
                       {h}
@@ -497,45 +478,41 @@ export const SalesEntryPage: React.FC = () => {
                     <tr
                       key={entry.id}
                       onClick={() => !isDeleting && openDetailModal(entry)}
-                      className={`border-b transition-colors cursor-pointer ${
-                        isDark
-                          ? 'border-zinc-800/50 hover:bg-zinc-800/30'
-                          : 'border-slate-50 hover:bg-slate-50/80'
-                      }`}
+                      className="border-b transition-colors cursor-pointer border-slate-50 hover:bg-slate-50/80 dark:border-zinc-800/50 dark:hover:bg-zinc-800/30"
                     >
-                      <td className={`px-4 py-3 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>{rowNum}</td>
-                      <td className={`px-4 py-3 whitespace-nowrap ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
+                      <td className="px-4 py-3 text-slate-400 dark:text-zinc-500">{rowNum}</td>
+                      <td className="px-4 py-3 whitespace-nowrap text-slate-700 dark:text-zinc-300">
                         {formatDate(entry.saleDate)}
                       </td>
-                      <td className={`px-4 py-3 font-medium ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                      <td className="px-4 py-3 font-medium text-slate-900 dark:text-white">
                         {entry.customerName || '-'}
                       </td>
-                      <td className={`px-4 py-3 ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
+                      <td className="px-4 py-3 text-slate-700 dark:text-zinc-300">
                         {entry.productNames && entry.productNames.length > 0
                           ? entry.productNames.length === 1
                             ? entry.productNames[0]
                             : entry.productNames.map((name, i) => `${i + 1}. ${name}`).join(', ')
                           : entry.productName || '-'}
                       </td>
-                      <td className={`px-4 py-3 ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
+                      <td className="px-4 py-3 text-slate-700 dark:text-zinc-300">
                         {entry.customerName || '-'}
                       </td>
-                      <td className={`px-4 py-3 text-center ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
+                      <td className="px-4 py-3 text-center text-slate-700 dark:text-zinc-300">
                         {entry.quantity}
                       </td>
-                      <td className={`px-4 py-3 font-semibold whitespace-nowrap ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                      <td className="px-4 py-3 font-semibold whitespace-nowrap text-slate-900 dark:text-white">
                         {formatINR(entry.amount)}
                       </td>
-                      <td className={`px-4 py-3 ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
+                      <td className="px-4 py-3 text-slate-700 dark:text-zinc-300">
                         {entry.poNumber || '-'}
                       </td>
-                      <td className={`px-4 py-3 ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
+                      <td className="px-4 py-3 text-slate-700 dark:text-zinc-300">
                         {entry.invoiceNo || '-'}
                       </td>
                       <td className="px-4 py-3">
-                        <span className={paymentBadge(entry.paymentStatus, isDark)}>
+                        <Badge variant={paymentBadgeVariant(entry.paymentStatus)} size="sm">
                           {entry.paymentStatus.charAt(0).toUpperCase() + entry.paymentStatus.slice(1)}
-                        </span>
+                        </Badge>
                       </td>
                     </tr>
                   );
@@ -547,436 +524,288 @@ export const SalesEntryPage: React.FC = () => {
 
         {/* Pagination */}
         {totalPages > 1 && (
-          <div className={`flex items-center justify-between px-4 py-3 border-t text-xs ${
-            isDark ? 'border-zinc-800 text-zinc-500' : 'border-slate-100 text-slate-400'
-          }`}>
-            <span>
-              {(page - 1) * PAGE_SIZE + 1}&ndash;{Math.min(page * PAGE_SIZE, totalRecords)} of {totalRecords}
-            </span>
-            <div className="flex items-center gap-1">
-              <button
-                onClick={() => setPage(p => Math.max(1, p - 1))}
-                disabled={page <= 1}
-                className={`p-1.5 rounded transition-colors disabled:opacity-30 ${
-                  isDark ? 'hover:bg-zinc-800' : 'hover:bg-slate-100'
-                }`}
-              >
-                <ChevronLeft className="w-4 h-4" />
-              </button>
-              {Array.from({ length: totalPages }, (_, i) => i + 1)
-                .filter(p => p === 1 || p === totalPages || Math.abs(p - page) <= 1)
-                .reduce<(number | 'dots')[]>((acc, p, idx, arr) => {
-                  if (idx > 0 && p - (arr[idx - 1]) > 1) acc.push('dots');
-                  acc.push(p);
-                  return acc;
-                }, [])
-                .map((item, idx) =>
-                  item === 'dots' ? (
-                    <span key={`d-${idx}`} className="px-1">...</span>
-                  ) : (
-                    <button
-                      key={item}
-                      onClick={() => setPage(item as number)}
-                      className={`min-w-[28px] h-7 rounded text-xs font-medium transition-colors ${
-                        page === item
-                          ? 'bg-brand-600 text-white'
-                          : isDark
-                            ? 'hover:bg-zinc-800 text-zinc-400'
-                            : 'hover:bg-slate-100 text-slate-500'
-                      }`}
+          <div className="border-t border-slate-100 dark:border-zinc-800">
+            <Pagination
+              currentPage={page}
+              totalPages={totalPages}
+              totalItems={totalRecords}
+              pageSize={PAGE_SIZE}
+              onPageChange={setPage}
+            />
+          </div>
+        )}
+      </Card>
+
+      {/* Detail Modal */}
+      <Modal
+        open={showDetailModal && !!detailEntry}
+        onClose={closeDetailModal}
+        title="Sales Entry Details"
+        size="md"
+      >
+        {detailEntry && (
+          <div className="space-y-4">
+            {/* Action buttons row */}
+            <div className="flex items-center justify-between">
+              {/* Status badge */}
+              <Badge variant={paymentBadgeVariant(detailEntry.paymentStatus)} size="md">
+                {detailEntry.paymentStatus.charAt(0).toUpperCase() + detailEntry.paymentStatus.slice(1)}
+              </Badge>
+
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="ghost"
+                  size="xs"
+                  onClick={() => { openEditModal(detailEntry); closeDetailModal(); }}
+                  title="Edit"
+                  icon={<Edit2 className="w-4 h-4" />}
+                />
+                {deleteConfirmId === detailEntry.id ? (
+                  <div className="flex items-center gap-1">
+                    <Button
+                      variant="danger"
+                      size="xs"
+                      onClick={() => { handleDelete(detailEntry.id); closeDetailModal(); }}
                     >
-                      {item}
-                    </button>
-                  )
+                      Confirm
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      size="xs"
+                      onClick={() => setDeleteConfirmId(null)}
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                ) : (
+                  <Button
+                    variant="ghost"
+                    size="xs"
+                    onClick={() => setDeleteConfirmId(detailEntry.id)}
+                    title="Delete"
+                    icon={<Trash2 className="w-4 h-4" />}
+                    className="hover:text-red-600 dark:hover:text-red-400"
+                  />
                 )}
-              <button
-                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                disabled={page >= totalPages}
-                className={`p-1.5 rounded transition-colors disabled:opacity-30 ${
-                  isDark ? 'hover:bg-zinc-800' : 'hover:bg-slate-100'
-                }`}
-              >
-                <ChevronRight className="w-4 h-4" />
-              </button>
+              </div>
+            </div>
+
+            {/* Info grid */}
+            <div className="grid grid-cols-2 gap-3 text-sm rounded-xl p-4 bg-slate-50 dark:bg-dark-100">
+              <div>
+                <p className="text-xs mb-0.5 text-slate-400 dark:text-zinc-500">Date</p>
+                <p className="font-medium text-slate-900 dark:text-white">{formatDate(detailEntry.saleDate)}</p>
+              </div>
+              <div>
+                <p className="text-xs mb-0.5 text-slate-400 dark:text-zinc-500">Account</p>
+                <p className="font-medium text-slate-900 dark:text-white">{detailEntry.customerName || '-'}</p>
+              </div>
+              <div>
+                <p className="text-xs mb-0.5 text-slate-400 dark:text-zinc-500">Product</p>
+                <p className="font-medium text-slate-900 dark:text-white">{detailEntry.productNames && detailEntry.productNames.length > 0
+                  ? detailEntry.productNames.length === 1
+                    ? detailEntry.productNames[0]
+                    : detailEntry.productNames.map((name: string, i: number) => `${i + 1}. ${name}`).join(', ')
+                  : detailEntry.productName || '-'}</p>
+              </div>
+              <div>
+                <p className="text-xs mb-0.5 text-slate-400 dark:text-zinc-500">Customer</p>
+                <p className="font-medium text-slate-900 dark:text-white">{detailEntry.customerName || '-'}</p>
+              </div>
+              <div>
+                <p className="text-xs mb-0.5 text-slate-400 dark:text-zinc-500">Quantity</p>
+                <p className="font-medium text-slate-900 dark:text-white">{detailEntry.quantity}</p>
+              </div>
+              <div>
+                <p className="text-xs mb-0.5 text-slate-400 dark:text-zinc-500">Amount</p>
+                <p className="font-medium text-slate-900 dark:text-white">{formatINR(detailEntry.amount)}</p>
+              </div>
+              <div>
+                <p className="text-xs mb-0.5 text-slate-400 dark:text-zinc-500">PO #</p>
+                <p className="font-medium text-slate-900 dark:text-white">{detailEntry.poNumber || '-'}</p>
+              </div>
+              <div>
+                <p className="text-xs mb-0.5 text-slate-400 dark:text-zinc-500">Invoice #</p>
+                <p className="font-medium text-slate-900 dark:text-white">{detailEntry.invoiceNo || '-'}</p>
+              </div>
+            </div>
+
+            {/* Notes */}
+            {detailEntry.notes && (
+              <div>
+                <p className="text-xs mb-1 text-slate-400 dark:text-zinc-500">Notes</p>
+                <p className="text-sm text-slate-600 dark:text-zinc-300">{detailEntry.notes}</p>
+              </div>
+            )}
+
+            {/* Timestamps */}
+            <div className="pt-3 border-t text-xs border-slate-100 text-slate-400 dark:border-zinc-800 dark:text-zinc-600">
+              {detailEntry.createdAt && <p>Created: {new Date(detailEntry.createdAt).toLocaleString()}</p>}
+              {detailEntry.updatedAt && <p>Updated: {new Date(detailEntry.updatedAt).toLocaleString()}</p>}
             </div>
           </div>
         )}
-      </div>
-
-      {/* Detail Modal */}
-      {showDetailModal && detailEntry && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/50 animate-backdrop" onClick={closeDetailModal} />
-          <div className={`relative w-full max-w-lg max-h-[90vh] rounded-2xl animate-fade-in-up flex flex-col overflow-hidden ${
-            isDark ? 'bg-dark-50 border border-zinc-800' : 'bg-white shadow-premium'
-          }`}>
-            {/* Header */}
-            <div className={`flex-shrink-0 flex items-center justify-between px-6 py-4 border-b ${
-              isDark ? 'bg-dark-50 border-zinc-800' : 'bg-white border-slate-200'
-            }`}>
-              <h2 className={`text-lg font-semibold font-display ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                Sales Entry Details
-              </h2>
-              <div className="flex items-center gap-1">
-                <button
-                  onClick={() => { openEditModal(detailEntry); closeDetailModal(); }}
-                  className={`p-2 rounded-lg transition-colors ${
-                    isDark ? 'text-zinc-400 hover:text-white hover:bg-zinc-800' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100'
-                  }`}
-                  title="Edit"
-                >
-                  <Edit2 className="w-4 h-4" />
-                </button>
-                {deleteConfirmId === detailEntry.id ? (
-                  <div className="flex items-center gap-1">
-                    <button
-                      onClick={() => { handleDelete(detailEntry.id); closeDetailModal(); }}
-                      className="px-2 py-1 rounded-lg text-xs font-medium bg-red-600 text-white hover:bg-red-700 transition-colors"
-                    >
-                      Confirm
-                    </button>
-                    <button
-                      onClick={() => setDeleteConfirmId(null)}
-                      className={`px-2 py-1 rounded-lg text-xs font-medium transition-colors ${
-                        isDark ? 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                      }`}
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                ) : (
-                  <button
-                    onClick={() => setDeleteConfirmId(detailEntry.id)}
-                    className={`p-2 rounded-lg transition-colors ${
-                      isDark ? 'text-zinc-400 hover:text-red-400 hover:bg-zinc-800' : 'text-slate-400 hover:text-red-600 hover:bg-slate-100'
-                    }`}
-                    title="Delete"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                )}
-                <button
-                  onClick={closeDetailModal}
-                  className={`p-2 rounded-lg transition-colors ${
-                    isDark ? 'text-zinc-400 hover:text-white hover:bg-zinc-800' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100'
-                  }`}
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-            </div>
-
-            {/* Body */}
-            <div className="flex-1 overflow-y-auto p-6 space-y-4">
-              {/* Status badge */}
-              <div className="flex items-center gap-2">
-                <span className={paymentBadge(detailEntry.paymentStatus, isDark)}>
-                  {detailEntry.paymentStatus.charAt(0).toUpperCase() + detailEntry.paymentStatus.slice(1)}
-                </span>
-              </div>
-
-              {/* Info grid */}
-              <div className={`grid grid-cols-2 gap-3 text-sm rounded-xl p-4 ${isDark ? 'bg-dark-100' : 'bg-slate-50'}`}>
-                <div>
-                  <p className={`text-xs mb-0.5 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Date</p>
-                  <p className={`font-medium ${isDark ? 'text-white' : 'text-slate-900'}`}>{formatDate(detailEntry.saleDate)}</p>
-                </div>
-                <div>
-                  <p className={`text-xs mb-0.5 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Account</p>
-                  <p className={`font-medium ${isDark ? 'text-white' : 'text-slate-900'}`}>{detailEntry.customerName || '-'}</p>
-                </div>
-                <div>
-                  <p className={`text-xs mb-0.5 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Product</p>
-                  <p className={`font-medium ${isDark ? 'text-white' : 'text-slate-900'}`}>{detailEntry.productNames && detailEntry.productNames.length > 0
-                    ? detailEntry.productNames.length === 1
-                      ? detailEntry.productNames[0]
-                      : detailEntry.productNames.map((name: string, i: number) => `${i + 1}. ${name}`).join(', ')
-                    : detailEntry.productName || '-'}</p>
-                </div>
-                <div>
-                  <p className={`text-xs mb-0.5 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Customer</p>
-                  <p className={`font-medium ${isDark ? 'text-white' : 'text-slate-900'}`}>{detailEntry.customerName || '-'}</p>
-                </div>
-                <div>
-                  <p className={`text-xs mb-0.5 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Quantity</p>
-                  <p className={`font-medium ${isDark ? 'text-white' : 'text-slate-900'}`}>{detailEntry.quantity}</p>
-                </div>
-                <div>
-                  <p className={`text-xs mb-0.5 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Amount</p>
-                  <p className={`font-medium ${isDark ? 'text-white' : 'text-slate-900'}`}>{formatINR(detailEntry.amount)}</p>
-                </div>
-                <div>
-                  <p className={`text-xs mb-0.5 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>PO #</p>
-                  <p className={`font-medium ${isDark ? 'text-white' : 'text-slate-900'}`}>{detailEntry.poNumber || '-'}</p>
-                </div>
-                <div>
-                  <p className={`text-xs mb-0.5 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Invoice #</p>
-                  <p className={`font-medium ${isDark ? 'text-white' : 'text-slate-900'}`}>{detailEntry.invoiceNo || '-'}</p>
-                </div>
-              </div>
-
-              {/* Notes */}
-              {detailEntry.notes && (
-                <div>
-                  <p className={`text-xs mb-1 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Notes</p>
-                  <p className={`text-sm ${isDark ? 'text-zinc-300' : 'text-slate-600'}`}>{detailEntry.notes}</p>
-                </div>
-              )}
-
-              {/* Timestamps */}
-              <div className={`pt-3 border-t text-xs ${isDark ? 'border-zinc-800 text-zinc-600' : 'border-slate-100 text-slate-400'}`}>
-                {detailEntry.createdAt && <p>Created: {new Date(detailEntry.createdAt).toLocaleString()}</p>}
-                {detailEntry.updatedAt && <p>Updated: {new Date(detailEntry.updatedAt).toLocaleString()}</p>}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      </Modal>
 
       <BulkImportModal
         isOpen={showBulkImport}
         onClose={() => setShowBulkImport(false)}
         entity="sales_entries"
         entityLabel="Sales Entries"
-        isDark={isDark}
         onSuccess={() => fetchSales()}
       />
 
       {/* Create / Edit Modal */}
-      {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/50 animate-backdrop" onClick={closeModal} />
-          <div className={`relative w-full max-w-lg max-h-[90vh] rounded-2xl animate-fade-in-up flex flex-col overflow-hidden ${
-            isDark ? 'bg-dark-50 border border-zinc-800' : 'bg-white shadow-premium'
-          }`}>
-            {/* Header */}
-            <div className={`flex-shrink-0 flex items-center justify-between px-6 py-4 border-b ${
-              isDark ? 'bg-dark-50 border-zinc-800' : 'bg-white border-slate-200'
-            }`}>
-              <h2 className={`text-lg font-semibold font-display ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                {editingId ? 'Edit Entry' : 'New Sales Entry'}
-              </h2>
-              <button
-                onClick={closeModal}
-                className={`p-2 rounded-lg transition-colors ${
-                  isDark ? 'text-zinc-400 hover:text-white hover:bg-zinc-800' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100'
-                }`}
+      <Modal
+        open={showModal}
+        onClose={closeModal}
+        title={editingId ? 'Edit Entry' : 'New Sales Entry'}
+        size="md"
+        footer={
+          <>
+            <Button
+              variant="ghost"
+              size="md"
+              onClick={closeModal}
+              disabled={isSubmitting}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="primary"
+              size="md"
+              onClick={handleSubmit as any}
+              loading={isSubmitting}
+              icon={!isSubmitting ? <CheckCircle className="w-4 h-4" /> : undefined}
+              shine
+            >
+              {isSubmitting ? 'Saving...' : editingId ? 'Update Entry' : 'Add Entry'}
+            </Button>
+          </>
+        }
+      >
+        <form onSubmit={handleSubmit} id="sales-entry-form">
+          <div className="space-y-4">
+            {formError && (
+              <Alert variant="error" icon={<AlertCircle className="w-4 h-4" />}>
+                {formError}
+              </Alert>
+            )}
+
+            {/* Partner + Product */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <Select
+                label="Partner *"
+                name="partnerId"
+                value={formData.partnerId}
+                onChange={handleFormChange}
+                required
               >
-                <X className="w-5 h-5" />
-              </button>
+                <option value="">Select partner...</option>
+                {partners.map(p => (
+                  <option key={p.id} value={p.id}>{p.companyName}</option>
+                ))}
+              </Select>
+              <Select
+                label="Product *"
+                name="productId"
+                value={formData.productId}
+                onChange={handleFormChange}
+                required
+              >
+                <option value="">Select product...</option>
+                {products.map(p => (
+                  <option key={p.id} value={p.id}>{p.name}</option>
+                ))}
+              </Select>
             </div>
 
-            {/* Form */}
-            <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto">
-              <div className="p-6 space-y-4">
-                {formError && (
-                  <div className={`p-3 rounded-xl flex items-center gap-2 text-sm ${
-                    isDark ? 'bg-red-900/20 border border-red-800 text-red-400' : 'bg-red-50 border border-red-200 text-red-700'
-                  }`}>
-                    <AlertCircle className="w-4 h-4 flex-shrink-0" />
-                    {formError}
-                  </div>
-                )}
+            {/* Customer + Date */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <Input
+                label="Customer Name"
+                name="customerName"
+                type="text"
+                placeholder="Customer name"
+                value={formData.customerName}
+                onChange={handleFormChange}
+              />
+              <Input
+                label="Sale Date *"
+                name="saleDate"
+                type="date"
+                value={formData.saleDate}
+                onChange={handleFormChange}
+                required
+              />
+            </div>
 
-                {/* Partner + Product */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className={`block text-sm font-medium mb-1.5 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
-                      Partner <span className="text-red-500">*</span>
-                    </label>
-                    <select
-                      name="partnerId"
-                      value={formData.partnerId}
-                      onChange={handleFormChange}
-                      className={selectFilterClass}
-                      required
-                    >
-                      <option value="">Select partner...</option>
-                      {partners.map(p => (
-                        <option key={p.id} value={p.id}>{p.companyName}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className={`block text-sm font-medium mb-1.5 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
-                      Product <span className="text-red-500">*</span>
-                    </label>
-                    <select
-                      name="productId"
-                      value={formData.productId}
-                      onChange={handleFormChange}
-                      className={selectFilterClass}
-                      required
-                    >
-                      <option value="">Select product...</option>
-                      {products.map(p => (
-                        <option key={p.id} value={p.id}>{p.name}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
+            {/* Quantity + Amount */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <Input
+                label="Quantity"
+                name="quantity"
+                type="number"
+                min={1}
+                value={formData.quantity}
+                onChange={handleFormChange}
+              />
+              <Input
+                label="Amount (INR) *"
+                name="amount"
+                type="number"
+                min={0}
+                step={1}
+                placeholder="0"
+                value={formData.amount || ''}
+                onChange={handleFormChange}
+                icon={<IndianRupee className="w-4 h-4" />}
+                required
+              />
+            </div>
 
-                {/* Customer + Date */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className={`block text-sm font-medium mb-1.5 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>Customer Name</label>
-                    <input
-                      name="customerName"
-                      type="text"
-                      placeholder="Customer name"
-                      value={formData.customerName}
-                      onChange={handleFormChange}
-                      className={`w-full px-3 py-2.5 rounded-xl border text-sm transition-all ${
-                        isDark ? 'bg-dark-100 border-zinc-700 text-white placeholder-zinc-500 focus:border-brand-500' : 'bg-white border-slate-200 text-slate-900 placeholder-slate-400 focus:border-brand-500'
-                      } focus:outline-none focus:ring-1 focus:ring-brand-500`}
-                    />
-                  </div>
-                  <div>
-                    <label className={`block text-sm font-medium mb-1.5 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
-                      Sale Date <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      name="saleDate"
-                      type="date"
-                      value={formData.saleDate}
-                      onChange={handleFormChange}
-                      className={`w-full px-3 py-2.5 rounded-xl border text-sm transition-all ${
-                        isDark ? 'bg-dark-100 border-zinc-700 text-white focus:border-brand-500' : 'bg-white border-slate-200 text-slate-900 focus:border-brand-500'
-                      } focus:outline-none focus:ring-1 focus:ring-brand-500`}
-                      required
-                    />
-                  </div>
-                </div>
+            {/* PO + Invoice */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <Input
+                label="PO Number"
+                name="poNumber"
+                type="text"
+                placeholder="PO number"
+                value={formData.poNumber}
+                onChange={handleFormChange}
+              />
+              <Input
+                label="Invoice No"
+                name="invoiceNo"
+                type="text"
+                placeholder="Invoice number"
+                value={formData.invoiceNo}
+                onChange={handleFormChange}
+              />
+            </div>
 
-                {/* Quantity + Amount */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className={`block text-sm font-medium mb-1.5 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>Quantity</label>
-                    <input
-                      name="quantity"
-                      type="number"
-                      min="1"
-                      value={formData.quantity}
-                      onChange={handleFormChange}
-                      className={`w-full px-3 py-2.5 rounded-xl border text-sm transition-all ${
-                        isDark ? 'bg-dark-100 border-zinc-700 text-white focus:border-brand-500' : 'bg-white border-slate-200 text-slate-900 focus:border-brand-500'
-                      } focus:outline-none focus:ring-1 focus:ring-brand-500`}
-                    />
-                  </div>
-                  <div>
-                    <label className={`block text-sm font-medium mb-1.5 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
-                      Amount (INR) <span className="text-red-500">*</span>
-                    </label>
-                    <div className="relative">
-                      <IndianRupee className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`} />
-                      <input
-                        name="amount"
-                        type="number"
-                        min="0"
-                        step="1"
-                        placeholder="0"
-                        value={formData.amount || ''}
-                        onChange={handleFormChange}
-                        className={`w-full pl-10 pr-3 py-2.5 rounded-xl border text-sm transition-all ${
-                          isDark ? 'bg-dark-100 border-zinc-700 text-white focus:border-brand-500' : 'bg-white border-slate-200 text-slate-900 focus:border-brand-500'
-                        } focus:outline-none focus:ring-1 focus:ring-brand-500`}
-                        required
-                      />
-                    </div>
-                  </div>
-                </div>
+            {/* Payment Status */}
+            <Select
+              label="Payment Status"
+              name="paymentStatus"
+              value={formData.paymentStatus}
+              onChange={handleFormChange}
+              options={PAYMENT_STATUSES}
+            />
 
-                {/* PO + Invoice */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className={`block text-sm font-medium mb-1.5 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>PO Number</label>
-                    <input
-                      name="poNumber"
-                      type="text"
-                      placeholder="PO number"
-                      value={formData.poNumber}
-                      onChange={handleFormChange}
-                      className={`w-full px-3 py-2.5 rounded-xl border text-sm transition-all ${
-                        isDark ? 'bg-dark-100 border-zinc-700 text-white placeholder-zinc-500 focus:border-brand-500' : 'bg-white border-slate-200 text-slate-900 placeholder-slate-400 focus:border-brand-500'
-                      } focus:outline-none focus:ring-1 focus:ring-brand-500`}
-                    />
-                  </div>
-                  <div>
-                    <label className={`block text-sm font-medium mb-1.5 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>Invoice No</label>
-                    <input
-                      name="invoiceNo"
-                      type="text"
-                      placeholder="Invoice number"
-                      value={formData.invoiceNo}
-                      onChange={handleFormChange}
-                      className={`w-full px-3 py-2.5 rounded-xl border text-sm transition-all ${
-                        isDark ? 'bg-dark-100 border-zinc-700 text-white placeholder-zinc-500 focus:border-brand-500' : 'bg-white border-slate-200 text-slate-900 placeholder-slate-400 focus:border-brand-500'
-                      } focus:outline-none focus:ring-1 focus:ring-brand-500`}
-                    />
-                  </div>
-                </div>
-
-                {/* Payment Status */}
-                <div>
-                  <label className={`block text-sm font-medium mb-1.5 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>Payment Status</label>
-                  <select
-                    name="paymentStatus"
-                    value={formData.paymentStatus}
-                    onChange={handleFormChange}
-                    className={selectFilterClass}
-                  >
-                    {PAYMENT_STATUSES.map(s => (
-                      <option key={s.value} value={s.value}>{s.label}</option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Notes */}
-                <div>
-                  <label className={`block text-sm font-medium mb-1.5 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>Notes</label>
-                  <textarea
-                    name="notes"
-                    rows={2}
-                    placeholder="Optional notes..."
-                    value={formData.notes}
-                    onChange={handleFormChange}
-                    className={`w-full px-3 py-2.5 rounded-xl border text-sm transition-all resize-none ${
-                      isDark ? 'bg-dark-100 border-zinc-700 text-white placeholder-zinc-500 focus:border-brand-500' : 'bg-white border-slate-200 text-slate-900 placeholder-slate-400 focus:border-brand-500'
-                    } focus:outline-none focus:ring-1 focus:ring-brand-500`}
-                  />
-                </div>
-              </div>
-
-              {/* Footer */}
-              <div className={`sticky bottom-0 flex items-center justify-end gap-3 px-6 py-4 border-t ${
-                isDark ? 'bg-dark-50 border-zinc-800' : 'bg-white border-slate-200'
-              }`}>
-                <button
-                  type="button"
-                  onClick={closeModal}
-                  disabled={isSubmitting}
-                  className={`px-4 py-2.5 rounded-xl text-sm font-medium transition-colors ${
-                    isDark ? 'text-zinc-400 hover:text-white hover:bg-zinc-800' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                  } disabled:opacity-50`}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="flex items-center gap-2 px-5 py-2.5 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-sm font-medium transition-all btn-premium disabled:opacity-50"
-                >
-                  {isSubmitting ? (
-                    <><Loader2 className="w-4 h-4 animate-spin" /> Saving...</>
-                  ) : (
-                    <><CheckCircle className="w-4 h-4" /> {editingId ? 'Update Entry' : 'Add Entry'}</>
-                  )}
-                </button>
-              </div>
-            </form>
+            {/* Notes */}
+            <Textarea
+              label="Notes"
+              name="notes"
+              rows={2}
+              placeholder="Optional notes..."
+              value={formData.notes}
+              onChange={handleFormChange}
+              className="resize-none"
+            />
           </div>
-        </div>
-      )}
+        </form>
+      </Modal>
     </div>
   );
 };

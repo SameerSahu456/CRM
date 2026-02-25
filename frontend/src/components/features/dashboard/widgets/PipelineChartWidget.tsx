@@ -7,7 +7,9 @@ import { formatINR } from '@/services/api';
 import { useDashboardData } from '@/contexts/DashboardDataContext';
 import { formatCompact } from '@/utils/dashboard';
 
-export const PipelineChartWidget: React.FC<WidgetProps> = ({ isDark, navigate, onDetailClick }) => {
+export const PipelineChartWidget: React.FC<WidgetProps> = ({ navigate, onDetailClick }) => {
+  const isDark = document.documentElement.classList.contains('dark');
+
   const { data } = useDashboardData();
   const dealStatsRaw: Record<string, { count: number; value: number }> = data?.dealStats || {};
 
@@ -25,17 +27,16 @@ export const PipelineChartWidget: React.FC<WidgetProps> = ({ isDark, navigate, o
   return (
     <AnalyticsCard
       icon={<Layers className="w-4 h-4" />}
-      iconBg={isDark ? 'bg-purple-900/30' : 'bg-purple-50'}
-      iconColor={isDark ? 'text-purple-400' : 'text-purple-600'}
+      iconBg="bg-purple-50 dark:bg-purple-900/30"
+      iconColor="text-purple-600 dark:text-purple-400"
       title="Kanban Chart"
-      titleColor={isDark ? 'text-purple-400' : 'text-purple-700'}
+      titleColor="text-purple-700 dark:text-purple-400"
       subtitle={`${totalDeals} deals · ${formatCompact(totalDealValue)}`}
-      isDark={isDark}
       onClick={() => onDetailClick?.()}
     >
       {pipelineStages.length === 0 ? (
-        <div className={`h-44 flex items-center justify-center rounded-xl ${isDark ? 'bg-zinc-900/50' : 'bg-slate-50'}`}>
-          <p className={`text-xs ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>No pipeline data</p>
+        <div className="h-44 flex items-center justify-center rounded-xl bg-slate-50 dark:bg-zinc-900/50">
+          <p className="text-xs text-slate-400 dark:text-zinc-500">No pipeline data</p>
         </div>
       ) : (
         <ResponsiveContainer width="100%" height={200}>
@@ -51,7 +52,7 @@ export const PipelineChartWidget: React.FC<WidgetProps> = ({ isDark, navigate, o
               if (!active || !payload?.length) return null;
               const d = payload[0].payload;
               return (
-                <div className={`px-3 py-2 rounded-xl shadow-lg text-xs border ${isDark ? 'bg-zinc-800 border-zinc-700 text-white' : 'bg-white border-slate-200 text-slate-900'}`}>
+                <div className="px-3 py-2 rounded-xl shadow-lg text-xs border bg-white dark:bg-zinc-800 border-slate-200 dark:border-zinc-700 text-slate-900 dark:text-white">
                   <p className="font-semibold">{d.fullStage}</p>
                   <p>{d.count} deals &middot; {formatINR(d.value)}</p>
                 </div>

@@ -123,6 +123,7 @@ export const salesApi = {
     const qs = params ? '?' + new URLSearchParams(params).toString() : '';
     return fetchApi<any>(`/data/sales-entries/${qs}`);
   },
+  getById: async (id: string) => { const res = await fetchApi<any>(`/data/sales-entries/${id}`); return res?.data ?? res; },
   create: (data: any) =>
     fetchApi<any>('/data/sales-entries/', { method: 'POST', body: JSON.stringify(data) }),
   update: (id: string, data: any) =>

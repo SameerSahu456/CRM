@@ -11,7 +11,6 @@ import {
 
 interface WidgetDetailModalProps {
   widgetId: string;
-  isDark: boolean;
   onClose: () => void;
   navigate: (tab: NavigationItem) => void;
 }
@@ -32,7 +31,8 @@ const WIDGET_PAGE_MAP: Record<string, NavigationItem> = {
   'revenue-trend': 'sales-entry',
 };
 
-export const WidgetDetailModal: React.FC<WidgetDetailModalProps> = ({ widgetId, isDark, onClose, navigate }) => {
+export const WidgetDetailModal: React.FC<WidgetDetailModalProps> = ({ widgetId, onClose, navigate }) => {
+  const isDark = document.documentElement.classList.contains('dark');
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [selectedAssignee, setSelectedAssignee] = useState<string | null>(null);
@@ -77,10 +77,10 @@ export const WidgetDetailModal: React.FC<WidgetDetailModalProps> = ({ widgetId, 
     }
   };
 
-  const thClass = `text-[11px] font-semibold uppercase tracking-wider ${isDark ? 'text-zinc-500' : 'text-slate-400'}`;
-  const tdClass = `text-sm ${isDark ? 'text-zinc-300' : 'text-slate-700'}`;
-  const tdBold = `text-sm font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`;
-  const rowBorder = isDark ? 'border-zinc-800/50' : 'border-slate-100';
+  const thClass = `text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-zinc-500`;
+  const tdClass = `text-sm text-slate-700 dark:text-zinc-300`;
+  const tdBold = `text-sm font-semibold text-slate-900 dark:text-white`;
+  const rowBorder = 'border-slate-100 dark:border-zinc-800/50';
 
   const renderContent = () => {
     if (loading) {
@@ -93,7 +93,7 @@ export const WidgetDetailModal: React.FC<WidgetDetailModalProps> = ({ widgetId, 
     if (!data) {
       return (
         <div className="flex items-center justify-center h-64">
-          <p className={`text-sm ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Failed to load data</p>
+          <p className="text-sm text-slate-400 dark:text-zinc-500">Failed to load data</p>
         </div>
       );
     }
@@ -128,7 +128,7 @@ export const WidgetDetailModal: React.FC<WidgetDetailModalProps> = ({ widgetId, 
       case 'assignee-summary':
         return renderAssigneeSummaryDetail();
       default:
-        return <p className={`text-sm ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>No detail view available</p>;
+        return <p className="text-sm text-slate-500 dark:text-zinc-400">No detail view available</p>;
     }
   };
 
@@ -153,17 +153,17 @@ export const WidgetDetailModal: React.FC<WidgetDetailModalProps> = ({ widgetId, 
       <div className="space-y-6">
         {/* Summary cards */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className={`p-4 rounded-xl ${isDark ? 'bg-zinc-900/50' : 'bg-slate-50'}`}>
-            <p className={`text-[11px] uppercase tracking-wider ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Total Value</p>
-            <p className={`text-2xl font-bold mt-1 ${isDark ? 'text-white' : 'text-slate-900'}`}>{formatINR(totalDealValue)}</p>
+          <div className="p-4 rounded-xl bg-slate-50 dark:bg-zinc-900/50">
+            <p className="text-[11px] uppercase tracking-wider text-slate-400 dark:text-zinc-500">Total Value</p>
+            <p className="text-2xl font-bold mt-1 text-slate-900 dark:text-white">{formatINR(totalDealValue)}</p>
           </div>
-          <div className={`p-4 rounded-xl ${isDark ? 'bg-zinc-900/50' : 'bg-slate-50'}`}>
-            <p className={`text-[11px] uppercase tracking-wider ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Total Deals</p>
-            <p className={`text-2xl font-bold mt-1 ${isDark ? 'text-white' : 'text-slate-900'}`}>{totalDeals}</p>
+          <div className="p-4 rounded-xl bg-slate-50 dark:bg-zinc-900/50">
+            <p className="text-[11px] uppercase tracking-wider text-slate-400 dark:text-zinc-500">Total Deals</p>
+            <p className="text-2xl font-bold mt-1 text-slate-900 dark:text-white">{totalDeals}</p>
           </div>
-          <div className={`p-4 rounded-xl ${isDark ? 'bg-zinc-900/50' : 'bg-slate-50'}`}>
-            <p className={`text-[11px] uppercase tracking-wider ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Win Rate</p>
-            <p className={`text-2xl font-bold mt-1 ${isDark ? 'text-purple-400' : 'text-purple-600'}`}>{dealWinRate}%</p>
+          <div className="p-4 rounded-xl bg-slate-50 dark:bg-zinc-900/50">
+            <p className="text-[11px] uppercase tracking-wider text-slate-400 dark:text-zinc-500">Win Rate</p>
+            <p className="text-2xl font-bold mt-1 text-purple-600 dark:text-purple-400">{dealWinRate}%</p>
           </div>
         </div>
 
@@ -192,10 +192,10 @@ export const WidgetDetailModal: React.FC<WidgetDetailModalProps> = ({ widgetId, 
                   <td className={`${tdBold} py-3 text-right`}>{formatINR(s.value)}</td>
                   <td className={`py-3 text-right`}>
                     <div className="flex items-center justify-end gap-2">
-                      <div className={`w-16 h-1.5 rounded-full overflow-hidden ${isDark ? 'bg-zinc-800' : 'bg-slate-200'}`}>
+                      <div className="w-16 h-1.5 rounded-full overflow-hidden bg-slate-200 dark:bg-zinc-800">
                         <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: PIPELINE_COLORS[s.stage] || '#94a3b8' }} />
                       </div>
-                      <span className={`text-xs ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>{pct}%</span>
+                      <span className="text-xs text-slate-400 dark:text-zinc-500">{pct}%</span>
                     </div>
                   </td>
                 </tr>
@@ -229,13 +229,13 @@ export const WidgetDetailModal: React.FC<WidgetDetailModalProps> = ({ widgetId, 
     return (
       <div className="space-y-6">
         <div className="grid grid-cols-2 gap-4">
-          <div className={`p-4 rounded-xl ${isDark ? 'bg-zinc-900/50' : 'bg-slate-50'}`}>
-            <p className={`text-[11px] uppercase tracking-wider ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Total Deals</p>
-            <p className={`text-2xl font-bold mt-1 ${isDark ? 'text-white' : 'text-slate-900'}`}>{totalDeals}</p>
+          <div className="p-4 rounded-xl bg-slate-50 dark:bg-zinc-900/50">
+            <p className="text-[11px] uppercase tracking-wider text-slate-400 dark:text-zinc-500">Total Deals</p>
+            <p className="text-2xl font-bold mt-1 text-slate-900 dark:text-white">{totalDeals}</p>
           </div>
-          <div className={`p-4 rounded-xl ${isDark ? 'bg-zinc-900/50' : 'bg-slate-50'}`}>
-            <p className={`text-[11px] uppercase tracking-wider ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Total Value</p>
-            <p className={`text-2xl font-bold mt-1 ${isDark ? 'text-white' : 'text-slate-900'}`}>{formatINR(totalDealValue)}</p>
+          <div className="p-4 rounded-xl bg-slate-50 dark:bg-zinc-900/50">
+            <p className="text-[11px] uppercase tracking-wider text-slate-400 dark:text-zinc-500">Total Value</p>
+            <p className="text-2xl font-bold mt-1 text-slate-900 dark:text-white">{formatINR(totalDealValue)}</p>
           </div>
         </div>
         <ResponsiveContainer width="100%" height={300}>
@@ -247,7 +247,7 @@ export const WidgetDetailModal: React.FC<WidgetDetailModalProps> = ({ widgetId, 
               if (!active || !payload?.length) return null;
               const d = payload[0].payload;
               return (
-                <div className={`px-3 py-2 rounded-xl shadow-lg text-xs border ${isDark ? 'bg-zinc-800 border-zinc-700 text-white' : 'bg-white border-slate-200 text-slate-900'}`}>
+                <div className="px-3 py-2 rounded-xl shadow-lg text-xs border bg-white border-slate-200 text-slate-900 dark:bg-zinc-800 dark:border-zinc-700 dark:text-white">
                   <p className="font-semibold">{d.stage}</p>
                   <p>{d.count} deals &middot; {formatINR(d.value)}</p>
                 </div>
@@ -278,17 +278,17 @@ export const WidgetDetailModal: React.FC<WidgetDetailModalProps> = ({ widgetId, 
     return (
       <div className="space-y-6">
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className={`p-4 rounded-xl ${isDark ? 'bg-zinc-900/50' : 'bg-slate-50'}`}>
-            <p className={`text-[11px] uppercase tracking-wider ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Total Leads</p>
-            <p className={`text-2xl font-bold mt-1 ${isDark ? 'text-white' : 'text-slate-900'}`}>{totalLeads}</p>
+          <div className="p-4 rounded-xl bg-slate-50 dark:bg-zinc-900/50">
+            <p className="text-[11px] uppercase tracking-wider text-slate-400 dark:text-zinc-500">Total Leads</p>
+            <p className="text-2xl font-bold mt-1 text-slate-900 dark:text-white">{totalLeads}</p>
           </div>
-          <div className={`p-4 rounded-xl ${isDark ? 'bg-zinc-900/50' : 'bg-slate-50'}`}>
-            <p className={`text-[11px] uppercase tracking-wider ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Won</p>
-            <p className={`text-2xl font-bold mt-1 ${isDark ? 'text-emerald-400' : 'text-emerald-600'}`}>{wonLeads}</p>
+          <div className="p-4 rounded-xl bg-slate-50 dark:bg-zinc-900/50">
+            <p className="text-[11px] uppercase tracking-wider text-slate-400 dark:text-zinc-500">Won</p>
+            <p className="text-2xl font-bold mt-1 text-emerald-600 dark:text-emerald-400">{wonLeads}</p>
           </div>
-          <div className={`p-4 rounded-xl ${isDark ? 'bg-zinc-900/50' : 'bg-slate-50'}`}>
-            <p className={`text-[11px] uppercase tracking-wider ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Conversion Rate</p>
-            <p className={`text-2xl font-bold mt-1 ${isDark ? 'text-orange-400' : 'text-orange-600'}`}>{conversionRate}%</p>
+          <div className="p-4 rounded-xl bg-slate-50 dark:bg-zinc-900/50">
+            <p className="text-[11px] uppercase tracking-wider text-slate-400 dark:text-zinc-500">Conversion Rate</p>
+            <p className="text-2xl font-bold mt-1 text-orange-600 dark:text-orange-400">{conversionRate}%</p>
           </div>
         </div>
 
@@ -315,10 +315,10 @@ export const WidgetDetailModal: React.FC<WidgetDetailModalProps> = ({ widgetId, 
                   <td className={`${tdBold} py-3 text-right`}>{count}</td>
                   <td className="py-3 text-right">
                     <div className="flex items-center justify-end gap-2">
-                      <div className={`w-16 h-1.5 rounded-full overflow-hidden ${isDark ? 'bg-zinc-800' : 'bg-slate-200'}`}>
+                      <div className="w-16 h-1.5 rounded-full overflow-hidden bg-slate-200 dark:bg-zinc-800">
                         <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: LEAD_COLORS[stage] || '#94a3b8' }} />
                       </div>
-                      <span className={`text-xs ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>{pct}%</span>
+                      <span className="text-xs text-slate-400 dark:text-zinc-500">{pct}%</span>
                     </div>
                   </td>
                 </tr>
@@ -328,7 +328,7 @@ export const WidgetDetailModal: React.FC<WidgetDetailModalProps> = ({ widgetId, 
         </table>
 
         {/* Conversion summary */}
-        <div className={`p-4 rounded-xl flex items-center justify-between ${isDark ? 'bg-zinc-900/50' : 'bg-slate-50'}`}>
+        <div className="p-4 rounded-xl flex items-center justify-between bg-slate-50 dark:bg-zinc-900/50">
           <div className="flex items-center gap-3">
             <div className="relative w-14 h-14">
               <svg className="w-full h-full -rotate-90" viewBox="0 0 56 56">
@@ -338,16 +338,16 @@ export const WidgetDetailModal: React.FC<WidgetDetailModalProps> = ({ widgetId, 
                   strokeDashoffset={`${2 * Math.PI * 22 * (1 - conversionRate / 100)}`} />
               </svg>
               <div className="absolute inset-0 flex items-center justify-center">
-                <span className={`text-xs font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>{conversionRate}%</span>
+                <span className="text-xs font-bold text-slate-900 dark:text-white">{conversionRate}%</span>
               </div>
             </div>
             <div>
-              <p className={`text-sm font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>Conversion Rate</p>
-              <p className={`text-xs ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Won {wonLeads} of {totalLeads} leads</p>
+              <p className="text-sm font-semibold text-slate-900 dark:text-white">Conversion Rate</p>
+              <p className="text-xs text-slate-400 dark:text-zinc-500">Won {wonLeads} of {totalLeads} leads</p>
             </div>
           </div>
           <div className="text-right">
-            <p className={`text-sm font-medium ${isDark ? 'text-red-400' : 'text-red-600'}`}>{lostLeads} Lost</p>
+            <p className="text-sm font-medium text-red-600 dark:text-red-400">{lostLeads} Lost</p>
           </div>
         </div>
       </div>
@@ -367,9 +367,9 @@ export const WidgetDetailModal: React.FC<WidgetDetailModalProps> = ({ widgetId, 
 
     return (
       <div className="space-y-6">
-        <div className={`p-4 rounded-xl text-center ${isDark ? 'bg-zinc-900/50' : 'bg-slate-50'}`}>
-          <p className={`text-[11px] uppercase tracking-wider ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Total Leads</p>
-          <p className={`text-3xl font-bold mt-1 ${isDark ? 'text-white' : 'text-slate-900'}`}>{totalLeads}</p>
+        <div className="p-4 rounded-xl text-center bg-slate-50 dark:bg-zinc-900/50">
+          <p className="text-[11px] uppercase tracking-wider text-slate-400 dark:text-zinc-500">Total Leads</p>
+          <p className="text-3xl font-bold mt-1 text-slate-900 dark:text-white">{totalLeads}</p>
         </div>
         <div className="flex flex-col items-center">
           <ResponsiveContainer width="100%" height={280}>
@@ -382,7 +382,7 @@ export const WidgetDetailModal: React.FC<WidgetDetailModalProps> = ({ widgetId, 
                 const d = payload[0].payload;
                 const pct = totalLeads > 0 ? Math.round((d.value / totalLeads) * 100) : 0;
                 return (
-                  <div className={`px-3 py-2 rounded-xl shadow-lg text-xs border ${isDark ? 'bg-zinc-800 border-zinc-700 text-white' : 'bg-white border-slate-200 text-slate-900'}`}>
+                  <div className="px-3 py-2 rounded-xl shadow-lg text-xs border bg-white border-slate-200 text-slate-900 dark:bg-zinc-800 dark:border-zinc-700 dark:text-white">
                     <p className="font-semibold">{d.name}: {d.value} ({pct}%)</p>
                   </div>
                 );
@@ -395,7 +395,7 @@ export const WidgetDetailModal: React.FC<WidgetDetailModalProps> = ({ widgetId, 
               return (
                 <div key={d.name} className="flex items-center gap-2">
                   <div className="w-3 h-3 rounded-full" style={{ backgroundColor: d.fill }} />
-                  <span className={`text-sm ${isDark ? 'text-zinc-300' : 'text-slate-600'}`}>{d.name}: {d.value} ({pct}%)</span>
+                  <span className="text-sm text-slate-600 dark:text-zinc-300">{d.name}: {d.value} ({pct}%)</span>
                 </div>
               );
             })}
@@ -417,17 +417,17 @@ export const WidgetDetailModal: React.FC<WidgetDetailModalProps> = ({ widgetId, 
     return (
       <div className="space-y-6">
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className={`p-4 rounded-xl ${isDark ? 'bg-zinc-900/50' : 'bg-slate-50'}`}>
-            <p className={`text-[11px] uppercase tracking-wider ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Total Achieved</p>
-            <p className={`text-2xl font-bold mt-1 ${isDark ? 'text-white' : 'text-slate-900'}`}>{formatINR(totalSalesAmount)}</p>
+          <div className="p-4 rounded-xl bg-slate-50 dark:bg-zinc-900/50">
+            <p className="text-[11px] uppercase tracking-wider text-slate-400 dark:text-zinc-500">Total Achieved</p>
+            <p className="text-2xl font-bold mt-1 text-slate-900 dark:text-white">{formatINR(totalSalesAmount)}</p>
           </div>
-          <div className={`p-4 rounded-xl ${isDark ? 'bg-zinc-900/50' : 'bg-slate-50'}`}>
-            <p className={`text-[11px] uppercase tracking-wider ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Total Deals</p>
-            <p className={`text-2xl font-bold mt-1 ${isDark ? 'text-white' : 'text-slate-900'}`}>{totalSalesCount}</p>
+          <div className="p-4 rounded-xl bg-slate-50 dark:bg-zinc-900/50">
+            <p className="text-[11px] uppercase tracking-wider text-slate-400 dark:text-zinc-500">Total Deals</p>
+            <p className="text-2xl font-bold mt-1 text-slate-900 dark:text-white">{totalSalesCount}</p>
           </div>
-          <div className={`p-4 rounded-xl ${isDark ? 'bg-zinc-900/50' : 'bg-slate-50'}`}>
-            <p className={`text-[11px] uppercase tracking-wider ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>MOM Change</p>
-            <p className={`text-2xl font-bold mt-1 ${momChange >= 0 ? (isDark ? 'text-emerald-400' : 'text-emerald-600') : (isDark ? 'text-red-400' : 'text-red-600')}`}>
+          <div className="p-4 rounded-xl bg-slate-50 dark:bg-zinc-900/50">
+            <p className="text-[11px] uppercase tracking-wider text-slate-400 dark:text-zinc-500">MOM Change</p>
+            <p className={`text-2xl font-bold mt-1 ${momChange >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
               {momChange >= 0 ? '+' : ''}{momChange}%
             </p>
           </div>
@@ -451,7 +451,7 @@ export const WidgetDetailModal: React.FC<WidgetDetailModalProps> = ({ widgetId, 
                   <td className={`${tdClass} py-3`}>{i + 1}</td>
                   <td className={`${tdBold} py-3`}>{sp.salespersonName || 'Unknown'}</td>
                   <td className={`${tdBold} py-3 text-right`}>{formatINR(sp.totalAmount)}</td>
-                  <td className={`text-xs py-3 text-right ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>{pct}%</td>
+                  <td className="text-xs py-3 text-right text-slate-400 dark:text-zinc-500">{pct}%</td>
                   <td className={`${tdClass} py-3 text-right`}>{sp.count}</td>
                 </tr>
               );
@@ -475,13 +475,13 @@ export const WidgetDetailModal: React.FC<WidgetDetailModalProps> = ({ widgetId, 
     return (
       <div className="space-y-6">
         <div className="grid grid-cols-2 gap-4">
-          <div className={`p-4 rounded-xl ${isDark ? 'bg-zinc-900/50' : 'bg-slate-50'}`}>
-            <p className={`text-[11px] uppercase tracking-wider ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Total Revenue</p>
-            <p className={`text-2xl font-bold mt-1 ${isDark ? 'text-white' : 'text-slate-900'}`}>{formatINR(totalRevenue)}</p>
+          <div className="p-4 rounded-xl bg-slate-50 dark:bg-zinc-900/50">
+            <p className="text-[11px] uppercase tracking-wider text-slate-400 dark:text-zinc-500">Total Revenue</p>
+            <p className="text-2xl font-bold mt-1 text-slate-900 dark:text-white">{formatINR(totalRevenue)}</p>
           </div>
-          <div className={`p-4 rounded-xl ${isDark ? 'bg-zinc-900/50' : 'bg-slate-50'}`}>
-            <p className={`text-[11px] uppercase tracking-wider ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Total Deals</p>
-            <p className={`text-2xl font-bold mt-1 ${isDark ? 'text-white' : 'text-slate-900'}`}>{totalDeals}</p>
+          <div className="p-4 rounded-xl bg-slate-50 dark:bg-zinc-900/50">
+            <p className="text-[11px] uppercase tracking-wider text-slate-400 dark:text-zinc-500">Total Deals</p>
+            <p className="text-2xl font-bold mt-1 text-slate-900 dark:text-white">{totalDeals}</p>
           </div>
         </div>
 
@@ -496,7 +496,7 @@ export const WidgetDetailModal: React.FC<WidgetDetailModalProps> = ({ widgetId, 
               <Tooltip content={({ active, payload, label }: any) => {
                 if (!active || !payload?.length) return null;
                 return (
-                  <div className={`px-3 py-2 rounded-xl shadow-lg text-xs border ${isDark ? 'bg-zinc-800 border-zinc-700 text-white' : 'bg-white border-slate-200 text-slate-900'}`}>
+                  <div className="px-3 py-2 rounded-xl shadow-lg text-xs border bg-white border-slate-200 text-slate-900 dark:bg-zinc-800 dark:border-zinc-700 dark:text-white">
                     <p className="font-medium mb-1">{label}</p>
                     <p className="font-semibold">{formatINR(payload[0].value)}</p>
                   </div>
@@ -523,7 +523,7 @@ export const WidgetDetailModal: React.FC<WidgetDetailModalProps> = ({ widgetId, 
                 <td className={`${tdBold} py-3 text-right`}>{formatINR(m.revenue)}</td>
                 <td className="py-3 text-right">
                   {i > 0 && (
-                    <span className={`text-xs font-semibold ${m.change >= 0 ? (isDark ? 'text-emerald-400' : 'text-emerald-600') : (isDark ? 'text-red-400' : 'text-red-600')}`}>
+                    <span className={`text-xs font-semibold ${m.change >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
                       {m.change >= 0 ? '+' : ''}{m.change}%
                     </span>
                   )}
@@ -548,21 +548,21 @@ export const WidgetDetailModal: React.FC<WidgetDetailModalProps> = ({ widgetId, 
     return (
       <div className="space-y-6">
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          <div className={`p-4 rounded-xl text-center ${isDark ? 'bg-blue-900/20 border border-blue-800/30' : 'bg-blue-50 border border-blue-200'}`}>
-            <p className={`text-2xl font-bold ${isDark ? 'text-blue-400' : 'text-blue-700'}`}>{stats?.totalPartners ?? 0}</p>
-            <p className={`text-[10px] uppercase tracking-wider font-medium mt-1 ${isDark ? 'text-blue-500/70' : 'text-blue-500'}`}>Active</p>
+          <div className="p-4 rounded-xl text-center bg-blue-50 border border-blue-200 dark:bg-blue-900/20 dark:border-blue-800/30">
+            <p className="text-2xl font-bold text-blue-700 dark:text-blue-400">{stats?.totalPartners ?? 0}</p>
+            <p className="text-[10px] uppercase tracking-wider font-medium mt-1 text-blue-500 dark:text-blue-500/70">Active</p>
           </div>
-          <div className={`p-4 rounded-xl text-center ${isDark ? 'bg-amber-900/20 border border-amber-800/30' : 'bg-amber-50 border border-amber-200'}`}>
-            <p className={`text-2xl font-bold ${isDark ? 'text-amber-400' : 'text-amber-700'}`}>{stats?.pendingPartners ?? 0}</p>
-            <p className={`text-[10px] uppercase tracking-wider font-medium mt-1 ${isDark ? 'text-amber-500/70' : 'text-amber-500'}`}>Pending</p>
+          <div className="p-4 rounded-xl text-center bg-amber-50 border border-amber-200 dark:bg-amber-900/20 dark:border-amber-800/30">
+            <p className="text-2xl font-bold text-amber-700 dark:text-amber-400">{stats?.pendingPartners ?? 0}</p>
+            <p className="text-[10px] uppercase tracking-wider font-medium mt-1 text-amber-500 dark:text-amber-500/70">Pending</p>
           </div>
-          <div className={`p-4 rounded-xl text-center ${isDark ? 'bg-emerald-900/20 border border-emerald-800/30' : 'bg-emerald-50 border border-emerald-200'}`}>
-            <p className={`text-2xl font-bold ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`}>{sortedPartners.filter((p: any) => p.totalAmount > 0).length}</p>
-            <p className={`text-[10px] uppercase tracking-wider font-medium mt-1 ${isDark ? 'text-emerald-500/70' : 'text-emerald-500'}`}>Billed</p>
+          <div className="p-4 rounded-xl text-center bg-emerald-50 border border-emerald-200 dark:bg-emerald-900/20 dark:border-emerald-800/30">
+            <p className="text-2xl font-bold text-emerald-700 dark:text-emerald-400">{sortedPartners.filter((p: any) => p.totalAmount > 0).length}</p>
+            <p className="text-[10px] uppercase tracking-wider font-medium mt-1 text-emerald-500 dark:text-emerald-500/70">Billed</p>
           </div>
-          <div className={`p-4 rounded-xl text-center ${isDark ? 'bg-zinc-900/50' : 'bg-slate-50'}`}>
-            <p className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>{totalPartnerDeals}</p>
-            <p className={`text-[10px] uppercase tracking-wider font-medium mt-1 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Total Deals</p>
+          <div className="p-4 rounded-xl text-center bg-slate-50 dark:bg-zinc-900/50">
+            <p className="text-2xl font-bold text-slate-900 dark:text-white">{totalPartnerDeals}</p>
+            <p className="text-[10px] uppercase tracking-wider font-medium mt-1 text-slate-400 dark:text-zinc-500">Total Deals</p>
           </div>
         </div>
 
@@ -585,7 +585,7 @@ export const WidgetDetailModal: React.FC<WidgetDetailModalProps> = ({ widgetId, 
                   <td className={`${tdBold} py-3`}>{p.partnerName || 'Unknown'}</td>
                   <td className={`${tdBold} py-3 text-right`}>{formatINR(p.totalAmount)}</td>
                   <td className={`${tdClass} py-3 text-right`}>{p.count}</td>
-                  <td className={`text-xs py-3 text-right ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>{pct}%</td>
+                  <td className="text-xs py-3 text-right text-slate-400 dark:text-zinc-500">{pct}%</td>
                 </tr>
               );
             })}
@@ -602,8 +602,8 @@ export const WidgetDetailModal: React.FC<WidgetDetailModalProps> = ({ widgetId, 
     return (
       <div className="space-y-4">
         {recentSales.length === 0 ? (
-          <div className={`h-32 flex items-center justify-center rounded-xl ${isDark ? 'bg-zinc-900/50' : 'bg-slate-50'}`}>
-            <p className={`text-sm ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>No recent sales</p>
+          <div className="h-32 flex items-center justify-center rounded-xl bg-slate-50 dark:bg-zinc-900/50">
+            <p className="text-sm text-slate-400 dark:text-zinc-500">No recent sales</p>
           </div>
         ) : (
           <table className="w-full">
@@ -626,10 +626,10 @@ export const WidgetDetailModal: React.FC<WidgetDetailModalProps> = ({ widgetId, 
                   <td className="py-3 text-right">
                     <span className={`text-xs px-2 py-1 rounded-full font-medium ${
                       sale.paymentStatus === 'paid'
-                        ? isDark ? 'bg-emerald-900/30 text-emerald-400' : 'bg-emerald-50 text-emerald-700'
+                        ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
                         : sale.paymentStatus === 'overdue'
-                          ? isDark ? 'bg-red-900/30 text-red-400' : 'bg-red-50 text-red-700'
-                          : isDark ? 'bg-amber-900/30 text-amber-400' : 'bg-amber-50 text-amber-700'
+                          ? 'bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                          : 'bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
                     }`}>
                       {sale.paymentStatus}
                     </span>
@@ -653,9 +653,9 @@ export const WidgetDetailModal: React.FC<WidgetDetailModalProps> = ({ widgetId, 
     const completionPct = total > 0 ? Math.round((completed / total) * 100) : 0;
 
     const items = [
-      { label: 'Completed', value: completed, color: isDark ? 'text-emerald-400' : 'text-emerald-600', bg: isDark ? 'bg-emerald-900/20' : 'bg-emerald-50', barColor: '#10b981' },
-      { label: 'In Progress', value: inProgress, color: isDark ? 'text-blue-400' : 'text-blue-600', bg: isDark ? 'bg-blue-900/20' : 'bg-blue-50', barColor: '#3b82f6' },
-      { label: 'Pending', value: pending, color: isDark ? 'text-amber-400' : 'text-amber-600', bg: isDark ? 'bg-amber-900/20' : 'bg-amber-50', barColor: '#f59e0b' },
+      { label: 'Completed', value: completed, color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-50 dark:bg-emerald-900/20', barColor: '#10b981' },
+      { label: 'In Progress', value: inProgress, color: 'text-blue-600 dark:text-blue-400', bg: 'bg-blue-50 dark:bg-blue-900/20', barColor: '#3b82f6' },
+      { label: 'Pending', value: pending, color: 'text-amber-600 dark:text-amber-400', bg: 'bg-amber-50 dark:bg-amber-900/20', barColor: '#f59e0b' },
     ];
 
     return (
@@ -670,13 +670,13 @@ export const WidgetDetailModal: React.FC<WidgetDetailModalProps> = ({ widgetId, 
                 className="transition-all duration-1000" />
             </svg>
             <div className="absolute inset-0 flex flex-col items-center justify-center">
-              <span className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>{completionPct}%</span>
-              <span className={`text-[10px] uppercase tracking-wider ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Done</span>
+              <span className="text-2xl font-bold text-slate-900 dark:text-white">{completionPct}%</span>
+              <span className="text-[10px] uppercase tracking-wider text-slate-400 dark:text-zinc-500">Done</span>
             </div>
           </div>
           <div className="space-y-1">
-            <p className={`text-3xl font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>{total}</p>
-            <p className={`text-xs uppercase tracking-wider ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Total Tasks</p>
+            <p className="text-3xl font-bold text-slate-900 dark:text-white">{total}</p>
+            <p className="text-xs uppercase tracking-wider text-slate-400 dark:text-zinc-500">Total Tasks</p>
           </div>
         </div>
 
@@ -686,13 +686,13 @@ export const WidgetDetailModal: React.FC<WidgetDetailModalProps> = ({ widgetId, 
             return (
               <div key={item.label} className={`p-4 rounded-xl ${item.bg}`}>
                 <div className="flex items-center justify-between mb-2">
-                  <span className={`text-sm font-medium ${isDark ? 'text-zinc-300' : 'text-slate-600'}`}>{item.label}</span>
+                  <span className="text-sm font-medium text-slate-600 dark:text-zinc-300">{item.label}</span>
                   <span className={`text-lg font-bold ${item.color}`}>{item.value}</span>
                 </div>
-                <div className={`w-full h-2 rounded-full overflow-hidden ${isDark ? 'bg-zinc-800' : 'bg-white/50'}`}>
+                <div className="w-full h-2 rounded-full overflow-hidden bg-white/50 dark:bg-zinc-800">
                   <div className="h-full rounded-full transition-all duration-500" style={{ width: `${pct}%`, backgroundColor: item.barColor }} />
                 </div>
-                <p className={`text-[10px] mt-1 text-right ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>{pct}%</p>
+                <p className="text-[10px] mt-1 text-right text-slate-400 dark:text-zinc-500">{pct}%</p>
               </div>
             );
           })}
@@ -711,13 +711,13 @@ export const WidgetDetailModal: React.FC<WidgetDetailModalProps> = ({ widgetId, 
     return (
       <div className="space-y-6">
         <div className="grid grid-cols-2 gap-4">
-          <div className={`p-4 rounded-xl ${isDark ? 'bg-zinc-900/50' : 'bg-slate-50'}`}>
-            <p className={`text-[11px] uppercase tracking-wider ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Total Revenue</p>
-            <p className={`text-2xl font-bold mt-1 ${isDark ? 'text-white' : 'text-slate-900'}`}>{formatINR(totalRevenue)}</p>
+          <div className="p-4 rounded-xl bg-slate-50 dark:bg-zinc-900/50">
+            <p className="text-[11px] uppercase tracking-wider text-slate-400 dark:text-zinc-500">Total Revenue</p>
+            <p className="text-2xl font-bold mt-1 text-slate-900 dark:text-white">{formatINR(totalRevenue)}</p>
           </div>
-          <div className={`p-4 rounded-xl ${isDark ? 'bg-zinc-900/50' : 'bg-slate-50'}`}>
-            <p className={`text-[11px] uppercase tracking-wider ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Total Deals</p>
-            <p className={`text-2xl font-bold mt-1 ${isDark ? 'text-white' : 'text-slate-900'}`}>{totalDeals}</p>
+          <div className="p-4 rounded-xl bg-slate-50 dark:bg-zinc-900/50">
+            <p className="text-[11px] uppercase tracking-wider text-slate-400 dark:text-zinc-500">Total Deals</p>
+            <p className="text-2xl font-bold mt-1 text-slate-900 dark:text-white">{totalDeals}</p>
           </div>
         </div>
 
@@ -742,10 +742,10 @@ export const WidgetDetailModal: React.FC<WidgetDetailModalProps> = ({ widgetId, 
                   <td className={`${tdClass} py-3 text-right`}>{p.count}</td>
                   <td className="py-3 text-right">
                     <div className="flex items-center justify-end gap-2">
-                      <div className={`w-16 h-1.5 rounded-full overflow-hidden ${isDark ? 'bg-zinc-800' : 'bg-slate-200'}`}>
+                      <div className="w-16 h-1.5 rounded-full overflow-hidden bg-slate-200 dark:bg-zinc-800">
                         <div className="h-full rounded-full bg-teal-500" style={{ width: `${pct}%` }} />
                       </div>
-                      <span className={`text-xs ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>{pct}%</span>
+                      <span className="text-xs text-slate-400 dark:text-zinc-500">{pct}%</span>
                     </div>
                   </td>
                 </tr>
@@ -765,31 +765,31 @@ export const WidgetDetailModal: React.FC<WidgetDetailModalProps> = ({ widgetId, 
 
     return (
       <div className="space-y-6">
-        <div className={`p-4 rounded-xl text-center ${isDark ? 'bg-zinc-900/50' : 'bg-slate-50'}`}>
-          <p className={`text-[11px] uppercase tracking-wider ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Total Partner Revenue</p>
-          <p className={`text-3xl font-bold mt-1 ${isDark ? 'text-white' : 'text-slate-900'}`}>{formatINR(totalRevenue)}</p>
+        <div className="p-4 rounded-xl text-center bg-slate-50 dark:bg-zinc-900/50">
+          <p className="text-[11px] uppercase tracking-wider text-slate-400 dark:text-zinc-500">Total Partner Revenue</p>
+          <p className="text-3xl font-bold mt-1 text-slate-900 dark:text-white">{formatINR(totalRevenue)}</p>
         </div>
 
         <div className="space-y-3">
           {sortedPartners.map((p: any, i: number) => {
             const pct = totalRevenue > 0 ? Math.round((p.totalAmount / totalRevenue) * 100) : 0;
             return (
-              <div key={i} className={`flex items-center gap-3 p-3 rounded-xl ${isDark ? 'bg-zinc-900/50' : 'bg-slate-50'}`}>
+              <div key={i} className="flex items-center gap-3 p-3 rounded-xl bg-slate-50 dark:bg-zinc-900/50">
                 <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold flex-shrink-0 ${
                   i === 0 ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
                   : i === 1 ? 'bg-slate-100 text-slate-500 dark:bg-zinc-800 dark:text-zinc-400'
                   : i === 2 ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400'
-                  : `${isDark ? 'bg-zinc-800 text-zinc-500' : 'bg-white text-slate-400'}`
+                  : 'bg-white text-slate-400 dark:bg-zinc-800 dark:text-zinc-500'
                 }`}>
                   #{i + 1}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className={`text-sm font-semibold truncate ${isDark ? 'text-white' : 'text-slate-900'}`}>{p.partnerName || 'Unknown'}</p>
-                  <p className={`text-xs ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>{p.count} deals</p>
+                  <p className="text-sm font-semibold truncate text-slate-900 dark:text-white">{p.partnerName || 'Unknown'}</p>
+                  <p className="text-xs text-slate-400 dark:text-zinc-500">{p.count} deals</p>
                 </div>
                 <div className="text-right flex-shrink-0">
-                  <p className={`text-sm font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>{formatINR(p.totalAmount)}</p>
-                  <p className={`text-xs ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>{pct}%</p>
+                  <p className="text-sm font-bold text-slate-900 dark:text-white">{formatINR(p.totalAmount)}</p>
+                  <p className="text-xs text-slate-400 dark:text-zinc-500">{pct}%</p>
                 </div>
               </div>
             );
@@ -808,42 +808,42 @@ export const WidgetDetailModal: React.FC<WidgetDetailModalProps> = ({ widgetId, 
     return (
       <div className="space-y-6">
         <div className="grid grid-cols-2 gap-4">
-          <div className={`p-5 rounded-xl ${isDark ? 'bg-zinc-900/50' : 'bg-slate-50'}`}>
-            <p className={`text-[11px] uppercase tracking-wider ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>This Month</p>
-            <p className={`text-3xl font-bold mt-2 ${isDark ? 'text-white' : 'text-slate-900'}`}>{formatINR(growth?.thisMonth ?? 0)}</p>
+          <div className="p-5 rounded-xl bg-slate-50 dark:bg-zinc-900/50">
+            <p className="text-[11px] uppercase tracking-wider text-slate-400 dark:text-zinc-500">This Month</p>
+            <p className="text-3xl font-bold mt-2 text-slate-900 dark:text-white">{formatINR(growth?.thisMonth ?? 0)}</p>
           </div>
-          <div className={`p-5 rounded-xl ${isDark ? 'bg-zinc-900/50' : 'bg-slate-50'}`}>
-            <p className={`text-[11px] uppercase tracking-wider ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Last Month</p>
-            <p className={`text-3xl font-bold mt-2 ${isDark ? 'text-white' : 'text-slate-900'}`}>{formatINR(growth?.lastMonth ?? 0)}</p>
+          <div className="p-5 rounded-xl bg-slate-50 dark:bg-zinc-900/50">
+            <p className="text-[11px] uppercase tracking-wider text-slate-400 dark:text-zinc-500">Last Month</p>
+            <p className="text-3xl font-bold mt-2 text-slate-900 dark:text-white">{formatINR(growth?.lastMonth ?? 0)}</p>
           </div>
         </div>
 
         <div className={`p-5 rounded-xl text-center ${momChange >= 0
-          ? (isDark ? 'bg-emerald-900/20 border border-emerald-800/30' : 'bg-emerald-50 border border-emerald-200')
-          : (isDark ? 'bg-red-900/20 border border-red-800/30' : 'bg-red-50 border border-red-200')
+          ? 'bg-emerald-50 border border-emerald-200 dark:bg-emerald-900/20 dark:border-emerald-800/30'
+          : 'bg-red-50 border border-red-200 dark:bg-red-900/20 dark:border-red-800/30'
         }`}>
-          <p className={`text-[11px] uppercase tracking-wider ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Month-over-Month Change</p>
-          <p className={`text-4xl font-bold mt-2 ${momChange >= 0 ? (isDark ? 'text-emerald-400' : 'text-emerald-600') : (isDark ? 'text-red-400' : 'text-red-600')}`}>
+          <p className="text-[11px] uppercase tracking-wider text-slate-400 dark:text-zinc-500">Month-over-Month Change</p>
+          <p className={`text-4xl font-bold mt-2 ${momChange >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
             {momChange >= 0 ? '+' : ''}{momChange}%
           </p>
         </div>
 
         <div className="grid grid-cols-2 gap-4">
-          <div className={`p-4 rounded-xl ${isDark ? 'bg-zinc-900/50' : 'bg-slate-50'}`}>
-            <p className={`text-[11px] uppercase tracking-wider ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Total Revenue</p>
-            <p className={`text-xl font-bold mt-1 ${isDark ? 'text-amber-400' : 'text-amber-600'}`}>{formatINR(stats?.totalSales ?? 0)}</p>
+          <div className="p-4 rounded-xl bg-slate-50 dark:bg-zinc-900/50">
+            <p className="text-[11px] uppercase tracking-wider text-slate-400 dark:text-zinc-500">Total Revenue</p>
+            <p className="text-xl font-bold mt-1 text-amber-600 dark:text-amber-400">{formatINR(stats?.totalSales ?? 0)}</p>
           </div>
-          <div className={`p-4 rounded-xl ${isDark ? 'bg-zinc-900/50' : 'bg-slate-50'}`}>
-            <p className={`text-[11px] uppercase tracking-wider ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Pending Payments</p>
-            <p className={`text-xl font-bold mt-1 ${isDark ? 'text-blue-400' : 'text-blue-600'}`}>{stats?.pendingPayments ?? 0}</p>
+          <div className="p-4 rounded-xl bg-slate-50 dark:bg-zinc-900/50">
+            <p className="text-[11px] uppercase tracking-wider text-slate-400 dark:text-zinc-500">Pending Payments</p>
+            <p className="text-xl font-bold mt-1 text-blue-600 dark:text-blue-400">{stats?.pendingPayments ?? 0}</p>
           </div>
-          <div className={`p-4 rounded-xl ${isDark ? 'bg-zinc-900/50' : 'bg-slate-50'}`}>
-            <p className={`text-[11px] uppercase tracking-wider ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Total Deals</p>
-            <p className={`text-xl font-bold mt-1 ${isDark ? 'text-white' : 'text-slate-900'}`}>{stats?.totalCount ?? 0}</p>
+          <div className="p-4 rounded-xl bg-slate-50 dark:bg-zinc-900/50">
+            <p className="text-[11px] uppercase tracking-wider text-slate-400 dark:text-zinc-500">Total Deals</p>
+            <p className="text-xl font-bold mt-1 text-slate-900 dark:text-white">{stats?.totalCount ?? 0}</p>
           </div>
-          <div className={`p-4 rounded-xl ${isDark ? 'bg-zinc-900/50' : 'bg-slate-50'}`}>
-            <p className={`text-[11px] uppercase tracking-wider ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Active Leads</p>
-            <p className={`text-xl font-bold mt-1 ${isDark ? 'text-white' : 'text-slate-900'}`}>{stats?.activeLeads ?? 0}</p>
+          <div className="p-4 rounded-xl bg-slate-50 dark:bg-zinc-900/50">
+            <p className="text-[11px] uppercase tracking-wider text-slate-400 dark:text-zinc-500">Active Leads</p>
+            <p className="text-xl font-bold mt-1 text-slate-900 dark:text-white">{stats?.activeLeads ?? 0}</p>
           </div>
         </div>
       </div>
@@ -864,11 +864,11 @@ export const WidgetDetailModal: React.FC<WidgetDetailModalProps> = ({ widgetId, 
       if (!assigneeDetail) {
         return (
           <div className="space-y-4">
-            <button onClick={() => setSelectedAssignee(null)} className={`flex items-center gap-2 text-sm font-medium transition-colors ${isDark ? 'text-zinc-400 hover:text-white' : 'text-slate-500 hover:text-slate-900'}`}>
+            <button onClick={() => setSelectedAssignee(null)} className="flex items-center gap-2 text-sm font-medium transition-colors text-slate-500 hover:text-slate-900 dark:text-zinc-400 dark:hover:text-white">
               <ArrowLeft className="w-4 h-4" /> Back to all assignees
             </button>
-            <div className={`h-48 flex items-center justify-center rounded-xl ${isDark ? 'bg-zinc-900/50' : 'bg-slate-50'}`}>
-              <p className={`text-sm ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Failed to load details</p>
+            <div className="h-48 flex items-center justify-center rounded-xl bg-slate-50 dark:bg-zinc-900/50">
+              <p className="text-sm text-slate-400 dark:text-zinc-500">Failed to load details</p>
             </div>
           </div>
         );
@@ -890,59 +890,59 @@ export const WidgetDetailModal: React.FC<WidgetDetailModalProps> = ({ widgetId, 
         <div className="space-y-6">
           {/* Header: Back + avatar + name */}
           <div className="flex items-center gap-4">
-            <button onClick={() => setSelectedAssignee(null)} className={`p-2 rounded-xl transition-colors ${isDark ? 'hover:bg-white/[0.06] text-zinc-400' : 'hover:bg-slate-100 text-slate-400'}`}>
+            <button onClick={() => setSelectedAssignee(null)} className="p-2 rounded-xl transition-colors hover:bg-slate-100 text-slate-400 dark:hover:bg-white/[0.06] dark:text-zinc-400">
               <ArrowLeft className="w-5 h-5" />
             </button>
-            <div className={`w-11 h-11 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0 ${isDark ? 'bg-violet-900/40 text-violet-300' : 'bg-violet-100 text-violet-700'}`}>
+            <div className="w-11 h-11 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0 bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300">
               {initials}
             </div>
             <div className="min-w-0">
-              <h3 className={`text-lg font-bold truncate ${isDark ? 'text-white' : 'text-slate-900'}`}>{d.userName}</h3>
-              <p className={`text-xs ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Individual Performance Overview</p>
+              <h3 className="text-lg font-bold truncate text-slate-900 dark:text-white">{d.userName}</h3>
+              <p className="text-xs text-slate-400 dark:text-zinc-500">Individual Performance Overview</p>
             </div>
           </div>
 
           {/* Summary metric cards — 2x2 grid */}
           <div className="grid grid-cols-2 gap-3">
-            <div className={`p-4 rounded-xl border ${isDark ? 'bg-[rgba(10,16,32,0.5)] border-white/[0.06]' : 'bg-blue-50/50 border-blue-100'}`}>
+            <div className="p-4 rounded-xl border bg-blue-50/50 border-blue-100 dark:bg-[rgba(10,16,32,0.5)] dark:border-white/[0.06]">
               <div className="flex items-center gap-2 mb-2">
-                <Users className={`w-4 h-4 ${isDark ? 'text-blue-400' : 'text-blue-500'}`} />
-                <span className={`text-[11px] uppercase tracking-wider font-medium ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Partners</span>
+                <Users className="w-4 h-4 text-blue-500 dark:text-blue-400" />
+                <span className="text-[11px] uppercase tracking-wider font-medium text-slate-400 dark:text-zinc-500">Partners</span>
               </div>
-              <p className={`text-2xl font-bold ${isDark ? 'text-blue-400' : 'text-blue-600'}`}>{d.summary.partners}</p>
+              <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">{d.summary.partners}</p>
             </div>
-            <div className={`p-4 rounded-xl border ${isDark ? 'bg-[rgba(10,16,32,0.5)] border-white/[0.06]' : 'bg-emerald-50/50 border-emerald-100'}`}>
+            <div className="p-4 rounded-xl border bg-emerald-50/50 border-emerald-100 dark:bg-[rgba(10,16,32,0.5)] dark:border-white/[0.06]">
               <div className="flex items-center gap-2 mb-2">
-                <Target className={`w-4 h-4 ${isDark ? 'text-emerald-400' : 'text-emerald-500'}`} />
-                <span className={`text-[11px] uppercase tracking-wider font-medium ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Active Leads</span>
+                <Target className="w-4 h-4 text-emerald-500 dark:text-emerald-400" />
+                <span className="text-[11px] uppercase tracking-wider font-medium text-slate-400 dark:text-zinc-500">Active Leads</span>
               </div>
-              <p className={`text-2xl font-bold ${isDark ? 'text-emerald-400' : 'text-emerald-600'}`}>{d.summary.leads}</p>
+              <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">{d.summary.leads}</p>
             </div>
-            <div className={`p-4 rounded-xl border ${isDark ? 'bg-[rgba(10,16,32,0.5)] border-white/[0.06]' : 'bg-purple-50/50 border-purple-100'}`}>
+            <div className="p-4 rounded-xl border bg-purple-50/50 border-purple-100 dark:bg-[rgba(10,16,32,0.5)] dark:border-white/[0.06]">
               <div className="flex items-center gap-2 mb-2">
-                <Briefcase className={`w-4 h-4 ${isDark ? 'text-purple-400' : 'text-purple-500'}`} />
-                <span className={`text-[11px] uppercase tracking-wider font-medium ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Active Deals</span>
+                <Briefcase className="w-4 h-4 text-purple-500 dark:text-purple-400" />
+                <span className="text-[11px] uppercase tracking-wider font-medium text-slate-400 dark:text-zinc-500">Active Deals</span>
               </div>
-              <p className={`text-2xl font-bold ${isDark ? 'text-purple-400' : 'text-purple-600'}`}>{d.summary.deals}</p>
-              <p className={`text-xs mt-0.5 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Value: {formatINR(d.summary.dealValue)}</p>
+              <p className="text-2xl font-bold text-purple-600 dark:text-purple-400">{d.summary.deals}</p>
+              <p className="text-xs mt-0.5 text-slate-400 dark:text-zinc-500">Value: {formatINR(d.summary.dealValue)}</p>
             </div>
-            <div className={`p-4 rounded-xl border ${isDark ? 'bg-[rgba(10,16,32,0.5)] border-white/[0.06]' : 'bg-amber-50/50 border-amber-100'}`}>
+            <div className="p-4 rounded-xl border bg-amber-50/50 border-amber-100 dark:bg-[rgba(10,16,32,0.5)] dark:border-white/[0.06]">
               <div className="flex items-center gap-2 mb-2">
-                <TrendingUp className={`w-4 h-4 ${isDark ? 'text-amber-400' : 'text-amber-500'}`} />
-                <span className={`text-[11px] uppercase tracking-wider font-medium ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Total Sales</span>
+                <TrendingUp className="w-4 h-4 text-amber-500 dark:text-amber-400" />
+                <span className="text-[11px] uppercase tracking-wider font-medium text-slate-400 dark:text-zinc-500">Total Sales</span>
               </div>
-              <p className={`text-2xl font-bold ${isDark ? 'text-amber-400' : 'text-amber-600'}`}>{formatINR(d.summary.salesAmount)}</p>
-              <p className={`text-xs mt-0.5 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>{d.summary.salesCount} transactions</p>
+              <p className="text-2xl font-bold text-amber-600 dark:text-amber-400">{formatINR(d.summary.salesAmount)}</p>
+              <p className="text-xs mt-0.5 text-slate-400 dark:text-zinc-500">{d.summary.salesCount} transactions</p>
             </div>
           </div>
 
           {/* Leads & Deals side by side */}
           <div className="grid grid-cols-2 gap-4">
             {/* Leads by stage */}
-            <div className={`p-4 rounded-xl border ${isDark ? 'bg-[rgba(10,16,32,0.4)] border-white/[0.06]' : 'bg-slate-50/80 border-slate-200'}`}>
-              <h4 className={`text-xs font-semibold uppercase tracking-wider mb-3 ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>Leads by Stage</h4>
+            <div className="p-4 rounded-xl border bg-slate-50/80 border-slate-200 dark:bg-[rgba(10,16,32,0.4)] dark:border-white/[0.06]">
+              <h4 className="text-xs font-semibold uppercase tracking-wider mb-3 text-slate-500 dark:text-zinc-400">Leads by Stage</h4>
               {totalLeads === 0 ? (
-                <p className={`text-xs py-4 text-center ${isDark ? 'text-zinc-600' : 'text-slate-400'}`}>No leads</p>
+                <p className="text-xs py-4 text-center text-slate-400 dark:text-zinc-600">No leads</p>
               ) : (
                 <div className="space-y-2.5">
                   {Object.entries(d.leadsByStage as Record<string, number>).filter(([, v]) => v > 0).map(([stage, count]) => {
@@ -952,11 +952,11 @@ export const WidgetDetailModal: React.FC<WidgetDetailModalProps> = ({ widgetId, 
                         <div className="flex items-center justify-between mb-1">
                           <div className="flex items-center gap-2">
                             <div className="w-2 h-2 rounded-full" style={{ backgroundColor: LEAD_COLORS[stage] || '#94a3b8' }} />
-                            <span className={`text-xs ${isDark ? 'text-zinc-300' : 'text-slate-600'}`}>{stage}</span>
+                            <span className="text-xs text-slate-600 dark:text-zinc-300">{stage}</span>
                           </div>
-                          <span className={`text-xs font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>{count}</span>
+                          <span className="text-xs font-semibold text-slate-900 dark:text-white">{count}</span>
                         </div>
-                        <div className={`w-full h-1.5 rounded-full overflow-hidden ${isDark ? 'bg-zinc-800' : 'bg-slate-200'}`}>
+                        <div className="w-full h-1.5 rounded-full overflow-hidden bg-slate-200 dark:bg-zinc-800">
                           <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: LEAD_COLORS[stage] || '#94a3b8' }} />
                         </div>
                       </div>
@@ -967,10 +967,10 @@ export const WidgetDetailModal: React.FC<WidgetDetailModalProps> = ({ widgetId, 
             </div>
 
             {/* Deals by stage */}
-            <div className={`p-4 rounded-xl border ${isDark ? 'bg-[rgba(10,16,32,0.4)] border-white/[0.06]' : 'bg-slate-50/80 border-slate-200'}`}>
-              <h4 className={`text-xs font-semibold uppercase tracking-wider mb-3 ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>Deals by Stage</h4>
+            <div className="p-4 rounded-xl border bg-slate-50/80 border-slate-200 dark:bg-[rgba(10,16,32,0.4)] dark:border-white/[0.06]">
+              <h4 className="text-xs font-semibold uppercase tracking-wider mb-3 text-slate-500 dark:text-zinc-400">Deals by Stage</h4>
               {dealEntries.length === 0 ? (
-                <p className={`text-xs py-4 text-center ${isDark ? 'text-zinc-600' : 'text-slate-400'}`}>No deals</p>
+                <p className="text-xs py-4 text-center text-slate-400 dark:text-zinc-600">No deals</p>
               ) : (
                 <div className="space-y-2.5">
                   {dealEntries.map(([stage, info]) => {
@@ -980,11 +980,11 @@ export const WidgetDetailModal: React.FC<WidgetDetailModalProps> = ({ widgetId, 
                         <div className="flex items-center justify-between mb-1">
                           <div className="flex items-center gap-2">
                             <div className="w-2 h-2 rounded-full" style={{ backgroundColor: DEAL_COLORS[stage] || '#94a3b8' }} />
-                            <span className={`text-xs ${isDark ? 'text-zinc-300' : 'text-slate-600'}`}>{stage}</span>
+                            <span className="text-xs text-slate-600 dark:text-zinc-300">{stage}</span>
                           </div>
-                          <span className={`text-xs font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>{info.count} &middot; {formatINR(info.value)}</span>
+                          <span className="text-xs font-semibold text-slate-900 dark:text-white">{info.count} &middot; {formatINR(info.value)}</span>
                         </div>
-                        <div className={`w-full h-1.5 rounded-full overflow-hidden ${isDark ? 'bg-zinc-800' : 'bg-slate-200'}`}>
+                        <div className="w-full h-1.5 rounded-full overflow-hidden bg-slate-200 dark:bg-zinc-800">
                           <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: DEAL_COLORS[stage] || '#94a3b8' }} />
                         </div>
                       </div>
@@ -997,8 +997,8 @@ export const WidgetDetailModal: React.FC<WidgetDetailModalProps> = ({ widgetId, 
 
           {/* Monthly sales trend */}
           {d.monthlySales.length > 1 && (
-            <div className={`p-4 rounded-xl border ${isDark ? 'bg-[rgba(10,16,32,0.4)] border-white/[0.06]' : 'bg-slate-50/80 border-slate-200'}`}>
-              <h4 className={`text-xs font-semibold uppercase tracking-wider mb-4 ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>Monthly Sales Trend</h4>
+            <div className="p-4 rounded-xl border bg-slate-50/80 border-slate-200 dark:bg-[rgba(10,16,32,0.4)] dark:border-white/[0.06]">
+              <h4 className="text-xs font-semibold uppercase tracking-wider mb-4 text-slate-500 dark:text-zinc-400">Monthly Sales Trend</h4>
               <ResponsiveContainer width="100%" height={180}>
                 <AreaChart data={d.monthlySales} margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
                   <defs>
@@ -1015,8 +1015,8 @@ export const WidgetDetailModal: React.FC<WidgetDetailModalProps> = ({ widgetId, 
                   <Tooltip content={({ active, payload, label }: any) => {
                     if (!active || !payload?.length) return null;
                     return (
-                      <div className={`px-3 py-2 rounded-lg shadow-lg text-xs border ${isDark ? 'bg-zinc-800 border-zinc-700 text-white' : 'bg-white border-slate-200 text-slate-900'}`}>
-                        <p className={`font-medium mb-0.5 ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>{label}</p>
+                      <div className="px-3 py-2 rounded-lg shadow-lg text-xs border bg-white border-slate-200 text-slate-900 dark:bg-zinc-800 dark:border-zinc-700 dark:text-white">
+                        <p className="font-medium mb-0.5 text-slate-500 dark:text-zinc-400">{label}</p>
                         <p className="font-bold">{formatINR(payload[0].value)}</p>
                       </div>
                     );
@@ -1032,22 +1032,22 @@ export const WidgetDetailModal: React.FC<WidgetDetailModalProps> = ({ widgetId, 
           {/* Recent sales */}
           {d.recentSales.length > 0 && (
             <div>
-              <h4 className={`text-xs font-semibold uppercase tracking-wider mb-3 ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>Recent Sales</h4>
+              <h4 className="text-xs font-semibold uppercase tracking-wider mb-3 text-slate-500 dark:text-zinc-400">Recent Sales</h4>
               <div className="space-y-2">
                 {d.recentSales.slice(0, 5).map((sale: any) => (
-                  <div key={sale.id} className={`flex items-center justify-between p-3 rounded-xl border ${isDark ? 'bg-[rgba(10,16,32,0.4)] border-white/[0.06]' : 'bg-slate-50/80 border-slate-200'}`}>
+                  <div key={sale.id} className="flex items-center justify-between p-3 rounded-xl border bg-slate-50/80 border-slate-200 dark:bg-[rgba(10,16,32,0.4)] dark:border-white/[0.06]">
                     <div className="min-w-0 flex-1">
-                      <p className={`text-sm font-semibold truncate ${isDark ? 'text-white' : 'text-slate-900'}`}>{sale.customerName || sale.partnerName || 'N/A'}</p>
-                      <p className={`text-xs ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>{sale.saleDate}</p>
+                      <p className="text-sm font-semibold truncate text-slate-900 dark:text-white">{sale.customerName || sale.partnerName || 'N/A'}</p>
+                      <p className="text-xs text-slate-400 dark:text-zinc-500">{sale.saleDate}</p>
                     </div>
                     <div className="flex items-center gap-3 flex-shrink-0 ml-3">
-                      <span className={`text-sm font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>{formatINR(sale.amount)}</span>
+                      <span className="text-sm font-bold text-slate-900 dark:text-white">{formatINR(sale.amount)}</span>
                       <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold uppercase tracking-wide ${
                         sale.paymentStatus === 'paid'
-                          ? isDark ? 'bg-emerald-900/30 text-emerald-400' : 'bg-emerald-100 text-emerald-700'
+                          ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
                           : sale.paymentStatus === 'overdue'
-                            ? isDark ? 'bg-red-900/30 text-red-400' : 'bg-red-100 text-red-700'
-                            : isDark ? 'bg-amber-900/30 text-amber-400' : 'bg-amber-100 text-amber-700'
+                            ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                            : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
                       }`}>
                         {sale.paymentStatus}
                       </span>
@@ -1067,22 +1067,22 @@ export const WidgetDetailModal: React.FC<WidgetDetailModalProps> = ({ widgetId, 
     return (
       <div className="space-y-4">
         {assignees.length === 0 ? (
-          <div className={`h-32 flex items-center justify-center rounded-xl ${isDark ? 'bg-zinc-900/50' : 'bg-slate-50'}`}>
-            <p className={`text-sm ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>No assignee data available</p>
+          <div className="h-32 flex items-center justify-center rounded-xl bg-slate-50 dark:bg-zinc-900/50">
+            <p className="text-sm text-slate-400 dark:text-zinc-500">No assignee data available</p>
           </div>
         ) : (
           <>
-            <p className={`text-xs ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>{assignees.length} team member{assignees.length !== 1 ? 's' : ''} &middot; Select to view details</p>
+            <p className="text-xs text-slate-400 dark:text-zinc-500">{assignees.length} team member{assignees.length !== 1 ? 's' : ''} &middot; Select to view details</p>
             <div className="space-y-2">
               {assignees.map((r: any, i: number) => {
                 const initials = (r.userName || '?').split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase();
                 const colors = [
-                  { bg: isDark ? 'bg-blue-900/30' : 'bg-blue-100', text: isDark ? 'text-blue-300' : 'text-blue-700' },
-                  { bg: isDark ? 'bg-violet-900/30' : 'bg-violet-100', text: isDark ? 'text-violet-300' : 'text-violet-700' },
-                  { bg: isDark ? 'bg-emerald-900/30' : 'bg-emerald-100', text: isDark ? 'text-emerald-300' : 'text-emerald-700' },
-                  { bg: isDark ? 'bg-amber-900/30' : 'bg-amber-100', text: isDark ? 'text-amber-300' : 'text-amber-700' },
-                  { bg: isDark ? 'bg-rose-900/30' : 'bg-rose-100', text: isDark ? 'text-rose-300' : 'text-rose-700' },
-                  { bg: isDark ? 'bg-cyan-900/30' : 'bg-cyan-100', text: isDark ? 'text-cyan-300' : 'text-cyan-700' },
+                  { bg: 'bg-blue-100 dark:bg-blue-900/30', text: 'text-blue-700 dark:text-blue-300' },
+                  { bg: 'bg-violet-100 dark:bg-violet-900/30', text: 'text-violet-700 dark:text-violet-300' },
+                  { bg: 'bg-emerald-100 dark:bg-emerald-900/30', text: 'text-emerald-700 dark:text-emerald-300' },
+                  { bg: 'bg-amber-100 dark:bg-amber-900/30', text: 'text-amber-700 dark:text-amber-300' },
+                  { bg: 'bg-rose-100 dark:bg-rose-900/30', text: 'text-rose-700 dark:text-rose-300' },
+                  { bg: 'bg-cyan-100 dark:bg-cyan-900/30', text: 'text-cyan-700 dark:text-cyan-300' },
                 ];
                 const avatarColor = colors[i % colors.length];
 
@@ -1090,11 +1090,7 @@ export const WidgetDetailModal: React.FC<WidgetDetailModalProps> = ({ widgetId, 
                   <div
                     key={r.userId || i}
                     onClick={() => handleAssigneeClick(r.userId)}
-                    className={`flex items-center gap-4 p-4 rounded-xl border cursor-pointer transition-all ${
-                      isDark
-                        ? 'bg-[rgba(10,16,32,0.4)] border-white/[0.06] hover:bg-white/[0.06] hover:border-white/[0.1]'
-                        : 'bg-white border-slate-200 hover:bg-slate-50 hover:border-slate-300 hover:shadow-sm'
-                    }`}
+                    className="flex items-center gap-4 p-4 rounded-xl border cursor-pointer transition-all bg-white border-slate-200 hover:bg-slate-50 hover:border-slate-300 hover:shadow-sm dark:bg-[rgba(10,16,32,0.4)] dark:border-white/[0.06] dark:hover:bg-white/[0.06] dark:hover:border-white/[0.1]"
                   >
                     {/* Avatar */}
                     <div className={`w-10 h-10 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${avatarColor.bg} ${avatarColor.text}`}>
@@ -1103,27 +1099,27 @@ export const WidgetDetailModal: React.FC<WidgetDetailModalProps> = ({ widgetId, 
 
                     {/* Name + sales amount */}
                     <div className="flex-1 min-w-0">
-                      <p className={`text-sm font-semibold truncate ${isDark ? 'text-white' : 'text-slate-900'}`}>{r.userName}</p>
-                      <p className={`text-xs ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
+                      <p className="text-sm font-semibold truncate text-slate-900 dark:text-white">{r.userName}</p>
+                      <p className="text-xs text-slate-400 dark:text-zinc-500">
                         {formatINR(r.salesAmount)} sales
                       </p>
                     </div>
 
                     {/* Metric badges */}
                     <div className="flex items-center gap-2 flex-shrink-0">
-                      <div className={`flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium ${isDark ? 'bg-zinc-800 text-zinc-400' : 'bg-slate-100 text-slate-500'}`}>
-                        <span className={isDark ? 'text-blue-400' : 'text-blue-600'}>{r.partners}</span> P
+                      <div className="flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium bg-slate-100 text-slate-500 dark:bg-zinc-800 dark:text-zinc-400">
+                        <span className="text-blue-600 dark:text-blue-400">{r.partners}</span> P
                       </div>
-                      <div className={`flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium ${isDark ? 'bg-zinc-800 text-zinc-400' : 'bg-slate-100 text-slate-500'}`}>
-                        <span className={isDark ? 'text-emerald-400' : 'text-emerald-600'}>{r.leads}</span> L
+                      <div className="flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium bg-slate-100 text-slate-500 dark:bg-zinc-800 dark:text-zinc-400">
+                        <span className="text-emerald-600 dark:text-emerald-400">{r.leads}</span> L
                       </div>
-                      <div className={`flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium ${isDark ? 'bg-zinc-800 text-zinc-400' : 'bg-slate-100 text-slate-500'}`}>
-                        <span className={isDark ? 'text-purple-400' : 'text-purple-600'}>{r.deals}</span> D
+                      <div className="flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium bg-slate-100 text-slate-500 dark:bg-zinc-800 dark:text-zinc-400">
+                        <span className="text-purple-600 dark:text-purple-400">{r.deals}</span> D
                       </div>
                     </div>
 
                     {/* Chevron */}
-                    <ChevronRight className={`w-4 h-4 flex-shrink-0 ${isDark ? 'text-zinc-600' : 'text-slate-300'}`} />
+                    <ChevronRight className="w-4 h-4 flex-shrink-0 text-slate-300 dark:text-zinc-600" />
                   </div>
                 );
               })}
@@ -1143,13 +1139,13 @@ export const WidgetDetailModal: React.FC<WidgetDetailModalProps> = ({ widgetId, 
     return (
       <div className="space-y-6">
         <div className="grid grid-cols-2 gap-4">
-          <div className={`p-4 rounded-xl ${isDark ? 'bg-zinc-900/50' : 'bg-slate-50'}`}>
-            <p className={`text-[11px] uppercase tracking-wider ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Total Revenue</p>
-            <p className={`text-2xl font-bold mt-1 ${isDark ? 'text-white' : 'text-slate-900'}`}>{formatINR(totalRevenue)}</p>
+          <div className="p-4 rounded-xl bg-slate-50 dark:bg-zinc-900/50">
+            <p className="text-[11px] uppercase tracking-wider text-slate-400 dark:text-zinc-500">Total Revenue</p>
+            <p className="text-2xl font-bold mt-1 text-slate-900 dark:text-white">{formatINR(totalRevenue)}</p>
           </div>
-          <div className={`p-4 rounded-xl ${isDark ? 'bg-zinc-900/50' : 'bg-slate-50'}`}>
-            <p className={`text-[11px] uppercase tracking-wider ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Latest MOM</p>
-            <p className={`text-2xl font-bold mt-1 ${monthlyChange >= 0 ? (isDark ? 'text-emerald-400' : 'text-emerald-600') : (isDark ? 'text-red-400' : 'text-red-600')}`}>
+          <div className="p-4 rounded-xl bg-slate-50 dark:bg-zinc-900/50">
+            <p className="text-[11px] uppercase tracking-wider text-slate-400 dark:text-zinc-500">Latest MOM</p>
+            <p className={`text-2xl font-bold mt-1 ${monthlyChange >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
               {monthlyChange >= 0 ? '+' : ''}{monthlyChange}%
             </p>
           </div>
@@ -1172,8 +1168,8 @@ export const WidgetDetailModal: React.FC<WidgetDetailModalProps> = ({ widgetId, 
               <Tooltip content={({ active, payload, label }: any) => {
                 if (!active || !payload?.length) return null;
                 return (
-                  <div className={`px-3 py-2 rounded-xl shadow-lg text-sm border ${isDark ? 'bg-zinc-800 border-zinc-700 text-white' : 'bg-white border-slate-200 text-slate-900'}`}>
-                    <p className={`font-medium mb-1 ${isDark ? 'text-zinc-300' : 'text-slate-500'}`}>{label}</p>
+                  <div className="px-3 py-2 rounded-xl shadow-lg text-sm border bg-white border-slate-200 text-slate-900 dark:bg-zinc-800 dark:border-zinc-700 dark:text-white">
+                    <p className="font-medium mb-1 text-slate-500 dark:text-zinc-300">{label}</p>
                     <p className="font-semibold" style={{ color: isDark ? '#818cf8' : '#6366f1' }}>Revenue: {formatINR(payload[0].value)}</p>
                   </div>
                 );
@@ -1194,24 +1190,20 @@ export const WidgetDetailModal: React.FC<WidgetDetailModalProps> = ({ widgetId, 
       <div className="absolute inset-0 bg-black/50 animate-backdrop" onClick={onClose} />
 
       {/* Modal */}
-      <div className={`relative w-full max-w-2xl max-h-[80vh] overflow-y-auto rounded-2xl animate-fade-in-up ${
-        isDark ? 'bg-[rgba(8,13,27,0.92)] backdrop-blur-2xl border border-white/[0.06]' : 'bg-white'
-      }`}>
+      <div className="relative w-full max-w-2xl max-h-[80vh] overflow-y-auto rounded-2xl animate-fade-in-up bg-white dark:bg-[rgba(8,13,27,0.92)] dark:backdrop-blur-2xl dark:border dark:border-white/[0.06]">
         {/* Header */}
-        <div className={`sticky top-0 z-10 px-6 py-4 border-b flex items-center justify-between ${
-          isDark ? 'bg-[rgba(8,13,27,0.95)] backdrop-blur-xl border-white/[0.06]' : 'bg-white border-slate-200'
-        }`}>
+        <div className="sticky top-0 z-10 px-6 py-4 border-b flex items-center justify-between bg-white border-slate-200 dark:bg-[rgba(8,13,27,0.95)] dark:backdrop-blur-xl dark:border-white/[0.06]">
           <div className="flex items-center gap-3">
             {meta && (
-              <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${isDark ? 'bg-brand-900/30' : 'bg-brand-50'}`}>
-                <span className={isDark ? 'text-brand-400' : 'text-brand-600'}>{meta.icon}</span>
+              <div className="w-9 h-9 rounded-xl flex items-center justify-center bg-brand-50 dark:bg-brand-900/30">
+                <span className="text-brand-600 dark:text-brand-400">{meta.icon}</span>
               </div>
             )}
             <div>
-              <h2 className={`text-lg font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>
+              <h2 className="text-lg font-bold text-slate-900 dark:text-white">
                 {meta?.label || widgetId}
               </h2>
-              <p className={`text-xs ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
+              <p className="text-xs text-slate-400 dark:text-zinc-500">
                 {meta?.description || 'Widget Details'}
               </p>
             </div>
@@ -1220,9 +1212,7 @@ export const WidgetDetailModal: React.FC<WidgetDetailModalProps> = ({ widgetId, 
             {targetPage && (
               <button
                 onClick={handleGoToPage}
-                className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-colors ${
-                  isDark ? 'bg-white/[0.06] text-zinc-300 hover:bg-white/[0.1] border border-white/[0.06]' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                }`}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-colors bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-white/[0.06] dark:text-zinc-300 dark:hover:bg-white/[0.1] dark:border dark:border-white/[0.06]"
               >
                 <ExternalLink className="w-3.5 h-3.5" />
                 View Full Page
@@ -1230,9 +1220,7 @@ export const WidgetDetailModal: React.FC<WidgetDetailModalProps> = ({ widgetId, 
             )}
             <button
               onClick={onClose}
-              className={`p-2 rounded-lg transition-colors ${
-                isDark ? 'hover:bg-white/[0.06] text-zinc-400' : 'hover:bg-slate-100 text-slate-400'
-              }`}
+              className="p-2 rounded-lg transition-colors hover:bg-slate-100 text-slate-400 dark:hover:bg-white/[0.06] dark:text-zinc-400"
             >
               <X className="w-5 h-5" />
             </button>

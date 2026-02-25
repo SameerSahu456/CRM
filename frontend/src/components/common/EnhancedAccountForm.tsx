@@ -4,7 +4,6 @@ import {
   Users, Loader2, AlertCircle, CheckCircle, FileText,
   User as UserIcon, Copy, Briefcase
 } from 'lucide-react';
-import { useTheme } from '@/contexts/ThemeContext';
 import { Account } from '@/types';
 
 // Form Data Interface
@@ -136,8 +135,6 @@ export const EnhancedAccountForm: React.FC<Props> = ({
   accounts = [],
   users = [],
 }) => {
-  const { theme } = useTheme();
-  const isDark = theme === 'dark';
   const [formData, setFormData] = useState<EnhancedAccountFormData>(EMPTY_ENHANCED_FORM);
   const [activeTab, setActiveTab] = useState<'basic' | 'financial' | 'contact' | 'address'>('basic');
 
@@ -220,49 +217,37 @@ export const EnhancedAccountForm: React.FC<Props> = ({
   if (!isOpen) return null;
 
   // Styles
-  const inputClass = `w-full px-4 py-2.5 rounded-xl border text-sm transition-all ${
-    isDark
-      ? 'bg-dark-100 border-zinc-700 text-white placeholder-zinc-500 focus:border-brand-500'
-      : 'bg-white border-slate-200 text-slate-900 placeholder-slate-400 focus:border-brand-500'
-  } focus:outline-none focus:ring-1 focus:ring-brand-500`;
+  const inputClass = 'w-full px-4 py-2.5 rounded-xl border text-sm transition-all bg-white border-slate-200 text-slate-900 placeholder-slate-400 focus:border-brand-500 dark:bg-dark-100 dark:border-zinc-700 dark:text-white dark:placeholder-zinc-500 focus:outline-none focus:ring-1 focus:ring-brand-500';
 
-  const labelClass = `block text-xs font-semibold mb-1.5 ${isDark ? 'text-zinc-400' : 'text-slate-600'}`;
+  const labelClass = 'block text-xs font-semibold mb-1.5 text-slate-600 dark:text-zinc-400';
 
   const selectClass = inputClass;
 
   const tabClass = (active: boolean) => `px-4 py-2.5 text-sm font-medium transition-colors border-b-2 -mb-px ${
     active
       ? 'border-brand-600 text-brand-600'
-      : isDark
-        ? 'border-transparent text-zinc-500 hover:text-zinc-300'
-        : 'border-transparent text-slate-400 hover:text-slate-600'
+      : 'border-transparent text-slate-400 hover:text-slate-600 dark:text-zinc-500 dark:hover:text-zinc-300'
   }`;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/50 animate-backdrop" onClick={onClose} />
-      <div className={`relative w-full max-w-5xl max-h-[95vh] rounded-2xl animate-fade-in-up flex flex-col overflow-hidden ${
-        isDark ? 'bg-dark-50 border border-zinc-800' : 'bg-white shadow-premium'
-      }`}>
+      <div className="relative w-full max-w-5xl max-h-[95vh] rounded-2xl animate-fade-in-up flex flex-col overflow-hidden bg-white shadow-premium dark:bg-dark-50 dark:border dark:border-zinc-800">
         {/* Header */}
-        <div className={`flex-shrink-0 flex items-center justify-between px-6 py-4 border-b ${
-          isDark ? 'bg-dark-50 border-zinc-800' : 'bg-white border-slate-200'
-        }`}>
-          <h2 className={`text-lg font-semibold font-display ${isDark ? 'text-white' : 'text-slate-900'}`}>
+        <div className="flex-shrink-0 flex items-center justify-between px-6 py-4 border-b bg-white border-slate-200 dark:bg-dark-50 dark:border-zinc-800">
+          <h2 className="text-lg font-semibold font-display text-slate-900 dark:text-white">
             {editingAccount ? 'Edit Account' : 'New Account'}
           </h2>
           <button
             onClick={onClose}
-            className={`p-2 rounded-lg transition-colors ${
-              isDark ? 'text-zinc-400 hover:text-white hover:bg-zinc-800' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100'
-            }`}
+            className="p-2 rounded-lg transition-colors text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:text-zinc-400 dark:hover:text-white dark:hover:bg-zinc-800"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Tabs */}
-        <div className={`flex-shrink-0 flex items-center gap-1 px-6 border-b ${isDark ? 'border-zinc-800' : 'border-slate-200'}`}>
+        <div className="flex-shrink-0 flex items-center gap-1 px-6 border-b border-slate-200 dark:border-zinc-800">
           <button onClick={() => setActiveTab('basic')} className={tabClass(activeTab === 'basic')}>
             Basic Info
           </button>
@@ -281,9 +266,7 @@ export const EnhancedAccountForm: React.FC<Props> = ({
         <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto">
           <div className="p-6 space-y-5">
             {formError && (
-              <div className={`p-3 rounded-xl flex items-center gap-2 text-sm ${
-                isDark ? 'bg-red-900/20 border border-red-800 text-red-400' : 'bg-red-50 border border-red-200 text-red-700'
-              }`}>
+              <div className="p-3 rounded-xl flex items-center gap-2 text-sm bg-red-50 border border-red-200 text-red-700 dark:bg-red-900/20 dark:border-red-800 dark:text-red-400">
                 <AlertCircle className="w-4 h-4 flex-shrink-0" />
                 {formError}
               </div>
@@ -307,8 +290,8 @@ export const EnhancedAccountForm: React.FC<Props> = ({
                 </div>
 
                 {/* Account Information Section */}
-                <div className="pt-4 border-t border-dashed" style={{ borderColor: isDark ? '#1a2535' : '#e2e8f0' }}>
-                  <h3 className={`text-sm font-semibold mb-4 ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                <div className="pt-4 border-t border-dashed border-[#e2e8f0] dark:border-[#1a2535]">
+                  <h3 className="text-sm font-semibold mb-4 text-slate-900 dark:text-white">
                     Account Information
                   </h3>
 
@@ -319,7 +302,7 @@ export const EnhancedAccountForm: React.FC<Props> = ({
                         Account Name <span className="text-red-500">*</span>
                       </label>
                       <div className="relative">
-                        <Building2 className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`} />
+                        <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 dark:text-zinc-500" />
                         <input
                           id="name"
                           name="name"
@@ -338,7 +321,7 @@ export const EnhancedAccountForm: React.FC<Props> = ({
                       <div>
                         <label htmlFor="phone" className={labelClass}>Phone</label>
                         <div className="relative">
-                          <Phone className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`} />
+                          <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 dark:text-zinc-500" />
                           <input
                             id="phone"
                             name="phone"
@@ -353,7 +336,7 @@ export const EnhancedAccountForm: React.FC<Props> = ({
                       <div>
                         <label htmlFor="website" className={labelClass}>Website</label>
                         <div className="relative">
-                          <Globe className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`} />
+                          <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 dark:text-zinc-500" />
                           <input
                             id="website"
                             name="website"
@@ -497,8 +480,8 @@ export const EnhancedAccountForm: React.FC<Props> = ({
                 </div>
 
                 {/* Other Info Section */}
-                <div className="pt-4 border-t border-dashed" style={{ borderColor: isDark ? '#1a2535' : '#e2e8f0' }}>
-                  <h3 className={`text-sm font-semibold mb-4 ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                <div className="pt-4 border-t border-dashed border-[#e2e8f0] dark:border-[#1a2535]">
+                  <h3 className="text-sm font-semibold mb-4 text-slate-900 dark:text-white">
                     Other Info
                   </h3>
 
@@ -506,7 +489,7 @@ export const EnhancedAccountForm: React.FC<Props> = ({
                     {/* References */}
                     <div>
                       <label className={labelClass}>References</label>
-                      <div className={`border rounded-xl p-4 ${isDark ? 'border-zinc-700' : 'border-slate-200'}`}>
+                      <div className="border rounded-xl p-4 border-slate-200 dark:border-zinc-700">
                         <input
                           type="file"
                           accept=".pdf,.doc,.docx"
@@ -515,7 +498,7 @@ export const EnhancedAccountForm: React.FC<Props> = ({
                           id="referencesDoc"
                         />
                         {formData.referencesDoc && (
-                          <p className={`text-xs mt-1 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
+                          <p className="text-xs mt-1 text-slate-400 dark:text-zinc-500">
                             {formData.referencesDoc}
                           </p>
                         )}
@@ -525,7 +508,7 @@ export const EnhancedAccountForm: React.FC<Props> = ({
                     {/* Bank Statement */}
                     <div>
                       <label className={labelClass}>Bank Statement</label>
-                      <div className={`border rounded-xl p-4 ${isDark ? 'border-zinc-700' : 'border-slate-200'}`}>
+                      <div className="border rounded-xl p-4 border-slate-200 dark:border-zinc-700">
                         <input
                           type="file"
                           accept=".pdf,.doc,.docx"
@@ -534,7 +517,7 @@ export const EnhancedAccountForm: React.FC<Props> = ({
                           id="bankStatementDoc"
                         />
                         {formData.bankStatementDoc && (
-                          <p className={`text-xs mt-1 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
+                          <p className="text-xs mt-1 text-slate-400 dark:text-zinc-500">
                             {formData.bankStatementDoc}
                           </p>
                         )}
@@ -553,7 +536,7 @@ export const EnhancedAccountForm: React.FC<Props> = ({
                   <div>
                     <label htmlFor="panNo" className={labelClass}>PAN</label>
                     <div className="relative">
-                      <Hash className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`} />
+                      <Hash className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 dark:text-zinc-500" />
                       <input
                         id="panNo"
                         name="panNo"
@@ -568,7 +551,7 @@ export const EnhancedAccountForm: React.FC<Props> = ({
                   <div>
                     <label htmlFor="gstinNo" className={labelClass}>GSTIN No</label>
                     <div className="relative">
-                      <Hash className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`} />
+                      <Hash className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 dark:text-zinc-500" />
                       <input
                         id="gstinNo"
                         name="gstinNo"
@@ -587,7 +570,7 @@ export const EnhancedAccountForm: React.FC<Props> = ({
                   <div>
                     <label htmlFor="revenue" className={labelClass}>Revenue (INR)</label>
                     <div className="relative">
-                      <IndianRupee className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`} />
+                      <IndianRupee className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 dark:text-zinc-500" />
                       <input
                         id="revenue"
                         name="revenue"
@@ -603,7 +586,7 @@ export const EnhancedAccountForm: React.FC<Props> = ({
                   <div>
                     <label htmlFor="employees" className={labelClass}>Employees</label>
                     <div className="relative">
-                      <Users className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`} />
+                      <Users className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 dark:text-zinc-500" />
                       <input
                         id="employees"
                         name="employees"
@@ -622,7 +605,7 @@ export const EnhancedAccountForm: React.FC<Props> = ({
                 <div>
                   <label htmlFor="location" className={labelClass}>Location</label>
                   <div className="relative">
-                    <MapPin className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`} />
+                    <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 dark:text-zinc-500" />
                     <input
                       id="location"
                       name="location"
@@ -643,7 +626,7 @@ export const EnhancedAccountForm: React.FC<Props> = ({
                 <div>
                   <label htmlFor="contactName" className={labelClass}>Name {!editingAccount && <span className="text-red-500">*</span>}</label>
                   <div className="relative">
-                    <UserIcon className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`} />
+                    <UserIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 dark:text-zinc-500" />
                     <input
                       id="contactName"
                       name="contactName"
@@ -660,7 +643,7 @@ export const EnhancedAccountForm: React.FC<Props> = ({
                 <div>
                   <label htmlFor="contactEmail" className={labelClass}>Email</label>
                   <div className="relative">
-                    <Mail className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`} />
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 dark:text-zinc-500" />
                     <input
                       id="contactEmail"
                       name="contactEmail"
@@ -676,7 +659,7 @@ export const EnhancedAccountForm: React.FC<Props> = ({
                 <div>
                   <label htmlFor="contactPhone" className={labelClass}>Contact Phone</label>
                   <div className="relative">
-                    <Phone className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`} />
+                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 dark:text-zinc-500" />
                     <input
                       id="contactPhone"
                       name="contactPhone"
@@ -730,7 +713,7 @@ export const EnhancedAccountForm: React.FC<Props> = ({
                 {/* Billing Address */}
                 <div>
                   <div className="flex items-center justify-between mb-3">
-                    <h3 className={`text-sm font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                    <h3 className="text-sm font-semibold text-slate-900 dark:text-white">
                       Billing Address
                     </h3>
                   </div>
@@ -807,11 +790,7 @@ export const EnhancedAccountForm: React.FC<Props> = ({
                   <button
                     type="button"
                     onClick={copyBillingToShipping}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-colors ${
-                      isDark
-                        ? 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700'
-                        : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                    }`}
+                    className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-colors bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
                   >
                     <Copy className="w-4 h-4" />
                     Copy Billing to Shipping
@@ -820,7 +799,7 @@ export const EnhancedAccountForm: React.FC<Props> = ({
 
                 {/* Shipping Address */}
                 <div>
-                  <h3 className={`text-sm font-semibold mb-3 ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                  <h3 className="text-sm font-semibold mb-3 text-slate-900 dark:text-white">
                     Shipping Address
                   </h3>
                   <div className="space-y-4">
@@ -895,16 +874,12 @@ export const EnhancedAccountForm: React.FC<Props> = ({
           </div>
 
           {/* Footer - sticky at bottom */}
-          <div className={`sticky bottom-0 flex items-center justify-end gap-3 px-6 py-4 border-t ${
-            isDark ? 'bg-dark-50 border-zinc-800' : 'bg-white border-slate-200'
-          }`}>
+          <div className="sticky bottom-0 flex items-center justify-end gap-3 px-6 py-4 border-t bg-white border-slate-200 dark:bg-dark-50 dark:border-zinc-800">
             <button
               type="button"
               onClick={onClose}
               disabled={isSubmitting}
-              className={`px-4 py-2.5 rounded-xl text-sm font-medium transition-colors ${
-                isDark ? 'text-zinc-400 hover:text-white hover:bg-zinc-800' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-              } disabled:opacity-50`}
+              className="px-4 py-2.5 rounded-xl text-sm font-medium transition-colors text-slate-600 hover:text-slate-900 hover:bg-slate-100 dark:text-zinc-400 dark:hover:text-white dark:hover:bg-zinc-800 disabled:opacity-50"
             >
               Cancel
             </button>

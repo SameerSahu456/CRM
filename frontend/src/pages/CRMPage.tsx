@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
-  Plus, Search, X, ChevronLeft, ChevronRight, Edit2, Trash2,
+  Plus, Search, X, Edit2, Trash2,
   IndianRupee, Loader2, AlertCircle, CheckCircle, Calendar,
   Phone, Mail, MessageSquare, Users, Target, TrendingUp,
   Eye, BarChart3, LayoutGrid, List, ArrowRight,
@@ -8,7 +8,6 @@ import {
   ChevronDown, Award, Building2, User as UserIcon, Tags,
   Download, Upload, Send
 } from 'lucide-react';
-import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigation } from '@/contexts/NavigationContext';
 import { useDropdowns } from '@/contexts/DropdownsContext';
@@ -18,6 +17,9 @@ import { Lead, LeadStage, PaginatedResponse, Partner, Product, User, ActivityLog
 import { BulkImportModal } from '@/components/common/BulkImportModal';
 import { RichTextEditor } from '@/components/common/RichTextEditor';
 import { useColumnResize } from '@/hooks/useColumnResize';
+import { Card, Button, Input, Select, Modal, Badge, Alert, Pagination, Textarea } from '@/components/ui';
+import { inputStyles, labelStyles } from '@/components/ui';
+import { cx } from '@/utils/cx';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -25,23 +27,29 @@ import { useColumnResize } from '@/hooks/useColumnResize';
 
 const PAGE_SIZE = 10;
 
-
-
-const STAGE_COLORS: Record<LeadStage, { bg: string; text: string; darkBg: string; darkText: string; iconBg: string; darkIconBg: string }> = {
-  New:           { bg: 'bg-cyan-50', text: 'text-cyan-700', darkBg: 'bg-cyan-900/30', darkText: 'text-cyan-400', iconBg: 'bg-cyan-100', darkIconBg: 'bg-cyan-900/20' },
-  Proposal:      { bg: 'bg-purple-50', text: 'text-purple-700', darkBg: 'bg-purple-900/30', darkText: 'text-purple-400', iconBg: 'bg-purple-100', darkIconBg: 'bg-purple-900/20' },
-  Cold:          { bg: 'bg-blue-50', text: 'text-blue-700', darkBg: 'bg-blue-900/30', darkText: 'text-blue-400', iconBg: 'bg-blue-100', darkIconBg: 'bg-blue-900/20' },
-  Negotiation:   { bg: 'bg-orange-50', text: 'text-orange-700', darkBg: 'bg-orange-900/30', darkText: 'text-orange-400', iconBg: 'bg-orange-100', darkIconBg: 'bg-orange-900/20' },
-  'Closed Lost': { bg: 'bg-red-50', text: 'text-red-700', darkBg: 'bg-red-900/30', darkText: 'text-red-400', iconBg: 'bg-red-100', darkIconBg: 'bg-red-900/20' },
-  'Closed Won':  { bg: 'bg-emerald-50', text: 'text-emerald-700', darkBg: 'bg-emerald-900/30', darkText: 'text-emerald-400', iconBg: 'bg-emerald-100', darkIconBg: 'bg-emerald-900/20' },
+const STAGE_BADGE_VARIANT: Record<LeadStage, 'cyan' | 'purple' | 'blue' | 'amber' | 'red' | 'emerald'> = {
+  New: 'cyan',
+  Proposal: 'purple',
+  Cold: 'blue',
+  Negotiation: 'amber',
+  'Closed Lost': 'red',
+  'Closed Won': 'emerald',
 };
 
-const PRIORITY_COLORS: Record<string, { bg: string; text: string; darkBg: string; darkText: string }> = {
-  High:   { bg: 'bg-red-50', text: 'text-red-700', darkBg: 'bg-red-900/30', darkText: 'text-red-400' },
-  Medium: { bg: 'bg-amber-50', text: 'text-amber-700', darkBg: 'bg-amber-900/30', darkText: 'text-amber-400' },
-  Low:    { bg: 'bg-green-50', text: 'text-green-700', darkBg: 'bg-green-900/30', darkText: 'text-green-400' },
+const STAGE_DOT_COLORS: Record<LeadStage, string> = {
+  New: 'bg-cyan-500',
+  Proposal: 'bg-purple-500',
+  Cold: 'bg-blue-500',
+  Negotiation: 'bg-amber-500',
+  'Closed Lost': 'bg-red-500',
+  'Closed Won': 'bg-emerald-500',
 };
 
+const PRIORITY_BADGE_VARIANT: Record<string, 'red' | 'amber' | 'green'> = {
+  High: 'red',
+  Medium: 'amber',
+  Low: 'green',
+};
 
 // ---------------------------------------------------------------------------
 // Form types
@@ -280,29 +288,21 @@ function relativeTime(dateStr?: string): string {
   }
 }
 
-
-function stageBadge(stage: LeadStage, isDark: boolean): string {
-  const base = 'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium';
-  const c = STAGE_COLORS[stage] || STAGE_COLORS.New;
-  return `${base} ${isDark ? `${c.darkBg} ${c.darkText}` : `${c.bg} ${c.text}`}`;
-}
-
-function priorityBadge(priority: string, isDark: boolean): string {
-  const base = 'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium';
-  const c = PRIORITY_COLORS[priority] || PRIORITY_COLORS.Low;
-  return `${base} ${isDark ? `${c.darkBg} ${c.darkText}` : `${c.bg} ${c.text}`}`;
-}
+// File input styles helper
+const fileInputStyles = cx(
+  inputStyles,
+  'file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-medium',
+  'file:bg-gray-100 file:text-gray-700 dark:file:bg-zinc-700 dark:file:text-zinc-200'
+);
 
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 
 export const CRMPage: React.FC = () => {
-  const { theme } = useTheme();
   const { user } = useAuth();
   const { setActiveTab: navigate } = useNavigation();
   const { getOptions, getValues } = useDropdowns();
-  const isDark = theme === 'dark';
 
   // Stage definitions (hardcoded to guarantee all stages always render)
   const LEAD_STAGES: LeadStage[] = ['New', 'Cold', 'Proposal', 'Negotiation', 'Closed Won', 'Closed Lost'];
@@ -432,15 +432,6 @@ export const CRMPage: React.FC = () => {
     initialWidths: [45, 70, 180, 150, 130, 130, 220, 130, 110, 160, 160, 110, 120, 100, 120, 120],
   });
 
-  const cardClass = `premium-card ${isDark ? '' : 'shadow-soft'}`;
-  const inputClass = `w-full px-3 py-2.5 rounded-xl border text-sm transition-all ${
-    isDark
-      ? 'bg-dark-100 border-zinc-700 text-white placeholder-zinc-500 focus:border-brand-500'
-      : 'bg-white border-slate-200 text-slate-900 placeholder-slate-400 focus:border-brand-500'
-  } focus:outline-none focus:ring-1 focus:ring-brand-500`;
-  const labelClass = `block text-sm font-medium mb-1.5 ${isDark ? 'text-slate-300' : 'text-slate-700'}`;
-  const selectClass = `${inputClass} appearance-none cursor-pointer`;
-
   // ---------------------------------------------------------------------------
   // Data fetching
   // ---------------------------------------------------------------------------
@@ -545,27 +536,33 @@ export const CRMPage: React.FC = () => {
     setShowLeadModal(true);
   };
 
-  const openEditLeadModal = (lead: Lead) => {
+  const openEditLeadModal = async (lead: Lead) => {
     fetchDropdownData();
+    // Fetch full record to avoid partial-field overwrites
+    let full: any = lead;
+    try {
+      const res = await leadsApi.getById(lead.id);
+      full = res?.data ?? res;
+    } catch { /* fall back to list data */ }
     setLeadFormData({
       ...EMPTY_LEAD_FORM,
-      companyName: lead.companyName || '',
-      contactPerson: lead.contactPerson || '',
-      email: lead.email || '',
-      phone: lead.phone || '',
-      source: lead.source || '',
-      stage: lead.stage,
-      priority: lead.priority,
-      estimatedValue: lead.estimatedValue || 0,
-      productInterest: lead.productInterest || '',
-      expectedCloseDate: lead.expectedCloseDate ? lead.expectedCloseDate.split('T')[0] : '',
-      nextFollowUp: lead.nextFollowUp ? lead.nextFollowUp.split('T')[0] : '',
-      notes: lead.notes || '',
-      assignedTo: lead.assignedTo || '',
-      partnerId: lead.partnerId || '',
-      tag: (lead as any).tag || '',
-      designation: (lead as any).designation || '',
-      location: (lead as any).location || '',
+      companyName: full.companyName || '',
+      contactPerson: full.contactPerson || '',
+      email: full.email || '',
+      phone: full.phone || '',
+      source: full.source || '',
+      stage: full.stage,
+      priority: full.priority,
+      estimatedValue: full.estimatedValue || 0,
+      productInterest: full.productInterest || '',
+      expectedCloseDate: full.expectedCloseDate ? full.expectedCloseDate.split('T')[0] : '',
+      nextFollowUp: full.nextFollowUp ? full.nextFollowUp.split('T')[0] : '',
+      notes: full.notes || '',
+      assignedTo: full.assignedTo || '',
+      partnerId: full.partnerId || '',
+      tag: (full as any).tag || '',
+      designation: (full as any).designation || '',
+      location: (full as any).location || '',
     });
     setEditingLeadId(lead.id);
     setLeadFormError('');
@@ -734,7 +731,7 @@ export const CRMPage: React.FC = () => {
       return;
     }
 
-    // Optimistic update — move card instantly in both views
+    // Optimistic update
     const oldStage = lead.stage;
     setPipelineLeads(prev => {
       const updated = { ...prev };
@@ -748,7 +745,6 @@ export const CRMPage: React.FC = () => {
 
     try {
       await leadsApi.update(lead.id, { stage: newStage });
-      // Re-sync from server to ensure consistency
       fetchPipelineLeads();
     } catch {
       // Revert on failure
@@ -1082,38 +1078,34 @@ export const CRMPage: React.FC = () => {
 
 
   // ---------------------------------------------------------------------------
-  // Render: Stats Bar
-  // ---------------------------------------------------------------------------
-
-  // ---------------------------------------------------------------------------
   // Render: Toolbar
   // ---------------------------------------------------------------------------
 
   const renderToolbar = () => (
-    <div className={`${cardClass} p-4`}>
+    <Card padding="none" className="p-4">
       <div className="flex flex-col lg:flex-row lg:items-center gap-3">
         {/* View Toggle */}
-        <div className={`flex items-center rounded-xl border p-0.5 ${
-          isDark ? 'border-zinc-700 bg-dark-100' : 'border-slate-200 bg-slate-50'
-        }`}>
+        <div className="flex items-center rounded-xl border p-0.5 border-gray-200 bg-gray-50 dark:border-zinc-700 dark:bg-dark-100">
           <button
             onClick={() => setViewMode('table')}
-            className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-all ${
+            className={cx(
+              'flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-all',
               viewMode === 'table'
                 ? 'bg-brand-600 text-white shadow-sm'
-                : isDark ? 'text-zinc-400 hover:text-white' : 'text-slate-500 hover:text-slate-700'
-            }`}
+                : 'text-gray-500 hover:text-gray-700 dark:text-zinc-400 dark:hover:text-white'
+            )}
           >
             <List className="w-3.5 h-3.5" />
             List View
           </button>
           <button
             onClick={() => setViewMode('pipeline')}
-            className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-all ${
+            className={cx(
+              'flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-all',
               viewMode === 'pipeline'
                 ? 'bg-brand-600 text-white shadow-sm'
-                : isDark ? 'text-zinc-400 hover:text-white' : 'text-slate-500 hover:text-slate-700'
-            }`}
+                : 'text-gray-500 hover:text-gray-700 dark:text-zinc-400 dark:hover:text-white'
+            )}
           >
             <LayoutGrid className="w-3.5 h-3.5" />
             Kanban Board
@@ -1122,95 +1114,62 @@ export const CRMPage: React.FC = () => {
 
         {/* Search */}
         <div className="relative flex-1 min-w-0">
-          <Search className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${
-            isDark ? 'text-zinc-500' : 'text-slate-400'
-          }`} />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-zinc-500" />
           <input
             type="text"
             placeholder="Search by company name..."
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
-            className={`w-full pl-10 pr-4 py-2.5 rounded-xl border text-sm transition-all ${
-              isDark
-                ? 'bg-dark-100 border-zinc-700 text-white placeholder-zinc-500 focus:border-brand-500'
-                : 'bg-white border-slate-200 text-slate-900 placeholder-slate-400 focus:border-brand-500'
-            } focus:outline-none focus:ring-1 focus:ring-brand-500`}
+            className={cx(inputStyles, 'pl-10')}
           />
         </div>
 
         {/* Filter: Stage */}
         <div className="w-full lg:w-40">
-          <select
-            value={filterStage}
-            onChange={e => setFilterStage(e.target.value)}
-            className={selectClass}
-          >
+          <Select value={filterStage} onChange={e => setFilterStage(e.target.value)}>
             <option value="">All Stages</option>
             {LEAD_STAGES.map(s => (
               <option key={s} value={s}>{s}</option>
             ))}
-          </select>
+          </Select>
         </div>
 
         {/* Filter: Priority */}
         <div className="w-full lg:w-36">
-          <select
-            value={filterPriority}
-            onChange={e => setFilterPriority(e.target.value)}
-            className={selectClass}
-          >
+          <Select value={filterPriority} onChange={e => setFilterPriority(e.target.value)}>
             <option value="">All Priorities</option>
             {PRIORITIES.map(p => (
               <option key={p} value={p}>{p}</option>
             ))}
-          </select>
+          </Select>
         </div>
 
         {/* Filter: Source */}
         <div className="w-full lg:w-36">
-          <select
-            value={filterSource}
-            onChange={e => setFilterSource(e.target.value)}
-            className={selectClass}
-          >
+          <Select value={filterSource} onChange={e => setFilterSource(e.target.value)}>
             <option value="">All Sources</option>
             {SOURCES.map(s => (
               <option key={s.value} value={s.value}>{s.label}</option>
             ))}
-          </select>
+          </Select>
         </div>
 
         {/* Clear Filters */}
         {hasActiveFilters && (
-          <button
-            onClick={clearFilters}
-            className={`flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${
-              isDark
-                ? 'text-zinc-400 hover:text-white hover:bg-zinc-800'
-                : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100'
-            }`}
-          >
-            <X className="w-3.5 h-3.5" />
+          <Button variant="ghost" size="sm" onClick={clearFilters} icon={<X className="w-3.5 h-3.5" />}>
             Clear
-          </button>
+          </Button>
         )}
 
         {/* Bulk Import */}
-        <button
-          onClick={() => setShowBulkImport(true)}
-          title="Import from CSV"
-          className={`flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-normal transition-colors whitespace-nowrap ${
-            isDark
-              ? 'text-zinc-400 border border-zinc-700 hover:bg-zinc-800'
-              : 'text-slate-500 border border-slate-200 hover:bg-slate-50'
-          }`}
-        >
-          <Upload className="w-4 h-4" />
+        <Button variant="secondary" size="sm" onClick={() => setShowBulkImport(true)} icon={<Upload className="w-4 h-4" />}>
           Import
-        </button>
+        </Button>
 
         {/* Export CSV */}
-        <button
+        <Button
+          variant="secondary"
+          size="sm"
           onClick={() => exportToCsv('leads', [
             { header: 'Company', accessor: (r: Lead) => r.companyName },
             { header: 'Contact Person', accessor: (r: Lead) => r.contactPerson },
@@ -1231,52 +1190,39 @@ export const CRMPage: React.FC = () => {
             { header: 'Notes', accessor: (r: Lead) => r.notes },
           ], leads)}
           disabled={leads.length === 0}
-          title="Export to Excel"
-          className={`flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-normal transition-colors whitespace-nowrap ${
-            isDark
-              ? 'text-zinc-400 border border-zinc-700 hover:bg-zinc-800 disabled:opacity-30'
-              : 'text-slate-500 border border-slate-200 hover:bg-slate-50 disabled:opacity-30'
-          }`}
+          icon={<Download className="w-4 h-4" />}
         >
-          <Download className="w-4 h-4" />
           Export
-        </button>
+        </Button>
 
         {/* New Lead */}
-        <button
-          onClick={openCreateLeadModal}
-          className="flex items-center gap-2 px-4 py-2.5 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-sm font-medium transition-all btn-premium whitespace-nowrap"
-        >
-          <Plus className="w-4 h-4" />
+        <Button variant="primary" size="sm" shine onClick={openCreateLeadModal} icon={<Plus className="w-4 h-4" />}>
           New Lead
-        </button>
+        </Button>
       </div>
-    </div>
+    </Card>
   );
 
   // ---------------------------------------------------------------------------
   // Render: Table View
   // ---------------------------------------------------------------------------
 
-  const hdrCell = `px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider ${isDark ? 'text-zinc-400' : 'text-slate-500'}`;
-  const cellBase = `px-4 py-3 text-sm whitespace-nowrap ${isDark ? 'border-zinc-800' : 'border-slate-100'}`;
+  const hdrCell = 'px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400';
+  const cellBase = 'px-4 py-3 text-sm whitespace-nowrap border-gray-100 dark:border-zinc-800';
 
   const renderTableView = () => (
-    <div className={`${cardClass} overflow-hidden`}>
+    <Card padding="none" className="overflow-hidden">
       {tableError && (
-        <div className={`m-4 p-3 rounded-xl flex items-center gap-2 text-sm ${
-          isDark
-            ? 'bg-red-900/20 border border-red-800 text-red-400'
-            : 'bg-red-50 border border-red-200 text-red-700'
-        }`}>
-          <AlertCircle className="w-4 h-4 flex-shrink-0" />
-          {tableError}
+        <div className="m-4">
+          <Alert variant="error" icon={<AlertCircle className="w-4 h-4" />}>
+            {tableError}
+          </Alert>
         </div>
       )}
 
       {/* Record count bar */}
       {totalRecords > 0 && (
-        <div className={`px-4 py-2 text-xs border-b ${isDark ? 'text-zinc-500 border-zinc-800' : 'text-slate-400 border-slate-100'}`}>
+        <div className="px-4 py-2 text-xs border-b text-gray-400 border-gray-100 dark:text-zinc-500 dark:border-zinc-800">
           {totalRecords} lead{totalRecords !== 1 ? 's' : ''} found
         </div>
       )}
@@ -1284,7 +1230,7 @@ export const CRMPage: React.FC = () => {
       {isLoading ? (
         <div className="flex flex-col items-center justify-center py-20">
           <Loader2 className="w-8 h-8 text-brand-600 animate-spin" />
-          <p className={`mt-3 text-sm ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>
+          <p className="mt-3 text-sm text-gray-500 dark:text-zinc-400">
             Loading leads...
           </p>
         </div>
@@ -1293,11 +1239,11 @@ export const CRMPage: React.FC = () => {
           <div className="overflow-x-auto">
             <table className="premium-table" style={{ minWidth: crmColWidths.reduce((a, b) => a + b, 0) }}>
               <thead>
-                <tr className={`border-b ${isDark ? 'border-zinc-700' : 'border-slate-200'}`}>
+                <tr className="border-b border-gray-200 dark:border-zinc-700">
                   {['#', 'Summarise', 'Company', 'Contact Name', 'Contact No', 'Designation', 'Email', 'Location', 'Source', 'Requirement', 'Quoted Requirement', 'Value', 'Stage', 'Type', 'Assignee', 'Follow-up Date'].map((label, i) => (
                     <th
                       key={label}
-                      className={`${hdrCell} resizable-th ${i === 0 || i === 1 ? 'text-center' : ''}`}
+                      className={cx(hdrCell, 'resizable-th', (i === 0 || i === 1) && 'text-center')}
                       style={{ width: crmColWidths[i] }}
                     >
                       {label}
@@ -1310,8 +1256,8 @@ export const CRMPage: React.FC = () => {
                 {leads.length === 0 ? (
                   <tr>
                     <td colSpan={16} className="py-16 text-center">
-                      <Users className={`w-8 h-8 mx-auto ${isDark ? 'text-zinc-700' : 'text-slate-300'}`} />
-                      <p className={`mt-2 text-sm ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
+                      <Users className="w-8 h-8 mx-auto text-gray-300 dark:text-zinc-700" />
+                      <p className="mt-2 text-sm text-gray-400 dark:text-zinc-500">
                         {hasActiveFilters ? 'No leads match filters' : 'No leads yet'}
                       </p>
                     </td>
@@ -1320,76 +1266,64 @@ export const CRMPage: React.FC = () => {
                   <tr
                     key={lead.id}
                     onClick={() => openDetailModal(lead)}
-                    className={`border-b cursor-pointer transition-colors ${
-                      isDark
-                        ? 'border-zinc-800 hover:bg-zinc-800/50'
-                        : 'border-slate-100 hover:bg-slate-50'
-                    }`}
+                    className="border-b cursor-pointer transition-colors border-gray-100 hover:bg-gray-50 dark:border-zinc-800 dark:hover:bg-zinc-800/50"
                   >
-                    <td className={`${cellBase} text-center ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
+                    <td className={cx(cellBase, 'text-center text-gray-400 dark:text-zinc-500')}>
                       {(page - 1) * PAGE_SIZE + idx + 1}
                     </td>
-                    <td className={`${cellBase} text-center`}>
+                    <td className={cx(cellBase, 'text-center')}>
                       <button
                         onClick={(e) => { e.stopPropagation(); setSummariseLead(lead); setShowSummariseModal(true); }}
                         title="Summarise"
-                        className={`p-1.5 rounded-lg transition-colors ${
-                          isDark
-                            ? 'text-zinc-400 hover:text-brand-400 hover:bg-brand-900/20'
-                            : 'text-slate-400 hover:text-brand-600 hover:bg-brand-50'
-                        }`}
+                        className="p-1.5 rounded-lg transition-colors text-gray-400 hover:text-brand-600 hover:bg-brand-50 dark:text-zinc-400 dark:hover:text-brand-400 dark:hover:bg-brand-900/20"
                       >
                         <FileText className="w-4 h-4" />
                       </button>
                     </td>
-                    <td className={`${cellBase} ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
+                    <td className={cx(cellBase, 'text-gray-700 dark:text-zinc-300')}>
                       <span className="font-medium">{lead.companyName}</span>
                     </td>
-                    <td className={`${cellBase} ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
+                    <td className={cx(cellBase, 'text-gray-700 dark:text-zinc-300')}>
                       {lead.contactPerson || '-'}
                     </td>
-                    <td className={`${cellBase} ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
+                    <td className={cx(cellBase, 'text-gray-700 dark:text-zinc-300')}>
                       {lead.phone || '-'}
                     </td>
-                    <td className={`${cellBase} ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
+                    <td className={cx(cellBase, 'text-gray-700 dark:text-zinc-300')}>
                       {(lead as any).designation || '-'}
                     </td>
-                    <td className={`${cellBase} ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
+                    <td className={cx(cellBase, 'text-gray-700 dark:text-zinc-300')}>
                       <span className="truncate block max-w-[150px]">{lead.email || '-'}</span>
                     </td>
-                    <td className={`${cellBase} ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
+                    <td className={cx(cellBase, 'text-gray-700 dark:text-zinc-300')}>
                       {(lead as any).location || '-'}
                     </td>
-                    <td className={`${cellBase} ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
+                    <td className={cx(cellBase, 'text-gray-700 dark:text-zinc-300')}>
                       <span className="capitalize">{lead.source || '-'}</span>
                     </td>
-                    <td className={`${cellBase} ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
+                    <td className={cx(cellBase, 'text-gray-700 dark:text-zinc-300')}>
                       <span className="truncate block max-w-[150px]">{lead.requirement || '-'}</span>
                     </td>
-                    <td className={`${cellBase} ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
+                    <td className={cx(cellBase, 'text-gray-700 dark:text-zinc-300')}>
                       <span className="truncate block max-w-[150px]">{lead.quotedRequirement || '-'}</span>
                     </td>
-                    <td className={`${cellBase} ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
+                    <td className={cx(cellBase, 'text-gray-700 dark:text-zinc-300')}>
                       {lead.estimatedValue ? formatINR(lead.estimatedValue) : '-'}
                     </td>
-                    <td className={`${cellBase} ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
-                      <span className={stageBadge(lead.stage, isDark)}>{lead.stage}</span>
+                    <td className={cx(cellBase, 'text-gray-700 dark:text-zinc-300')}>
+                      <Badge variant={STAGE_BADGE_VARIANT[lead.stage] || 'gray'}>{lead.stage}</Badge>
                     </td>
-                    <td className={`${cellBase} ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
+                    <td className={cx(cellBase, 'text-gray-700 dark:text-zinc-300')}>
                       {(lead as any).tag ? (
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                          (lead as any).tag === 'Channel'
-                            ? (isDark ? 'bg-cyan-900/30 text-cyan-400' : 'bg-cyan-50 text-cyan-700')
-                            : (isDark ? 'bg-violet-900/30 text-violet-400' : 'bg-violet-50 text-violet-700')
-                        }`}>
+                        <Badge variant={(lead as any).tag === 'Channel' ? 'cyan' : 'purple'}>
                           {(lead as any).tag}
-                        </span>
+                        </Badge>
                       ) : '-'}
                     </td>
-                    <td className={`${cellBase} ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
+                    <td className={cx(cellBase, 'text-gray-700 dark:text-zinc-300')}>
                       {(lead as any).assignedToName || '-'}
                     </td>
-                    <td className={`${cellBase} ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
+                    <td className={cx(cellBase, 'text-gray-700 dark:text-zinc-300')}>
                       {lead.nextFollowUp ? formatDate(lead.nextFollowUp) : '-'}
                     </td>
                   </tr>
@@ -1400,84 +1334,19 @@ export const CRMPage: React.FC = () => {
 
           {/* Pagination */}
           {totalRecords > 0 && (
-          <div className={`flex flex-col sm:flex-row items-center justify-between gap-3 px-4 py-3 border-t ${
-            isDark ? 'border-zinc-800' : 'border-slate-100'
-          }`}>
-            <p className={`text-xs ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
-              Showing {(page - 1) * PAGE_SIZE + 1}
-              {' '}&ndash;{' '}
-              {Math.min(page * PAGE_SIZE, totalRecords)} of {totalRecords} leads
-            </p>
-
-            <div className="flex items-center gap-1">
-              <button
-                onClick={() => setPage(p => Math.max(1, p - 1))}
-                disabled={page <= 1}
-                className={`p-2 rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed ${
-                  isDark
-                    ? 'text-zinc-400 hover:text-white hover:bg-zinc-800'
-                    : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100'
-                }`}
-              >
-                <ChevronLeft className="w-4 h-4" />
-              </button>
-
-              {Array.from({ length: totalPages }, (_, i) => i + 1)
-                .filter(p => {
-                  if (p === 1 || p === totalPages) return true;
-                  if (Math.abs(p - page) <= 1) return true;
-                  return false;
-                })
-                .reduce<(number | 'ellipsis')[]>((acc, p, idx, arr) => {
-                  if (idx > 0) {
-                    const prev = arr[idx - 1];
-                    if (p - prev > 1) acc.push('ellipsis');
-                  }
-                  acc.push(p);
-                  return acc;
-                }, [])
-                .map((item, idx) =>
-                  item === 'ellipsis' ? (
-                    <span
-                      key={`ellipsis-${idx}`}
-                      className={`px-1 text-xs ${isDark ? 'text-zinc-600' : 'text-slate-300'}`}
-                    >
-                      ...
-                    </span>
-                  ) : (
-                    <button
-                      key={item}
-                      onClick={() => setPage(item as number)}
-                      className={`min-w-[32px] h-8 rounded-lg text-xs font-medium transition-colors ${
-                        page === item
-                          ? 'bg-brand-600 text-white'
-                          : isDark
-                            ? 'text-zinc-400 hover:text-white hover:bg-zinc-800'
-                            : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100'
-                      }`}
-                    >
-                      {item}
-                    </button>
-                  )
-                )}
-
-              <button
-                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                disabled={page >= totalPages}
-                className={`p-2 rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed ${
-                  isDark
-                    ? 'text-zinc-400 hover:text-white hover:bg-zinc-800'
-                    : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100'
-                }`}
-              >
-                <ChevronRight className="w-4 h-4" />
-              </button>
+            <div className="border-t border-gray-100 dark:border-zinc-800">
+              <Pagination
+                currentPage={page}
+                totalPages={totalPages}
+                totalItems={totalRecords}
+                pageSize={PAGE_SIZE}
+                onPageChange={setPage}
+              />
             </div>
-          </div>
           )}
         </>
       )}
-    </div>
+    </Card>
   );
 
   // ---------------------------------------------------------------------------
@@ -1485,7 +1354,6 @@ export const CRMPage: React.FC = () => {
   // ---------------------------------------------------------------------------
 
   const renderPipelineCard = (lead: Lead) => {
-    const pc = PRIORITY_COLORS[lead.priority] || PRIORITY_COLORS.Low;
     return (
       <div
         key={lead.id}
@@ -1493,36 +1361,34 @@ export const CRMPage: React.FC = () => {
         onDragStart={e => { e.dataTransfer.setData('text/plain', lead.id); setDraggedLeadId(lead.id); }}
         onDragEnd={() => { setDraggedLeadId(null); setDragOverStage(null); }}
         onClick={() => openDetailModal(lead)}
-        className={`p-3 rounded-xl border cursor-grab active:cursor-grabbing transition-all hover:shadow-md ${
-          draggedLeadId === lead.id ? 'opacity-40 scale-95' : ''
-        } ${
-          isDark
-            ? 'bg-dark-100 border-zinc-700 hover:border-zinc-600'
-            : 'bg-white border-slate-200 hover:border-slate-300'
-        }`}
+        className={cx(
+          'p-3 rounded-xl border cursor-grab active:cursor-grabbing transition-all hover:shadow-md',
+          draggedLeadId === lead.id && 'opacity-40 scale-95',
+          'bg-white border-gray-200 hover:border-gray-300 dark:bg-dark-100 dark:border-zinc-700 dark:hover:border-zinc-600'
+        )}
       >
         <div className="flex items-start justify-between gap-2 mb-2">
-          <h4 className={`text-sm font-semibold truncate ${isDark ? 'text-white' : 'text-slate-900'}`}>
+          <h4 className="text-sm font-semibold truncate text-gray-900 dark:text-white">
             {lead.companyName}
           </h4>
-          <span className={priorityBadge(lead.priority, isDark)}>{lead.priority}</span>
+          <Badge variant={PRIORITY_BADGE_VARIANT[lead.priority] || 'green'} size="sm">{lead.priority}</Badge>
         </div>
 
         {lead.contactPerson && (
-          <p className={`text-xs mb-1.5 flex items-center gap-1 ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>
+          <p className="text-xs mb-1.5 flex items-center gap-1 text-gray-500 dark:text-zinc-400">
             <UserIcon className="w-3 h-3" />
             {lead.contactPerson}
           </p>
         )}
 
         {lead.estimatedValue ? (
-          <p className={`text-xs font-semibold mb-1.5 ${isDark ? 'text-emerald-400' : 'text-emerald-600'}`}>
+          <p className="text-xs font-semibold mb-1.5 text-emerald-600 dark:text-emerald-400">
             {formatINR(lead.estimatedValue)}
           </p>
         ) : null}
 
         {lead.nextFollowUp && (
-          <p className={`text-[11px] flex items-center gap-1 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
+          <p className="text-[11px] flex items-center gap-1 text-gray-400 dark:text-zinc-500">
             <Clock className="w-3 h-3" />
             {formatDate(lead.nextFollowUp)}
           </p>
@@ -1536,7 +1402,7 @@ export const CRMPage: React.FC = () => {
       return (
         <div className="flex flex-col items-center justify-center py-20">
           <Loader2 className="w-8 h-8 text-brand-600 animate-spin" />
-          <p className={`mt-3 text-sm ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>
+          <p className="mt-3 text-sm text-gray-500 dark:text-zinc-400">
             Loading kanban board...
           </p>
         </div>
@@ -1558,14 +1424,15 @@ export const CRMPage: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
           {LEAD_STAGES.map(stage => {
             const stageLeads = (pipelineLeads[stage] || []).filter(filterLead);
-            const c = STAGE_COLORS[stage];
             const isOver = dragOverStage === stage;
             const isWon = stage === 'Closed Won';
             const isLost = stage === 'Closed Lost';
             const isTerminal = isWon || isLost;
             return (
-              <div
+              <Card
                 key={stage}
+                padding="none"
+                className={cx('p-3 min-h-[200px] transition-all', isOver && 'ring-2 ring-brand-500 ring-inset')}
                 onDragOver={e => { e.preventDefault(); setDragOverStage(stage); }}
                 onDragLeave={() => setDragOverStage(null)}
                 onDrop={e => {
@@ -1580,45 +1447,40 @@ export const CRMPage: React.FC = () => {
                     handlePipelineMoveStage(lead, stage as LeadStage);
                   }
                 }}
-                className={`${cardClass} p-3 min-h-[200px] transition-all ${isOver ? 'ring-2 ring-brand-500 ring-inset' : ''}`}
               >
                 {/* Column header */}
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2">
                     {isTerminal ? (
                       isWon
-                        ? <CheckCircle className={`w-4 h-4 ${isDark ? 'text-emerald-400' : 'text-emerald-600'}`} />
-                        : <XCircle className={`w-4 h-4 ${isDark ? 'text-red-400' : 'text-red-600'}`} />
+                        ? <CheckCircle className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                        : <XCircle className="w-4 h-4 text-red-600 dark:text-red-400" />
                     ) : (
-                      <div className={`w-2 h-2 rounded-full ${isDark ? c.darkText.replace('text-', 'bg-') : c.text.replace('text-', 'bg-')}`} />
+                      <div className={cx('w-2 h-2 rounded-full', STAGE_DOT_COLORS[stage])} />
                     )}
-                    <h3 className={`text-sm font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>{stage}</h3>
+                    <h3 className="text-sm font-semibold text-gray-900 dark:text-white">{stage}</h3>
                   </div>
                   <div className="flex items-center gap-2">
                     {isWon && stageLeads.length > 0 && (
-                      <span className={`text-[11px] font-semibold ${isDark ? 'text-emerald-400' : 'text-emerald-600'}`}>
+                      <span className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
                         {formatINR(stageLeads.reduce((sum, l) => sum + (l.estimatedValue || 0), 0))}
                       </span>
                     )}
-                    <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
-                      isDark ? 'bg-zinc-800 text-zinc-400' : 'bg-slate-100 text-slate-500'
-                    }`}>
-                      {stageLeads.length}
-                    </span>
+                    <Badge variant="gray" size="sm">{stageLeads.length}</Badge>
                   </div>
                 </div>
 
                 {/* Cards */}
                 <div className="space-y-2">
                   {stageLeads.length === 0 ? (
-                    <p className={`text-xs text-center py-6 ${isDark ? 'text-zinc-600' : 'text-slate-300'}`}>
+                    <p className="text-xs text-center py-6 text-gray-300 dark:text-zinc-600">
                       {isOver ? 'Drop here' : 'No leads'}
                     </p>
                   ) : (
                     stageLeads.map(lead => renderPipelineCard(lead))
                   )}
                 </div>
-              </div>
+              </Card>
             );
           })}
         </div>
@@ -1634,307 +1496,249 @@ export const CRMPage: React.FC = () => {
     if (!showDetailModal || !detailLead) return null;
     const lead = detailLead;
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-        <div className="absolute inset-0 bg-black/50 animate-backdrop" onClick={closeDetailModal} />
-        <div className={`relative w-full max-w-2xl max-h-[90vh] rounded-2xl animate-fade-in-up flex flex-col overflow-hidden ${
-          isDark ? 'bg-dark-50 border border-zinc-800' : 'bg-white shadow-premium'
-        }`}>
-          {/* Header */}
-          <div className={`flex-shrink-0 flex items-center justify-between px-6 py-4 border-b ${
-            isDark ? 'bg-dark-50 border-zinc-800' : 'bg-white border-slate-200'
-          }`}>
-            <div className="flex items-center gap-3 min-w-0 flex-1">
-              <h2 className={`text-lg font-semibold font-display truncate ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                {lead.companyName}
-              </h2>
-              <div className="flex items-center gap-2 flex-shrink-0">
-                <label className={`text-xs font-medium whitespace-nowrap ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>Stage:</label>
-                <select
-                  value={lead.stage}
-                  onChange={e => handleUpdateStage(e.target.value as LeadStage)}
-                  disabled={isUpdatingStage}
-                  className={`px-2 py-1 rounded-lg border text-xs font-medium transition-all cursor-pointer ${
-                    isDark
-                      ? `${(STAGE_COLORS[lead.stage] || STAGE_COLORS.New).darkBg} ${(STAGE_COLORS[lead.stage] || STAGE_COLORS.New).darkText} border-zinc-700 bg-dark-100`
-                      : `${(STAGE_COLORS[lead.stage] || STAGE_COLORS.New).bg} ${(STAGE_COLORS[lead.stage] || STAGE_COLORS.New).text} border-slate-200`
-                  } focus:outline-none focus:ring-1 focus:ring-brand-500 disabled:opacity-50`}
-                >
-                  {LEAD_STAGES.map(s => (
-                    <option key={s} value={s}>{s}</option>
-                  ))}
-                </select>
-                {isUpdatingStage && <Loader2 className="w-4 h-4 text-brand-600 animate-spin" />}
-              </div>
-              <span className={priorityBadge(lead.priority, isDark)}>{lead.priority}</span>
-            </div>
-            <div className="flex items-center gap-2 flex-shrink-0">
-              <button
-                onClick={() => { closeDetailModal(); openEditLeadModal(lead); }}
-                className={`p-2 rounded-lg transition-colors ${
-                  isDark ? 'text-zinc-400 hover:text-white hover:bg-zinc-800' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100'
-                }`}
-                title="Edit"
-              >
-                <Edit2 className="w-4 h-4" />
-              </button>
-              {deleteConfirmId === lead.id ? (
-                <div className="flex items-center gap-1">
-                  <button
-                    onClick={() => { handleDelete(lead.id); closeDetailModal(); }}
-                    className="px-2 py-1 rounded-lg text-xs font-medium bg-red-600 text-white hover:bg-red-700 transition-colors"
-                  >
-                    Confirm
-                  </button>
-                  <button
-                    onClick={() => setDeleteConfirmId(null)}
-                    className={`px-2 py-1 rounded-lg text-xs font-medium transition-colors ${
-                      isDark ? 'text-zinc-400 hover:bg-zinc-800' : 'text-slate-500 hover:bg-slate-100'
-                    }`}
-                  >
-                    Cancel
-                  </button>
-                </div>
-              ) : (
-                <button
-                  onClick={() => setDeleteConfirmId(lead.id)}
-                  className={`p-2 rounded-lg transition-colors ${
-                    isDark ? 'text-zinc-400 hover:text-red-400 hover:bg-red-900/20' : 'text-slate-400 hover:text-red-600 hover:bg-red-50'
-                  }`}
-                  title="Delete"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
-              )}
-              <button
-                onClick={closeDetailModal}
-                className={`p-2 rounded-lg transition-colors ${
-                  isDark ? 'text-zinc-400 hover:text-white hover:bg-zinc-800' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100'
-                }`}
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
+      <Modal
+        open={showDetailModal}
+        onClose={closeDetailModal}
+        size="xl"
+        title={lead.companyName}
+      >
+        {/* Custom header content - stage selector + actions */}
+        <div className="flex items-center gap-2 mb-4 flex-wrap">
+          <div className="flex items-center gap-2">
+            <label className="text-xs font-medium whitespace-nowrap text-gray-500 dark:text-zinc-400">Stage:</label>
+            <select
+              value={lead.stage}
+              onChange={e => handleUpdateStage(e.target.value as LeadStage)}
+              disabled={isUpdatingStage}
+              className={cx(inputStyles, 'px-2 py-1 text-xs font-medium w-auto')}
+            >
+              {LEAD_STAGES.map(s => (
+                <option key={s} value={s}>{s}</option>
+              ))}
+            </select>
+            {isUpdatingStage && <Loader2 className="w-4 h-4 text-brand-600 animate-spin" />}
           </div>
-
-          <div className="flex-1 overflow-y-auto">
-          <div className="p-6 space-y-6">
-            {/* Lead info grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <InfoRow label="Contact Person" value={lead.contactPerson} isDark={isDark} icon={<UserIcon className="w-3.5 h-3.5" />} />
-              <InfoRow label="Email" value={lead.email} isDark={isDark} icon={<Mail className="w-3.5 h-3.5" />} />
-              <InfoRow label="Phone" value={lead.phone} isDark={isDark} icon={<Phone className="w-3.5 h-3.5" />} />
-              <InfoRow label="Source" value={lead.source} isDark={isDark} icon={<BarChart3 className="w-3.5 h-3.5" />} capitalize />
-              <InfoRow label="Estimated Value" value={lead.estimatedValue ? formatINR(lead.estimatedValue) : undefined} isDark={isDark} icon={<IndianRupee className="w-3.5 h-3.5" />} />
-              <InfoRow label="Product Interest" value={lead.productInterest} isDark={isDark} icon={<Target className="w-3.5 h-3.5" />} />
-              <InfoRow label="Expected Close" value={lead.expectedCloseDate ? formatDate(lead.expectedCloseDate) : undefined} isDark={isDark} icon={<Calendar className="w-3.5 h-3.5" />} />
-              <InfoRow label="Next Follow-up" value={lead.nextFollowUp ? formatDate(lead.nextFollowUp) : undefined} isDark={isDark} icon={<Clock className="w-3.5 h-3.5" />} />
-            </div>
-
-            {/* Requirements */}
-            {(lead.requirement || lead.quotedRequirement) && (
-              <div className="space-y-3">
-                <h4 className={`text-xs font-semibold uppercase tracking-wider ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
-                  Requirements
-                </h4>
-                {lead.requirement && (
-                  <div>
-                    <span className={`text-xs font-medium ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>Requirement (User Provided)</span>
-                    <p className={`text-sm whitespace-pre-wrap mt-1 ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
-                      {lead.requirement}
-                    </p>
-                  </div>
-                )}
-                {lead.quotedRequirement && (
-                  <div>
-                    <span className={`text-xs font-medium ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>Quoted Requirement (What We Serve)</span>
-                    <p className={`text-sm whitespace-pre-wrap mt-1 ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
-                      {lead.quotedRequirement}
-                    </p>
-                  </div>
-                )}
+          <Badge variant={PRIORITY_BADGE_VARIANT[lead.priority] || 'green'}>{lead.priority}</Badge>
+          <div className="ml-auto flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="xs"
+              onClick={() => { closeDetailModal(); openEditLeadModal(lead); }}
+              icon={<Edit2 className="w-4 h-4" />}
+            />
+            {deleteConfirmId === lead.id ? (
+              <div className="flex items-center gap-1">
+                <Button variant="danger" size="xs" onClick={() => { handleDelete(lead.id); closeDetailModal(); }}>Confirm</Button>
+                <Button variant="ghost" size="xs" onClick={() => setDeleteConfirmId(null)}>Cancel</Button>
               </div>
+            ) : (
+              <Button
+                variant="ghost"
+                size="xs"
+                onClick={() => setDeleteConfirmId(lead.id)}
+                icon={<Trash2 className="w-4 h-4" />}
+                className="hover:text-red-600 dark:hover:text-red-400"
+              />
             )}
-
-            {/* Notes */}
-            {lead.notes && (
-              <div>
-                <h4 className={`text-xs font-semibold uppercase tracking-wider mb-2 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
-                  Notes
-                </h4>
-                <p className={`text-sm whitespace-pre-wrap ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
-                  {lead.notes}
-                </p>
-              </div>
-            )}
-
-            {/* Lost reason */}
-            {lead.stage === 'Closed Lost' && lead.lostReason && (
-              <div className={`p-3 rounded-xl border ${
-                isDark ? 'bg-red-900/10 border-red-800/50' : 'bg-red-50 border-red-200'
-              }`}>
-                <p className={`text-xs font-semibold mb-1 ${isDark ? 'text-red-400' : 'text-red-700'}`}>Lost Reason</p>
-                <p className={`text-sm ${isDark ? 'text-red-300' : 'text-red-600'}`}>{lead.lostReason}</p>
-              </div>
-            )}
-
-            {/* Won reference */}
-            {lead.stage === 'Closed Won' && lead.wonSaleId && (
-              <div className={`p-3 rounded-xl border ${
-                isDark ? 'bg-emerald-900/10 border-emerald-800/50' : 'bg-emerald-50 border-emerald-200'
-              }`}>
-                <p className={`text-xs font-semibold mb-1 ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`}>Converted to Sale</p>
-                <p className={`text-sm ${isDark ? 'text-emerald-300' : 'text-emerald-600'}`}>Sale ID: {lead.wonSaleId}</p>
-              </div>
-            )}
-
-            {/* Add Activity */}
-            <div>
-              <h4 className={`text-xs font-semibold uppercase tracking-wider mb-3 flex items-center gap-1.5 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
-                <MessageSquare className="w-3.5 h-3.5" /> Add Activity
-              </h4>
-              <div className={`p-3 rounded-xl border space-y-2 ${isDark ? 'border-zinc-800 bg-zinc-900/50' : 'border-slate-100 bg-slate-50'}`}>
-                <div className="flex gap-2">
-                  <select
-                    value={activityType}
-                    onChange={e => setActivityType(e.target.value)}
-                    className={`text-xs px-2 py-1.5 rounded-lg border appearance-none cursor-pointer ${
-                      isDark ? 'bg-dark-100 border-zinc-700 text-white' : 'bg-white border-slate-200 text-slate-900'
-                    } focus:outline-none focus:border-brand-500`}
-                  >
-                    <option value="note">Note</option>
-                    <option value="call">Call</option>
-                    <option value="email">Email</option>
-                    <option value="meeting">Meeting</option>
-                    <option value="follow_up">Follow-up</option>
-                    <option value="task">Task</option>
-                  </select>
-                  <input
-                    type="text"
-                    placeholder="Activity title..."
-                    value={activityTitle}
-                    onChange={e => setActivityTitle(e.target.value)}
-                    onKeyDown={e => e.key === 'Enter' && handleAddLeadActivity()}
-                    className={`flex-1 text-xs px-2 py-1.5 rounded-lg border ${
-                      isDark ? 'bg-dark-100 border-zinc-700 text-white placeholder-zinc-500' : 'bg-white border-slate-200 text-slate-900 placeholder-slate-400'
-                    } focus:outline-none focus:border-brand-500`}
-                  />
-                </div>
-                <textarea
-                  rows={2}
-                  placeholder="Description (optional)..."
-                  value={activityDesc}
-                  onChange={e => setActivityDesc(e.target.value)}
-                  className={`w-full text-xs px-2 py-1.5 rounded-lg border resize-none ${
-                    isDark ? 'bg-dark-100 border-zinc-700 text-white placeholder-zinc-500' : 'bg-white border-slate-200 text-slate-900 placeholder-slate-400'
-                  } focus:outline-none focus:border-brand-500`}
-                />
-                <button
-                  onClick={handleAddLeadActivity}
-                  disabled={!activityTitle.trim() || isAddingActivity}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-brand-600 hover:bg-brand-700 text-white rounded-lg text-xs font-medium transition-all disabled:opacity-50"
-                >
-                  {isAddingActivity ? <Loader2 className="w-3 h-3 animate-spin" /> : <Send className="w-3 h-3" />}
-                  {isAddingActivity ? 'Adding...' : 'Add Activity'}
-                </button>
-              </div>
-            </div>
-
-            {/* Activities */}
-            {activities.length > 0 && (
-              <div>
-                <h4 className={`text-xs font-semibold uppercase tracking-wider mb-3 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
-                  Activities
-                </h4>
-                <div className="space-y-2 max-h-[200px] overflow-y-auto pr-1">
-                  {activities.map((act: any) => (
-                    <div
-                      key={act.id}
-                      className={`p-3 rounded-xl border text-xs ${
-                        isDark ? 'border-zinc-800 bg-zinc-900/50' : 'border-slate-100 bg-slate-50'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between mb-1">
-                        <span className={`font-medium ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
-                          {act.title}
-                        </span>
-                        <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
-                          isDark ? 'bg-zinc-800 text-zinc-400' : 'bg-slate-200 text-slate-500'
-                        }`}>
-                          {act.activityType || act.activity_type}
-                        </span>
-                      </div>
-                      {act.description && (
-                        <p className={`${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>{act.description}</p>
-                      )}
-                      <div className={`flex items-center justify-between mt-1 ${isDark ? 'text-zinc-600' : 'text-slate-400'}`}>
-                        {act.createdByName && <span>by {act.createdByName}</span>}
-                        {act.createdAt && <span>{new Date(act.createdAt).toLocaleDateString()}</span>}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Audit Trail */}
-            <div>
-              <h4 className={`text-xs font-semibold uppercase tracking-wider mb-3 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
-                Audit Trail
-              </h4>
-              {isAuditLoading ? (
-                <div className="flex items-center justify-center py-4">
-                  <Loader2 className="w-5 h-5 text-brand-600 animate-spin" />
-                </div>
-              ) : auditLogs.length === 0 ? (
-                <p className={`text-sm py-4 text-center ${isDark ? 'text-zinc-600' : 'text-slate-400'}`}>
-                  No audit history
-                </p>
-              ) : (
-                <div className="space-y-2 max-h-[200px] overflow-y-auto pr-1">
-                  {auditLogs.map(log => (
-                    <div
-                      key={log.id}
-                      className={`p-3 rounded-xl border text-xs ${
-                        isDark ? 'border-zinc-800 bg-zinc-900/50' : 'border-slate-100 bg-slate-50'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between mb-1">
-                        <span className={`font-medium ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
-                          {log.action}
-                        </span>
-                        <span className={isDark ? 'text-zinc-600' : 'text-slate-400'}>
-                          {log.createdAt ? new Date(log.createdAt).toLocaleDateString() : ''}
-                        </span>
-                      </div>
-                      {log.userName && (
-                        <p className={isDark ? 'text-zinc-500' : 'text-slate-400'}>
-                          by {log.userName}
-                        </p>
-                      )}
-                      {log.changes && log.changes.length > 0 && (
-                        <div className={`mt-1 space-y-0.5 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
-                          {log.changes.map((c, i) => (
-                            <p key={i}>{c.field}: {c.old || '(empty)'} → {c.new || '(empty)'}</p>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Timestamps */}
-            <div className={`flex items-center gap-4 text-[11px] pt-2 border-t ${
-              isDark ? 'border-zinc-800 text-zinc-600' : 'border-slate-100 text-slate-400'
-            }`}>
-              {lead.createdAt && <span>Created: {formatDateTime(lead.createdAt)}</span>}
-              {lead.updatedAt && <span>Updated: {formatDateTime(lead.updatedAt)}</span>}
-            </div>
-          </div>
           </div>
         </div>
-      </div>
+
+        <div className="space-y-6">
+          {/* Lead info grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <InfoRow label="Contact Person" value={lead.contactPerson} icon={<UserIcon className="w-3.5 h-3.5" />} />
+            <InfoRow label="Email" value={lead.email} icon={<Mail className="w-3.5 h-3.5" />} />
+            <InfoRow label="Phone" value={lead.phone} icon={<Phone className="w-3.5 h-3.5" />} />
+            <InfoRow label="Source" value={lead.source} icon={<BarChart3 className="w-3.5 h-3.5" />} capitalize />
+            <InfoRow label="Estimated Value" value={lead.estimatedValue ? formatINR(lead.estimatedValue) : undefined} icon={<IndianRupee className="w-3.5 h-3.5" />} />
+            <InfoRow label="Product Interest" value={lead.productInterest} icon={<Target className="w-3.5 h-3.5" />} />
+            <InfoRow label="Expected Close" value={lead.expectedCloseDate ? formatDate(lead.expectedCloseDate) : undefined} icon={<Calendar className="w-3.5 h-3.5" />} />
+            <InfoRow label="Next Follow-up" value={lead.nextFollowUp ? formatDate(lead.nextFollowUp) : undefined} icon={<Clock className="w-3.5 h-3.5" />} />
+          </div>
+
+          {/* Requirements */}
+          {(lead.requirement || lead.quotedRequirement) && (
+            <div className="space-y-3">
+              <h4 className="text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-zinc-500">
+                Requirements
+              </h4>
+              {lead.requirement && (
+                <div>
+                  <span className="text-xs font-medium text-gray-500 dark:text-zinc-400">Requirement (User Provided)</span>
+                  <p className="text-sm whitespace-pre-wrap mt-1 text-gray-700 dark:text-zinc-300">
+                    {lead.requirement}
+                  </p>
+                </div>
+              )}
+              {lead.quotedRequirement && (
+                <div>
+                  <span className="text-xs font-medium text-gray-500 dark:text-zinc-400">Quoted Requirement (What We Serve)</span>
+                  <p className="text-sm whitespace-pre-wrap mt-1 text-gray-700 dark:text-zinc-300">
+                    {lead.quotedRequirement}
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Notes */}
+          {lead.notes && (
+            <div>
+              <h4 className="text-xs font-semibold uppercase tracking-wider mb-2 text-gray-400 dark:text-zinc-500">
+                Notes
+              </h4>
+              <p className="text-sm whitespace-pre-wrap text-gray-700 dark:text-zinc-300">
+                {lead.notes}
+              </p>
+            </div>
+          )}
+
+          {/* Lost reason */}
+          {lead.stage === 'Closed Lost' && lead.lostReason && (
+            <Alert variant="error" title="Lost Reason">
+              {lead.lostReason}
+            </Alert>
+          )}
+
+          {/* Won reference */}
+          {lead.stage === 'Closed Won' && lead.wonSaleId && (
+            <Alert variant="success" title="Converted to Sale">
+              Sale ID: {lead.wonSaleId}
+            </Alert>
+          )}
+
+          {/* Add Activity */}
+          <div>
+            <h4 className="text-xs font-semibold uppercase tracking-wider mb-3 flex items-center gap-1.5 text-gray-400 dark:text-zinc-500">
+              <MessageSquare className="w-3.5 h-3.5" /> Add Activity
+            </h4>
+            <div className="p-3 rounded-xl border space-y-2 border-gray-100 bg-gray-50 dark:border-zinc-800 dark:bg-zinc-900/50">
+              <div className="flex gap-2">
+                <select
+                  value={activityType}
+                  onChange={e => setActivityType(e.target.value)}
+                  className={cx(inputStyles, 'text-xs px-2 py-1.5 w-auto')}
+                >
+                  <option value="note">Note</option>
+                  <option value="call">Call</option>
+                  <option value="email">Email</option>
+                  <option value="meeting">Meeting</option>
+                  <option value="follow_up">Follow-up</option>
+                  <option value="task">Task</option>
+                </select>
+                <input
+                  type="text"
+                  placeholder="Activity title..."
+                  value={activityTitle}
+                  onChange={e => setActivityTitle(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && handleAddLeadActivity()}
+                  className={cx(inputStyles, 'flex-1 text-xs px-2 py-1.5')}
+                />
+              </div>
+              <textarea
+                rows={2}
+                placeholder="Description (optional)..."
+                value={activityDesc}
+                onChange={e => setActivityDesc(e.target.value)}
+                className={cx(inputStyles, 'w-full text-xs px-2 py-1.5 resize-none')}
+              />
+              <Button
+                variant="primary"
+                size="xs"
+                onClick={handleAddLeadActivity}
+                disabled={!activityTitle.trim() || isAddingActivity}
+                loading={isAddingActivity}
+                icon={!isAddingActivity ? <Send className="w-3 h-3" /> : undefined}
+              >
+                {isAddingActivity ? 'Adding...' : 'Add Activity'}
+              </Button>
+            </div>
+          </div>
+
+          {/* Activities */}
+          {activities.length > 0 && (
+            <div>
+              <h4 className="text-xs font-semibold uppercase tracking-wider mb-3 text-gray-400 dark:text-zinc-500">
+                Activities
+              </h4>
+              <div className="space-y-2 max-h-[200px] overflow-y-auto pr-1">
+                {activities.map((act: any) => (
+                  <div
+                    key={act.id}
+                    className="p-3 rounded-xl border text-xs border-gray-100 bg-gray-50 dark:border-zinc-800 dark:bg-zinc-900/50"
+                  >
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="font-medium text-gray-700 dark:text-zinc-300">
+                        {act.title}
+                      </span>
+                      <Badge variant="gray" size="sm">{act.activityType || act.activity_type}</Badge>
+                    </div>
+                    {act.description && (
+                      <p className="text-gray-400 dark:text-zinc-500">{act.description}</p>
+                    )}
+                    <div className="flex items-center justify-between mt-1 text-gray-400 dark:text-zinc-600">
+                      {act.createdByName && <span>by {act.createdByName}</span>}
+                      {act.createdAt && <span>{new Date(act.createdAt).toLocaleDateString()}</span>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Audit Trail */}
+          <div>
+            <h4 className="text-xs font-semibold uppercase tracking-wider mb-3 text-gray-400 dark:text-zinc-500">
+              Audit Trail
+            </h4>
+            {isAuditLoading ? (
+              <div className="flex items-center justify-center py-4">
+                <Loader2 className="w-5 h-5 text-brand-600 animate-spin" />
+              </div>
+            ) : auditLogs.length === 0 ? (
+              <p className="text-sm py-4 text-center text-gray-400 dark:text-zinc-600">
+                No audit history
+              </p>
+            ) : (
+              <div className="space-y-2 max-h-[200px] overflow-y-auto pr-1">
+                {auditLogs.map(log => (
+                  <div
+                    key={log.id}
+                    className="p-3 rounded-xl border text-xs border-gray-100 bg-gray-50 dark:border-zinc-800 dark:bg-zinc-900/50"
+                  >
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="font-medium text-gray-700 dark:text-zinc-300">
+                        {log.action}
+                      </span>
+                      <span className="text-gray-400 dark:text-zinc-600">
+                        {log.createdAt ? new Date(log.createdAt).toLocaleDateString() : ''}
+                      </span>
+                    </div>
+                    {log.userName && (
+                      <p className="text-gray-400 dark:text-zinc-500">
+                        by {log.userName}
+                      </p>
+                    )}
+                    {log.changes && log.changes.length > 0 && (
+                      <div className="mt-1 space-y-0.5 text-gray-400 dark:text-zinc-500">
+                        {log.changes.map((c, i) => (
+                          <p key={i}>{c.field}: {c.old || '(empty)'} → {c.new || '(empty)'}</p>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Timestamps */}
+          <div className="flex items-center gap-4 text-[11px] pt-2 border-t border-gray-100 text-gray-400 dark:border-zinc-800 dark:text-zinc-600">
+            {lead.createdAt && <span>Created: {formatDateTime(lead.createdAt)}</span>}
+            {lead.updatedAt && <span>Updated: {formatDateTime(lead.updatedAt)}</span>}
+          </div>
+        </div>
+      </Modal>
     );
   };
 
@@ -1942,710 +1746,278 @@ export const CRMPage: React.FC = () => {
   // Render: Create/Edit Lead Modal
   // ---------------------------------------------------------------------------
 
+  const renderCollapsibleSection = (
+    key: string,
+    icon: React.ReactNode,
+    title: string,
+    expanded: boolean,
+    children: React.ReactNode
+  ) => (
+    <div className="border rounded-lg border-gray-200 dark:border-zinc-700">
+      <button
+        type="button"
+        onClick={() => toggleSection(key)}
+        className="w-full p-4 flex justify-between items-center transition-colors hover:bg-gray-50 dark:hover:bg-zinc-800/50"
+      >
+        <div className="flex items-center gap-2">
+          <span className="text-brand-600 dark:text-brand-400">{icon}</span>
+          <h3 className="text-sm font-semibold text-gray-700 dark:text-zinc-200">{title}</h3>
+        </div>
+        <ChevronDown className={cx(
+          'w-4 h-4 transition-transform text-gray-400 dark:text-zinc-400',
+          expanded && 'rotate-180'
+        )} />
+      </button>
+      {expanded && (
+        <div className="px-4 pb-4 space-y-4">
+          {children}
+        </div>
+      )}
+    </div>
+  );
+
   const renderLeadModal = () => {
     if (!showLeadModal) return null;
 
     return (
-      <div className="fixed inset-0 z-50 flex items-start justify-center pt-[5vh] overflow-y-auto p-4">
-        <div className="fixed inset-0 bg-black/50 animate-backdrop" onClick={closeLeadModal} />
-        <div className={`relative w-full max-w-xl max-h-[85vh] rounded-2xl animate-fade-in-up flex flex-col overflow-hidden ${
-          isDark ? 'bg-dark-50 border border-zinc-800' : 'bg-white shadow-premium'
-        }`}>
-          {/* Header */}
-          <div className={`flex-shrink-0 flex items-center justify-between px-6 py-4 border-b ${
-            isDark ? 'bg-dark-50 border-zinc-800' : 'bg-white border-slate-200'
-          }`}>
-            <h2 className={`text-lg font-semibold font-display ${isDark ? 'text-white' : 'text-slate-900'}`}>
-              {editingLeadId ? 'Edit Lead' : 'New Lead'}
-            </h2>
-            <button
-              onClick={closeLeadModal}
-              className={`p-2 rounded-lg transition-colors ${
-                isDark ? 'text-zinc-400 hover:text-white hover:bg-zinc-800' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100'
-              }`}
+      <Modal
+        open={showLeadModal}
+        onClose={closeLeadModal}
+        title={editingLeadId ? 'Edit Lead' : 'New Lead'}
+        size="xl"
+        footer={
+          <>
+            <Button variant="ghost" onClick={closeLeadModal} disabled={isSubmitting}>Cancel</Button>
+            <Button
+              variant="primary"
+              shine
+              loading={isSubmitting}
+              icon={!isSubmitting ? <CheckCircle className="w-4 h-4" /> : undefined}
+              onClick={() => {
+                const form = document.getElementById('lead-form') as HTMLFormElement;
+                form?.requestSubmit();
+              }}
             >
-              <X className="w-5 h-5" />
-            </button>
-          </div>
+              {isSubmitting ? 'Saving...' : editingLeadId ? 'Update Lead' : 'Create Lead'}
+            </Button>
+          </>
+        }
+      >
+        <form id="lead-form" onSubmit={handleLeadSubmit} className="space-y-4">
+          {leadFormError && (
+            <Alert variant="error" icon={<AlertCircle className="w-4 h-4" />}>
+              {leadFormError}
+            </Alert>
+          )}
 
-          {/* Form */}
-          <form onSubmit={handleLeadSubmit} className="flex-1 overflow-y-auto">
-            <div className="p-6 space-y-4">
-            {leadFormError && (
-              <div className={`p-3 rounded-xl flex items-center gap-2 text-sm ${
-                isDark ? 'bg-red-900/20 border border-red-800 text-red-400' : 'bg-red-50 border border-red-200 text-red-700'
-              }`}>
-                <AlertCircle className="w-4 h-4 flex-shrink-0" />
-                {leadFormError}
+          {/* Lead Information Section */}
+          {renderCollapsibleSection('leadInfo', <UserIcon className="w-4 h-4" />, 'Lead Information', expandedSections.leadInfo, (
+            <>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Input
+                  label="Company Name *"
+                  name="companyName"
+                  placeholder="Enter company name"
+                  value={leadFormData.companyName}
+                  onChange={handleLeadFormChange}
+                  icon={<Building2 className="w-4 h-4" />}
+                  required
+                />
+                <Input
+                  label="Contact Person"
+                  name="contactPerson"
+                  placeholder="Contact person name"
+                  value={leadFormData.contactPerson}
+                  onChange={handleLeadFormChange}
+                  icon={<UserIcon className="w-4 h-4" />}
+                />
               </div>
-            )}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Input label="First Name" name="firstName" placeholder="First name" value={leadFormData.firstName} onChange={handleLeadFormChange} />
+                <Input label="Last Name" name="lastName" placeholder="Last name" value={leadFormData.lastName} onChange={handleLeadFormChange} />
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Input label="Email" name="email" type="email" placeholder="contact@company.com" value={leadFormData.email} onChange={handleLeadFormChange} icon={<Mail className="w-4 h-4" />} />
+                <Input label="Mobile" name="mobile" placeholder="+91 XXXXX XXXXX" value={leadFormData.mobile} onChange={handleLeadFormChange} icon={<Phone className="w-4 h-4" />} />
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Input label="Phone" name="phone" placeholder="+91 XXXXX XXXXX" value={leadFormData.phone} onChange={handleLeadFormChange} icon={<Phone className="w-4 h-4" />} />
+                <Input label="Mobile Alternate" name="mobileAlternate" placeholder="Alternate mobile" value={leadFormData.mobileAlternate} onChange={handleLeadFormChange} />
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Input label="Phone Alternate" name="phoneAlternate" placeholder="Alternate phone" value={leadFormData.phoneAlternate} onChange={handleLeadFormChange} />
+                <Input label="Campaign Source" name="campaignSource" placeholder="Campaign source" value={leadFormData.campaignSource} onChange={handleLeadFormChange} />
+              </div>
+              <Input label="Website" name="website" type="url" placeholder="https://company.com" value={leadFormData.website} onChange={handleLeadFormChange} />
+            </>
+          ))}
 
-            {/* Lead Information Section - Collapsible */}
-            <div className={`border rounded-lg ${isDark ? 'border-zinc-700' : 'border-slate-200'}`}>
-              <button
-                type="button"
-                onClick={() => toggleSection('leadInfo')}
-                className={`w-full p-4 flex justify-between items-center transition-colors ${
-                  isDark ? 'hover:bg-zinc-800/50' : 'hover:bg-slate-50'
-                }`}
-              >
-                <div className="flex items-center gap-2">
-                  <UserIcon className={`w-4 h-4 ${isDark ? 'text-brand-400' : 'text-brand-600'}`} />
-                  <h3 className={`text-sm font-semibold ${isDark ? 'text-zinc-200' : 'text-slate-700'}`}>Lead Information</h3>
-                </div>
-                <ChevronDown className={`w-4 h-4 transition-transform ${expandedSections.leadInfo ? 'rotate-180' : ''} ${
-                  isDark ? 'text-zinc-400' : 'text-slate-400'
-                }`} />
-              </button>
-              {expandedSections.leadInfo && (
-                <div className="px-4 pb-4 space-y-4">
-                  {/* Company Name + Contact Person */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <label htmlFor="companyName" className={labelClass}>
-                        Company Name <span className="text-red-500">*</span>
-                      </label>
-                      <div className="relative">
-                        <Building2 className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`} />
-                        <input
-                          id="companyName"
-                          name="companyName"
-                          type="text"
-                          placeholder="Enter company name"
-                          value={leadFormData.companyName}
-                          onChange={handleLeadFormChange}
-                          className={`${inputClass} pl-10`}
-                          required
-                        />
-                      </div>
-                    </div>
-                    <div>
-                      <label htmlFor="contactPerson" className={labelClass}>Contact Person</label>
-                      <div className="relative">
-                        <UserIcon className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`} />
-                        <input
-                          id="contactPerson"
-                          name="contactPerson"
-                          type="text"
-                          placeholder="Contact person name"
-                          value={leadFormData.contactPerson}
-                          onChange={handleLeadFormChange}
-                          className={`${inputClass} pl-10`}
-                        />
-                      </div>
-                    </div>
-                  </div>
+          {/* Order Info Section */}
+          {renderCollapsibleSection('orderInfo', <FileText className="w-4 h-4" />, 'Order Information', expandedSections.orderInfo, (
+            <>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Input label="Product List" name="productList" placeholder="Product list" value={leadFormData.productList} onChange={handleLeadFormChange} />
+                <Select label="Type of Order" name="typeOfOrder" value={leadFormData.typeOfOrder} onChange={handleLeadFormChange}>
+                  <option value="">Select order type</option>
+                  <option value="New">New</option>
+                  <option value="Refurb">Refurb</option>
+                  <option value="Rental">Rental</option>
+                </Select>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Input label="Billing Delivery Date" name="billingDeliveryDate" type="date" value={leadFormData.billingDeliveryDate} onChange={handleLeadFormChange} />
+                <Input label="Payment" name="payment" placeholder="Payment details" value={leadFormData.payment} onChange={handleLeadFormChange} />
+              </div>
+              <Textarea label="Order Product Details" name="orderProductDetails" rows={3} placeholder="Order product details..." value={leadFormData.orderProductDetails} onChange={handleLeadFormChange} />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Input label="PO Number / Mail Confirmation" name="poNumberOrMailConfirmation" placeholder="PO number" value={leadFormData.poNumberOrMailConfirmation} onChange={handleLeadFormChange} />
+                <Input label="Brand" name="brand" placeholder="Brand" value={leadFormData.brand} onChange={handleLeadFormChange} />
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Input label="ORC Amount (INR)" name="orcAmount" type="number" min={0} step={1} placeholder="0" value={leadFormData.orcAmount || ''} onChange={handleLeadFormChange} icon={<IndianRupee className="w-4 h-4" />} />
+                <Input label="Product Warranty" name="productWarranty" placeholder="Warranty" value={leadFormData.productWarranty} onChange={handleLeadFormChange} />
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Input label="Ship By" name="shipBy" placeholder="Shipping method" value={leadFormData.shipBy} onChange={handleLeadFormChange} />
+                <Input label="Billing Company" name="billingCompany" placeholder="Billing company" value={leadFormData.billingCompany} onChange={handleLeadFormChange} />
+              </div>
+              <Textarea label="Special Instructions" name="specialInstruction" rows={2} placeholder="Special instructions..." value={leadFormData.specialInstruction} onChange={handleLeadFormChange} />
+              <Textarea label="3rd Party Delivery Address" name="thirdPartyDeliveryAddress" rows={2} placeholder="Delivery address..." value={leadFormData.thirdPartyDeliveryAddress} onChange={handleLeadFormChange} />
+            </>
+          ))}
 
-                  {/* First Name + Last Name */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <label htmlFor="firstName" className={labelClass}>First Name</label>
-                      <input
-                        id="firstName"
-                        name="firstName"
-                        type="text"
-                        placeholder="First name"
-                        value={leadFormData.firstName}
-                        onChange={handleLeadFormChange}
-                        className={inputClass}
-                      />
-                    </div>
-                    <div>
-                      <label htmlFor="lastName" className={labelClass}>Last Name</label>
-                      <input
-                        id="lastName"
-                        name="lastName"
-                        type="text"
-                        placeholder="Last name"
-                        value={leadFormData.lastName}
-                        onChange={handleLeadFormChange}
-                        className={inputClass}
-                      />
-                    </div>
-                  </div>
+          {/* Forms Info Section */}
+          {renderCollapsibleSection('formsInfo', <FileText className="w-4 h-4" />, 'Forms Info', expandedSections.formsInfo, (
+            <>
+              <Textarea label="Enter Product Details" name="enterProductDetails" rows={3} placeholder="Product details..." value={leadFormData.enterProductDetails} onChange={handleLeadFormChange} />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Input label="Rental Duration" name="rentalDuration" placeholder="e.g., 12 months" value={leadFormData.rentalDuration} onChange={handleLeadFormChange} />
+                <Input label="Bandwidth Required" name="bandwidthRequired" placeholder="Bandwidth" value={leadFormData.bandwidthRequired} onChange={handleLeadFormChange} />
+              </div>
+              <Textarea label="Product Configuration" name="productConfiguration" rows={3} placeholder="Configuration details..." value={leadFormData.productConfiguration} onChange={handleLeadFormChange} />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Input label="Product Name & Part Number" name="productNameAndPartNumber" placeholder="Product & part number" value={leadFormData.productNameAndPartNumber} onChange={handleLeadFormChange} />
+                <Input label="Form Name" name="formName" placeholder="Form name" value={leadFormData.formName} onChange={handleLeadFormChange} />
+              </div>
+              <Textarea label="Specifications" name="specifications" rows={3} placeholder="Specifications..." value={leadFormData.specifications} onChange={handleLeadFormChange} />
+            </>
+          ))}
 
-                  {/* Email + Mobile */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <label htmlFor="email" className={labelClass}>Email</label>
-                      <div className="relative">
-                        <Mail className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`} />
-                        <input
-                          id="email"
-                          name="email"
-                          type="email"
-                          placeholder="contact@company.com"
-                          value={leadFormData.email}
-                          onChange={handleLeadFormChange}
-                          className={`${inputClass} pl-10`}
-                        />
-                      </div>
-                    </div>
-                    <div>
-                      <label htmlFor="mobile" className={labelClass}>Mobile</label>
-                      <div className="relative">
-                        <Phone className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`} />
-                        <input
-                          id="mobile"
-                          name="mobile"
-                          type="text"
-                          placeholder="+91 XXXXX XXXXX"
-                          value={leadFormData.mobile}
-                          onChange={handleLeadFormChange}
-                          className={`${inputClass} pl-10`}
-                        />
-                      </div>
-                    </div>
-                  </div>
+          {/* Billing Address Section */}
+          {renderCollapsibleSection('billingAddress', <Building2 className="w-4 h-4" />, 'Billing Address', expandedSections.billingAddress, (
+            <>
+              <Input label="Street" name="billingStreet" placeholder="Street address" value={leadFormData.billingStreet} onChange={handleLeadFormChange} />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Input label="City" name="billingCity" placeholder="City" value={leadFormData.billingCity} onChange={handleLeadFormChange} />
+                <Input label="State" name="billingState" placeholder="State" value={leadFormData.billingState} onChange={handleLeadFormChange} />
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Input label="Country" name="billingCountry" placeholder="Country" value={leadFormData.billingCountry} onChange={handleLeadFormChange} />
+                <Input label="Zip Code" name="billingZipCode" placeholder="Zip code" value={leadFormData.billingZipCode} onChange={handleLeadFormChange} />
+              </div>
+            </>
+          ))}
 
-                  {/* Phone + Mobile Alternate */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <label htmlFor="phone" className={labelClass}>Phone</label>
-                      <div className="relative">
-                        <Phone className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`} />
-                        <input
-                          id="phone"
-                          name="phone"
-                          type="text"
-                          placeholder="+91 XXXXX XXXXX"
-                          value={leadFormData.phone}
-                          onChange={handleLeadFormChange}
-                          className={`${inputClass} pl-10`}
-                        />
-                      </div>
-                    </div>
-                    <div>
-                      <label htmlFor="mobileAlternate" className={labelClass}>Mobile Alternate</label>
-                      <input
-                        id="mobileAlternate"
-                        name="mobileAlternate"
-                        type="text"
-                        placeholder="Alternate mobile"
-                        value={leadFormData.mobileAlternate}
-                        onChange={handleLeadFormChange}
-                        className={inputClass}
-                      />
-                    </div>
-                  </div>
+          {/* Description Info Section */}
+          {renderCollapsibleSection('descriptionInfo', <StickyNote className="w-4 h-4" />, 'Description Info', expandedSections.descriptionInfo, (
+            <>
+              <div>
+                <label className={labelStyles}>Description</label>
+                <RichTextEditor
+                  value={leadFormData.description}
+                  onChange={(html) => setLeadFormData(prev => ({ ...prev, description: html }))}
+                  placeholder="Description..."
+                  minHeight="80px"
+                />
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Input label="Lead Time" name="leadTime" placeholder="Lead time" value={leadFormData.leadTime} onChange={handleLeadFormChange} />
+                <Input label="Product Name" name="productName" placeholder="Product name" value={leadFormData.productName} onChange={handleLeadFormChange} />
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Input label="Receiver Mobile Number" name="receiverMobileNumber" placeholder="Receiver mobile" value={leadFormData.receiverMobileNumber} onChange={handleLeadFormChange} />
+                <Input label="Call Duration" name="callDuration" placeholder="Call duration" value={leadFormData.callDuration} onChange={handleLeadFormChange} />
+              </div>
+              <Input label="Subject" name="subject" placeholder="Subject" value={leadFormData.subject} onChange={handleLeadFormChange} />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Input label="Sender Landline No" name="senderLandlineNo" placeholder="Landline" value={leadFormData.senderLandlineNo} onChange={handleLeadFormChange} />
+                <Input label="Sender Landline No (Alt)" name="senderLandlineNoAlt" placeholder="Alt landline" value={leadFormData.senderLandlineNoAlt} onChange={handleLeadFormChange} />
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <Input label="Lead Type" name="leadType" placeholder="Lead type" value={leadFormData.leadType} onChange={handleLeadFormChange} />
+                <Input label="Query ID" name="queryId" placeholder="Query ID" value={leadFormData.queryId} onChange={handleLeadFormChange} />
+                <Input label="MCAT Name" name="mcatName" placeholder="MCAT name" value={leadFormData.mcatName} onChange={handleLeadFormChange} />
+              </div>
+            </>
+          ))}
 
-                  {/* Phone Alternate + Campaign Source */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <label htmlFor="phoneAlternate" className={labelClass}>Phone Alternate</label>
-                      <input
-                        id="phoneAlternate"
-                        name="phoneAlternate"
-                        type="text"
-                        placeholder="Alternate phone"
-                        value={leadFormData.phoneAlternate}
-                        onChange={handleLeadFormChange}
-                        className={inputClass}
-                      />
-                    </div>
-                    <div>
-                      <label htmlFor="campaignSource" className={labelClass}>Campaign Source</label>
-                      <input
-                        id="campaignSource"
-                        name="campaignSource"
-                        type="text"
-                        placeholder="Campaign source"
-                        value={leadFormData.campaignSource}
-                        onChange={handleLeadFormChange}
-                        className={inputClass}
-                      />
-                    </div>
-                  </div>
+          {/* Requirements Section */}
+          {renderCollapsibleSection('requirements', <FileText className="w-4 h-4" />, 'Requirements', expandedSections.requirements, (
+            <>
+              <Textarea label="Requirement (User Provided)" name="requirement" rows={3} placeholder="What the user/lead requires..." value={leadFormData.requirement} onChange={handleLeadFormChange} />
+              <Textarea label="Quoted Requirement (What We Serve)" name="quotedRequirement" rows={3} placeholder="What we are offering/serving..." value={leadFormData.quotedRequirement} onChange={handleLeadFormChange} />
+            </>
+          ))}
 
-                  {/* Website */}
-                  <div>
-                    <label htmlFor="website" className={labelClass}>Website</label>
-                    <input
-                      id="website"
-                      name="website"
-                      type="url"
-                      placeholder="https://company.com"
-                      value={leadFormData.website}
-                      onChange={handleLeadFormChange}
-                      className={inputClass}
-                    />
+          {/* Lead Classification Section */}
+          {renderCollapsibleSection('classification', <Tags className="w-4 h-4" />, 'Lead Classification', expandedSections.classification, (
+            <>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <Select label="Source" name="source" value={leadFormData.source} onChange={handleLeadFormChange}>
+                  <option value="">Select Source</option>
+                  {SOURCES.map(s => (
+                    <option key={s.value} value={s.value}>{s.label}</option>
+                  ))}
+                </Select>
+                <Select label="Stage" name="stage" value={leadFormData.stage} onChange={handleLeadFormChange}>
+                  {LEAD_STAGES.map(s => (
+                    <option key={s} value={s}>{s}</option>
+                  ))}
+                </Select>
+                <Select label="Priority" name="priority" value={leadFormData.priority} onChange={handleLeadFormChange}>
+                  {PRIORITIES.map(p => (
+                    <option key={p} value={p}>{p}</option>
+                  ))}
+                </Select>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className={labelStyles}>Assigned To</label>
+                  <div className="relative">
+                    <Users className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-zinc-500" />
+                    <select name="assignedTo" value={leadFormData.assignedTo} onChange={handleLeadFormChange} className={cx(inputStyles, 'appearance-none cursor-pointer pl-10')}>
+                      <option value="">Auto-assign (Me)</option>
+                      {users.map(u => (
+                        <option key={u.id} value={u.id}>{u.name}</option>
+                      ))}
+                    </select>
                   </div>
                 </div>
-              )}
-            </div>
+                <Select label="Partner" name="partnerId" value={leadFormData.partnerId} onChange={handleLeadFormChange}>
+                  <option value="">Select Partner (Optional)</option>
+                  {partners.map(p => (
+                    <option key={p.id} value={p.id}>{p.companyName}</option>
+                  ))}
+                </Select>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Select label="Type" name="tag" value={leadFormData.tag} onChange={handleLeadFormChange}>
+                  <option value="">Select Type</option>
+                  <option value="Channel">Channel</option>
+                  <option value="End Customer">End Customer</option>
+                </Select>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Input label="Designation" name="designation" placeholder="e.g. Manager, Director" value={(leadFormData as any).designation || ''} onChange={handleLeadFormChange} />
+                <Input label="Location" name="location" placeholder="e.g. Mumbai, Delhi" value={(leadFormData as any).location || ''} onChange={handleLeadFormChange} />
+              </div>
+            </>
+          ))}
 
-            {/* Order Info Section - Collapsible */}
-            <div className={`border rounded-lg ${isDark ? 'border-zinc-700' : 'border-slate-200'}`}>
-              <button
-                type="button"
-                onClick={() => toggleSection('orderInfo')}
-                className={`w-full p-4 flex justify-between items-center transition-colors ${
-                  isDark ? 'hover:bg-zinc-800/50' : 'hover:bg-slate-50'
-                }`}
-              >
-                <div className="flex items-center gap-2">
-                  <FileText className={`w-4 h-4 ${isDark ? 'text-brand-400' : 'text-brand-600'}`} />
-                  <h3 className={`text-sm font-semibold ${isDark ? 'text-zinc-200' : 'text-slate-700'}`}>Order Information</h3>
-                </div>
-                <ChevronDown className={`w-4 h-4 transition-transform ${expandedSections.orderInfo ? 'rotate-180' : ''} ${
-                  isDark ? 'text-zinc-400' : 'text-slate-400'
-                }`} />
-              </button>
-              {expandedSections.orderInfo && (
-                <div className="px-4 pb-4 space-y-4">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <label htmlFor="productList" className={labelClass}>Product List</label>
-                      <input id="productList" name="productList" type="text" placeholder="Product list" value={leadFormData.productList} onChange={handleLeadFormChange} className={inputClass} />
-                    </div>
-                    <div>
-                      <label htmlFor="typeOfOrder" className={labelClass}>Type of Order</label>
-                      <select id="typeOfOrder" name="typeOfOrder" value={leadFormData.typeOfOrder} onChange={handleLeadFormChange} className={inputClass}>
-                        <option value="">Select order type</option>
-                        <option value="New">New</option>
-                        <option value="Refurb">Refurb</option>
-                        <option value="Rental">Rental</option>
-                      </select>
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <label htmlFor="billingDeliveryDate" className={labelClass}>Billing Delivery Date</label>
-                      <input id="billingDeliveryDate" name="billingDeliveryDate" type="date" value={leadFormData.billingDeliveryDate} onChange={handleLeadFormChange} className={inputClass} />
-                    </div>
-                    <div>
-                      <label htmlFor="payment" className={labelClass}>Payment</label>
-                      <input id="payment" name="payment" type="text" placeholder="Payment details" value={leadFormData.payment} onChange={handleLeadFormChange} className={inputClass} />
-                    </div>
-                  </div>
-                  <div>
-                    <label htmlFor="orderProductDetails" className={labelClass}>Order Product Details</label>
-                    <textarea id="orderProductDetails" name="orderProductDetails" rows={3} placeholder="Order product details..." value={leadFormData.orderProductDetails} onChange={handleLeadFormChange} className={`${inputClass} resize-none`} />
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <label htmlFor="poNumberOrMailConfirmation" className={labelClass}>PO Number / Mail Confirmation</label>
-                      <input id="poNumberOrMailConfirmation" name="poNumberOrMailConfirmation" type="text" placeholder="PO number" value={leadFormData.poNumberOrMailConfirmation} onChange={handleLeadFormChange} className={inputClass} />
-                    </div>
-                    <div>
-                      <label htmlFor="brand" className={labelClass}>Brand</label>
-                      <input id="brand" name="brand" type="text" placeholder="Brand" value={leadFormData.brand} onChange={handleLeadFormChange} className={inputClass} />
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <label htmlFor="orcAmount" className={labelClass}>ORC Amount (INR)</label>
-                      <div className="relative">
-                        <IndianRupee className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`} />
-                        <input id="orcAmount" name="orcAmount" type="number" min="0" step="1" placeholder="0" value={leadFormData.orcAmount || ''} onChange={handleLeadFormChange} className={`${inputClass} pl-10`} />
-                      </div>
-                    </div>
-                    <div>
-                      <label htmlFor="productWarranty" className={labelClass}>Product Warranty</label>
-                      <input id="productWarranty" name="productWarranty" type="text" placeholder="Warranty" value={leadFormData.productWarranty} onChange={handleLeadFormChange} className={inputClass} />
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <label htmlFor="shipBy" className={labelClass}>Ship By</label>
-                      <input id="shipBy" name="shipBy" type="text" placeholder="Shipping method" value={leadFormData.shipBy} onChange={handleLeadFormChange} className={inputClass} />
-                    </div>
-                    <div>
-                      <label htmlFor="billingCompany" className={labelClass}>Billing Company</label>
-                      <input id="billingCompany" name="billingCompany" type="text" placeholder="Billing company" value={leadFormData.billingCompany} onChange={handleLeadFormChange} className={inputClass} />
-                    </div>
-                  </div>
-                  <div>
-                    <label htmlFor="specialInstruction" className={labelClass}>Special Instructions</label>
-                    <textarea id="specialInstruction" name="specialInstruction" rows={2} placeholder="Special instructions..." value={leadFormData.specialInstruction} onChange={handleLeadFormChange} className={`${inputClass} resize-none`} />
-                  </div>
-                  <div>
-                    <label htmlFor="thirdPartyDeliveryAddress" className={labelClass}>3rd Party Delivery Address</label>
-                    <textarea id="thirdPartyDeliveryAddress" name="thirdPartyDeliveryAddress" rows={2} placeholder="Delivery address..." value={leadFormData.thirdPartyDeliveryAddress} onChange={handleLeadFormChange} className={`${inputClass} resize-none`} />
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Forms Info Section - Collapsible */}
-            <div className={`border rounded-lg ${isDark ? 'border-zinc-700' : 'border-slate-200'}`}>
-              <button
-                type="button"
-                onClick={() => toggleSection('formsInfo')}
-                className={`w-full p-4 flex justify-between items-center transition-colors ${
-                  isDark ? 'hover:bg-zinc-800/50' : 'hover:bg-slate-50'
-                }`}
-              >
-                <div className="flex items-center gap-2">
-                  <FileText className={`w-4 h-4 ${isDark ? 'text-brand-400' : 'text-brand-600'}`} />
-                  <h3 className={`text-sm font-semibold ${isDark ? 'text-zinc-200' : 'text-slate-700'}`}>Forms Info</h3>
-                </div>
-                <ChevronDown className={`w-4 h-4 transition-transform ${expandedSections.formsInfo ? 'rotate-180' : ''} ${
-                  isDark ? 'text-zinc-400' : 'text-slate-400'
-                }`} />
-              </button>
-              {expandedSections.formsInfo && (
-                <div className="px-4 pb-4 space-y-4">
-                  <div>
-                    <label htmlFor="enterProductDetails" className={labelClass}>Enter Product Details</label>
-                    <textarea id="enterProductDetails" name="enterProductDetails" rows={3} placeholder="Product details..." value={leadFormData.enterProductDetails} onChange={handleLeadFormChange} className={`${inputClass} resize-none`} />
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <label htmlFor="rentalDuration" className={labelClass}>Rental Duration</label>
-                      <input id="rentalDuration" name="rentalDuration" type="text" placeholder="e.g., 12 months" value={leadFormData.rentalDuration} onChange={handleLeadFormChange} className={inputClass} />
-                    </div>
-                    <div>
-                      <label htmlFor="bandwidthRequired" className={labelClass}>Bandwidth Required</label>
-                      <input id="bandwidthRequired" name="bandwidthRequired" type="text" placeholder="Bandwidth" value={leadFormData.bandwidthRequired} onChange={handleLeadFormChange} className={inputClass} />
-                    </div>
-                  </div>
-                  <div>
-                    <label htmlFor="productConfiguration" className={labelClass}>Product Configuration</label>
-                    <textarea id="productConfiguration" name="productConfiguration" rows={3} placeholder="Configuration details..." value={leadFormData.productConfiguration} onChange={handleLeadFormChange} className={`${inputClass} resize-none`} />
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <label htmlFor="productNameAndPartNumber" className={labelClass}>Product Name & Part Number</label>
-                      <input id="productNameAndPartNumber" name="productNameAndPartNumber" type="text" placeholder="Product & part number" value={leadFormData.productNameAndPartNumber} onChange={handleLeadFormChange} className={inputClass} />
-                    </div>
-                    <div>
-                      <label htmlFor="formName" className={labelClass}>Form Name</label>
-                      <input id="formName" name="formName" type="text" placeholder="Form name" value={leadFormData.formName} onChange={handleLeadFormChange} className={inputClass} />
-                    </div>
-                  </div>
-                  <div>
-                    <label htmlFor="specifications" className={labelClass}>Specifications</label>
-                    <textarea id="specifications" name="specifications" rows={3} placeholder="Specifications..." value={leadFormData.specifications} onChange={handleLeadFormChange} className={`${inputClass} resize-none`} />
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Billing Address Section - Collapsible */}
-            <div className={`border rounded-lg ${isDark ? 'border-zinc-700' : 'border-slate-200'}`}>
-              <button
-                type="button"
-                onClick={() => toggleSection('billingAddress')}
-                className={`w-full p-4 flex justify-between items-center transition-colors ${
-                  isDark ? 'hover:bg-zinc-800/50' : 'hover:bg-slate-50'
-                }`}
-              >
-                <div className="flex items-center gap-2">
-                  <Building2 className={`w-4 h-4 ${isDark ? 'text-brand-400' : 'text-brand-600'}`} />
-                  <h3 className={`text-sm font-semibold ${isDark ? 'text-zinc-200' : 'text-slate-700'}`}>Billing Address</h3>
-                </div>
-                <ChevronDown className={`w-4 h-4 transition-transform ${expandedSections.billingAddress ? 'rotate-180' : ''} ${
-                  isDark ? 'text-zinc-400' : 'text-slate-400'
-                }`} />
-              </button>
-              {expandedSections.billingAddress && (
-                <div className="px-4 pb-4 space-y-4">
-                  <div>
-                    <label htmlFor="billingStreet" className={labelClass}>Street</label>
-                    <input id="billingStreet" name="billingStreet" type="text" placeholder="Street address" value={leadFormData.billingStreet} onChange={handleLeadFormChange} className={inputClass} />
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <label htmlFor="billingCity" className={labelClass}>City</label>
-                      <input id="billingCity" name="billingCity" type="text" placeholder="City" value={leadFormData.billingCity} onChange={handleLeadFormChange} className={inputClass} />
-                    </div>
-                    <div>
-                      <label htmlFor="billingState" className={labelClass}>State</label>
-                      <input id="billingState" name="billingState" type="text" placeholder="State" value={leadFormData.billingState} onChange={handleLeadFormChange} className={inputClass} />
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <label htmlFor="billingCountry" className={labelClass}>Country</label>
-                      <input id="billingCountry" name="billingCountry" type="text" placeholder="Country" value={leadFormData.billingCountry} onChange={handleLeadFormChange} className={inputClass} />
-                    </div>
-                    <div>
-                      <label htmlFor="billingZipCode" className={labelClass}>Zip Code</label>
-                      <input id="billingZipCode" name="billingZipCode" type="text" placeholder="Zip code" value={leadFormData.billingZipCode} onChange={handleLeadFormChange} className={inputClass} />
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Description Info Section - Collapsible */}
-            <div className={`border rounded-lg ${isDark ? 'border-zinc-700' : 'border-slate-200'}`}>
-              <button
-                type="button"
-                onClick={() => toggleSection('descriptionInfo')}
-                className={`w-full p-4 flex justify-between items-center transition-colors ${
-                  isDark ? 'hover:bg-zinc-800/50' : 'hover:bg-slate-50'
-                }`}
-              >
-                <div className="flex items-center gap-2">
-                  <StickyNote className={`w-4 h-4 ${isDark ? 'text-brand-400' : 'text-brand-600'}`} />
-                  <h3 className={`text-sm font-semibold ${isDark ? 'text-zinc-200' : 'text-slate-700'}`}>Description Info</h3>
-                </div>
-                <ChevronDown className={`w-4 h-4 transition-transform ${expandedSections.descriptionInfo ? 'rotate-180' : ''} ${
-                  isDark ? 'text-zinc-400' : 'text-slate-400'
-                }`} />
-              </button>
-              {expandedSections.descriptionInfo && (
-                <div className="px-4 pb-4 space-y-4">
-                  <div>
-                    <label htmlFor="description" className={labelClass}>Description</label>
-                    <RichTextEditor
-                      value={leadFormData.description}
-                      onChange={(html) => setLeadFormData(prev => ({ ...prev, description: html }))}
-                      placeholder="Description..."
-                      isDark={isDark}
-                      minHeight="80px"
-                    />
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <label htmlFor="leadTime" className={labelClass}>Lead Time</label>
-                      <input id="leadTime" name="leadTime" type="text" placeholder="Lead time" value={leadFormData.leadTime} onChange={handleLeadFormChange} className={inputClass} />
-                    </div>
-                    <div>
-                      <label htmlFor="productName" className={labelClass}>Product Name</label>
-                      <input id="productName" name="productName" type="text" placeholder="Product name" value={leadFormData.productName} onChange={handleLeadFormChange} className={inputClass} />
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <label htmlFor="receiverMobileNumber" className={labelClass}>Receiver Mobile Number</label>
-                      <input id="receiverMobileNumber" name="receiverMobileNumber" type="text" placeholder="Receiver mobile" value={leadFormData.receiverMobileNumber} onChange={handleLeadFormChange} className={inputClass} />
-                    </div>
-                    <div>
-                      <label htmlFor="callDuration" className={labelClass}>Call Duration</label>
-                      <input id="callDuration" name="callDuration" type="text" placeholder="Call duration" value={leadFormData.callDuration} onChange={handleLeadFormChange} className={inputClass} />
-                    </div>
-                  </div>
-                  <div>
-                    <label htmlFor="subject" className={labelClass}>Subject</label>
-                    <input id="subject" name="subject" type="text" placeholder="Subject" value={leadFormData.subject} onChange={handleLeadFormChange} className={inputClass} />
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <label htmlFor="senderLandlineNo" className={labelClass}>Sender Landline No</label>
-                      <input id="senderLandlineNo" name="senderLandlineNo" type="text" placeholder="Landline" value={leadFormData.senderLandlineNo} onChange={handleLeadFormChange} className={inputClass} />
-                    </div>
-                    <div>
-                      <label htmlFor="senderLandlineNoAlt" className={labelClass}>Sender Landline No (Alt)</label>
-                      <input id="senderLandlineNoAlt" name="senderLandlineNoAlt" type="text" placeholder="Alt landline" value={leadFormData.senderLandlineNoAlt} onChange={handleLeadFormChange} className={inputClass} />
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    <div>
-                      <label htmlFor="leadType" className={labelClass}>Lead Type</label>
-                      <input id="leadType" name="leadType" type="text" placeholder="Lead type" value={leadFormData.leadType} onChange={handleLeadFormChange} className={inputClass} />
-                    </div>
-                    <div>
-                      <label htmlFor="queryId" className={labelClass}>Query ID</label>
-                      <input id="queryId" name="queryId" type="text" placeholder="Query ID" value={leadFormData.queryId} onChange={handleLeadFormChange} className={inputClass} />
-                    </div>
-                    <div>
-                      <label htmlFor="mcatName" className={labelClass}>MCAT Name</label>
-                      <input id="mcatName" name="mcatName" type="text" placeholder="MCAT name" value={leadFormData.mcatName} onChange={handleLeadFormChange} className={inputClass} />
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-
-
-            {/* Requirements Section - Collapsible */}
-            <div className={`border rounded-lg ${isDark ? 'border-zinc-700' : 'border-slate-200'}`}>
-              <button
-                type="button"
-                onClick={() => toggleSection('requirements')}
-                className={`w-full p-4 flex justify-between items-center transition-colors ${
-                  isDark ? 'hover:bg-zinc-800/50' : 'hover:bg-slate-50'
-                }`}
-              >
-                <div className="flex items-center gap-2">
-                  <FileText className={`w-4 h-4 ${isDark ? 'text-brand-400' : 'text-brand-600'}`} />
-                  <h3 className={`text-sm font-semibold ${isDark ? 'text-zinc-200' : 'text-slate-700'}`}>Requirements</h3>
-                </div>
-                <ChevronDown className={`w-4 h-4 transition-transform ${expandedSections.requirements ? 'rotate-180' : ''} ${
-                  isDark ? 'text-zinc-400' : 'text-slate-400'
-                }`} />
-              </button>
-              {expandedSections.requirements && (
-                <div className="px-4 pb-4 space-y-4">
-                  <div>
-                    <label htmlFor="requirement" className={labelClass}>Requirement (User Provided)</label>
-                    <textarea
-                      id="requirement"
-                      name="requirement"
-                      rows={3}
-                      placeholder="What the user/lead requires..."
-                      value={leadFormData.requirement}
-                      onChange={handleLeadFormChange}
-                      className={inputClass}
-                    />
-                  </div>
-                  <div>
-                    <label htmlFor="quotedRequirement" className={labelClass}>Quoted Requirement (What We Serve)</label>
-                    <textarea
-                      id="quotedRequirement"
-                      name="quotedRequirement"
-                      rows={3}
-                      placeholder="What we are offering/serving..."
-                      value={leadFormData.quotedRequirement}
-                      onChange={handleLeadFormChange}
-                      className={inputClass}
-                    />
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Lead Classification Section - Collapsible */}
-            <div className={`border rounded-lg ${isDark ? 'border-zinc-700' : 'border-slate-200'}`}>
-              <button
-                type="button"
-                onClick={() => toggleSection('classification')}
-                className={`w-full p-4 flex justify-between items-center transition-colors ${
-                  isDark ? 'hover:bg-zinc-800/50' : 'hover:bg-slate-50'
-                }`}
-              >
-                <div className="flex items-center gap-2">
-                  <Tags className={`w-4 h-4 ${isDark ? 'text-brand-400' : 'text-brand-600'}`} />
-                  <h3 className={`text-sm font-semibold ${isDark ? 'text-zinc-200' : 'text-slate-700'}`}>Lead Classification</h3>
-                </div>
-                <ChevronDown className={`w-4 h-4 transition-transform ${expandedSections.classification ? 'rotate-180' : ''} ${
-                  isDark ? 'text-zinc-400' : 'text-slate-400'
-                }`} />
-              </button>
-              {expandedSections.classification && (
-                <div className="px-4 pb-4 space-y-4">
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    <div>
-                      <label htmlFor="source" className={labelClass}>Source</label>
-                      <select id="source" name="source" value={leadFormData.source} onChange={handleLeadFormChange} className={selectClass}>
-                        <option value="">Select Source</option>
-                        {SOURCES.map(s => (
-                          <option key={s.value} value={s.value}>{s.label}</option>
-                        ))}
-                      </select>
-                    </div>
-                    <div>
-                      <label htmlFor="stage" className={labelClass}>Stage</label>
-                      <select id="stage" name="stage" value={leadFormData.stage} onChange={handleLeadFormChange} className={selectClass}>
-                        {LEAD_STAGES.map(s => (
-                          <option key={s} value={s}>{s}</option>
-                        ))}
-                      </select>
-                    </div>
-                    <div>
-                      <label htmlFor="priority" className={labelClass}>Priority</label>
-                      <select id="priority" name="priority" value={leadFormData.priority} onChange={handleLeadFormChange} className={selectClass}>
-                        {PRIORITIES.map(p => (
-                          <option key={p} value={p}>{p}</option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <label htmlFor="assignedTo" className={labelClass}>Assigned To</label>
-                      <div className="relative">
-                        <Users className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`} />
-                        <select id="assignedTo" name="assignedTo" value={leadFormData.assignedTo} onChange={handleLeadFormChange} className={`${selectClass} pl-10`}>
-                          <option value="">Auto-assign (Me)</option>
-                          {users.map(u => (
-                            <option key={u.id} value={u.id}>{u.name}</option>
-                          ))}
-                        </select>
-                      </div>
-                    </div>
-                    <div>
-                      <label htmlFor="partnerId" className={labelClass}>Partner</label>
-                      <select id="partnerId" name="partnerId" value={leadFormData.partnerId} onChange={handleLeadFormChange} className={selectClass}>
-                        <option value="">Select Partner (Optional)</option>
-                        {partners.map(p => (
-                          <option key={p.id} value={p.id}>{p.companyName}</option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <label htmlFor="tag" className={labelClass}>Type</label>
-                      <select id="tag" name="tag" value={leadFormData.tag} onChange={handleLeadFormChange} className={selectClass}>
-                        <option value="">Select Type</option>
-                        <option value="Channel">Channel</option>
-                        <option value="End Customer">End Customer</option>
-                      </select>
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    {/* Designation */}
-                    <div>
-                      <label htmlFor="lead-designation" className={labelClass}>Designation</label>
-                      <input
-                        id="lead-designation"
-                        name="designation"
-                        type="text"
-                        className={inputClass}
-                        placeholder="e.g. Manager, Director"
-                        value={(leadFormData as any).designation || ''}
-                        onChange={handleLeadFormChange}
-                      />
-                    </div>
-
-                    {/* Location */}
-                    <div>
-                      <label htmlFor="lead-location" className={labelClass}>Location</label>
-                      <input
-                        id="lead-location"
-                        name="location"
-                        type="text"
-                        className={inputClass}
-                        placeholder="e.g. Mumbai, Delhi"
-                        value={(leadFormData as any).location || ''}
-                        onChange={handleLeadFormChange}
-                      />
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Notes */}
-            <div>
-              <label htmlFor="notes" className={labelClass}>Notes</label>
-              <textarea id="notes" name="notes" rows={3} placeholder="Additional notes about this lead..." value={leadFormData.notes} onChange={handleLeadFormChange} className={`${inputClass} resize-none`} />
-            </div>
-
-            </div>
-            {/* Footer - sticky at bottom */}
-            <div className={`sticky bottom-0 flex items-center justify-end gap-3 px-6 py-4 border-t ${
-              isDark ? 'bg-dark-50 border-zinc-800' : 'bg-white border-slate-200'
-            }`}>
-              <button
-                type="button"
-                onClick={closeLeadModal}
-                disabled={isSubmitting}
-                className={`px-4 py-2.5 rounded-xl text-sm font-medium transition-colors ${
-                  isDark ? 'text-zinc-400 hover:text-white hover:bg-zinc-800' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                } disabled:opacity-50`}
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={isSubmitting}
-                className="flex items-center gap-2 px-5 py-2.5 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-sm font-medium transition-all btn-premium disabled:opacity-50"
-              >
-                {isSubmitting ? (
-                  <><Loader2 className="w-4 h-4 animate-spin" /> Saving...</>
-                ) : (
-                  <><CheckCircle className="w-4 h-4" /> {editingLeadId ? 'Update Lead' : 'Create Lead'}</>
-                )}
-              </button>
-            </div>
-          </form>
-        </div>
-      </div>
+          {/* Notes */}
+          <Textarea label="Notes" name="notes" rows={3} placeholder="Additional notes about this lead..." value={leadFormData.notes} onChange={handleLeadFormChange} />
+        </form>
+      </Modal>
     );
   };
 
@@ -2657,171 +2029,84 @@ export const CRMPage: React.FC = () => {
     if (!showConvertModal) return null;
 
     return (
-      <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
-        <div className="absolute inset-0 bg-black/50 animate-backdrop" onClick={closeConvertModal} />
-        <div className={`relative w-full max-w-md max-h-[90vh] rounded-2xl animate-fade-in-up flex flex-col overflow-hidden ${
-          isDark ? 'bg-dark-50 border border-zinc-800' : 'bg-white shadow-premium'
-        }`}>
-          {/* Header */}
-          <div className={`flex-shrink-0 flex items-center justify-between px-6 py-4 border-b ${
-            isDark ? 'bg-dark-50 border-zinc-800' : 'bg-white border-slate-200'
-          }`}>
-            <div className="flex items-center gap-2">
-              <Award className={`w-5 h-5 ${isDark ? 'text-emerald-400' : 'text-emerald-600'}`} />
-              <h2 className={`text-lg font-semibold font-display ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                Convert to Sale
-              </h2>
-            </div>
-            <button
-              onClick={closeConvertModal}
-              className={`p-2 rounded-lg transition-colors ${
-                isDark ? 'text-zinc-400 hover:text-white hover:bg-zinc-800' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100'
-              }`}
+      <Modal
+        open={showConvertModal}
+        onClose={closeConvertModal}
+        title="Convert to Sale"
+        icon={<Award className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />}
+        size="md"
+        footer={
+          <>
+            <Button variant="ghost" onClick={closeConvertModal} disabled={isConverting}>Cancel</Button>
+            <Button
+              variant="success"
+              shine
+              loading={isConverting}
+              icon={!isConverting ? <Award className="w-4 h-4" /> : undefined}
+              onClick={() => {
+                const form = document.getElementById('convert-form') as HTMLFormElement;
+                form?.requestSubmit();
+              }}
             >
-              <X className="w-5 h-5" />
-            </button>
-          </div>
+              {isConverting ? 'Converting...' : 'Convert to Sale'}
+            </Button>
+          </>
+        }
+      >
+        <form id="convert-form" onSubmit={handleConvertSubmit} className="space-y-5">
+          {convertError && (
+            <Alert variant="error" icon={<AlertCircle className="w-4 h-4" />}>
+              {convertError}
+            </Alert>
+          )}
 
-          {/* Form */}
-          <form onSubmit={handleConvertSubmit} className="flex-1 overflow-y-auto">
-            <div className="p-6 space-y-5">
-            {convertError && (
-              <div className={`p-3 rounded-xl flex items-center gap-2 text-sm ${
-                isDark ? 'bg-red-900/20 border border-red-800 text-red-400' : 'bg-red-50 border border-red-200 text-red-700'
-              }`}>
-                <AlertCircle className="w-4 h-4 flex-shrink-0" />
-                {convertError}
-              </div>
-            )}
+          <Select label="Partner *" name="partnerId" value={convertForm.partnerId} onChange={handleConvertFormChange} required>
+            <option value="">Select Partner</option>
+            {partners.map(p => (
+              <option key={p.id} value={p.id}>{p.companyName}</option>
+            ))}
+          </Select>
 
-            {/* Partner */}
-            <div>
-              <label htmlFor="conv-partnerId" className={labelClass}>
-                Partner <span className="text-red-500">*</span>
-              </label>
-              <select
-                id="conv-partnerId"
-                name="partnerId"
-                value={convertForm.partnerId}
-                onChange={handleConvertFormChange}
-                className={selectClass}
-                required
-              >
-                <option value="">Select Partner</option>
-                {partners.map(p => (
-                  <option key={p.id} value={p.id}>{p.companyName}</option>
-                ))}
-              </select>
-            </div>
+          <Select label="Product *" name="productId" value={convertForm.productId} onChange={handleConvertFormChange} required>
+            <option value="">Select Product</option>
+            {products.map(p => (
+              <option key={p.id} value={p.id}>{p.name}</option>
+            ))}
+          </Select>
 
-            {/* Product */}
-            <div>
-              <label htmlFor="conv-productId" className={labelClass}>
-                Product <span className="text-red-500">*</span>
-              </label>
-              <select
-                id="conv-productId"
-                name="productId"
-                value={convertForm.productId}
-                onChange={handleConvertFormChange}
-                className={selectClass}
-                required
-              >
-                <option value="">Select Product</option>
-                {products.map(p => (
-                  <option key={p.id} value={p.id}>{p.name}</option>
-                ))}
-              </select>
-            </div>
+          <Input
+            label="Amount (INR) *"
+            name="amount"
+            type="number"
+            min={0}
+            step={1}
+            placeholder="0"
+            value={convertForm.amount || ''}
+            onChange={handleConvertFormChange}
+            icon={<IndianRupee className="w-4 h-4" />}
+            required
+          />
 
-            {/* Amount */}
-            <div>
-              <label htmlFor="conv-amount" className={labelClass}>
-                Amount (INR) <span className="text-red-500">*</span>
-              </label>
-              <div className="relative">
-                <IndianRupee className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`} />
-                <input
-                  id="conv-amount"
-                  name="amount"
-                  type="number"
-                  min="0"
-                  step="1"
-                  placeholder="0"
-                  value={convertForm.amount || ''}
-                  onChange={handleConvertFormChange}
-                  className={`${inputClass} pl-10`}
-                  required
-                />
-              </div>
-            </div>
+          <Input
+            label="Sale Date *"
+            name="saleDate"
+            type="date"
+            value={convertForm.saleDate}
+            onChange={handleConvertFormChange}
+            icon={<Calendar className="w-4 h-4" />}
+            required
+          />
 
-            {/* Sale Date */}
-            <div>
-              <label htmlFor="conv-saleDate" className={labelClass}>
-                Sale Date <span className="text-red-500">*</span>
-              </label>
-              <div className="relative">
-                <Calendar className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`} />
-                <input
-                  id="conv-saleDate"
-                  name="saleDate"
-                  type="date"
-                  value={convertForm.saleDate}
-                  onChange={handleConvertFormChange}
-                  className={`${inputClass} pl-10`}
-                  required
-                />
-              </div>
-            </div>
-
-            {/* Customer Name */}
-            <div>
-              <label htmlFor="conv-customerName" className={labelClass}>Customer Name</label>
-              <div className="relative">
-                <UserIcon className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`} />
-                <input
-                  id="conv-customerName"
-                  name="customerName"
-                  type="text"
-                  placeholder="Customer name"
-                  value={convertForm.customerName}
-                  onChange={handleConvertFormChange}
-                  className={`${inputClass} pl-10`}
-                />
-              </div>
-            </div>
-
-            </div>
-            {/* Footer - sticky at bottom */}
-            <div className={`sticky bottom-0 flex items-center justify-end gap-3 px-6 py-4 border-t ${
-              isDark ? 'bg-dark-50 border-zinc-800' : 'bg-white border-slate-200'
-            }`}>
-              <button
-                type="button"
-                onClick={closeConvertModal}
-                disabled={isConverting}
-                className={`px-4 py-2.5 rounded-xl text-sm font-medium transition-colors ${
-                  isDark ? 'text-zinc-400 hover:text-white hover:bg-zinc-800' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                } disabled:opacity-50`}
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={isConverting}
-                className="flex items-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-medium transition-all btn-premium disabled:opacity-50"
-              >
-                {isConverting ? (
-                  <><Loader2 className="w-4 h-4 animate-spin" /> Converting...</>
-                ) : (
-                  <><Award className="w-4 h-4" /> Convert to Sale</>
-                )}
-              </button>
-            </div>
-          </form>
-        </div>
-      </div>
+          <Input
+            label="Customer Name"
+            name="customerName"
+            placeholder="Customer name"
+            value={convertForm.customerName}
+            onChange={handleConvertFormChange}
+            icon={<UserIcon className="w-4 h-4" />}
+          />
+        </form>
+      </Modal>
     );
   };
 
@@ -2847,348 +2132,246 @@ export const CRMPage: React.FC = () => {
     };
 
     return (
-      <div className="fixed inset-0 z-50 flex items-start justify-center p-4 pt-[5vh] overflow-y-auto">
-        <div className="fixed inset-0 bg-black/50 animate-backdrop" onClick={() => setShowClosedWonModal(false)} />
-        <div className={`relative w-full max-w-2xl rounded-2xl animate-fade-in-up ${
-          isDark ? 'bg-dark-50 border border-zinc-800' : 'bg-white shadow-premium'
-        }`}>
-          <form onSubmit={handleClosedWonSubmit}>
-            {/* Header */}
-            <div className={`flex items-center justify-between px-6 py-4 border-b ${
-              isDark ? 'border-zinc-800' : 'border-slate-200'
-            }`}>
-              <div className="flex items-center gap-2">
-                <CheckCircle className="w-5 h-5 text-emerald-500" />
-                <h2 className={`text-lg font-semibold font-display ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                  Closed Won — Create Account & Sales Order
-                </h2>
+      <Modal
+        open={showClosedWonModal}
+        onClose={() => setShowClosedWonModal(false)}
+        title="Closed Won -- Create Account & Sales Order"
+        icon={<CheckCircle className="w-5 h-5 text-emerald-500" />}
+        size="2xl"
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setShowClosedWonModal(false)}>Cancel</Button>
+            <Button
+              variant="success"
+              shine
+              loading={isClosedWonSubmitting}
+              icon={!isClosedWonSubmitting ? <CheckCircle className="w-4 h-4" /> : undefined}
+              onClick={() => {
+                const form = document.getElementById('closed-won-form') as HTMLFormElement;
+                form?.requestSubmit();
+              }}
+            >
+              {isClosedWonSubmitting ? 'Creating...' : 'Create Account & Sales Order'}
+            </Button>
+          </>
+        }
+      >
+        <form id="closed-won-form" onSubmit={handleClosedWonSubmit} className="space-y-5">
+          <p className="text-sm text-gray-500 dark:text-zinc-400">
+            Lead "<strong>{lead.companyName}</strong>" is being marked as Closed Won. Create an account, contact, and sales order.
+          </p>
+
+          {closedWonError && (
+            <Alert variant="error" icon={<AlertCircle className="w-4 h-4" />}>
+              {closedWonError}
+            </Alert>
+          )}
+
+          {/* Account Details Section */}
+          <div>
+            <h3 className="text-sm font-semibold mb-3 flex items-center gap-1.5 text-gray-900 dark:text-white">
+              <Building2 className="w-4 h-4" /> Account Details
+            </h3>
+            <div className="space-y-3">
+              <Input label="Account Name *" name="accountName" value={closedWonForm.accountName} onChange={handleChange} required />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <Select label="Industry" name="industry" value={closedWonForm.industry} onChange={handleChange}>
+                  <option value="">-None-</option>
+                  {['Technology','Healthcare','Finance','Manufacturing','Retail','Education','Real Estate','Telecom','Energy','Media','Other'].map(i => (
+                    <option key={i} value={i}>{i}</option>
+                  ))}
+                </Select>
+                <Select label="Type" name="type" value={closedWonForm.type} onChange={handleChange}>
+                  <option value="">-None-</option>
+                  <option value="Hunting">Hunting</option>
+                  <option value="Farming">Farming</option>
+                  <option value="Cold">Cold</option>
+                </Select>
               </div>
-              <button type="button" onClick={() => setShowClosedWonModal(false)} className={`p-2 rounded-lg ${isDark ? 'text-zinc-400 hover:bg-zinc-800' : 'text-slate-400 hover:bg-slate-100'}`}>
-                <X className="w-5 h-5" />
-              </button>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <Input label="Phone" name="phone" value={closedWonForm.phone} onChange={handleChange} />
+                <Input label="Email" name="email" type="email" value={closedWonForm.email} onChange={handleChange} />
+              </div>
+              <Input label="Location" name="location" value={closedWonForm.location} onChange={handleChange} />
             </div>
+          </div>
 
-            <div className="p-6 space-y-5 max-h-[65vh] overflow-y-auto">
-              <p className={`text-sm ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>
-                Lead "<strong>{lead.companyName}</strong>" is being marked as Closed Won. Create an account, contact, and sales order.
-              </p>
-
-              {closedWonError && (
-                <div className={`p-3 rounded-xl flex items-center gap-2 text-sm ${isDark ? 'bg-red-900/20 border border-red-800 text-red-400' : 'bg-red-50 border border-red-200 text-red-700'}`}>
-                  <AlertCircle className="w-4 h-4 flex-shrink-0" />{closedWonError}
-                </div>
-              )}
-
-              {/* Account Details Section */}
-              <div>
-                <h3 className={`text-sm font-semibold mb-3 flex items-center gap-1.5 ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                  <Building2 className="w-4 h-4" /> Account Details
-                </h3>
-                <div className="space-y-3">
-                  <div>
-                    <label className={labelClass}>Account Name *</label>
-                    <input name="accountName" value={closedWonForm.accountName} onChange={handleChange} className={inputClass} required />
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
-                      <label className={labelClass}>Industry</label>
-                      <select name="industry" value={closedWonForm.industry} onChange={handleChange} className={selectClass}>
-                        <option value="">-None-</option>
-                        {['Technology','Healthcare','Finance','Manufacturing','Retail','Education','Real Estate','Telecom','Energy','Media','Other'].map(i => (
-                          <option key={i} value={i}>{i}</option>
-                        ))}
-                      </select>
-                    </div>
-                    <div>
-                      <label className={labelClass}>Type</label>
-                      <select name="type" value={closedWonForm.type} onChange={handleChange} className={selectClass}>
-                        <option value="">-None-</option>
-                        <option value="Hunting">Hunting</option>
-                        <option value="Farming">Farming</option>
-                        <option value="Cold">Cold</option>
-                      </select>
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
-                      <label className={labelClass}>Phone</label>
-                      <input name="phone" value={closedWonForm.phone} onChange={handleChange} className={inputClass} />
-                    </div>
-                    <div>
-                      <label className={labelClass}>Email</label>
-                      <input name="email" type="email" value={closedWonForm.email} onChange={handleChange} className={inputClass} />
-                    </div>
-                  </div>
-                  <div>
-                    <label className={labelClass}>Location</label>
-                    <input name="location" value={closedWonForm.location} onChange={handleChange} className={inputClass} />
-                  </div>
-                </div>
+          {/* Contact Details Section */}
+          <div>
+            <h3 className="text-sm font-semibold mb-3 flex items-center gap-1.5 text-gray-900 dark:text-white">
+              <UserIcon className="w-4 h-4" /> Contact Details
+            </h3>
+            <div className="space-y-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <Input label="First Name *" name="contactFirstName" value={closedWonForm.contactFirstName} onChange={handleChange} required />
+                <Input label="Last Name" name="contactLastName" value={closedWonForm.contactLastName} onChange={handleChange} />
               </div>
-
-              {/* Contact Details Section */}
-              <div>
-                <h3 className={`text-sm font-semibold mb-3 flex items-center gap-1.5 ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                  <UserIcon className="w-4 h-4" /> Contact Details
-                </h3>
-                <div className="space-y-3">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
-                      <label className={labelClass}>First Name *</label>
-                      <input name="contactFirstName" value={closedWonForm.contactFirstName} onChange={handleChange} className={inputClass} required />
-                    </div>
-                    <div>
-                      <label className={labelClass}>Last Name</label>
-                      <input name="contactLastName" value={closedWonForm.contactLastName} onChange={handleChange} className={inputClass} />
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
-                      <label className={labelClass}>Email</label>
-                      <input name="contactEmail" type="email" value={closedWonForm.contactEmail} onChange={handleChange} className={inputClass} />
-                    </div>
-                    <div>
-                      <label className={labelClass}>Contact No</label>
-                      <input name="contactPhone" value={closedWonForm.contactPhone} onChange={handleChange} className={inputClass} />
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
-                      <label className={labelClass}>Designation</label>
-                      <input name="contactDesignation" value={closedWonForm.contactDesignation} onChange={handleChange} className={inputClass} />
-                    </div>
-                    <div>
-                      <label className={labelClass}>Department</label>
-                      <input name="contactDepartment" value={closedWonForm.contactDepartment} onChange={handleChange} className={inputClass} />
-                    </div>
-                  </div>
-                </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <Input label="Email" name="contactEmail" type="email" value={closedWonForm.contactEmail} onChange={handleChange} />
+                <Input label="Contact No" name="contactPhone" value={closedWonForm.contactPhone} onChange={handleChange} />
               </div>
-
-              {/* Document Uploads Section */}
-              <div>
-                <h3 className={`text-sm font-semibold mb-3 flex items-center gap-1.5 ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                  <Upload className="w-4 h-4" /> Document Uploads
-                </h3>
-                <div className="space-y-3">
-                  <div>
-                    <label className={labelClass}>GST Certificate *</label>
-                    <input type="file" accept=".pdf,.jpg,.jpeg,.png" onChange={e => setGstFile(e.target.files?.[0] || null)} className={`${inputClass} file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-medium ${isDark ? 'file:bg-zinc-700 file:text-zinc-200' : 'file:bg-slate-100 file:text-slate-700'}`} />
-                    {gstFile && <span className={`text-xs mt-1 block ${isDark ? 'text-emerald-400' : 'text-emerald-600'}`}>{gstFile.name}</span>}
-                  </div>
-                  <div>
-                    <label className={labelClass}>MSME Certificate <span className={`text-xs ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>(optional)</span></label>
-                    <input type="file" accept=".pdf,.jpg,.jpeg,.png" onChange={e => setMsmeFile(e.target.files?.[0] || null)} className={`${inputClass} file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-medium ${isDark ? 'file:bg-zinc-700 file:text-zinc-200' : 'file:bg-slate-100 file:text-slate-700'}`} />
-                    {msmeFile && <span className={`text-xs mt-1 block ${isDark ? 'text-emerald-400' : 'text-emerald-600'}`}>{msmeFile.name}</span>}
-                  </div>
-                  <div>
-                    <label className={labelClass}>PAN Card *</label>
-                    <input type="file" accept=".pdf,.jpg,.jpeg,.png" onChange={e => setPanFile(e.target.files?.[0] || null)} className={`${inputClass} file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-medium ${isDark ? 'file:bg-zinc-700 file:text-zinc-200' : 'file:bg-slate-100 file:text-slate-700'}`} />
-                    {panFile && <span className={`text-xs mt-1 block ${isDark ? 'text-emerald-400' : 'text-emerald-600'}`}>{panFile.name}</span>}
-                  </div>
-                  <div>
-                    <label className={labelClass}>Aadhar Card *</label>
-                    <input type="file" accept=".pdf,.jpg,.jpeg,.png" onChange={e => setAadharFile(e.target.files?.[0] || null)} className={`${inputClass} file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-medium ${isDark ? 'file:bg-zinc-700 file:text-zinc-200' : 'file:bg-slate-100 file:text-slate-700'}`} />
-                    {aadharFile && <span className={`text-xs mt-1 block ${isDark ? 'text-emerald-400' : 'text-emerald-600'}`}>{aadharFile.name}</span>}
-                  </div>
-                </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <Input label="Designation" name="contactDesignation" value={closedWonForm.contactDesignation} onChange={handleChange} />
+                <Input label="Department" name="contactDepartment" value={closedWonForm.contactDepartment} onChange={handleChange} />
               </div>
+            </div>
+          </div>
 
-              {/* ── Sales Order Form ── */}
-              <div className={`rounded-xl p-4 space-y-4 ${isDark ? 'bg-zinc-900/50 border border-zinc-800' : 'bg-slate-50 border border-slate-200'}`}>
-                <h3 className={`text-sm font-semibold ${isDark ? 'text-zinc-200' : 'text-slate-800'}`}>Sales Order Details</h3>
+          {/* Document Uploads Section */}
+          <div>
+            <h3 className="text-sm font-semibold mb-3 flex items-center gap-1.5 text-gray-900 dark:text-white">
+              <Upload className="w-4 h-4" /> Document Uploads
+            </h3>
+            <div className="space-y-3">
+              <div>
+                <label className={labelStyles}>GST Certificate *</label>
+                <input type="file" accept=".pdf,.jpg,.jpeg,.png" onChange={e => setGstFile(e.target.files?.[0] || null)} className={fileInputStyles} />
+                {gstFile && <span className="text-xs mt-1 block text-emerald-600 dark:text-emerald-400">{gstFile.name}</span>}
+              </div>
+              <div>
+                <label className={labelStyles}>MSME Certificate <span className="text-xs text-gray-400 dark:text-zinc-500">(optional)</span></label>
+                <input type="file" accept=".pdf,.jpg,.jpeg,.png" onChange={e => setMsmeFile(e.target.files?.[0] || null)} className={fileInputStyles} />
+                {msmeFile && <span className="text-xs mt-1 block text-emerald-600 dark:text-emerald-400">{msmeFile.name}</span>}
+              </div>
+              <div>
+                <label className={labelStyles}>PAN Card *</label>
+                <input type="file" accept=".pdf,.jpg,.jpeg,.png" onChange={e => setPanFile(e.target.files?.[0] || null)} className={fileInputStyles} />
+                {panFile && <span className="text-xs mt-1 block text-emerald-600 dark:text-emerald-400">{panFile.name}</span>}
+              </div>
+              <div>
+                <label className={labelStyles}>Aadhar Card *</label>
+                <input type="file" accept=".pdf,.jpg,.jpeg,.png" onChange={e => setAadharFile(e.target.files?.[0] || null)} className={fileInputStyles} />
+                {aadharFile && <span className="text-xs mt-1 block text-emerald-600 dark:text-emerald-400">{aadharFile.name}</span>}
+              </div>
+            </div>
+          </div>
 
-                {/* Product Selection */}
-                <div className="relative">
-                  <label className={labelClass}>Products <span className="text-red-500">*</span></label>
-                  <button
-                    type="button"
-                    onClick={() => setProductDropdownOpen(prev => !prev)}
-                    className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl border text-sm text-left transition-colors ${
-                      isDark
-                        ? 'bg-dark-100 border-zinc-700 text-zinc-300 hover:border-zinc-500'
-                        : 'bg-white border-slate-200 text-slate-700 hover:border-slate-400'
-                    }`}
-                  >
-                    <span className={selectedProductIds.length === 0 ? (isDark ? 'text-zinc-500' : 'text-slate-400') : ''}>
-                      {selectedProductIds.length === 0
-                        ? '-- Select Products --'
-                        : `${selectedProductIds.length} product(s) selected`}
-                    </span>
-                    <ChevronDown className={`w-4 h-4 transition-transform ${productDropdownOpen ? 'rotate-180' : ''} ${isDark ? 'text-zinc-500' : 'text-slate-400'}`} />
-                  </button>
-                  {productDropdownOpen && (
-                    <div className={`absolute z-10 left-0 right-0 mt-1 rounded-xl border shadow-lg ${
-                      isDark ? 'bg-dark-100 border-zinc-700' : 'bg-white border-slate-200'
-                    }`}>
-                      <div className="p-2">
+          {/* Sales Order Form */}
+          <Card glass={false} padding="md" className="space-y-4">
+            <h3 className="text-sm font-semibold text-gray-800 dark:text-zinc-200">Sales Order Details</h3>
+
+            {/* Product Selection */}
+            <div className="relative">
+              <label className={labelStyles}>Products <span className="text-red-500">*</span></label>
+              <button
+                type="button"
+                onClick={() => setProductDropdownOpen(prev => !prev)}
+                className={cx(
+                  inputStyles,
+                  'w-full flex items-center justify-between text-left cursor-pointer'
+                )}
+              >
+                <span className={selectedProductIds.length === 0 ? 'text-gray-400 dark:text-zinc-500' : ''}>
+                  {selectedProductIds.length === 0
+                    ? '-- Select Products --'
+                    : `${selectedProductIds.length} product(s) selected`}
+                </span>
+                <ChevronDown className={cx('w-4 h-4 transition-transform text-gray-400 dark:text-zinc-500', productDropdownOpen && 'rotate-180')} />
+              </button>
+              {productDropdownOpen && (
+                <div className="absolute z-10 left-0 right-0 mt-1 rounded-xl border shadow-lg bg-white border-gray-200 dark:bg-dark-100 dark:border-zinc-700">
+                  <div className="p-2">
+                    <input
+                      type="text"
+                      placeholder="Search products..."
+                      value={productSearch}
+                      onChange={e => setProductSearch(e.target.value)}
+                      className={cx(inputStyles, 'text-sm')}
+                      autoFocus
+                    />
+                  </div>
+                  <div className="max-h-48 overflow-y-auto px-2 pb-2 space-y-1">
+                    {products.length === 0 ? (
+                      <p className="text-xs px-2 py-3 text-center text-gray-400 dark:text-zinc-500">No products found</p>
+                    ) : products.filter(p => p.isActive && p.name.toLowerCase().includes(productSearch.toLowerCase())).map(product => (
+                      <label key={product.id} className={cx(
+                        'flex items-center gap-2.5 px-2.5 py-2 rounded-lg cursor-pointer transition-colors',
+                        selectedProductIds.includes(product.id)
+                          ? 'bg-brand-50 text-brand-700 dark:bg-brand-900/30 dark:text-brand-300'
+                          : 'hover:bg-gray-100 text-gray-700 dark:hover:bg-zinc-800 dark:text-zinc-300'
+                      )}>
                         <input
-                          type="text"
-                          placeholder="Search products..."
-                          value={productSearch}
-                          onChange={e => setProductSearch(e.target.value)}
-                          className={`${inputClass} text-sm`}
-                          autoFocus
+                          type="checkbox"
+                          checked={selectedProductIds.includes(product.id)}
+                          onChange={() => {
+                            setSelectedProductIds(prev =>
+                              prev.includes(product.id) ? prev.filter(id => id !== product.id) : [...prev, product.id]
+                            );
+                          }}
+                          className="rounded border-gray-300 text-brand-600 focus:ring-brand-500"
                         />
-                      </div>
-                      <div className="max-h-48 overflow-y-auto px-2 pb-2 space-y-1">
-                        {products.length === 0 ? (
-                          <p className={`text-xs px-2 py-3 text-center ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>No products found</p>
-                        ) : products.filter(p => p.isActive && p.name.toLowerCase().includes(productSearch.toLowerCase())).map(product => (
-                          <label key={product.id} className={`flex items-center gap-2.5 px-2.5 py-2 rounded-lg cursor-pointer transition-colors ${
-                            selectedProductIds.includes(product.id)
-                              ? isDark ? 'bg-brand-900/30 text-brand-300' : 'bg-brand-50 text-brand-700'
-                              : isDark ? 'hover:bg-zinc-800 text-zinc-300' : 'hover:bg-slate-100 text-slate-700'
-                          }`}>
-                            <input
-                              type="checkbox"
-                              checked={selectedProductIds.includes(product.id)}
-                              onChange={() => {
-                                setSelectedProductIds(prev =>
-                                  prev.includes(product.id) ? prev.filter(id => id !== product.id) : [...prev, product.id]
-                                );
-                              }}
-                              className="rounded border-slate-300 text-brand-600 focus:ring-brand-500"
-                            />
-                            <span className="text-sm">{product.name}</span>
-                            {product.basePrice ? <span className={`text-xs ml-auto ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>{formatINR(product.basePrice)}</span> : null}
-                          </label>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Contact Info */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <div>
-                    <label className={labelClass}>Contact Name</label>
-                    <input name="contactName" value={closedWonOrderForm.contactName} onChange={handleOrderChange} className={inputClass} placeholder="Contact person" />
-                  </div>
-                  <div>
-                    <label className={labelClass}>Contact No</label>
-                    <input name="contactNo" value={closedWonOrderForm.contactNo} onChange={handleOrderChange} className={inputClass} placeholder="+91..." />
-                  </div>
-                  <div>
-                    <label className={labelClass}>Email</label>
-                    <input name="email" type="email" value={closedWonOrderForm.email} onChange={handleOrderChange} className={inputClass} placeholder="email@example.com" />
-                  </div>
-                </div>
-
-                {/* Company Details */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className={labelClass}>GSTIN</label>
-                    <input name="gstin" value={closedWonOrderForm.gstin} onChange={handleOrderChange} className={inputClass} placeholder="22AAAAA0000A1Z5" />
-                  </div>
-                  <div>
-                    <label className={labelClass}>PAN No</label>
-                    <input name="panNo" value={closedWonOrderForm.panNo} onChange={handleOrderChange} className={inputClass} placeholder="AAAAA0000A" />
-                  </div>
-                </div>
-
-                {/* Quantity, Price & Amount */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <div>
-                    <label className={labelClass}>Quantity</label>
-                    <input name="quantity" type="number" min="1" value={closedWonOrderForm.quantity} onChange={handleOrderChange} className={inputClass} />
-                  </div>
-                  <div>
-                    <label className={labelClass}>Price (per unit)</label>
-                    <input name="price" type="number" min="0" step="0.01" value={closedWonOrderForm.price} onChange={handleOrderChange} className={inputClass} />
-                  </div>
-                  <div>
-                    <label className={labelClass}>Amount <span className="text-red-500">*</span></label>
-                    <input name="amount" type="number" min="0" step="0.01" value={closedWonOrderForm.amount} onChange={handleOrderChange} className={inputClass} required />
-                  </div>
-                </div>
-
-                {/* Dispatch Method & Payment Terms */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className={labelClass}>Dispatch Method</label>
-                    <select name="dispatchMethod" value={closedWonOrderForm.dispatchMethod} onChange={handleOrderChange} className={selectClass}>
-                      <option value="">-- Select --</option>
-                      <option value="Air">Air</option>
-                      <option value="Road">Road</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className={labelClass}>Payment Terms</label>
-                    <input name="paymentTerms" value={closedWonOrderForm.paymentTerms} onChange={handleOrderChange} className={inputClass} placeholder="e.g. Net 30" />
-                  </div>
-                </div>
-
-                {/* Sale Date */}
-                <div>
-                  <label className={labelClass}>Sale Date <span className="text-red-500">*</span></label>
-                  <input name="saleDate" type="date" value={closedWonOrderForm.saleDate} onChange={handleOrderChange} className={inputClass} required />
-                </div>
-
-                {/* Order Type Toggle */}
-                <div>
-                  <label className={labelClass}>Order Type</label>
-                  <div className="flex gap-2">
-                    {(['New', 'Refurb', 'Rental'] as const).map(t => (
-                      <button
-                        key={t}
-                        type="button"
-                        onClick={() => setClosedWonOrderForm(prev => ({ ...prev, orderType: t }))}
-                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                          closedWonOrderForm.orderType === t
-                            ? 'bg-brand-600 text-white shadow-sm'
-                            : isDark ? 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                        }`}
-                      >
-                        {t}
-                      </button>
+                        <span className="text-sm">{product.name}</span>
+                        {product.basePrice ? <span className="text-xs ml-auto text-gray-400 dark:text-zinc-500">{formatINR(product.basePrice)}</span> : null}
+                      </label>
                     ))}
                   </div>
                 </div>
+              )}
+            </div>
 
-                {/* BOQ */}
-                <div>
-                  <label className={labelClass}>BOQ (Bill of Quantities)</label>
-                  <textarea
-                    name="boq"
-                    rows={3}
-                    placeholder="Enter BOQ details..."
-                    value={closedWonOrderForm.boq}
-                    onChange={handleOrderChange}
-                    className={inputClass}
-                  />
-                </div>
+            {/* Contact Info */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <Input label="Contact Name" name="contactName" value={closedWonOrderForm.contactName} onChange={handleOrderChange} placeholder="Contact person" />
+              <Input label="Contact No" name="contactNo" value={closedWonOrderForm.contactNo} onChange={handleOrderChange} placeholder="+91..." />
+              <Input label="Email" name="email" type="email" value={closedWonOrderForm.email} onChange={handleOrderChange} placeholder="email@example.com" />
+            </div>
 
-                {/* Description */}
-                <div>
-                  <label className={labelClass}>Description</label>
-                  <textarea
-                    rows={2}
-                    placeholder="Description of the sales order..."
-                    value={closedWonDescription}
-                    onChange={e => setClosedWonDescription(e.target.value)}
-                    className={inputClass}
-                  />
-                </div>
+            {/* Company Details */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <Input label="GSTIN" name="gstin" value={closedWonOrderForm.gstin} onChange={handleOrderChange} placeholder="22AAAAA0000A1Z5" />
+              <Input label="PAN No" name="panNo" value={closedWonOrderForm.panNo} onChange={handleOrderChange} placeholder="AAAAA0000A" />
+            </div>
+
+            {/* Quantity, Price & Amount */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <Input label="Quantity" name="quantity" type="number" min={1} value={closedWonOrderForm.quantity} onChange={handleOrderChange} />
+              <Input label="Price (per unit)" name="price" type="number" min={0} step={0.01} value={closedWonOrderForm.price} onChange={handleOrderChange} />
+              <Input label="Amount *" name="amount" type="number" min={0} step={0.01} value={closedWonOrderForm.amount} onChange={handleOrderChange} required />
+            </div>
+
+            {/* Dispatch Method & Payment Terms */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <Select label="Dispatch Method" name="dispatchMethod" value={closedWonOrderForm.dispatchMethod} onChange={handleOrderChange}>
+                <option value="">-- Select --</option>
+                <option value="Air">Air</option>
+                <option value="Road">Road</option>
+              </Select>
+              <Input label="Payment Terms" name="paymentTerms" value={closedWonOrderForm.paymentTerms} onChange={handleOrderChange} placeholder="e.g. Net 30" />
+            </div>
+
+            {/* Sale Date */}
+            <Input label="Sale Date *" name="saleDate" type="date" value={closedWonOrderForm.saleDate} onChange={handleOrderChange} required />
+
+            {/* Order Type Toggle */}
+            <div>
+              <label className={labelStyles}>Order Type</label>
+              <div className="flex gap-2">
+                {(['New', 'Refurb', 'Rental'] as const).map(t => (
+                  <button
+                    key={t}
+                    type="button"
+                    onClick={() => setClosedWonOrderForm(prev => ({ ...prev, orderType: t }))}
+                    className={cx(
+                      'px-4 py-2 rounded-lg text-sm font-medium transition-all',
+                      closedWonOrderForm.orderType === t
+                        ? 'bg-brand-600 text-white shadow-sm'
+                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-700'
+                    )}
+                  >
+                    {t}
+                  </button>
+                ))}
               </div>
             </div>
 
-            {/* Footer */}
-            <div className={`flex items-center justify-end gap-3 px-6 py-4 border-t ${isDark ? 'border-zinc-800' : 'border-slate-200'}`}>
-              <button type="button" onClick={() => setShowClosedWonModal(false)} className={`px-4 py-2.5 rounded-xl text-sm font-medium ${isDark ? 'text-zinc-400 hover:bg-zinc-800' : 'text-slate-500 hover:bg-slate-100'}`}>
-                Cancel
-              </button>
-              <button type="submit" disabled={isClosedWonSubmitting} className="flex items-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-medium transition-all btn-premium disabled:opacity-50">
-                {isClosedWonSubmitting ? (
-                  <><Loader2 className="w-4 h-4 animate-spin" /> Creating...</>
-                ) : (
-                  <><CheckCircle className="w-4 h-4" /> Create Account & Sales Order</>
-                )}
-              </button>
-            </div>
-          </form>
-        </div>
-      </div>
+            {/* BOQ */}
+            <Textarea label="BOQ (Bill of Quantities)" name="boq" rows={3} placeholder="Enter BOQ details..." value={closedWonOrderForm.boq} onChange={handleOrderChange} />
+
+            {/* Description */}
+            <Textarea label="Description" rows={2} placeholder="Description of the sales order..." value={closedWonDescription} onChange={e => setClosedWonDescription(e.target.value)} />
+          </Card>
+        </form>
+      </Modal>
     );
   };
 
@@ -3201,10 +2384,10 @@ export const CRMPage: React.FC = () => {
       {/* Page header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className={`text-xl font-bold font-display ${isDark ? 'text-white' : 'text-slate-900'}`}>
+          <h1 className="text-xl font-bold font-display text-gray-900 dark:text-white">
             Leads
           </h1>
-          <p className={`text-sm mt-0.5 ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>
+          <p className="text-sm mt-0.5 text-gray-500 dark:text-zinc-400">
             Manage leads, track progress, and convert opportunities
           </p>
         </div>
@@ -3212,76 +2395,25 @@ export const CRMPage: React.FC = () => {
 
       {/* Stage Summary Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
-        {/* Total */}
-        <div className={`${cardClass} p-4 flex items-center gap-3`}>
-          <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${isDark ? 'bg-blue-500/10 text-blue-400' : 'bg-blue-50 text-blue-600'}`}>
-            <Users className="w-5 h-5" />
-          </div>
-          <div>
-            <p className={`text-2xl font-bold font-display ${isDark ? 'text-white' : 'text-slate-900'}`}>{leadSummary.total}</p>
-            <p className={`text-xs ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Total</p>
-          </div>
-        </div>
-        {/* New */}
-        <div className={`${cardClass} p-4 flex items-center gap-3`}>
-          <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${isDark ? 'bg-cyan-500/10 text-cyan-400' : 'bg-cyan-50 text-cyan-600'}`}>
-            <Plus className="w-5 h-5" />
-          </div>
-          <div>
-            <p className={`text-2xl font-bold font-display ${isDark ? 'text-white' : 'text-slate-900'}`}>{leadSummary.new}</p>
-            <p className={`text-xs ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>New</p>
-          </div>
-        </div>
-        {/* Proposal */}
-        <div className={`${cardClass} p-4 flex items-center gap-3`}>
-          <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${isDark ? 'bg-purple-500/10 text-purple-400' : 'bg-purple-50 text-purple-600'}`}>
-            <TrendingUp className="w-5 h-5" />
-          </div>
-          <div>
-            <p className={`text-2xl font-bold font-display ${isDark ? 'text-white' : 'text-slate-900'}`}>{leadSummary.proposal}</p>
-            <p className={`text-xs ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Proposal</p>
-          </div>
-        </div>
-        {/* Cold */}
-        <div className={`${cardClass} p-4 flex items-center gap-3`}>
-          <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${isDark ? 'bg-sky-500/10 text-sky-400' : 'bg-sky-50 text-sky-600'}`}>
-            <Target className="w-5 h-5" />
-          </div>
-          <div>
-            <p className={`text-2xl font-bold font-display ${isDark ? 'text-white' : 'text-slate-900'}`}>{leadSummary.cold}</p>
-            <p className={`text-xs ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Cold</p>
-          </div>
-        </div>
-        {/* Negotiation */}
-        <div className={`${cardClass} p-4 flex items-center gap-3`}>
-          <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${isDark ? 'bg-orange-500/10 text-orange-400' : 'bg-orange-50 text-orange-600'}`}>
-            <Clock className="w-5 h-5" />
-          </div>
-          <div>
-            <p className={`text-2xl font-bold font-display ${isDark ? 'text-white' : 'text-slate-900'}`}>{leadSummary.negotiation}</p>
-            <p className={`text-xs ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Negotiation</p>
-          </div>
-        </div>
-        {/* Closed Lost */}
-        <div className={`${cardClass} p-4 flex items-center gap-3`}>
-          <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${isDark ? 'bg-red-500/10 text-red-400' : 'bg-red-50 text-red-600'}`}>
-            <XCircle className="w-5 h-5" />
-          </div>
-          <div>
-            <p className={`text-2xl font-bold font-display ${isDark ? 'text-white' : 'text-slate-900'}`}>{leadSummary.closedLost}</p>
-            <p className={`text-xs ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Closed Lost</p>
-          </div>
-        </div>
-        {/* Closed Won */}
-        <div className={`${cardClass} p-4 flex items-center gap-3`}>
-          <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${isDark ? 'bg-emerald-500/10 text-emerald-400' : 'bg-emerald-50 text-emerald-600'}`}>
-            <CheckCircle className="w-5 h-5" />
-          </div>
-          <div>
-            <p className={`text-2xl font-bold font-display ${isDark ? 'text-white' : 'text-slate-900'}`}>{leadSummary.closedWon}</p>
-            <p className={`text-xs ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Closed Won</p>
-          </div>
-        </div>
+        {[
+          { label: 'Total', count: leadSummary.total, icon: <Users className="w-5 h-5" />, color: 'bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400' },
+          { label: 'New', count: leadSummary.new, icon: <Plus className="w-5 h-5" />, color: 'bg-cyan-50 text-cyan-600 dark:bg-cyan-500/10 dark:text-cyan-400' },
+          { label: 'Proposal', count: leadSummary.proposal, icon: <TrendingUp className="w-5 h-5" />, color: 'bg-purple-50 text-purple-600 dark:bg-purple-500/10 dark:text-purple-400' },
+          { label: 'Cold', count: leadSummary.cold, icon: <Target className="w-5 h-5" />, color: 'bg-sky-50 text-sky-600 dark:bg-sky-500/10 dark:text-sky-400' },
+          { label: 'Negotiation', count: leadSummary.negotiation, icon: <Clock className="w-5 h-5" />, color: 'bg-orange-50 text-orange-600 dark:bg-orange-500/10 dark:text-orange-400' },
+          { label: 'Closed Lost', count: leadSummary.closedLost, icon: <XCircle className="w-5 h-5" />, color: 'bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400' },
+          { label: 'Closed Won', count: leadSummary.closedWon, icon: <CheckCircle className="w-5 h-5" />, color: 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400' },
+        ].map(item => (
+          <Card key={item.label} padding="sm" className="flex items-center gap-3">
+            <div className={cx('w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0', item.color)}>
+              {item.icon}
+            </div>
+            <div>
+              <p className="text-2xl font-bold font-display text-gray-900 dark:text-white">{item.count}</p>
+              <p className="text-xs text-gray-400 dark:text-zinc-500">{item.label}</p>
+            </div>
+          </Card>
+        ))}
       </div>
 
       {/* Toolbar */}
@@ -3301,58 +2433,41 @@ export const CRMPage: React.FC = () => {
         onClose={() => setShowBulkImport(false)}
         entity="leads"
         entityLabel="Leads"
-        isDark={isDark}
         onSuccess={() => fetchLeads()}
       />
 
       {/* Summarise Modal */}
       {showSummariseModal && summariseLead && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={() => setShowSummariseModal(false)}>
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
-          <div
-            className={`relative w-full max-w-lg rounded-2xl shadow-2xl border p-6 ${
-              isDark ? 'bg-zinc-900 border-zinc-700' : 'bg-white border-slate-200'
-            }`}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between mb-4">
-              <h3 className={`text-lg font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                Lead Summary
-              </h3>
-              <button
-                onClick={() => setShowSummariseModal(false)}
-                className={`p-1.5 rounded-lg transition-colors ${
-                  isDark ? 'text-zinc-400 hover:text-white hover:bg-zinc-800' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100'
-                }`}
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <div className="space-y-3">
-              {[
-                { label: 'Company', value: summariseLead.companyName },
-                { label: 'Contact Name', value: summariseLead.contactPerson },
-                { label: 'Contact No', value: summariseLead.phone },
-                { label: 'Designation', value: (summariseLead as any).designation },
-                { label: 'Email', value: summariseLead.email },
-                { label: 'Location', value: (summariseLead as any).location },
-                { label: 'Stage', value: summariseLead.stage },
-                { label: 'Value', value: summariseLead.estimatedValue ? formatINR(summariseLead.estimatedValue) : undefined },
-                { label: 'Source', value: summariseLead.source },
-                { label: 'Type', value: (summariseLead as any).tag },
-                { label: 'Requirement', value: summariseLead.requirement },
-                { label: 'Quoted Requirement', value: summariseLead.quotedRequirement },
-                { label: 'Follow-up Date', value: summariseLead.nextFollowUp ? formatDate(summariseLead.nextFollowUp) : undefined },
-                { label: 'Notes', value: summariseLead.notes },
-              ].filter(item => item.value).map(item => (
-                <div key={item.label} className="flex justify-between">
-                  <span className={`text-sm font-medium ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>{item.label}</span>
-                  <span className={`text-sm text-right max-w-[60%] ${isDark ? 'text-zinc-200' : 'text-slate-700'}`}>{item.value}</span>
-                </div>
-              ))}
-            </div>
+        <Modal
+          open={showSummariseModal}
+          onClose={() => setShowSummariseModal(false)}
+          title="Lead Summary"
+          size="md"
+        >
+          <div className="space-y-3">
+            {[
+              { label: 'Company', value: summariseLead.companyName },
+              { label: 'Contact Name', value: summariseLead.contactPerson },
+              { label: 'Contact No', value: summariseLead.phone },
+              { label: 'Designation', value: (summariseLead as any).designation },
+              { label: 'Email', value: summariseLead.email },
+              { label: 'Location', value: (summariseLead as any).location },
+              { label: 'Stage', value: summariseLead.stage },
+              { label: 'Value', value: summariseLead.estimatedValue ? formatINR(summariseLead.estimatedValue) : undefined },
+              { label: 'Source', value: summariseLead.source },
+              { label: 'Type', value: (summariseLead as any).tag },
+              { label: 'Requirement', value: summariseLead.requirement },
+              { label: 'Quoted Requirement', value: summariseLead.quotedRequirement },
+              { label: 'Follow-up Date', value: summariseLead.nextFollowUp ? formatDate(summariseLead.nextFollowUp) : undefined },
+              { label: 'Notes', value: summariseLead.notes },
+            ].filter(item => item.value).map(item => (
+              <div key={item.label} className="flex justify-between">
+                <span className="text-sm font-medium text-gray-500 dark:text-zinc-400">{item.label}</span>
+                <span className="text-sm text-right max-w-[60%] text-gray-700 dark:text-zinc-200">{item.value}</span>
+              </div>
+            ))}
           </div>
-        </div>
+        </Modal>
       )}
     </div>
   );
@@ -3365,19 +2480,18 @@ export const CRMPage: React.FC = () => {
 const InfoRow: React.FC<{
   label: string;
   value?: string;
-  isDark: boolean;
   icon?: React.ReactNode;
   capitalize?: boolean;
-}> = ({ label, value, isDark, icon, capitalize }) => (
-  <div className={`flex items-start gap-2 p-2.5 rounded-lg ${isDark ? 'bg-dark-100' : 'bg-slate-50'}`}>
+}> = ({ label, value, icon, capitalize }) => (
+  <div className="flex items-start gap-2 p-2.5 rounded-lg bg-gray-50 dark:bg-dark-100">
     {icon && (
-      <span className={`mt-0.5 flex-shrink-0 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
+      <span className="mt-0.5 flex-shrink-0 text-gray-400 dark:text-zinc-500">
         {icon}
       </span>
     )}
     <div className="min-w-0">
-      <p className={`text-[11px] font-medium ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>{label}</p>
-      <p className={`text-sm ${capitalize ? 'capitalize' : ''} ${isDark ? 'text-white' : 'text-slate-900'}`}>
+      <p className="text-[11px] font-medium text-gray-400 dark:text-zinc-500">{label}</p>
+      <p className={cx('text-sm text-gray-900 dark:text-white', capitalize && 'capitalize')}>
         {value || '-'}
       </p>
     </div>

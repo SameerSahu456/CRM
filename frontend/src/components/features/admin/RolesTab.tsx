@@ -1,13 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Plus, Edit2, Trash2, Loader2, AlertCircle, X, Save, Shield } from 'lucide-react';
+import { Plus, Edit2, Trash2, Loader2, AlertCircle, Save, Shield } from 'lucide-react';
 import { rolesApi } from '@/services/api';
 import { Role, RolePermission } from '@/types';
-
-interface Props {
-  isDark: boolean;
-  cardClass: string;
-  inputClass: string;
-}
+import { Card, Button, Input, Badge, Alert } from '@/components/ui';
+import { cx } from '@/utils/cx';
 
 const ENTITIES = [
   'partners', 'leads', 'accounts', 'contacts', 'deals',
@@ -20,7 +16,7 @@ const ACTION_LABELS: Record<string, string> = {
   canView: 'View', canCreate: 'Create', canEdit: 'Edit', canDelete: 'Delete',
 };
 
-export const RolesTab: React.FC<Props> = ({ isDark, cardClass, inputClass }) => {
+export const RolesTab: React.FC = () => {
   const [roles, setRoles] = useState<Role[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -163,9 +159,12 @@ export const RolesTab: React.FC<Props> = ({ isDark, cardClass, inputClass }) => 
     }
   };
 
-  const checkboxClass = `w-4 h-4 rounded border ${
-    isDark ? 'bg-dark-100 border-zinc-600 text-brand-500' : 'bg-white border-slate-300 text-brand-600'
-  } focus:ring-brand-500 cursor-pointer`;
+  const checkboxClass = cx(
+    'w-4 h-4 rounded border cursor-pointer',
+    'bg-white border-gray-300 text-brand-600',
+    'dark:bg-dark-100 dark:border-zinc-600 dark:text-brand-500',
+    'focus:ring-brand-500'
+  );
 
   if (loading) {
     return (
@@ -177,9 +176,10 @@ export const RolesTab: React.FC<Props> = ({ isDark, cardClass, inputClass }) => 
 
   if (error) {
     return (
-      <div className="flex items-center justify-center py-12 gap-2 text-red-500">
-        <AlertCircle className="w-5 h-5" />
-        <span className="text-sm">{error}</span>
+      <div className="flex items-center justify-center py-12">
+        <Alert variant="error" icon={<AlertCircle className="w-5 h-5" />}>
+          {error}
+        </Alert>
       </div>
     );
   }
@@ -188,124 +188,115 @@ export const RolesTab: React.FC<Props> = ({ isDark, cardClass, inputClass }) => 
     <div className="space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h3 className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
           Roles & Permissions
         </h3>
-        <button
+        <Button
           onClick={() => setShowCreate(s => !s)}
-          className="flex items-center gap-2 px-4 py-2 bg-brand-600 text-white rounded-xl text-sm font-medium hover:bg-brand-700 transition-colors"
+          icon={<Plus className="w-4 h-4" />}
         >
-          <Plus className="w-4 h-4" /> Add Role
-        </button>
+          Add Role
+        </Button>
       </div>
 
       {/* Create Role Form */}
       {showCreate && (
-        <div className={`${cardClass} p-4`}>
+        <Card padding="none" className="p-4">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <input
+            <Input
               placeholder="Role name (e.g. team_lead)"
               value={newName}
               onChange={e => setNewName(e.target.value)}
-              className={inputClass}
             />
-            <input
+            <Input
               placeholder="Label (e.g. Team Lead)"
               value={newLabel}
               onChange={e => setNewLabel(e.target.value)}
-              className={inputClass}
             />
-            <input
+            <Input
               placeholder="Description (optional)"
               value={newDesc}
               onChange={e => setNewDesc(e.target.value)}
-              className={inputClass}
             />
           </div>
           <div className="flex gap-2 mt-3">
-            <button
+            <Button
               onClick={handleCreateRole}
               disabled={creating || !newName.trim() || !newLabel.trim()}
-              className="px-4 py-2 bg-brand-600 text-white rounded-xl text-sm font-medium hover:bg-brand-700 disabled:opacity-50 transition-colors"
+              loading={creating}
             >
-              {creating ? 'Creating...' : 'Create'}
-            </button>
-            <button
+              Create
+            </Button>
+            <Button
+              variant="ghost"
               onClick={() => { setShowCreate(false); setNewName(''); setNewLabel(''); setNewDesc(''); }}
-              className={`px-4 py-2 rounded-xl text-sm font-medium ${isDark ? 'text-zinc-400 hover:bg-zinc-800' : 'text-slate-500 hover:bg-slate-100'}`}
             >
               Cancel
-            </button>
+            </Button>
           </div>
-        </div>
+        </Card>
       )}
 
       {/* Roles List */}
       {roles.map(role => (
-        <div key={role.id} className={cardClass}>
+        <Card key={role.id} padding="none">
           {editingRoleId === role.id ? (
             /* Inline Edit Mode */
             <div className="p-4 space-y-3">
               <div className="flex items-center gap-3 mb-2">
-                <Shield className={`w-5 h-5 ${isDark ? 'text-brand-400' : 'text-brand-600'}`} />
-                <span className={`text-sm font-semibold ${isDark ? 'text-zinc-300' : 'text-slate-600'}`}>Editing Role</span>
+                <Shield className="w-5 h-5 text-brand-600 dark:text-brand-400" />
+                <span className="text-sm font-semibold text-gray-600 dark:text-zinc-300">Editing Role</span>
                 {role.isSystem && (
-                  <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs ${
-                    isDark ? 'bg-zinc-800 text-zinc-400' : 'bg-slate-100 text-slate-500'
-                  }`}>
-                    System
-                  </span>
+                  <Badge variant="gray" size="sm">System</Badge>
                 )}
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
-                  <label className={`block text-xs font-medium mb-1 ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>Name</label>
-                  <input
+                  <label className="block text-xs font-medium mb-1 text-gray-500 dark:text-zinc-400">Name</label>
+                  <Input
                     value={editName}
                     onChange={e => setEditName(e.target.value)}
                     disabled={role.isSystem}
                     placeholder="Role name"
-                    className={`${inputClass} ${role.isSystem ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    className={role.isSystem ? 'opacity-50 cursor-not-allowed' : ''}
                   />
                   {role.isSystem && (
-                    <p className={`text-xs mt-1 ${isDark ? 'text-zinc-600' : 'text-slate-400'}`}>System role name cannot be changed</p>
+                    <p className="text-xs mt-1 text-gray-400 dark:text-zinc-600">System role name cannot be changed</p>
                   )}
                 </div>
                 <div>
-                  <label className={`block text-xs font-medium mb-1 ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>Label</label>
-                  <input
+                  <label className="block text-xs font-medium mb-1 text-gray-500 dark:text-zinc-400">Label</label>
+                  <Input
                     value={editLabel}
                     onChange={e => setEditLabel(e.target.value)}
                     placeholder="Display label"
-                    className={inputClass}
                   />
                 </div>
                 <div>
-                  <label className={`block text-xs font-medium mb-1 ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>Description</label>
-                  <input
+                  <label className="block text-xs font-medium mb-1 text-gray-500 dark:text-zinc-400">Description</label>
+                  <Input
                     value={editDesc}
                     onChange={e => setEditDesc(e.target.value)}
                     placeholder="Description (optional)"
-                    className={inputClass}
                   />
                 </div>
               </div>
               <div className="flex gap-2">
-                <button
+                <Button
                   onClick={() => handleSaveRole(role)}
                   disabled={savingRole || !editLabel.trim() || (!role.isSystem && !editName.trim())}
-                  className="flex items-center gap-2 px-4 py-2 bg-brand-600 text-white rounded-xl text-sm font-medium hover:bg-brand-700 disabled:opacity-50 transition-colors"
+                  loading={savingRole}
+                  icon={!savingRole ? <Save className="w-4 h-4" /> : undefined}
                 >
-                  <Save className="w-4 h-4" />
-                  {savingRole ? 'Saving...' : 'Save'}
-                </button>
-                <button
+                  Save
+                </Button>
+                <Button
+                  variant="ghost"
                   onClick={cancelEditing}
                   disabled={savingRole}
-                  className={`px-4 py-2 rounded-xl text-sm font-medium ${isDark ? 'text-zinc-400 hover:bg-zinc-800' : 'text-slate-500 hover:bg-slate-100'} disabled:opacity-50`}
                 >
                   Cancel
-                </button>
+                </Button>
               </div>
             </div>
           ) : (
@@ -315,19 +306,15 @@ export const RolesTab: React.FC<Props> = ({ isDark, cardClass, inputClass }) => 
               onClick={() => expandRole(role)}
             >
               <div className="flex items-center gap-3">
-                <Shield className={`w-5 h-5 ${isDark ? 'text-brand-400' : 'text-brand-600'}`} />
+                <Shield className="w-5 h-5 text-brand-600 dark:text-brand-400" />
                 <div>
-                  <div className={`font-medium ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                  <div className="font-medium text-gray-900 dark:text-white">
                     {role.label}
                     {role.isSystem && (
-                      <span className={`ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs ${
-                        isDark ? 'bg-zinc-800 text-zinc-400' : 'bg-slate-100 text-slate-500'
-                      }`}>
-                        System
-                      </span>
+                      <Badge variant="gray" size="sm" className="ml-2">System</Badge>
                     )}
                   </div>
-                  <div className={`text-xs ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
+                  <div className="text-xs text-gray-400 dark:text-zinc-500">
                     {role.name} {role.description ? `--- ${role.description}` : ''}
                   </div>
                 </div>
@@ -335,7 +322,7 @@ export const RolesTab: React.FC<Props> = ({ isDark, cardClass, inputClass }) => 
               <div className="flex items-center gap-1">
                 <button
                   onClick={e => { e.stopPropagation(); startEditing(role); }}
-                  className={`p-2 rounded-lg transition-colors ${isDark ? 'text-zinc-500 hover:text-brand-400 hover:bg-zinc-800' : 'text-slate-400 hover:text-brand-600 hover:bg-brand-50'}`}
+                  className="p-2 rounded-lg transition-colors text-gray-400 hover:text-brand-600 hover:bg-brand-50 dark:text-zinc-500 dark:hover:text-brand-400 dark:hover:bg-zinc-800"
                   title="Edit role"
                 >
                   <Edit2 className="w-4 h-4" />
@@ -343,7 +330,7 @@ export const RolesTab: React.FC<Props> = ({ isDark, cardClass, inputClass }) => 
                 {!role.isSystem && (
                   <button
                     onClick={e => { e.stopPropagation(); handleDeleteRole(role.id, role.label); }}
-                    className={`p-2 rounded-lg transition-colors ${isDark ? 'text-zinc-500 hover:text-red-400 hover:bg-zinc-800' : 'text-slate-400 hover:text-red-600 hover:bg-red-50'}`}
+                    className="p-2 rounded-lg transition-colors text-gray-400 hover:text-red-600 hover:bg-red-50 dark:text-zinc-500 dark:hover:text-red-400 dark:hover:bg-zinc-800"
                     title="Delete role"
                   >
                     <Trash2 className="w-4 h-4" />
@@ -355,25 +342,25 @@ export const RolesTab: React.FC<Props> = ({ isDark, cardClass, inputClass }) => 
 
           {/* Permission Matrix */}
           {expandedRole === role.id && (
-            <div className={`border-t px-4 py-4 ${isDark ? 'border-zinc-800' : 'border-slate-200'}`}>
+            <div className="border-t px-4 py-4 border-gray-200 dark:border-zinc-800">
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead>
                     <tr>
-                      <th className={`text-left text-xs font-semibold uppercase tracking-wider px-2 py-2 ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>
+                      <th className="text-left text-xs font-semibold uppercase tracking-wider px-2 py-2 text-gray-500 dark:text-zinc-400">
                         Entity
                       </th>
                       {ACTIONS.map(a => (
-                        <th key={a} className={`text-center text-xs font-semibold uppercase tracking-wider px-2 py-2 ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>
+                        <th key={a} className="text-center text-xs font-semibold uppercase tracking-wider px-2 py-2 text-gray-500 dark:text-zinc-400">
                           {ACTION_LABELS[a]}
                         </th>
                       ))}
                     </tr>
                   </thead>
-                  <tbody className={`divide-y ${isDark ? 'divide-zinc-800' : 'divide-slate-100'}`}>
+                  <tbody className="divide-y divide-gray-100 dark:divide-zinc-800">
                     {ENTITIES.map(entity => (
                       <tr key={entity}>
-                        <td className={`px-2 py-2 text-sm ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
+                        <td className="px-2 py-2 text-sm text-gray-700 dark:text-gray-300">
                           {entity.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
                         </td>
                         {ACTIONS.map(action => (
@@ -392,18 +379,17 @@ export const RolesTab: React.FC<Props> = ({ isDark, cardClass, inputClass }) => 
                 </table>
               </div>
               <div className="flex justify-end mt-3">
-                <button
+                <Button
                   onClick={() => handleSavePermissions(role.id)}
-                  disabled={savingPerms}
-                  className="flex items-center gap-2 px-4 py-2 bg-brand-600 text-white rounded-xl text-sm font-medium hover:bg-brand-700 disabled:opacity-50 transition-colors"
+                  loading={savingPerms}
+                  icon={!savingPerms ? <Save className="w-4 h-4" /> : undefined}
                 >
-                  <Save className="w-4 h-4" />
-                  {savingPerms ? 'Saving...' : 'Save Permissions'}
-                </button>
+                  Save Permissions
+                </Button>
               </div>
             </div>
           )}
-        </div>
+        </Card>
       ))}
     </div>
   );

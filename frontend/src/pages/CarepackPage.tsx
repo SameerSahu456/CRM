@@ -1,15 +1,16 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
-  Plus, Search, X, ChevronLeft, ChevronRight, Edit2, Trash2,
+  Plus, Search, X, Edit2, Trash2,
   Loader2, AlertCircle, CheckCircle, Shield, Clock, Calendar,
   Package, Hash, FileText, User as UserIcon, AlertTriangle
 } from 'lucide-react';
-import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigation } from '@/contexts/NavigationContext';
 import { carepacksApi, partnersApi } from '@/services/api';
 import { Carepack, Partner, PaginatedResponse } from '@/types';
 import { useColumnResize } from '@/hooks/useColumnResize';
+import { Card, Button, Input, Select, Modal, Badge, Alert, Pagination, Textarea } from '@/components/ui';
+import { cx } from '@/utils/cx';
 
 // ---------------------------------------------------------------------------
 // Types local to this page
@@ -53,17 +54,16 @@ const PAGE_SIZE = 10;
 // Helpers
 // ---------------------------------------------------------------------------
 
-function statusBadge(status: string, isDark: boolean): string {
-  const base = 'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium';
+function statusVariant(status: string): 'success' | 'error' | 'gray' {
   switch (status) {
     case 'active':
-      return `${base} ${isDark ? 'bg-emerald-900/30 text-emerald-400' : 'bg-emerald-50 text-emerald-700'}`;
+      return 'success';
     case 'expired':
-      return `${base} ${isDark ? 'bg-red-900/30 text-red-400' : 'bg-red-50 text-red-700'}`;
+      return 'error';
     case 'cancelled':
-      return `${base} ${isDark ? 'bg-zinc-800 text-zinc-400' : 'bg-slate-100 text-slate-500'}`;
+      return 'gray';
     default:
-      return `${base} ${isDark ? 'bg-zinc-800 text-zinc-400' : 'bg-slate-100 text-slate-500'}`;
+      return 'gray';
   }
 }
 
@@ -99,13 +99,12 @@ function getDaysRemaining(endDate: string | undefined): number | null {
   }
 }
 
-function daysRemainingBadge(days: number | null, isDark: boolean): string {
-  const base = 'inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium';
-  if (days === null) return `${base} ${isDark ? 'bg-zinc-800 text-zinc-400' : 'bg-slate-100 text-slate-500'}`;
-  if (days < 0) return `${base} ${isDark ? 'bg-red-900/30 text-red-400' : 'bg-red-50 text-red-700'}`;
-  if (days <= 30) return `${base} ${isDark ? 'bg-red-900/30 text-red-400' : 'bg-red-50 text-red-700'}`;
-  if (days <= 90) return `${base} ${isDark ? 'bg-amber-900/30 text-amber-400' : 'bg-amber-50 text-amber-700'}`;
-  return `${base} ${isDark ? 'bg-emerald-900/30 text-emerald-400' : 'bg-emerald-50 text-emerald-700'}`;
+function daysRemainingVariant(days: number | null): 'gray' | 'error' | 'warning' | 'success' {
+  if (days === null) return 'gray';
+  if (days < 0) return 'error';
+  if (days <= 30) return 'error';
+  if (days <= 90) return 'warning';
+  return 'success';
 }
 
 function getDaysLabel(days: number | null): string {
@@ -121,10 +120,8 @@ function getDaysLabel(days: number | null): string {
 // ---------------------------------------------------------------------------
 
 export const CarepackPage: React.FC = () => {
-  const { theme } = useTheme();
   const { user } = useAuth();
   const { setActiveTab: navigate } = useNavigation();
-  const isDark = theme === 'dark';
 
   // Tab state
   const [activeTab, setActiveTab] = useState<TabKey>('all');
@@ -384,19 +381,6 @@ export const CarepackPage: React.FC = () => {
     setDetailCarepack(null);
   };
 
-  // ---------------------------------------------------------------------------
-  // Styling helpers
-  // ---------------------------------------------------------------------------
-
-  const cardClass = `premium-card ${isDark ? '' : 'shadow-soft'}`;
-  const inputClass = `w-full px-3 py-2.5 rounded-xl border text-sm transition-all ${
-    isDark
-      ? 'bg-dark-100 border-zinc-700 text-white placeholder-zinc-500 focus:border-brand-500'
-      : 'bg-white border-slate-200 text-slate-900 placeholder-slate-400 focus:border-brand-500'
-  } focus:outline-none focus:ring-1 focus:ring-brand-500`;
-  const labelClass = `block text-sm font-medium mb-1.5 ${isDark ? 'text-slate-300' : 'text-slate-700'}`;
-  const selectClass = `${inputClass} appearance-none cursor-pointer`;
-
   // Column resize for tables
   const { colWidths: cpColWidths, onMouseDown: onCpMouseDown } = useColumnResize({
     initialWidths: [160, 150, 140, 140, 120, 110, 110, 100, 100, 90],
@@ -406,105 +390,18 @@ export const CarepackPage: React.FC = () => {
   });
 
   // ---------------------------------------------------------------------------
-  // Pagination renderer
-  // ---------------------------------------------------------------------------
-
-  const renderPagination = () => {
-    if (totalRecords === 0) return null;
-
-    return (
-      <div className={`flex flex-col sm:flex-row items-center justify-between gap-3 px-4 py-3 border-t ${
-        isDark ? 'border-zinc-800' : 'border-slate-100'
-      }`}>
-        <p className={`text-xs ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
-          Showing {(page - 1) * PAGE_SIZE + 1}
-          {' '}&ndash;{' '}
-          {Math.min(page * PAGE_SIZE, totalRecords)} of {totalRecords} carepacks
-        </p>
-
-        <div className="flex items-center gap-1">
-          <button
-            onClick={() => setPage(p => Math.max(1, p - 1))}
-            disabled={page <= 1}
-            className={`p-2 rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed ${
-              isDark
-                ? 'text-zinc-400 hover:text-white hover:bg-zinc-800'
-                : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100'
-            }`}
-          >
-            <ChevronLeft className="w-4 h-4" />
-          </button>
-
-          {Array.from({ length: totalPages }, (_, i) => i + 1)
-            .filter(p => {
-              if (p === 1 || p === totalPages) return true;
-              if (Math.abs(p - page) <= 1) return true;
-              return false;
-            })
-            .reduce<(number | 'ellipsis')[]>((acc, p, idx, arr) => {
-              if (idx > 0) {
-                const prev = arr[idx - 1];
-                if (p - prev > 1) acc.push('ellipsis');
-              }
-              acc.push(p);
-              return acc;
-            }, [])
-            .map((item, idx) =>
-              item === 'ellipsis' ? (
-                <span
-                  key={`ellipsis-${idx}`}
-                  className={`px-1 text-xs ${isDark ? 'text-zinc-600' : 'text-slate-300'}`}
-                >
-                  ...
-                </span>
-              ) : (
-                <button
-                  key={item}
-                  onClick={() => setPage(item as number)}
-                  className={`min-w-[32px] h-8 rounded-lg text-xs font-medium transition-colors ${
-                    page === item
-                      ? 'bg-brand-600 text-white'
-                      : isDark
-                        ? 'text-zinc-400 hover:text-white hover:bg-zinc-800'
-                        : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100'
-                  }`}
-                >
-                  {item}
-                </button>
-              )
-            )}
-
-          <button
-            onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-            disabled={page >= totalPages}
-            className={`p-2 rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed ${
-              isDark
-                ? 'text-zinc-400 hover:text-white hover:bg-zinc-800'
-                : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100'
-            }`}
-          >
-            <ChevronRight className="w-4 h-4" />
-          </button>
-        </div>
-      </div>
-    );
-  };
-
-  // ---------------------------------------------------------------------------
   // Shared renderers
   // ---------------------------------------------------------------------------
 
   const renderEmptyState = (message: string, subMessage: string) => (
     <div className="flex flex-col items-center justify-center py-20">
-      <div className={`w-16 h-16 rounded-2xl flex items-center justify-center mb-4 ${
-        isDark ? 'bg-zinc-800' : 'bg-slate-100'
-      }`}>
-        <Shield className={`w-7 h-7 ${isDark ? 'text-zinc-600' : 'text-slate-300'}`} />
+      <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4 bg-gray-100 dark:bg-zinc-800">
+        <Shield className="w-7 h-7 text-gray-300 dark:text-zinc-600" />
       </div>
-      <p className={`text-sm font-medium ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>
+      <p className="text-sm font-medium text-gray-500 dark:text-zinc-400">
         {message}
       </p>
-      <p className={`text-xs mt-1 ${isDark ? 'text-zinc-600' : 'text-slate-400'}`}>
+      <p className="text-xs mt-1 text-gray-400 dark:text-zinc-600">
         {subMessage}
       </p>
     </div>
@@ -513,20 +410,9 @@ export const CarepackPage: React.FC = () => {
   const renderLoadingState = (message: string) => (
     <div className="flex flex-col items-center justify-center py-20">
       <Loader2 className="w-8 h-8 text-brand-600 animate-spin" />
-      <p className={`mt-3 text-sm ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>
+      <p className="mt-3 text-sm text-gray-500 dark:text-zinc-400">
         {message}
       </p>
-    </div>
-  );
-
-  const renderErrorBanner = (error: string) => (
-    <div className={`m-4 p-3 rounded-xl flex items-center gap-2 text-sm ${
-      isDark
-        ? 'bg-red-900/20 border border-red-800 text-red-400'
-        : 'bg-red-50 border border-red-200 text-red-700'
-    }`}>
-      <AlertCircle className="w-4 h-4 flex-shrink-0" />
-      {error}
     </div>
   );
 
@@ -536,49 +422,43 @@ export const CarepackPage: React.FC = () => {
 
   const renderActions = (carepack: Carepack) => (
     <div className="flex items-center gap-1">
-      <button
+      <Button
+        variant="ghost"
+        size="xs"
         onClick={(e) => { e.stopPropagation(); openEditModal(carepack); }}
         title="Edit"
-        className={`p-1.5 rounded-lg transition-colors ${
-          isDark
-            ? 'text-zinc-400 hover:text-brand-400 hover:bg-brand-900/20'
-            : 'text-slate-400 hover:text-brand-600 hover:bg-brand-50'
-        }`}
+        className="text-gray-400 hover:text-brand-600 dark:text-zinc-400 dark:hover:text-brand-400"
       >
         <Edit2 className="w-4 h-4" />
-      </button>
+      </Button>
 
       {deleteConfirmId === carepack.id ? (
         <div className="flex items-center gap-1">
-          <button
+          <Button
+            variant="danger"
+            size="xs"
             onClick={(e) => { e.stopPropagation(); handleDelete(carepack.id); }}
-            className="px-2 py-1 rounded-lg text-xs font-medium bg-red-600 text-white hover:bg-red-700 transition-colors"
           >
             Confirm
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="ghost"
+            size="xs"
             onClick={(e) => { e.stopPropagation(); setDeleteConfirmId(null); }}
-            className={`px-2 py-1 rounded-lg text-xs font-medium transition-colors ${
-              isDark
-                ? 'text-zinc-400 hover:bg-zinc-800'
-                : 'text-slate-500 hover:bg-slate-100'
-            }`}
           >
             Cancel
-          </button>
+          </Button>
         </div>
       ) : (
-        <button
+        <Button
+          variant="ghost"
+          size="xs"
           onClick={(e) => { e.stopPropagation(); setDeleteConfirmId(carepack.id); }}
           title="Delete"
-          className={`p-1.5 rounded-lg transition-colors ${
-            isDark
-              ? 'text-zinc-400 hover:text-red-400 hover:bg-red-900/20'
-              : 'text-slate-400 hover:text-red-600 hover:bg-red-50'
-          }`}
+          className="text-gray-400 hover:text-red-600 dark:text-zinc-400 dark:hover:text-red-400"
         >
           <Trash2 className="w-4 h-4" />
-        </button>
+        </Button>
       )}
     </div>
   );
@@ -590,83 +470,75 @@ export const CarepackPage: React.FC = () => {
   const renderAllCarepacks = () => (
     <>
       {/* Toolbar: Search + Filters + New Carepack */}
-      <div className={`${cardClass} p-4`}>
+      <Card padding="none" className="p-4">
         <div className="flex flex-col lg:flex-row lg:items-center gap-3">
           {/* Search */}
-          <div className="relative flex-1 min-w-0">
-            <Search className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${
-              isDark ? 'text-zinc-500' : 'text-slate-400'
-            }`} />
-            <input
+          <div className="flex-1 min-w-0">
+            <Input
               type="text"
               placeholder="Search by customer name or serial number..."
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
-              className={`w-full pl-10 pr-4 py-2.5 rounded-xl border text-sm transition-all ${
-                isDark
-                  ? 'bg-dark-100 border-zinc-700 text-white placeholder-zinc-500 focus:border-brand-500'
-                  : 'bg-white border-slate-200 text-slate-900 placeholder-slate-400 focus:border-brand-500'
-              } focus:outline-none focus:ring-1 focus:ring-brand-500`}
+              icon={<Search className="w-4 h-4" />}
             />
           </div>
 
           {/* Filter: Status */}
           <div className="w-full lg:w-44">
-            <select
+            <Select
               value={filterStatus}
               onChange={e => setFilterStatus(e.target.value)}
-              className={selectClass}
             >
               <option value="">All Statuses</option>
               {STATUSES.map(s => (
                 <option key={s.value} value={s.value}>{s.label}</option>
               ))}
-            </select>
+            </Select>
           </div>
 
           {/* Filter: Partner */}
           <div className="w-full lg:w-48">
-            <select
+            <Select
               value={filterPartner}
               onChange={e => setFilterPartner(e.target.value)}
-              className={selectClass}
             >
               <option value="">All Partners</option>
               {partners.map(p => (
                 <option key={p.id} value={p.id}>{p.companyName}</option>
               ))}
-            </select>
+            </Select>
           </div>
 
           {/* Clear Filters */}
           {hasActiveFilters && (
-            <button
-              onClick={clearFilters}
-              className={`flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${
-                isDark
-                  ? 'text-zinc-400 hover:text-white hover:bg-zinc-800'
-                  : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100'
-              }`}
-            >
-              <X className="w-3.5 h-3.5" />
+            <Button variant="ghost" size="md" onClick={clearFilters} icon={<X className="w-3.5 h-3.5" />}>
               Clear
-            </button>
+            </Button>
           )}
 
           {/* New Carepack */}
-          <button
+          <Button
+            variant="primary"
+            size="md"
             onClick={openCreateModal}
-            className="flex items-center gap-2 px-4 py-2.5 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-sm font-medium transition-all btn-premium whitespace-nowrap"
+            icon={<Plus className="w-4 h-4" />}
+            shine
+            className="whitespace-nowrap"
           >
-            <Plus className="w-4 h-4" />
             New Carepack
-          </button>
+          </Button>
         </div>
-      </div>
+      </Card>
 
       {/* Data Table */}
-      <div className={`${cardClass} overflow-hidden`}>
-        {tableError && renderErrorBanner(tableError)}
+      <Card padding="none" className="overflow-hidden">
+        {tableError && (
+          <div className="m-4">
+            <Alert variant="error" icon={<AlertCircle className="w-4 h-4" />}>
+              {tableError}
+            </Alert>
+          </div>
+        )}
 
         {isLoading ? (
           renderLoadingState('Loading carepacks...')
@@ -680,13 +552,11 @@ export const CarepackPage: React.FC = () => {
             <div className="overflow-x-auto">
               <table className="premium-table">
                 <thead>
-                  <tr className={`border-b ${isDark ? 'border-zinc-800' : 'border-slate-100'}`}>
+                  <tr className="border-b border-gray-100 dark:border-zinc-800">
                     {['Partner', 'Customer', 'Product Type', 'Serial #', 'SKU', 'Start Date', 'End Date', 'Status', 'Days Left', 'Actions'].map((h, i) => (
                       <th
                         key={h}
-                        className={`px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider resizable-th ${
-                          isDark ? 'text-zinc-500' : 'text-slate-400'
-                        }`}
+                        className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-zinc-500 resizable-th"
                         style={{ width: cpColWidths[i] }}
                       >
                         {h}
@@ -702,65 +572,61 @@ export const CarepackPage: React.FC = () => {
                       <tr
                         key={cp.id}
                         onClick={() => openDetailModal(cp)}
-                        className={`border-b transition-colors cursor-pointer ${
-                          isDark
-                            ? 'border-zinc-800/50 hover:bg-zinc-800/30'
-                            : 'border-slate-50 hover:bg-slate-50/80'
-                        }`}
+                        className="border-b border-gray-50 dark:border-zinc-800/50 hover:bg-gray-50/80 dark:hover:bg-zinc-800/30 transition-colors cursor-pointer"
                       >
                         {/* Partner */}
-                        <td className={`px-4 py-3 ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                        <td className="px-4 py-3 text-gray-900 dark:text-white">
                           <span className="font-medium">{cp.partnerName || '-'}</span>
                         </td>
 
                         {/* Customer */}
-                        <td className={`px-4 py-3 ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
+                        <td className="px-4 py-3 text-gray-700 dark:text-zinc-300">
                           {cp.customerName || '-'}
                         </td>
 
                         {/* Product Type */}
-                        <td className={`px-4 py-3 ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
+                        <td className="px-4 py-3 text-gray-700 dark:text-zinc-300">
                           {cp.productType || '-'}
                         </td>
 
                         {/* Serial # */}
-                        <td className={`px-4 py-3 whitespace-nowrap ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
+                        <td className="px-4 py-3 whitespace-nowrap text-gray-700 dark:text-zinc-300">
                           <div className="flex items-center gap-1.5">
-                            <Hash className={`w-3 h-3 flex-shrink-0 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`} />
+                            <Hash className="w-3 h-3 flex-shrink-0 text-gray-400 dark:text-zinc-500" />
                             <span className="font-mono text-xs">{cp.serialNumber || '-'}</span>
                           </div>
                         </td>
 
                         {/* SKU */}
-                        <td className={`px-4 py-3 whitespace-nowrap font-mono text-xs ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
+                        <td className="px-4 py-3 whitespace-nowrap font-mono text-xs text-gray-700 dark:text-zinc-300">
                           {cp.carepackSku || '-'}
                         </td>
 
                         {/* Start Date */}
-                        <td className={`px-4 py-3 whitespace-nowrap ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
+                        <td className="px-4 py-3 whitespace-nowrap text-gray-700 dark:text-zinc-300">
                           {formatDate(cp.startDate)}
                         </td>
 
                         {/* End Date */}
-                        <td className={`px-4 py-3 whitespace-nowrap ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
+                        <td className="px-4 py-3 whitespace-nowrap text-gray-700 dark:text-zinc-300">
                           {formatDate(cp.endDate)}
                         </td>
 
                         {/* Status */}
                         <td className="px-4 py-3">
-                          <span className={statusBadge(cp.status, isDark)}>
+                          <Badge variant={statusVariant(cp.status)}>
                             {capitalize(cp.status)}
-                          </span>
+                          </Badge>
                         </td>
 
                         {/* Days Remaining */}
                         <td className="px-4 py-3">
                           {cp.status === 'active' ? (
-                            <span className={daysRemainingBadge(days, isDark)}>
+                            <Badge variant={daysRemainingVariant(days)}>
                               {getDaysLabel(days)}
-                            </span>
+                            </Badge>
                           ) : (
-                            <span className={`text-xs ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>-</span>
+                            <span className="text-xs text-gray-400 dark:text-zinc-500">-</span>
                           )}
                         </td>
 
@@ -775,10 +641,20 @@ export const CarepackPage: React.FC = () => {
               </table>
             </div>
 
-            {renderPagination()}
+            {totalRecords > 0 && (
+              <div className="border-t border-gray-100 dark:border-zinc-800">
+                <Pagination
+                  currentPage={page}
+                  totalPages={totalPages}
+                  totalItems={totalRecords}
+                  pageSize={PAGE_SIZE}
+                  onPageChange={setPage}
+                />
+              </div>
+            )}
           </>
         )}
-      </div>
+      </Card>
     </>
   );
 
@@ -787,8 +663,14 @@ export const CarepackPage: React.FC = () => {
   // ---------------------------------------------------------------------------
 
   const renderExpiringTab = () => (
-    <div className={`${cardClass} overflow-hidden`}>
-      {expiringError && renderErrorBanner(expiringError)}
+    <Card padding="none" className="overflow-hidden">
+      {expiringError && (
+        <div className="m-4">
+          <Alert variant="error" icon={<AlertCircle className="w-4 h-4" />}>
+            {expiringError}
+          </Alert>
+        </div>
+      )}
 
       {expiringLoading ? (
         renderLoadingState('Loading expiring carepacks...')
@@ -801,13 +683,11 @@ export const CarepackPage: React.FC = () => {
         <div className="overflow-x-auto">
           <table className="premium-table">
             <thead>
-              <tr className={`border-b ${isDark ? 'border-zinc-800' : 'border-slate-100'}`}>
+              <tr className="border-b border-gray-100 dark:border-zinc-800">
                 {['Partner', 'Customer', 'Product Type', 'Serial #', 'SKU', 'End Date', 'Days Left', 'Actions'].map((h, i) => (
                   <th
                     key={h}
-                    className={`px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider resizable-th ${
-                      isDark ? 'text-zinc-500' : 'text-slate-400'
-                    }`}
+                    className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-zinc-500 resizable-th"
                     style={{ width: expColWidths[i] }}
                   >
                     {h}
@@ -824,74 +704,74 @@ export const CarepackPage: React.FC = () => {
                   <tr
                     key={cp.id}
                     onClick={() => openDetailModal(cp)}
-                    className={`border-b transition-colors cursor-pointer ${
+                    className={cx(
+                      'border-b transition-colors cursor-pointer',
                       isUrgent
-                        ? isDark
-                          ? 'border-zinc-800/50 bg-red-900/10 hover:bg-red-900/20'
-                          : 'border-slate-50 bg-red-50/40 hover:bg-red-50/70'
-                        : isDark
-                          ? 'border-zinc-800/50 hover:bg-zinc-800/30'
-                          : 'border-slate-50 hover:bg-slate-50/80'
-                    }`}
+                        ? 'border-gray-50 dark:border-zinc-800/50 bg-red-50/40 dark:bg-red-900/10 hover:bg-red-50/70 dark:hover:bg-red-900/20'
+                        : 'border-gray-50 dark:border-zinc-800/50 hover:bg-gray-50/80 dark:hover:bg-zinc-800/30'
+                    )}
                   >
                     {/* Partner */}
-                    <td className={`px-4 py-3 ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                    <td className="px-4 py-3 text-gray-900 dark:text-white">
                       <div className="flex items-center gap-2.5">
-                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                        <div className={cx(
+                          'w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0',
                           isUrgent
-                            ? isDark ? 'bg-red-900/20' : 'bg-red-50'
-                            : isDark ? 'bg-amber-900/20' : 'bg-amber-50'
-                        }`}>
-                          <AlertTriangle className={`w-4 h-4 ${
+                            ? 'bg-red-50 dark:bg-red-900/20'
+                            : 'bg-amber-50 dark:bg-amber-900/20'
+                        )}>
+                          <AlertTriangle className={cx(
+                            'w-4 h-4',
                             isUrgent
-                              ? isDark ? 'text-red-400' : 'text-red-600'
-                              : isDark ? 'text-amber-400' : 'text-amber-600'
-                          }`} />
+                              ? 'text-red-600 dark:text-red-400'
+                              : 'text-amber-600 dark:text-amber-400'
+                          )} />
                         </div>
                         <span className="font-medium">{cp.partnerName || '-'}</span>
                       </div>
                     </td>
 
                     {/* Customer */}
-                    <td className={`px-4 py-3 ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
+                    <td className="px-4 py-3 text-gray-700 dark:text-zinc-300">
                       {cp.customerName || '-'}
                     </td>
 
                     {/* Product Type */}
-                    <td className={`px-4 py-3 ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
+                    <td className="px-4 py-3 text-gray-700 dark:text-zinc-300">
                       {cp.productType || '-'}
                     </td>
 
                     {/* Serial # */}
-                    <td className={`px-4 py-3 whitespace-nowrap ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
+                    <td className="px-4 py-3 whitespace-nowrap text-gray-700 dark:text-zinc-300">
                       <div className="flex items-center gap-1.5">
-                        <Hash className={`w-3 h-3 flex-shrink-0 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`} />
+                        <Hash className="w-3 h-3 flex-shrink-0 text-gray-400 dark:text-zinc-500" />
                         <span className="font-mono text-xs">{cp.serialNumber || '-'}</span>
                       </div>
                     </td>
 
                     {/* SKU */}
-                    <td className={`px-4 py-3 whitespace-nowrap font-mono text-xs ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
+                    <td className="px-4 py-3 whitespace-nowrap font-mono text-xs text-gray-700 dark:text-zinc-300">
                       {cp.carepackSku || '-'}
                     </td>
 
                     {/* End Date */}
-                    <td className={`px-4 py-3 whitespace-nowrap ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
+                    <td className="px-4 py-3 whitespace-nowrap text-gray-700 dark:text-zinc-300">
                       <div className="flex items-center gap-2">
-                        <Calendar className={`w-3.5 h-3.5 flex-shrink-0 ${
+                        <Calendar className={cx(
+                          'w-3.5 h-3.5 flex-shrink-0',
                           isUrgent
-                            ? isDark ? 'text-red-400' : 'text-red-500'
-                            : isDark ? 'text-zinc-500' : 'text-slate-400'
-                        }`} />
+                            ? 'text-red-500 dark:text-red-400'
+                            : 'text-gray-400 dark:text-zinc-500'
+                        )} />
                         {formatDate(cp.endDate)}
                       </div>
                     </td>
 
                     {/* Days Left */}
                     <td className="px-4 py-3">
-                      <span className={daysRemainingBadge(days, isDark)}>
+                      <Badge variant={daysRemainingVariant(days)}>
                         {getDaysLabel(days)}
-                      </span>
+                      </Badge>
                     </td>
 
                     {/* Actions */}
@@ -905,7 +785,7 @@ export const CarepackPage: React.FC = () => {
           </table>
         </div>
       )}
-    </div>
+    </Card>
   );
 
   // ---------------------------------------------------------------------------
@@ -917,60 +797,52 @@ export const CarepackPage: React.FC = () => {
       {/* Summary Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Total Active */}
-        <div className={`${cardClass} p-4 hover-lift animate-fade-in-up stagger-1 cursor-pointer`} onClick={() => navigate('carepacks')}>
-          <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-3 ${
-            isDark ? 'bg-emerald-900/20' : 'bg-emerald-50'
-          }`}>
-            <CheckCircle className={`w-5 h-5 ${isDark ? 'text-emerald-400' : 'text-emerald-600'}`} />
+        <Card hover padding="none" className="p-4 animate-fade-in-up stagger-1" onClick={() => navigate('carepacks')}>
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-3 bg-emerald-50 dark:bg-emerald-900/20">
+            <CheckCircle className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
           </div>
-          <p className={`text-xs ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>Total Active</p>
-          <p className={`text-xl font-bold mt-0.5 ${isDark ? 'text-white' : 'text-slate-900'}`}>
+          <p className="text-xs text-gray-500 dark:text-zinc-400">Total Active</p>
+          <p className="text-xl font-bold mt-0.5 text-gray-900 dark:text-white">
             {totalActive}
           </p>
-        </div>
+        </Card>
 
         {/* Expiring This Month */}
-        <div className={`${cardClass} p-4 hover-lift animate-fade-in-up stagger-2 cursor-pointer`} onClick={() => navigate('carepacks')}>
-          <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-3 ${
-            isDark ? 'bg-amber-900/20' : 'bg-amber-50'
-          }`}>
-            <AlertTriangle className={`w-5 h-5 ${isDark ? 'text-amber-400' : 'text-amber-600'}`} />
+        <Card hover padding="none" className="p-4 animate-fade-in-up stagger-2" onClick={() => navigate('carepacks')}>
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-3 bg-amber-50 dark:bg-amber-900/20">
+            <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400" />
           </div>
-          <p className={`text-xs ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>Expiring Soon</p>
-          <p className={`text-xl font-bold mt-0.5 ${isDark ? 'text-white' : 'text-slate-900'}`}>
+          <p className="text-xs text-gray-500 dark:text-zinc-400">Expiring Soon</p>
+          <p className="text-xl font-bold mt-0.5 text-gray-900 dark:text-white">
             {expiringThisMonth}
           </p>
-        </div>
+        </Card>
 
         {/* Total Expired */}
-        <div className={`${cardClass} p-4 hover-lift animate-fade-in-up stagger-3 cursor-pointer`} onClick={() => navigate('carepacks')}>
-          <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-3 ${
-            isDark ? 'bg-red-900/20' : 'bg-red-50'
-          }`}>
-            <Clock className={`w-5 h-5 ${isDark ? 'text-red-400' : 'text-red-600'}`} />
+        <Card hover padding="none" className="p-4 animate-fade-in-up stagger-3" onClick={() => navigate('carepacks')}>
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-3 bg-red-50 dark:bg-red-900/20">
+            <Clock className="w-5 h-5 text-red-600 dark:text-red-400" />
           </div>
-          <p className={`text-xs ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>Total Expired</p>
-          <p className={`text-xl font-bold mt-0.5 ${isDark ? 'text-white' : 'text-slate-900'}`}>
+          <p className="text-xs text-gray-500 dark:text-zinc-400">Total Expired</p>
+          <p className="text-xl font-bold mt-0.5 text-gray-900 dark:text-white">
             {totalExpired}
           </p>
-        </div>
+        </Card>
 
         {/* Total Carepacks */}
-        <div className={`${cardClass} p-4 hover-lift animate-fade-in-up stagger-4 cursor-pointer`} onClick={() => navigate('carepacks')}>
-          <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-3 ${
-            isDark ? 'bg-brand-900/20' : 'bg-brand-50'
-          }`}>
-            <Shield className={`w-5 h-5 ${isDark ? 'text-brand-400' : 'text-brand-600'}`} />
+        <Card hover padding="none" className="p-4 animate-fade-in-up stagger-4" onClick={() => navigate('carepacks')}>
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-3 bg-brand-50 dark:bg-brand-900/20">
+            <Shield className="w-5 h-5 text-brand-600 dark:text-brand-400" />
           </div>
-          <p className={`text-xs ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>Total Carepacks</p>
-          <p className={`text-xl font-bold mt-0.5 ${isDark ? 'text-white' : 'text-slate-900'}`}>
+          <p className="text-xs text-gray-500 dark:text-zinc-400">Total Carepacks</p>
+          <p className="text-xl font-bold mt-0.5 text-gray-900 dark:text-white">
             {totalCount}
           </p>
-        </div>
+        </Card>
       </div>
 
       {/* Tab Navigation */}
-      <div className={`${cardClass} p-1 inline-flex rounded-xl`}>
+      <Card padding="none" className="p-1 inline-flex rounded-xl">
         {[
           { key: 'all' as TabKey, label: 'All Carepacks', icon: Shield },
           { key: 'expiring' as TabKey, label: 'Expiring Soon', icon: AlertTriangle },
@@ -981,297 +853,282 @@ export const CarepackPage: React.FC = () => {
             <button
               key={tab.key}
               onClick={() => setActiveTab(tab.key)}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
+              className={cx(
+                'flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all',
                 isActive
-                  ? isDark
-                    ? 'bg-brand-600 text-white shadow-md'
-                    : 'bg-brand-600 text-white shadow-md'
-                  : isDark
-                    ? 'text-zinc-400 hover:text-white hover:bg-zinc-800'
-                    : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100'
-              }`}
+                  ? 'bg-brand-600 text-white shadow-md'
+                  : 'text-gray-500 dark:text-zinc-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-zinc-800'
+              )}
             >
               <Icon className="w-4 h-4" />
               {tab.label}
               {tab.key === 'expiring' && expiringThisMonth > 0 && (
-                <span className={`ml-1 px-1.5 py-0.5 rounded-full text-xs font-bold ${
+                <span className={cx(
+                  'ml-1 px-1.5 py-0.5 rounded-full text-xs font-bold',
                   isActive
                     ? 'bg-white/20 text-white'
-                    : isDark
-                      ? 'bg-amber-900/30 text-amber-400'
-                      : 'bg-amber-100 text-amber-700'
-                }`}>
+                    : 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400'
+                )}>
                   {expiringThisMonth}
                 </span>
               )}
             </button>
           );
         })}
-      </div>
+      </Card>
 
       {/* Tab Content */}
       {activeTab === 'all' && renderAllCarepacks()}
       {activeTab === 'expiring' && renderExpiringTab()}
 
       {/* Detail Modal */}
-      {showDetailModal && detailCarepack && (() => {
+      {(() => {
+        if (!showDetailModal || !detailCarepack) return null;
         const days = detailCarepack.status === 'active' ? getDaysRemaining(detailCarepack.endDate) : null;
         return (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div className="absolute inset-0 bg-black/50 animate-backdrop" onClick={closeDetailModal} />
-            <div className={`relative w-full max-w-xl max-h-[75vh] rounded-2xl animate-fade-in-up flex flex-col overflow-hidden ${
-              isDark ? 'bg-dark-50 border border-zinc-800' : 'bg-white shadow-premium'
-            }`}>
-              {/* Header */}
-              <div className={`flex-shrink-0 flex items-center justify-between px-6 py-4 border-b ${
-                isDark ? 'bg-dark-50 border-zinc-800' : 'bg-white border-slate-200'
-              }`}>
-                <div className="flex items-center gap-3 min-w-0">
-                  <h2 className={`text-lg font-semibold font-display truncate ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                    Carepack Details
-                  </h2>
-                  <span className={statusBadge(detailCarepack.status, isDark)}>
-                    {capitalize(detailCarepack.status)}
-                  </span>
-                </div>
-                <div className="flex items-center gap-2 flex-shrink-0">
-                  <button
-                    onClick={() => { closeDetailModal(); openEditModal(detailCarepack); }}
-                    className={`p-2 rounded-lg transition-colors ${
-                      isDark ? 'text-zinc-400 hover:text-white hover:bg-zinc-800' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100'
-                    }`}
-                    title="Edit"
-                  >
-                    <Edit2 className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={closeDetailModal}
-                    className={`p-2 rounded-lg transition-colors ${
-                      isDark ? 'text-zinc-400 hover:text-white hover:bg-zinc-800' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100'
-                    }`}
-                  >
-                    <X className="w-5 h-5" />
-                  </button>
-                </div>
+          <Modal
+            open={showDetailModal}
+            onClose={closeDetailModal}
+            title="Carepack Details"
+            size="lg"
+          >
+            <div className="space-y-6">
+              {/* Status badge next to header area */}
+              <div className="flex items-center gap-3 -mt-2">
+                <Badge variant={statusVariant(detailCarepack.status)}>
+                  {capitalize(detailCarepack.status)}
+                </Badge>
+                <Button
+                  variant="ghost"
+                  size="xs"
+                  onClick={() => { closeDetailModal(); openEditModal(detailCarepack); }}
+                  icon={<Edit2 className="w-4 h-4" />}
+                >
+                  Edit
+                </Button>
               </div>
 
-              {/* Body */}
-              <div className="flex-1 overflow-y-auto">
-                <div className="p-6 space-y-6">
-                  {/* Days Remaining Highlight */}
-                  {detailCarepack.status === 'active' && days !== null && (
-                    <div className={`flex items-center gap-3 p-4 rounded-xl ${
+              {/* Days Remaining Highlight */}
+              {detailCarepack.status === 'active' && days !== null && (
+                <div className={cx(
+                  'flex items-center gap-3 p-4 rounded-xl border',
+                  days <= 30
+                    ? 'bg-red-50 dark:bg-red-900/10 border-red-100 dark:border-red-900/30'
+                    : days <= 90
+                      ? 'bg-amber-50 dark:bg-amber-900/10 border-amber-100 dark:border-amber-900/30'
+                      : 'bg-emerald-50 dark:bg-emerald-900/10 border-emerald-100 dark:border-emerald-900/30'
+                )}>
+                  <Clock className={cx(
+                    'w-6 h-6',
+                    days <= 30
+                      ? 'text-red-600 dark:text-red-400'
+                      : days <= 90
+                        ? 'text-amber-600 dark:text-amber-400'
+                        : 'text-emerald-600 dark:text-emerald-400'
+                  )} />
+                  <div>
+                    <p className={cx(
+                      'text-xs font-medium',
                       days <= 30
-                        ? isDark ? 'bg-red-900/10 border border-red-900/30' : 'bg-red-50 border border-red-100'
+                        ? 'text-red-600/70 dark:text-red-400/70'
                         : days <= 90
-                          ? isDark ? 'bg-amber-900/10 border border-amber-900/30' : 'bg-amber-50 border border-amber-100'
-                          : isDark ? 'bg-emerald-900/10 border border-emerald-900/30' : 'bg-emerald-50 border border-emerald-100'
-                    }`}>
-                      <Clock className={`w-6 h-6 ${
-                        days <= 30 ? (isDark ? 'text-red-400' : 'text-red-600')
-                          : days <= 90 ? (isDark ? 'text-amber-400' : 'text-amber-600')
-                          : (isDark ? 'text-emerald-400' : 'text-emerald-600')
-                      }`} />
-                      <div>
-                        <p className={`text-xs font-medium ${
-                          days <= 30 ? (isDark ? 'text-red-400/70' : 'text-red-600/70')
-                            : days <= 90 ? (isDark ? 'text-amber-400/70' : 'text-amber-600/70')
-                            : (isDark ? 'text-emerald-400/70' : 'text-emerald-600/70')
-                        }`}>Days Remaining</p>
-                        <p className={`text-xl font-bold ${
-                          days <= 30 ? (isDark ? 'text-red-400' : 'text-red-700')
-                            : days <= 90 ? (isDark ? 'text-amber-400' : 'text-amber-700')
-                            : (isDark ? 'text-emerald-400' : 'text-emerald-700')
-                        }`}>{getDaysLabel(days)}</p>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Info Grid */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <CarepackInfoRow label="Partner" value={detailCarepack.partnerName} isDark={isDark} icon={<UserIcon className="w-3.5 h-3.5" />} />
-                    <CarepackInfoRow label="Customer" value={detailCarepack.customerName} isDark={isDark} icon={<UserIcon className="w-3.5 h-3.5" />} />
-                    <CarepackInfoRow label="Product Type" value={detailCarepack.productType} isDark={isDark} icon={<Package className="w-3.5 h-3.5" />} />
-                    <CarepackInfoRow label="Serial Number" value={detailCarepack.serialNumber} isDark={isDark} icon={<Hash className="w-3.5 h-3.5" />} />
-                    <CarepackInfoRow label="Carepack SKU" value={detailCarepack.carepackSku} isDark={isDark} icon={<FileText className="w-3.5 h-3.5" />} />
-                    <CarepackInfoRow label="Start Date" value={detailCarepack.startDate ? formatDate(detailCarepack.startDate) : undefined} isDark={isDark} icon={<Calendar className="w-3.5 h-3.5" />} />
-                    <CarepackInfoRow label="End Date" value={detailCarepack.endDate ? formatDate(detailCarepack.endDate) : undefined} isDark={isDark} icon={<Calendar className="w-3.5 h-3.5" />} />
-                  </div>
-
-                  {/* Notes */}
-                  {detailCarepack.notes && (
-                    <div>
-                      <h4 className={`text-xs font-semibold uppercase tracking-wider mb-2 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
-                        Notes
-                      </h4>
-                      <p className={`text-sm whitespace-pre-wrap ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
-                        {detailCarepack.notes}
-                      </p>
-                    </div>
-                  )}
-
-                  {/* Timestamps */}
-                  <div className={`flex items-center gap-4 text-[11px] pt-2 border-t ${
-                    isDark ? 'border-zinc-800 text-zinc-600' : 'border-slate-100 text-slate-400'
-                  }`}>
-                    {detailCarepack.createdAt && <span>Created: {formatDate(detailCarepack.createdAt)}</span>}
-                    {detailCarepack.updatedAt && <span>Updated: {formatDate(detailCarepack.updatedAt)}</span>}
+                          ? 'text-amber-600/70 dark:text-amber-400/70'
+                          : 'text-emerald-600/70 dark:text-emerald-400/70'
+                    )}>Days Remaining</p>
+                    <p className={cx(
+                      'text-xl font-bold',
+                      days <= 30
+                        ? 'text-red-700 dark:text-red-400'
+                        : days <= 90
+                          ? 'text-amber-700 dark:text-amber-400'
+                          : 'text-emerald-700 dark:text-emerald-400'
+                    )}>{getDaysLabel(days)}</p>
                   </div>
                 </div>
+              )}
+
+              {/* Info Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <CarepackInfoRow label="Partner" value={detailCarepack.partnerName} icon={<UserIcon className="w-3.5 h-3.5" />} />
+                <CarepackInfoRow label="Customer" value={detailCarepack.customerName} icon={<UserIcon className="w-3.5 h-3.5" />} />
+                <CarepackInfoRow label="Product Type" value={detailCarepack.productType} icon={<Package className="w-3.5 h-3.5" />} />
+                <CarepackInfoRow label="Serial Number" value={detailCarepack.serialNumber} icon={<Hash className="w-3.5 h-3.5" />} />
+                <CarepackInfoRow label="Carepack SKU" value={detailCarepack.carepackSku} icon={<FileText className="w-3.5 h-3.5" />} />
+                <CarepackInfoRow label="Start Date" value={detailCarepack.startDate ? formatDate(detailCarepack.startDate) : undefined} icon={<Calendar className="w-3.5 h-3.5" />} />
+                <CarepackInfoRow label="End Date" value={detailCarepack.endDate ? formatDate(detailCarepack.endDate) : undefined} icon={<Calendar className="w-3.5 h-3.5" />} />
+              </div>
+
+              {/* Notes */}
+              {detailCarepack.notes && (
+                <div>
+                  <h4 className="text-xs font-semibold uppercase tracking-wider mb-2 text-gray-400 dark:text-zinc-500">
+                    Notes
+                  </h4>
+                  <p className="text-sm whitespace-pre-wrap text-gray-700 dark:text-zinc-300">
+                    {detailCarepack.notes}
+                  </p>
+                </div>
+              )}
+
+              {/* Timestamps */}
+              <div className="flex items-center gap-4 text-[11px] pt-2 border-t border-gray-100 dark:border-zinc-800 text-gray-400 dark:text-zinc-600">
+                {detailCarepack.createdAt && <span>Created: {formatDate(detailCarepack.createdAt)}</span>}
+                {detailCarepack.updatedAt && <span>Updated: {formatDate(detailCarepack.updatedAt)}</span>}
               </div>
             </div>
-          </div>
+          </Modal>
         );
       })()}
 
       {/* Create / Edit Modal */}
-      {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/50 animate-backdrop" onClick={closeModal} />
-          <div className={`relative w-full max-w-xl max-h-[75vh] rounded-2xl animate-fade-in-up flex flex-col overflow-hidden ${
-            isDark ? 'bg-dark-50 border border-zinc-800' : 'bg-white shadow-premium'
-          }`}>
-            {/* Header */}
-            <div className={`flex-shrink-0 flex items-center justify-between px-6 py-4 border-b ${
-              isDark ? 'bg-dark-50 border-zinc-800' : 'bg-white border-slate-200'
-            }`}>
-              <h2 className={`text-lg font-semibold font-display ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                {editingId ? 'Edit Carepack' : 'New Carepack'}
-              </h2>
-              <button
-                onClick={closeModal}
-                className={`p-2 rounded-lg transition-colors ${
-                  isDark ? 'text-zinc-400 hover:text-white hover:bg-zinc-800' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100'
-                }`}
-              >
-                <X className="w-5 h-5" />
-              </button>
+      <Modal
+        open={showModal}
+        onClose={closeModal}
+        title={editingId ? 'Edit Carepack' : 'New Carepack'}
+        size="lg"
+        footer={
+          <>
+            <Button
+              variant="ghost"
+              onClick={closeModal}
+              disabled={isSubmitting}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="primary"
+              onClick={handleSubmit}
+              loading={isSubmitting}
+              icon={!isSubmitting ? <CheckCircle className="w-4 h-4" /> : undefined}
+              shine
+            >
+              {isSubmitting ? 'Saving...' : editingId ? 'Update Carepack' : 'Create Carepack'}
+            </Button>
+          </>
+        }
+      >
+        <form onSubmit={handleSubmit} id="carepack-form" className="space-y-5">
+          {formError && (
+            <Alert variant="error" icon={<AlertCircle className="w-4 h-4" />}>
+              {formError}
+            </Alert>
+          )}
+
+          {/* Section: Carepack Info */}
+          <div>
+            <h3 className="text-sm font-semibold mb-3 flex items-center gap-2 text-gray-600 dark:text-zinc-300">
+              <Shield className="w-4 h-4" />
+              Carepack Information
+            </h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="sm:col-span-2">
+                <Select
+                  label="Partner"
+                  id="partnerId"
+                  name="partnerId"
+                  value={formData.partnerId}
+                  onChange={handleFormChange}
+                >
+                  <option value="">Select Partner</option>
+                  {partners.map(p => <option key={p.id} value={p.id}>{p.companyName}</option>)}
+                </Select>
+              </div>
+              <Input
+                label="Customer Name *"
+                id="customerName"
+                name="customerName"
+                type="text"
+                placeholder="Enter customer name"
+                value={formData.customerName}
+                onChange={handleFormChange}
+                icon={<UserIcon className="w-4 h-4" />}
+                required
+              />
+              <Input
+                label="Product Type"
+                id="productType"
+                name="productType"
+                type="text"
+                placeholder="e.g. HP ProLiant, HPE Aruba"
+                value={formData.productType}
+                onChange={handleFormChange}
+                icon={<Package className="w-4 h-4" />}
+              />
+              <Input
+                label="Serial Number *"
+                id="serialNumber"
+                name="serialNumber"
+                type="text"
+                placeholder="e.g. CZ12345678"
+                value={formData.serialNumber}
+                onChange={handleFormChange}
+                icon={<Hash className="w-4 h-4" />}
+                required
+              />
+              <Input
+                label="Carepack SKU"
+                id="carepackSku"
+                name="carepackSku"
+                type="text"
+                placeholder="e.g. U8PL9E"
+                value={formData.carepackSku}
+                onChange={handleFormChange}
+                icon={<FileText className="w-4 h-4" />}
+              />
             </div>
-
-            {/* Form */}
-            <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto">
-              <div className="p-6 space-y-5 pb-6">
-              {formError && (
-                <div className={`p-3 rounded-xl flex items-center gap-2 text-sm ${
-                  isDark ? 'bg-red-900/20 border border-red-800 text-red-400' : 'bg-red-50 border border-red-200 text-red-700'
-                }`}>
-                  <AlertCircle className="w-4 h-4 flex-shrink-0" />
-                  {formError}
-                </div>
-              )}
-
-              {/* Section: Carepack Info */}
-              <div>
-                <h3 className={`text-sm font-semibold mb-3 flex items-center gap-2 ${isDark ? 'text-zinc-300' : 'text-slate-600'}`}>
-                  <Shield className="w-4 h-4" />
-                  Carepack Information
-                </h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="sm:col-span-2">
-                    <label htmlFor="partnerId" className={labelClass}>Partner</label>
-                    <select id="partnerId" name="partnerId" value={formData.partnerId} onChange={handleFormChange} className={selectClass}>
-                      <option value="">Select Partner</option>
-                      {partners.map(p => <option key={p.id} value={p.id}>{p.companyName}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label htmlFor="customerName" className={labelClass}>Customer Name <span className="text-red-500">*</span></label>
-                    <div className="relative">
-                      <UserIcon className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`} />
-                      <input id="customerName" name="customerName" type="text" placeholder="Enter customer name" value={formData.customerName} onChange={handleFormChange} className={`${inputClass} pl-10`} required />
-                    </div>
-                  </div>
-                  <div>
-                    <label htmlFor="productType" className={labelClass}>Product Type</label>
-                    <div className="relative">
-                      <Package className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`} />
-                      <input id="productType" name="productType" type="text" placeholder="e.g. HP ProLiant, HPE Aruba" value={formData.productType} onChange={handleFormChange} className={`${inputClass} pl-10`} />
-                    </div>
-                  </div>
-                  <div>
-                    <label htmlFor="serialNumber" className={labelClass}>Serial Number <span className="text-red-500">*</span></label>
-                    <div className="relative">
-                      <Hash className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`} />
-                      <input id="serialNumber" name="serialNumber" type="text" placeholder="e.g. CZ12345678" value={formData.serialNumber} onChange={handleFormChange} className={`${inputClass} pl-10`} required />
-                    </div>
-                  </div>
-                  <div>
-                    <label htmlFor="carepackSku" className={labelClass}>Carepack SKU</label>
-                    <div className="relative">
-                      <FileText className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`} />
-                      <input id="carepackSku" name="carepackSku" type="text" placeholder="e.g. U8PL9E" value={formData.carepackSku} onChange={handleFormChange} className={`${inputClass} pl-10`} />
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Section: Dates & Status */}
-              <div>
-                <h3 className={`text-sm font-semibold mb-3 flex items-center gap-2 ${isDark ? 'text-zinc-300' : 'text-slate-600'}`}>
-                  <Calendar className="w-4 h-4" />
-                  Dates &amp; Status
-                </h3>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  <div>
-                    <label htmlFor="startDate" className={labelClass}>Start Date <span className="text-red-500">*</span></label>
-                    <div className="relative">
-                      <Calendar className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`} />
-                      <input id="startDate" name="startDate" type="date" value={formData.startDate} onChange={handleFormChange} className={`${inputClass} pl-10`} required />
-                    </div>
-                  </div>
-                  <div>
-                    <label htmlFor="endDate" className={labelClass}>End Date <span className="text-red-500">*</span></label>
-                    <div className="relative">
-                      <Calendar className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`} />
-                      <input id="endDate" name="endDate" type="date" value={formData.endDate} onChange={handleFormChange} className={`${inputClass} pl-10`} required />
-                    </div>
-                  </div>
-                  <div>
-                    <label htmlFor="status" className={labelClass}>Status</label>
-                    <select id="status" name="status" value={formData.status} onChange={handleFormChange} className={selectClass}>
-                      {STATUSES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
-                    </select>
-                  </div>
-                </div>
-              </div>
-
-              {/* Section: Notes */}
-              <div>
-                <label htmlFor="notes" className={labelClass}>Notes</label>
-                <textarea id="notes" name="notes" rows={3} placeholder="Any additional notes about this carepack..." value={formData.notes} onChange={handleFormChange} className={`${inputClass} resize-none`} />
-              </div>
-              </div>
-
-              {/* Sticky Footer */}
-              <div className={`sticky bottom-0 flex items-center justify-end gap-3 px-6 py-4 border-t ${
-                isDark ? 'bg-dark-50 border-zinc-800' : 'bg-white border-slate-200'
-              }`}>
-                <button
-                  type="button"
-                  onClick={closeModal}
-                  disabled={isSubmitting}
-                  className={`px-4 py-2.5 rounded-xl text-sm font-medium transition-colors ${
-                    isDark ? 'text-zinc-400 hover:text-white hover:bg-zinc-800' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                  } disabled:opacity-50`}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="flex items-center gap-2 px-5 py-2.5 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-sm font-medium transition-all btn-premium disabled:opacity-50"
-                >
-                  {isSubmitting ? (
-                    <><Loader2 className="w-4 h-4 animate-spin" /> Saving...</>
-                  ) : (
-                    <><CheckCircle className="w-4 h-4" /> {editingId ? 'Update Carepack' : 'Create Carepack'}</>
-                  )}
-                </button>
-              </div>
-            </form>
           </div>
-        </div>
-      )}
+
+          {/* Section: Dates & Status */}
+          <div>
+            <h3 className="text-sm font-semibold mb-3 flex items-center gap-2 text-gray-600 dark:text-zinc-300">
+              <Calendar className="w-4 h-4" />
+              Dates &amp; Status
+            </h3>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <Input
+                label="Start Date *"
+                id="startDate"
+                name="startDate"
+                type="date"
+                value={formData.startDate}
+                onChange={handleFormChange}
+                icon={<Calendar className="w-4 h-4" />}
+                required
+              />
+              <Input
+                label="End Date *"
+                id="endDate"
+                name="endDate"
+                type="date"
+                value={formData.endDate}
+                onChange={handleFormChange}
+                icon={<Calendar className="w-4 h-4" />}
+                required
+              />
+              <Select
+                label="Status"
+                id="status"
+                name="status"
+                value={formData.status}
+                onChange={handleFormChange}
+                options={STATUSES}
+              />
+            </div>
+          </div>
+
+          {/* Section: Notes */}
+          <Textarea
+            label="Notes"
+            id="notes"
+            name="notes"
+            rows={3}
+            placeholder="Any additional notes about this carepack..."
+            value={formData.notes}
+            onChange={handleFormChange}
+            className="resize-none"
+          />
+        </form>
+      </Modal>
     </div>
   );
 };
@@ -1283,18 +1140,17 @@ export const CarepackPage: React.FC = () => {
 const CarepackInfoRow: React.FC<{
   label: string;
   value?: string;
-  isDark: boolean;
   icon?: React.ReactNode;
-}> = ({ label, value, isDark, icon }) => (
-  <div className={`flex items-start gap-2 p-2.5 rounded-lg ${isDark ? 'bg-dark-100' : 'bg-slate-50'}`}>
+}> = ({ label, value, icon }) => (
+  <div className="flex items-start gap-2 p-2.5 rounded-lg bg-gray-50 dark:bg-dark-100">
     {icon && (
-      <span className={`mt-0.5 flex-shrink-0 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
+      <span className="mt-0.5 flex-shrink-0 text-gray-400 dark:text-zinc-500">
         {icon}
       </span>
     )}
     <div className="min-w-0">
-      <p className={`text-[11px] font-medium ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>{label}</p>
-      <p className={`text-sm ${isDark ? 'text-white' : 'text-slate-900'}`}>
+      <p className="text-[11px] font-medium text-gray-400 dark:text-zinc-500">{label}</p>
+      <p className="text-sm text-gray-900 dark:text-white">
         {value || '-'}
       </p>
     </div>

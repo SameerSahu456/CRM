@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Loader2, AlertCircle, Save, CheckCircle, UserCog, X, ChevronDown, Search, Users, Mail, Shield } from 'lucide-react';
+import { Loader2, AlertCircle, Save, CheckCircle, UserCog, ChevronDown, Search, Users, Mail, Shield } from 'lucide-react';
 import { masterDataApi, adminApi } from '@/services/api';
+import { Card, Button, Input, Badge, Alert } from '@/components/ui';
+import { cx } from '@/utils/cx';
 
 interface CategoryWithManager {
   id: string;
@@ -24,19 +26,12 @@ interface UserItem {
   isActive?: boolean;
 }
 
-interface Props {
-  isDark: boolean;
-  cardClass: string;
-  selectClass: string;
-}
-
 // Multi-select dropdown component
 const MultiSelectDropdown: React.FC<{
   selectedIds: string[];
   users: UserItem[];
   onChange: (ids: string[]) => void;
-  isDark: boolean;
-}> = ({ selectedIds, users, onChange, isDark }) => {
+}> = ({ selectedIds, users, onChange }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState('');
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -78,67 +73,65 @@ const MultiSelectDropdown: React.FC<{
       {/* Trigger */}
       <div
         onClick={() => setIsOpen(!isOpen)}
-        className={`min-h-[38px] flex items-center flex-wrap gap-1.5 px-2.5 py-1.5 rounded-xl text-sm border cursor-pointer transition-all ${
-          isDark
-            ? 'bg-dark-100 border-zinc-700 hover:border-zinc-600'
-            : 'bg-white border-slate-300 hover:border-slate-400'
-        } ${isOpen ? isDark ? 'border-brand-500 ring-1 ring-brand-500/20' : 'border-brand-500 ring-1 ring-brand-500/20' : ''}`}
+        className={cx(
+          'min-h-[38px] flex items-center flex-wrap gap-1.5 px-2.5 py-1.5 rounded-xl text-sm border cursor-pointer transition-all',
+          'bg-white border-gray-300 hover:border-gray-400',
+          'dark:bg-dark-100 dark:border-zinc-700 dark:hover:border-zinc-600',
+          isOpen && 'border-brand-500 ring-1 ring-brand-500/20 dark:border-brand-500 dark:ring-1 dark:ring-brand-500/20'
+        )}
       >
         {selectedUsers.length === 0 ? (
-          <span className={`${isDark ? 'text-zinc-500' : 'text-slate-400'} text-sm`}>
+          <span className="text-gray-400 dark:text-zinc-500 text-sm">
             Select product managers...
           </span>
         ) : (
           selectedUsers.map(user => (
             <span
               key={user.id}
-              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-xs font-medium ${
-                isDark
-                  ? 'bg-brand-500/20 text-brand-300 border border-brand-500/30'
-                  : 'bg-brand-50 text-brand-700 border border-brand-200'
-              }`}
+              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-xs font-medium bg-brand-50 text-brand-700 border border-brand-200 dark:bg-brand-500/20 dark:text-brand-300 dark:border-brand-500/30"
             >
               {user.name}
               <button
                 onClick={(e) => removeUser(user.id, e)}
-                className={`rounded-full p-0.5 transition-colors ${
-                  isDark ? 'hover:bg-brand-500/30' : 'hover:bg-brand-100'
-                }`}
+                className="rounded-full p-0.5 transition-colors hover:bg-brand-100 dark:hover:bg-brand-500/30"
               >
-                <X className="w-3 h-3" />
+                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
               </button>
             </span>
           ))
         )}
-        <ChevronDown className={`w-4 h-4 ml-auto flex-shrink-0 transition-transform ${
-          isDark ? 'text-zinc-500' : 'text-slate-400'
-        } ${isOpen ? 'rotate-180' : ''}`} />
+        <ChevronDown className={cx(
+          'w-4 h-4 ml-auto flex-shrink-0 transition-transform',
+          'text-gray-400 dark:text-zinc-500',
+          isOpen && 'rotate-180'
+        )} />
       </div>
 
       {/* Dropdown */}
       {isOpen && (
-        <div className={`absolute top-full left-0 right-0 mt-1.5 rounded-xl border z-50 overflow-hidden shadow-lg ${
-          isDark
-            ? 'bg-[rgba(15,20,35,0.98)] border-zinc-700 shadow-[0_8px_30px_rgba(0,0,0,0.5)]'
-            : 'bg-white border-slate-200 shadow-[0_8px_30px_rgba(0,0,0,0.1)]'
-        }`}>
+        <div className={cx(
+          'absolute top-full left-0 right-0 mt-1.5 rounded-xl border z-50 overflow-hidden shadow-lg',
+          'bg-white border-gray-200 shadow-[0_8px_30px_rgba(0,0,0,0.1)]',
+          'dark:bg-[rgba(15,20,35,0.98)] dark:border-zinc-700 dark:shadow-[0_8px_30px_rgba(0,0,0,0.5)]'
+        )}>
           {/* Search */}
-          <div className={`p-2 border-b ${isDark ? 'border-zinc-700/50' : 'border-slate-100'}`}>
+          <div className="p-2 border-b border-gray-100 dark:border-zinc-700/50">
             <div className="relative">
-              <Search className={`absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 ${
-                isDark ? 'text-zinc-500' : 'text-slate-400'
-              }`} />
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 dark:text-zinc-500" />
               <input
                 type="text"
                 placeholder="Search product managers..."
                 value={search}
                 onChange={e => setSearch(e.target.value)}
                 autoFocus
-                className={`w-full pl-8 pr-3 py-1.5 rounded-lg text-xs border transition-colors ${
-                  isDark
-                    ? 'bg-dark-100 border-zinc-700 text-white placeholder-zinc-500 focus:border-brand-500'
-                    : 'bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400 focus:border-brand-500'
-                } focus:outline-none`}
+                className={cx(
+                  'w-full pl-8 pr-3 py-1.5 rounded-lg text-xs border transition-colors',
+                  'bg-gray-50 border-gray-200 text-gray-900 placeholder-gray-400 focus:border-brand-500',
+                  'dark:bg-dark-100 dark:border-zinc-700 dark:text-white dark:placeholder-zinc-500 dark:focus:border-brand-500',
+                  'focus:outline-none'
+                )}
               />
             </div>
           </div>
@@ -146,7 +139,7 @@ const MultiSelectDropdown: React.FC<{
           {/* User list */}
           <div className="max-h-48 overflow-y-auto">
             {filteredUsers.length === 0 ? (
-              <div className={`px-3 py-4 text-center text-xs ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
+              <div className="px-3 py-4 text-center text-xs text-gray-400 dark:text-zinc-500">
                 No product managers found
               </div>
             ) : (
@@ -156,34 +149,30 @@ const MultiSelectDropdown: React.FC<{
                   <button
                     key={user.id}
                     onClick={() => toggleUser(user.id)}
-                    className={`w-full px-3 py-2 flex items-center gap-2.5 text-left transition-colors ${
+                    className={cx(
+                      'w-full px-3 py-2 flex items-center gap-2.5 text-left transition-colors',
                       isSelected
-                        ? isDark
-                          ? 'bg-brand-500/15'
-                          : 'bg-brand-50'
-                        : isDark
-                          ? 'hover:bg-white/[0.04]'
-                          : 'hover:bg-slate-50'
-                    }`}
+                        ? 'bg-brand-50 dark:bg-brand-500/15'
+                        : 'hover:bg-gray-50 dark:hover:bg-white/[0.04]'
+                    )}
                   >
                     {/* Checkbox */}
-                    <div className={`w-4 h-4 rounded flex items-center justify-center flex-shrink-0 border transition-colors ${
+                    <div className={cx(
+                      'w-4 h-4 rounded flex items-center justify-center flex-shrink-0 border transition-colors',
                       isSelected
                         ? 'bg-brand-600 border-brand-600'
-                        : isDark
-                          ? 'border-zinc-600'
-                          : 'border-slate-300'
-                    }`}>
+                        : 'border-gray-300 dark:border-zinc-600'
+                    )}>
                       {isSelected && (
                         <CheckCircle className="w-3 h-3 text-white" />
                       )}
                     </div>
 
                     <div className="flex-1 min-w-0">
-                      <div className={`text-xs font-medium truncate ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                      <div className="text-xs font-medium truncate text-gray-900 dark:text-white">
                         {user.name}
                       </div>
-                      <div className={`text-[10px] truncate ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
+                      <div className="text-[10px] truncate text-gray-400 dark:text-zinc-500">
                         {user.email}
                       </div>
                     </div>
@@ -195,9 +184,7 @@ const MultiSelectDropdown: React.FC<{
 
           {/* Footer */}
           {selectedIds.length > 0 && (
-            <div className={`px-3 py-2 border-t text-[10px] ${
-              isDark ? 'border-zinc-700/50 text-zinc-500' : 'border-slate-100 text-slate-400'
-            }`}>
+            <div className="px-3 py-2 border-t text-[10px] border-gray-100 text-gray-400 dark:border-zinc-700/50 dark:text-zinc-500">
               {selectedIds.length} selected
             </div>
           )}
@@ -218,7 +205,7 @@ function parsePmIds(raw?: string): string[] {
   }
 }
 
-export const ProductManagersTab: React.FC<Props> = ({ isDark, cardClass, selectClass }) => {
+export const ProductManagersTab: React.FC = () => {
   const [categories, setCategories] = useState<CategoryWithManager[]>([]);
   const [oems, setOems] = useState<OemItem[]>([]);
   const [users, setUsers] = useState<UserItem[]>([]);
@@ -337,7 +324,7 @@ export const ProductManagersTab: React.FC<Props> = ({ isDark, cardClass, selectC
     return current !== original;
   };
 
-  // Users with "productmanager" role — shown in the PM roster section
+  // Users with "productmanager" role -- shown in the PM roster section
   const productManagerUsers = users.filter(u => u.role === 'productmanager' && u.isActive !== false);
 
   // Only product manager role users can be assigned to categories
@@ -359,11 +346,6 @@ export const ProductManagersTab: React.FC<Props> = ({ isDark, cardClass, selectC
     );
   });
 
-  const thClass = `px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider ${
-    isDark ? 'text-zinc-400' : 'text-slate-500'
-  }`;
-  const tdClass = `px-4 py-3 text-sm ${isDark ? 'text-zinc-300' : 'text-slate-700'}`;
-
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -374,9 +356,10 @@ export const ProductManagersTab: React.FC<Props> = ({ isDark, cardClass, selectC
 
   if (error) {
     return (
-      <div className="flex items-center justify-center py-12 gap-2 text-red-500">
-        <AlertCircle className="w-5 h-5" />
-        <span className="text-sm">{error}</span>
+      <div className="flex items-center justify-center py-12">
+        <Alert variant="error" icon={<AlertCircle className="w-5 h-5" />}>
+          {error}
+        </Alert>
       </div>
     );
   }
@@ -386,71 +369,61 @@ export const ProductManagersTab: React.FC<Props> = ({ isDark, cardClass, selectC
       {/* Product Manager Roster */}
       <div>
         <div className="flex items-center gap-3 mb-3">
-          <Users className={`w-5 h-5 ${isDark ? 'text-brand-400' : 'text-brand-600'}`} />
-          <h3 className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>
+          <Users className="w-5 h-5 text-brand-600 dark:text-brand-400" />
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
             Product Managers
           </h3>
-          <span className={`text-xs px-2 py-0.5 rounded-full ${
-            isDark ? 'bg-brand-500/20 text-brand-300' : 'bg-brand-50 text-brand-700'
-          }`}>
+          <Badge variant="brand" size="sm">
             {productManagerUsers.length}
-          </span>
+          </Badge>
         </div>
 
         {productManagerUsers.length === 0 ? (
-          <div className={`${cardClass} p-6 text-center`}>
-            <UserCog className={`w-8 h-8 mx-auto mb-2 ${isDark ? 'text-zinc-600' : 'text-slate-300'}`} />
-            <p className={`text-sm ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
+          <Card className="text-center">
+            <UserCog className="w-8 h-8 mx-auto mb-2 text-gray-300 dark:text-zinc-600" />
+            <p className="text-sm text-gray-400 dark:text-zinc-500">
               No users with "Product Manager" role found.
             </p>
-            <p className={`text-xs mt-1 ${isDark ? 'text-zinc-600' : 'text-slate-400'}`}>
+            <p className="text-xs mt-1 text-gray-400 dark:text-zinc-600">
               Assign the "productmanager" role to users in the Users tab.
             </p>
-          </div>
+          </Card>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {productManagerUsers.map(pm => {
               const catCount = getCategoryCount(pm.id);
               return (
-                <div
-                  key={pm.id}
-                  className={`${cardClass} p-4 flex items-center gap-3`}
-                >
+                <Card key={pm.id} padding="none" className="p-4 flex items-center gap-3">
                   {/* Avatar */}
-                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 text-sm font-bold ${
-                    isDark
-                      ? 'bg-brand-500/20 text-brand-300'
-                      : 'bg-brand-50 text-brand-700'
-                  }`}>
+                  <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 text-sm font-bold bg-brand-50 text-brand-700 dark:bg-brand-500/20 dark:text-brand-300">
                     {pm.name.charAt(0).toUpperCase()}
                   </div>
 
                   <div className="flex-1 min-w-0">
-                    <div className={`text-sm font-semibold truncate ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                    <div className="text-sm font-semibold truncate text-gray-900 dark:text-white">
                       {pm.name}
                     </div>
-                    <div className={`flex items-center gap-1.5 text-xs truncate ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
+                    <div className="flex items-center gap-1.5 text-xs truncate text-gray-400 dark:text-zinc-500">
                       <Mail className="w-3 h-3 flex-shrink-0" />
                       {pm.email}
                     </div>
                   </div>
 
                   {/* Category count badge */}
-                  <div className={`flex flex-col items-center flex-shrink-0 ${
-                    isDark ? 'text-zinc-400' : 'text-slate-500'
-                  }`}>
-                    <span className={`text-lg font-bold ${
+                  <div className="flex flex-col items-center flex-shrink-0 text-gray-500 dark:text-zinc-400">
+                    <span className={cx(
+                      'text-lg font-bold',
                       catCount > 0
-                        ? isDark ? 'text-brand-400' : 'text-brand-600'
-                        : isDark ? 'text-zinc-600' : 'text-slate-300'
-                    }`}>
+                        ? 'text-brand-600 dark:text-brand-400'
+                        : 'text-gray-300 dark:text-zinc-600'
+                    )}>
                       {catCount}
                     </span>
                     <span className="text-[10px]">
                       {catCount === 1 ? 'category' : 'categories'}
                     </span>
                   </div>
-                </div>
+                </Card>
               );
             })}
           </div>
@@ -458,54 +431,49 @@ export const ProductManagersTab: React.FC<Props> = ({ isDark, cardClass, selectC
       </div>
 
       {/* Divider */}
-      <div className={`border-t ${isDark ? 'border-zinc-800' : 'border-slate-200'}`} />
+      <div className="border-t border-gray-200 dark:border-zinc-800" />
 
       {/* Category Assignment Section */}
       <div>
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-3">
-            <Shield className={`w-5 h-5 ${isDark ? 'text-brand-400' : 'text-brand-600'}`} />
-            <h3 className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>
+            <Shield className="w-5 h-5 text-brand-600 dark:text-brand-400" />
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
               Category Assignments
             </h3>
           </div>
-          <span className={`text-sm ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
+          <span className="text-sm text-gray-400 dark:text-zinc-500">
             {filteredCategories.length} {filteredCategories.length === 1 ? 'category' : 'categories'}
           </span>
         </div>
 
         {/* Search */}
-        <div className={`${cardClass} p-4 mb-4`}>
-          <input
-            type="text"
+        <Card padding="none" className="p-4 mb-4">
+          <Input
             placeholder="Search categories or managers..."
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
-            className={`w-full px-3 py-2 rounded-xl text-sm border transition-colors ${
-              isDark
-                ? 'bg-dark-100 border-zinc-700 text-white placeholder-zinc-500 focus:border-brand-500'
-                : 'bg-white border-slate-300 text-slate-900 placeholder-slate-400 focus:border-brand-500'
-            } focus:outline-none focus:ring-1 focus:ring-brand-500`}
+            icon={<Search className="w-4 h-4" />}
           />
-        </div>
+        </Card>
 
         {/* Table */}
-        <div className={`${cardClass} overflow-hidden`}>
+        <Card padding="none">
           {filteredCategories.length === 0 ? (
-            <div className={`text-center py-12 text-sm ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
+            <div className="text-center py-12 text-sm text-gray-400 dark:text-zinc-500">
               {searchTerm ? 'No categories match your search.' : 'No categories found.'}
             </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead className={isDark ? 'bg-dark-100' : 'bg-slate-50'}>
+                <thead className="bg-gray-50 dark:bg-dark-200">
                   <tr>
-                    <th className={thClass} style={{ width: '25%' }}>Category</th>
-                    <th className={thClass} style={{ width: '50%' }}>Product Managers</th>
-                    <th className={`${thClass} text-right`} style={{ width: '25%' }}>Actions</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400" style={{ width: '25%' }}>Category</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400" style={{ width: '50%' }}>Product Managers</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-right text-gray-500 dark:text-zinc-400" style={{ width: '25%' }}>Actions</th>
                   </tr>
                 </thead>
-                <tbody className={`divide-y ${isDark ? 'divide-zinc-800' : 'divide-slate-100'}`}>
+                <tbody className="divide-y divide-gray-100 dark:divide-zinc-800">
                   {filteredCategories.map(cat => {
                     const isSaving = savingRows[cat.id] || false;
                     const isSaved = savedRows[cat.id] || false;
@@ -514,31 +482,24 @@ export const ProductManagersTab: React.FC<Props> = ({ isDark, cardClass, selectC
                     return (
                       <tr
                         key={cat.id}
-                        className={`transition-colors ${
-                          isDark ? 'hover:bg-zinc-800/50' : 'hover:bg-slate-50'
-                        }`}
+                        className="transition-colors hover:bg-gray-50 dark:hover:bg-zinc-800/50"
                       >
-                        <td className={tdClass}>
+                        <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">
                           <div className="flex items-center gap-2">
                             <span className="font-medium">{cat.name}</span>
                             {!cat.isActive && (
-                              <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs ${
-                                isDark ? 'bg-zinc-800 text-zinc-400' : 'bg-slate-100 text-slate-500'
-                              }`}>
-                                Inactive
-                              </span>
+                              <Badge variant="gray" size="sm">Inactive</Badge>
                             )}
                           </div>
                         </td>
-                        <td className={tdClass}>
+                        <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">
                           <MultiSelectDropdown
                             selectedIds={assignments[cat.id] || []}
                             users={eligibleUsers}
                             onChange={(ids) => handleAssignmentChange(cat.id, ids)}
-                            isDark={isDark}
                           />
                         </td>
-                        <td className={`${tdClass} text-right`}>
+                        <td className="px-4 py-3 text-sm text-right text-gray-700 dark:text-gray-300">
                           <div className="flex items-center justify-end gap-2">
                             {isSaved && (
                               <span className="flex items-center gap-1 text-xs text-emerald-500">
@@ -546,24 +507,16 @@ export const ProductManagersTab: React.FC<Props> = ({ isDark, cardClass, selectC
                                 Saved
                               </span>
                             )}
-                            <button
+                            <Button
+                              size="sm"
                               onClick={() => handleSave(cat.id)}
                               disabled={isSaving || !isChanged}
-                              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-sm font-medium transition-colors ${
-                                isChanged
-                                  ? 'bg-brand-600 text-white hover:bg-brand-700'
-                                  : isDark
-                                    ? 'bg-zinc-800 text-zinc-500 cursor-not-allowed'
-                                    : 'bg-slate-100 text-slate-400 cursor-not-allowed'
-                              } disabled:opacity-50`}
+                              loading={isSaving}
+                              icon={!isSaving ? <Save className="w-3.5 h-3.5" /> : undefined}
+                              variant={isChanged ? 'primary' : 'secondary'}
                             >
-                              {isSaving ? (
-                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                              ) : (
-                                <Save className="w-3.5 h-3.5" />
-                              )}
-                              {isSaving ? 'Saving...' : 'Save'}
-                            </button>
+                              Save
+                            </Button>
                           </div>
                         </td>
                       </tr>
@@ -573,7 +526,7 @@ export const ProductManagersTab: React.FC<Props> = ({ isDark, cardClass, selectC
               </table>
             </div>
           )}
-        </div>
+        </Card>
       </div>
     </div>
   );

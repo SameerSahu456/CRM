@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { ArrowUpRight, ArrowDownRight, ChevronUp, ChevronDown } from 'lucide-react';
+import { cx } from '@/utils/cx';
 
 interface AnalyticsCardProps {
   icon: React.ReactNode;
@@ -10,7 +11,6 @@ interface AnalyticsCardProps {
   titleColor?: string;
   badge?: { value: number; suffix?: string };
   badgeRight?: React.ReactNode;
-  isDark: boolean;
   onClick?: () => void;
   children: React.ReactNode;
   className?: string;
@@ -25,7 +25,6 @@ export const AnalyticsCard: React.FC<AnalyticsCardProps> = ({
   titleColor,
   badge,
   badgeRight,
-  isDark,
   onClick,
   children,
   className = ''
@@ -34,9 +33,12 @@ export const AnalyticsCard: React.FC<AnalyticsCardProps> = ({
 
   return (
     <div
-      className={`premium-card rounded-2xl overflow-hidden ${
-        isDark ? 'bg-[rgba(8,14,30,0.6)] border border-white/[0.07]' : 'border border-white/60'
-      } ${className} ${onClick ? 'cursor-pointer' : ''}`}
+      className={cx(
+        'premium-card rounded-2xl overflow-hidden',
+        'border border-white/60 dark:bg-[rgba(8,14,30,0.6)] dark:border-white/[0.07]',
+        className,
+        onClick && 'cursor-pointer'
+      )}
       onClick={onClick}
     >
       <div className="p-4 sm:p-5">
@@ -48,7 +50,7 @@ export const AnalyticsCard: React.FC<AnalyticsCardProps> = ({
             </div>
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2 flex-wrap">
-                <h3 className={`text-sm font-bold truncate ${titleColor || (isDark ? 'text-white' : 'text-slate-900')}`}>{title}</h3>
+                <h3 className={cx('text-sm font-bold truncate', titleColor || 'text-slate-900 dark:text-white')}>{title}</h3>
                 {badge && (
                   <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold inline-flex items-center gap-0.5 flex-shrink-0 ${
                     badge.value >= 0
@@ -60,16 +62,14 @@ export const AnalyticsCard: React.FC<AnalyticsCardProps> = ({
                   </span>
                 )}
               </div>
-              <p className={`text-[11px] truncate ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>{subtitle}</p>
+              <p className="text-[11px] truncate text-slate-400 dark:text-zinc-500">{subtitle}</p>
             </div>
           </div>
           <div className="flex items-center gap-1.5 flex-shrink-0 ml-2">
             {badgeRight}
             <button
               onClick={(e) => { e.stopPropagation(); setCollapsed(!collapsed); }}
-              className={`w-6 h-6 rounded-lg flex items-center justify-center transition-colors ${
-                isDark ? 'hover:bg-white/[0.06] text-zinc-500' : 'hover:bg-slate-100 text-slate-400'
-              }`}
+              className="w-6 h-6 rounded-lg flex items-center justify-center transition-colors hover:bg-slate-100 text-slate-400 dark:hover:bg-white/[0.06] dark:text-zinc-500"
             >
               {collapsed ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronUp className="w-3.5 h-3.5" />}
             </button>

@@ -1,19 +1,17 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Search, Package, AlertTriangle, ChevronDown, ChevronUp,
-  Filter, X, Loader2, AlertCircle, ArrowUpDown, Eye
+  X, Loader2, AlertCircle, ArrowUpDown
 } from 'lucide-react';
-import { useTheme } from '@/contexts/ThemeContext';
 import { productsApi, formatINR } from '@/services/api';
 import { Product } from '@/types';
+import { Card, Button, Input, Select, Modal, Badge, Alert } from '@/components/ui';
+import { cx } from '@/utils/cx';
 
 type SortField = 'name' | 'category' | 'stock' | 'basePrice';
 type SortDir = 'asc' | 'desc';
 
 export const InventoryPage: React.FC = () => {
-  const { theme } = useTheme();
-  const isDark = theme === 'dark';
-
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
@@ -113,28 +111,22 @@ export const InventoryPage: React.FC = () => {
   const stockBadge = (stock: number) => {
     if (stock === 0)
       return (
-        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${
-          isDark ? 'bg-red-900/30 text-red-400' : 'bg-red-100 text-red-700'
-        }`}>
+        <Badge variant="error" size="sm">
           <AlertTriangle className="w-3 h-3" />
           Out of Stock
-        </span>
+        </Badge>
       );
     if (stock <= 10)
       return (
-        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${
-          isDark ? 'bg-amber-900/30 text-amber-400' : 'bg-amber-100 text-amber-700'
-        }`}>
+        <Badge variant="warning" size="sm">
           <AlertTriangle className="w-3 h-3" />
           Low ({stock})
-        </span>
+        </Badge>
       );
     return (
-      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${
-        isDark ? 'bg-emerald-900/30 text-emerald-400' : 'bg-emerald-100 text-emerald-700'
-      }`}>
+      <Badge variant="success" size="sm">
         {stock} units
-      </span>
+      </Badge>
     );
   };
 
@@ -153,12 +145,10 @@ export const InventoryPage: React.FC = () => {
 
   const hasFilters = searchTerm || filterCategory || filterStock !== 'all';
 
-  const cardClass = `premium-card ${isDark ? '' : 'shadow-soft'}`;
-
   const InfoRow: React.FC<{ label: string; value: React.ReactNode }> = ({ label, value }) => (
     <div className="flex items-start gap-3 py-2">
-      <p className={`text-xs font-medium w-32 flex-shrink-0 pt-0.5 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>{label}</p>
-      <p className={`text-sm ${isDark ? 'text-white' : 'text-slate-900'}`}>{value || '-'}</p>
+      <p className="text-xs font-medium w-32 flex-shrink-0 pt-0.5 text-slate-400 dark:text-zinc-500">{label}</p>
+      <p className="text-sm text-slate-900 dark:text-white">{value || '-'}</p>
     </div>
   );
 
@@ -171,130 +161,95 @@ export const InventoryPage: React.FC = () => {
           { label: 'In Stock', value: stats.inStock, color: 'emerald' },
           { label: 'Out of Stock', value: stats.outOfStock, color: 'red' },
         ].map((stat) => (
-          <div
+          <Card
             key={stat.label}
-            className={`rounded-xl p-4 border transition-all ${
-              isDark
-                ? 'bg-zinc-900/60 border-white/[0.06] hover:border-white/10'
-                : 'bg-white border-slate-200 hover:border-slate-300 shadow-sm'
-            }`}
+            glass={false}
+            padding="none"
+            hover
+            className="p-4"
           >
-            <p className={`text-xs font-medium mb-1 ${isDark ? 'text-zinc-500' : 'text-slate-500'}`}>
+            <p className="text-xs font-medium mb-1 text-slate-500 dark:text-zinc-500">
               {stat.label}
             </p>
-            <p className={`text-xl font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>
+            <p className="text-xl font-bold text-slate-900 dark:text-white">
               {stat.value}
             </p>
-          </div>
+          </Card>
         ))}
       </div>
 
       {/* Toolbar */}
-      <div className={`rounded-xl border mb-4 p-3 sm:p-4 ${
-        isDark ? 'bg-zinc-900/60 border-white/[0.06]' : 'bg-white border-slate-200 shadow-sm'
-      }`}>
+      <Card glass={false} padding="none" className="mb-4 p-3 sm:p-4">
         <div className="flex flex-col sm:flex-row gap-3">
           {/* Search */}
-          <div className="relative flex-1">
-            <Search className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${
-              isDark ? 'text-zinc-500' : 'text-slate-400'
-            }`} />
-            <input
+          <div className="flex-1">
+            <Input
               type="text"
               placeholder="Search products..."
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
-              className={`w-full pl-9 pr-3 py-2 rounded-lg text-sm border transition-colors ${
-                isDark
-                  ? 'bg-zinc-800 border-zinc-700 text-white placeholder-zinc-500 focus:border-brand-500'
-                  : 'bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400 focus:border-brand-500'
-              } outline-none`}
+              icon={<Search className="w-4 h-4" />}
             />
           </div>
 
           {/* Category Filter */}
-          <div className="relative">
-            <Filter className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${
-              isDark ? 'text-zinc-500' : 'text-slate-400'
-            }`} />
-            <select
-              value={filterCategory}
-              onChange={e => setFilterCategory(e.target.value)}
-              className={`pl-9 pr-8 py-2 rounded-lg text-sm border appearance-none cursor-pointer transition-colors ${
-                isDark
-                  ? 'bg-zinc-800 border-zinc-700 text-white focus:border-brand-500'
-                  : 'bg-slate-50 border-slate-200 text-slate-900 focus:border-brand-500'
-              } outline-none`}
-            >
-              <option value="">All Categories</option>
-              {categories.map(c => (
-                <option key={c} value={c}>{c}</option>
-              ))}
-            </select>
-          </div>
+          <Select
+            value={filterCategory}
+            onChange={e => setFilterCategory(e.target.value)}
+          >
+            <option value="">All Categories</option>
+            {categories.map(c => (
+              <option key={c} value={c}>{c}</option>
+            ))}
+          </Select>
 
           {/* Stock Filter */}
-          <div className="relative">
-            <Package className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${
-              isDark ? 'text-zinc-500' : 'text-slate-400'
-            }`} />
-            <select
-              value={filterStock}
-              onChange={e => setFilterStock(e.target.value as any)}
-              className={`pl-9 pr-8 py-2 rounded-lg text-sm border appearance-none cursor-pointer transition-colors ${
-                isDark
-                  ? 'bg-zinc-800 border-zinc-700 text-white focus:border-brand-500'
-                  : 'bg-slate-50 border-slate-200 text-slate-900 focus:border-brand-500'
-              } outline-none`}
-            >
-              <option value="all">All Stock</option>
-              <option value="in-stock">In Stock (&gt;10)</option>
-              <option value="low-stock">Low Stock (1-10)</option>
-              <option value="out-of-stock">Out of Stock</option>
-            </select>
-          </div>
+          <Select
+            value={filterStock}
+            onChange={e => setFilterStock(e.target.value as any)}
+          >
+            <option value="all">All Stock</option>
+            <option value="in-stock">In Stock (&gt;10)</option>
+            <option value="low-stock">Low Stock (1-10)</option>
+            <option value="out-of-stock">Out of Stock</option>
+          </Select>
 
           {hasFilters && (
-            <button
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={clearFilters}
-              className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm transition-colors ${
-                isDark
-                  ? 'text-zinc-400 hover:text-white hover:bg-zinc-800'
-                  : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100'
-              }`}
+              icon={<X className="w-4 h-4" />}
             >
-              <X className="w-4 h-4" />
               Clear
-            </button>
+            </Button>
           )}
         </div>
-      </div>
+      </Card>
 
       {/* Error */}
       {error && (
-        <div className={`flex items-center gap-2 p-3 mb-4 rounded-lg text-sm ${
-          isDark ? 'bg-red-900/20 text-red-400 border border-red-800/30' : 'bg-red-50 text-red-600 border border-red-200'
-        }`}>
-          <AlertCircle className="w-4 h-4 flex-shrink-0" />
-          {error}
-          <button onClick={() => setError('')} className="ml-auto">
-            <X className="w-4 h-4" />
-          </button>
+        <div className="mb-4">
+          <Alert
+            variant="error"
+            icon={<AlertCircle className="w-4 h-4" />}
+            onClose={() => setError('')}
+          >
+            {error}
+          </Alert>
         </div>
       )}
 
       {/* Table */}
-      <div className={`rounded-xl border overflow-hidden ${
-        isDark ? 'bg-zinc-900/60 border-white/[0.06]' : 'bg-white border-slate-200 shadow-sm'
-      }`}>
+      <Card glass={false} padding="none">
         {isLoading ? (
           <div className="flex items-center justify-center py-20">
             <Loader2 className="w-6 h-6 text-brand-500 animate-spin" />
           </div>
         ) : filtered.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 gap-2">
-            <Package className={`w-10 h-10 ${isDark ? 'text-zinc-600' : 'text-slate-300'}`} />
-            <p className={`text-sm ${isDark ? 'text-zinc-500' : 'text-slate-500'}`}>
+            <Package className="w-10 h-10 text-slate-300 dark:text-zinc-600" />
+            <p className="text-sm text-slate-500 dark:text-zinc-500">
               {hasFilters ? 'No products match your filters' : 'No products found'}
             </p>
             {hasFilters && (
@@ -307,7 +262,7 @@ export const InventoryPage: React.FC = () => {
           <div className="overflow-x-auto">
             <table className="w-full min-w-[700px]">
               <thead>
-                <tr className={isDark ? 'bg-zinc-800/50' : 'bg-slate-50'}>
+                <tr className="bg-slate-50 dark:bg-zinc-800/50">
                   {([
                     ['name', 'Product Name'],
                     ['category', 'Category'],
@@ -317,11 +272,7 @@ export const InventoryPage: React.FC = () => {
                     <th
                       key={field}
                       onClick={() => handleSort(field)}
-                      className={`text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider cursor-pointer select-none transition-colors ${
-                        isDark
-                          ? 'text-zinc-400 hover:text-zinc-200'
-                          : 'text-slate-500 hover:text-slate-700'
-                      }`}
+                      className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider cursor-pointer select-none transition-colors text-slate-500 hover:text-slate-700 dark:text-zinc-400 dark:hover:text-zinc-200"
                     >
                       <span className="inline-flex items-center gap-1.5">
                         {label}
@@ -329,41 +280,36 @@ export const InventoryPage: React.FC = () => {
                       </span>
                     </th>
                   ))}
-                  <th className={`text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider ${
-                    isDark ? 'text-zinc-400' : 'text-slate-500'
-                  }`}>
+                  <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-zinc-400">
                     Status
                   </th>
-                  <th className={`text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider ${
-                    isDark ? 'text-zinc-400' : 'text-slate-500'
-                  }`}>
+                  <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-zinc-400">
                     Stock Value
                   </th>
                 </tr>
               </thead>
-              <tbody className={`divide-y ${isDark ? 'divide-white/[0.04]' : 'divide-slate-100'}`}>
+              <tbody className="divide-y divide-slate-100 dark:divide-white/[0.04]">
                 {filtered.map(product => (
                   <tr
                     key={product.id}
                     onClick={() => setDetailProduct(product)}
-                    className={`transition-colors cursor-pointer ${
-                      isDark ? 'hover:bg-white/[0.04]' : 'hover:bg-slate-50'
-                    } ${!product.isActive ? 'opacity-50' : ''}`}
+                    className={cx(
+                      'transition-colors cursor-pointer hover:bg-slate-50 dark:hover:bg-white/[0.04]',
+                      !product.isActive && 'opacity-50'
+                    )}
                   >
                     {/* Name */}
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
-                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
-                          isDark ? 'bg-brand-900/30 text-brand-400' : 'bg-brand-50 text-brand-600'
-                        }`}>
+                        <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 bg-brand-50 text-brand-600 dark:bg-brand-900/30 dark:text-brand-400">
                           <Package className="w-4 h-4" />
                         </div>
                         <div>
-                          <p className={`text-sm font-medium ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                          <p className="text-sm font-medium text-slate-900 dark:text-white">
                             {product.name}
                           </p>
                           {!product.isActive && (
-                            <span className={`text-xs ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
+                            <span className="text-xs text-slate-400 dark:text-zinc-500">
                               Inactive
                             </span>
                           )}
@@ -374,27 +320,23 @@ export const InventoryPage: React.FC = () => {
                     {/* Category */}
                     <td className="px-4 py-3">
                       {product.category ? (
-                        <span className={`inline-flex px-2 py-0.5 rounded-md text-xs font-medium ${
-                          isDark ? 'bg-zinc-800 text-zinc-300' : 'bg-slate-100 text-slate-700'
-                        }`}>
+                        <Badge variant="gray" size="sm">
                           {product.category}
-                        </span>
+                        </Badge>
                       ) : (
-                        <span className={`text-xs ${isDark ? 'text-zinc-600' : 'text-slate-400'}`}>--</span>
+                        <span className="text-xs text-slate-400 dark:text-zinc-600">--</span>
                       )}
                     </td>
 
                     {/* Stock */}
                     <td className="px-4 py-3">
-                      <span className={`text-sm font-semibold tabular-nums ${
-                        isDark ? 'text-white' : 'text-slate-900'
-                      }`}>
+                      <span className="text-sm font-semibold tabular-nums text-slate-900 dark:text-white">
                         {product.stock}
                       </span>
                     </td>
 
                     {/* Unit Price */}
-                    <td className={`px-4 py-3 text-sm tabular-nums ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
+                    <td className="px-4 py-3 text-sm tabular-nums text-slate-700 dark:text-zinc-300">
                       {product.basePrice ? formatINR(product.basePrice) : '--'}
                     </td>
 
@@ -404,7 +346,7 @@ export const InventoryPage: React.FC = () => {
                     </td>
 
                     {/* Stock Value */}
-                    <td className={`px-4 py-3 text-sm tabular-nums ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
+                    <td className="px-4 py-3 text-sm tabular-nums text-slate-700 dark:text-zinc-300">
                       {product.basePrice ? formatINR(product.basePrice * product.stock) : '--'}
                     </td>
                   </tr>
@@ -416,101 +358,72 @@ export const InventoryPage: React.FC = () => {
 
         {/* Footer */}
         {!isLoading && filtered.length > 0 && (
-          <div className={`px-4 py-3 border-t text-xs ${
-            isDark ? 'border-white/[0.06] text-zinc-500' : 'border-slate-100 text-slate-500'
-          }`}>
+          <div className="px-4 py-3 border-t text-xs border-slate-100 text-slate-500 dark:border-white/[0.06] dark:text-zinc-500">
             Showing {filtered.length} of {products.length} products
           </div>
         )}
-      </div>
+      </Card>
 
       {/* Detail Modal */}
-      {detailProduct && (
-        <div className="fixed inset-0 z-50 flex items-start justify-center pt-[5vh] p-4 overflow-y-auto">
-          <div className="absolute inset-0 bg-black/50 animate-backdrop" onClick={() => setDetailProduct(null)} />
-          <div className={`relative w-full max-w-lg rounded-2xl animate-fade-in-up max-h-[85vh] flex flex-col overflow-hidden ${
-            isDark ? 'bg-dark-50 border border-zinc-800' : 'bg-white shadow-premium'
-          }`}>
-            {/* Header */}
-            <div className={`flex-shrink-0 flex items-center justify-between px-6 py-4 border-b ${
-              isDark ? 'border-zinc-800' : 'border-slate-200'
-            }`}>
-              <div className="flex items-center gap-3">
-                <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
-                  isDark ? 'bg-brand-900/30 text-brand-400' : 'bg-brand-50 text-brand-600'
-                }`}>
-                  <Package className="w-5 h-5" />
-                </div>
-                <div>
-                  <h2 className={`text-lg font-semibold font-display ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                    {detailProduct.name}
-                  </h2>
-                  <p className={`text-xs ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Product Details</p>
-                </div>
+      <Modal
+        open={!!detailProduct}
+        onClose={() => setDetailProduct(null)}
+        title={detailProduct?.name || ''}
+        subtitle="Product Details"
+        icon={<Package className="w-5 h-5" />}
+        size="md"
+        footer={
+          <Button
+            variant="secondary"
+            onClick={() => setDetailProduct(null)}
+            className="w-full"
+          >
+            Close
+          </Button>
+        }
+      >
+        {detailProduct && (
+          <div className="space-y-4">
+            {/* Stock Status Banner */}
+            <div className={cx(
+              'rounded-xl p-4 flex items-center gap-4',
+              detailProduct.stock === 0
+                ? 'bg-red-50 border border-red-200 dark:bg-red-900/20 dark:border-red-800/30'
+                : detailProduct.stock <= 10
+                  ? 'bg-amber-50 border border-amber-200 dark:bg-amber-900/20 dark:border-amber-800/30'
+                  : 'bg-emerald-50 border border-emerald-200 dark:bg-emerald-900/20 dark:border-emerald-800/30'
+            )}>
+              <div className="flex-1">
+                <p className={cx(
+                  'text-sm font-medium',
+                  detailProduct.stock === 0
+                    ? 'text-red-700 dark:text-red-400'
+                    : detailProduct.stock <= 10
+                      ? 'text-amber-700 dark:text-amber-400'
+                      : 'text-emerald-700 dark:text-emerald-400'
+                )}>
+                  {detailProduct.stock === 0 ? 'Out of Stock' : detailProduct.stock <= 10 ? 'Low Stock' : 'In Stock'}
+                </p>
+                <p className="text-2xl font-bold mt-0.5 text-slate-900 dark:text-white">
+                  {detailProduct.stock} <span className="text-sm font-normal opacity-60">units</span>
+                </p>
               </div>
-              <button
-                onClick={() => setDetailProduct(null)}
-                className={`p-2 rounded-lg transition-colors ${
-                  isDark ? 'text-zinc-400 hover:text-white hover:bg-zinc-800' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100'
-                }`}
-              >
-                <X className="w-5 h-5" />
-              </button>
+              {stockBadge(detailProduct.stock)}
             </div>
 
-            {/* Body */}
-            <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
-              {/* Stock Status Banner */}
-              <div className={`rounded-xl p-4 flex items-center gap-4 ${
-                detailProduct.stock === 0
-                  ? isDark ? 'bg-red-900/20 border border-red-800/30' : 'bg-red-50 border border-red-200'
-                  : detailProduct.stock <= 10
-                    ? isDark ? 'bg-amber-900/20 border border-amber-800/30' : 'bg-amber-50 border border-amber-200'
-                    : isDark ? 'bg-emerald-900/20 border border-emerald-800/30' : 'bg-emerald-50 border border-emerald-200'
-              }`}>
-                <div className="flex-1">
-                  <p className={`text-sm font-medium ${
-                    detailProduct.stock === 0
-                      ? isDark ? 'text-red-400' : 'text-red-700'
-                      : detailProduct.stock <= 10
-                        ? isDark ? 'text-amber-400' : 'text-amber-700'
-                        : isDark ? 'text-emerald-400' : 'text-emerald-700'
-                  }`}>
-                    {detailProduct.stock === 0 ? 'Out of Stock' : detailProduct.stock <= 10 ? 'Low Stock' : 'In Stock'}
-                  </p>
-                  <p className={`text-2xl font-bold mt-0.5 ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                    {detailProduct.stock} <span className="text-sm font-normal opacity-60">units</span>
-                  </p>
-                </div>
-                {stockBadge(detailProduct.stock)}
-              </div>
-
-              {/* Info */}
-              <div className={`divide-y ${isDark ? 'divide-zinc-800' : 'divide-slate-100'}`}>
-                <InfoRow label="Product Name" value={detailProduct.name} />
-                <InfoRow label="Category" value={detailProduct.category || '-'} />
-                <InfoRow label="Unit Price" value={detailProduct.basePrice ? formatINR(detailProduct.basePrice) : '-'} />
-                <InfoRow label="Stock Quantity" value={String(detailProduct.stock)} />
-                <InfoRow label="Created" value={detailProduct.createdAt ? new Intl.DateTimeFormat('en-IN', {
-                  day: '2-digit', month: 'short', year: 'numeric'
-                }).format(new Date(detailProduct.createdAt)) : '-'} />
-              </div>
-            </div>
-
-            {/* Footer */}
-            <div className={`flex-shrink-0 px-6 py-4 border-t ${isDark ? 'border-zinc-800' : 'border-slate-200'}`}>
-              <button
-                onClick={() => setDetailProduct(null)}
-                className={`w-full px-4 py-2.5 rounded-xl text-sm font-medium transition-colors ${
-                  isDark ? 'text-zinc-300 hover:text-white bg-zinc-800 hover:bg-zinc-700' : 'text-slate-700 hover:text-slate-900 bg-slate-100 hover:bg-slate-200'
-                }`}
-              >
-                Close
-              </button>
+            {/* Info */}
+            <div className="divide-y divide-slate-100 dark:divide-zinc-800">
+              <InfoRow label="Product Name" value={detailProduct.name} />
+              <InfoRow label="Category" value={detailProduct.category || '-'} />
+              <InfoRow label="Unit Price" value={detailProduct.basePrice ? formatINR(detailProduct.basePrice) : '-'} />
+              <InfoRow label="Stock Quantity" value={String(detailProduct.stock)} />
+              <InfoRow label="Created" value={detailProduct.createdAt ? new Intl.DateTimeFormat('en-IN', {
+                day: '2-digit', month: 'short', year: 'numeric'
+              }).format(new Date(detailProduct.createdAt)) : '-'} />
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </Modal>
     </div>
   );
 };

@@ -2,20 +2,15 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { ChevronDown, ChevronRight, Filter, Loader2, AlertCircle } from 'lucide-react';
 import { activityLogApi, adminApi } from '@/services/api';
 import { ActivityLog, ActivityChange } from '@/types';
+import { Card, Button, Select, Badge, Alert } from '@/components/ui';
+import { cx } from '@/utils/cx';
 
-interface Props {
-  isDark: boolean;
-  cardClass: string;
-  inputClass: string;
-  selectClass: string;
-}
-
-const ACTION_COLORS: Record<string, { bg: string; text: string; darkBg: string; darkText: string }> = {
-  create: { bg: 'bg-emerald-50', text: 'text-emerald-700', darkBg: 'bg-emerald-900/30', darkText: 'text-emerald-400' },
-  update: { bg: 'bg-blue-50', text: 'text-blue-700', darkBg: 'bg-blue-900/30', darkText: 'text-blue-400' },
-  delete: { bg: 'bg-red-50', text: 'text-red-700', darkBg: 'bg-red-900/30', darkText: 'text-red-400' },
-  approve: { bg: 'bg-amber-50', text: 'text-amber-700', darkBg: 'bg-amber-900/30', darkText: 'text-amber-400' },
-  reject: { bg: 'bg-orange-50', text: 'text-orange-700', darkBg: 'bg-orange-900/30', darkText: 'text-orange-400' },
+const ACTION_COLORS: Record<string, { variant: 'emerald' | 'blue' | 'red' | 'amber' | 'warning' }> = {
+  create: { variant: 'emerald' },
+  update: { variant: 'blue' },
+  delete: { variant: 'red' },
+  approve: { variant: 'amber' },
+  reject: { variant: 'warning' },
 };
 
 function formatDateTime(dateStr?: string): string {
@@ -30,7 +25,7 @@ function formatDateTime(dateStr?: string): string {
   }
 }
 
-export const ActivityLogTab: React.FC<Props> = ({ isDark, cardClass, inputClass, selectClass }) => {
+export const ActivityLogTab: React.FC = () => {
   const [logs, setLogs] = useState<ActivityLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -80,18 +75,13 @@ export const ActivityLogTab: React.FC<Props> = ({ isDark, cardClass, inputClass,
     'sales_entry', 'product', 'task', 'user',
   ];
 
-  const thClass = `px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider ${
-    isDark ? 'text-zinc-400' : 'text-slate-500'
-  }`;
-  const tdClass = `px-4 py-3 text-sm ${isDark ? 'text-zinc-300' : 'text-slate-700'}`;
-
   return (
     <div className="space-y-4">
       {/* Filters */}
-      <div className={`${cardClass} p-4`}>
+      <Card padding="none" className="p-4">
         <button
           onClick={() => setShowFilters(f => !f)}
-          className={`flex items-center gap-2 text-sm font-medium ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}
+          className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300"
         >
           <Filter className="w-4 h-4" />
           Filters
@@ -99,59 +89,60 @@ export const ActivityLogTab: React.FC<Props> = ({ isDark, cardClass, inputClass,
         </button>
         {showFilters && (
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-3">
-            <select value={entityType} onChange={e => { setEntityType(e.target.value); setPage(1); }} className={selectClass}>
+            <Select value={entityType} onChange={e => { setEntityType(e.target.value); setPage(1); }}>
               <option value="">All Entities</option>
               {ENTITY_TYPES.map(et => (
                 <option key={et} value={et}>{et.replace('_', ' ').replace(/\b\w/g, c => c.toUpperCase())}</option>
               ))}
-            </select>
-            <select value={action} onChange={e => { setAction(e.target.value); setPage(1); }} className={selectClass}>
+            </Select>
+            <Select value={action} onChange={e => { setAction(e.target.value); setPage(1); }}>
               <option value="">All Actions</option>
               <option value="create">Create</option>
               <option value="update">Update</option>
               <option value="delete">Delete</option>
               <option value="approve">Approve</option>
               <option value="reject">Reject</option>
-            </select>
-            <select value={selectedUser} onChange={e => { setSelectedUser(e.target.value); setPage(1); }} className={selectClass}>
+            </Select>
+            <Select value={selectedUser} onChange={e => { setSelectedUser(e.target.value); setPage(1); }}>
               <option value="">All Users</option>
               {users.map(u => (
                 <option key={u.id} value={u.id}>{u.name}</option>
               ))}
-            </select>
+            </Select>
           </div>
         )}
-      </div>
+      </Card>
 
       {/* Table */}
-      <div className={`${cardClass} overflow-hidden`}>
+      <Card padding="none">
         {loading ? (
           <div className="flex items-center justify-center py-12">
             <Loader2 className="w-6 h-6 animate-spin text-brand-500" />
           </div>
         ) : error ? (
-          <div className="flex items-center justify-center py-12 gap-2 text-red-500">
-            <AlertCircle className="w-5 h-5" />
-            <span className="text-sm">{error}</span>
+          <div className="flex items-center justify-center py-12">
+            <Alert variant="error" icon={<AlertCircle className="w-5 h-5" />}>
+              {error}
+            </Alert>
           </div>
         ) : logs.length === 0 ? (
-          <div className={`text-center py-12 text-sm ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
+          <div className="text-center py-12 text-sm text-gray-400 dark:text-zinc-500">
             No activity logs found.
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className={isDark ? 'bg-dark-100' : 'bg-slate-50'}>
+              <thead className="bg-gray-50 dark:bg-dark-200">
                 <tr>
-                  <th className={thClass} style={{ width: 32 }} />
-                  <th className={thClass}>Timestamp</th>
-                  <th className={thClass}>User</th>
-                  <th className={thClass}>Action</th>
-                  <th className={thClass}>Entity</th>
-                  <th className={thClass}>Name</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400" style={{ width: 32 }} />
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400">Timestamp</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400">User</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400">Action</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400">Entity</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400">Name</th>
                 </tr>
               </thead>
-              <tbody className={`divide-y ${isDark ? 'divide-zinc-800' : 'divide-slate-100'}`}>
+              <tbody className="divide-y divide-gray-100 dark:divide-zinc-800">
                 {logs.map(log => {
                   const isExpanded = expandedRow === log.id;
                   const colors = ACTION_COLORS[log.action] || ACTION_COLORS.update;
@@ -159,50 +150,46 @@ export const ActivityLogTab: React.FC<Props> = ({ isDark, cardClass, inputClass,
                   return (
                     <React.Fragment key={log.id}>
                       <tr
-                        className={`cursor-pointer transition-colors ${
-                          isDark ? 'hover:bg-zinc-800/50' : 'hover:bg-slate-50'
-                        }`}
+                        className="cursor-pointer transition-colors hover:bg-gray-50 dark:hover:bg-zinc-800/50"
                         onClick={() => hasChanges && setExpandedRow(isExpanded ? null : log.id)}
                       >
-                        <td className={tdClass}>
+                        <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">
                           {hasChanges && (
                             isExpanded
                               ? <ChevronDown className="w-4 h-4" />
                               : <ChevronRight className="w-4 h-4" />
                           )}
                         </td>
-                        <td className={tdClass}>{formatDateTime(log.createdAt)}</td>
-                        <td className={tdClass}>{log.userName || '-'}</td>
-                        <td className={tdClass}>
-                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                            isDark ? `${colors.darkBg} ${colors.darkText}` : `${colors.bg} ${colors.text}`
-                          }`}>
+                        <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">{formatDateTime(log.createdAt)}</td>
+                        <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">{log.userName || '-'}</td>
+                        <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">
+                          <Badge variant={colors.variant}>
                             {log.action}
-                          </span>
+                          </Badge>
                         </td>
-                        <td className={tdClass}>
+                        <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">
                           {log.entityType?.replace('_', ' ').replace(/\b\w/g, c => c.toUpperCase())}
                         </td>
-                        <td className={tdClass}>{log.entityName || log.entityId || '-'}</td>
+                        <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">{log.entityName || log.entityId || '-'}</td>
                       </tr>
                       {isExpanded && hasChanges && (
                         <tr>
-                          <td colSpan={6} className={`px-4 py-3 ${isDark ? 'bg-dark-100' : 'bg-slate-50'}`}>
+                          <td colSpan={6} className="px-4 py-3 bg-gray-50 dark:bg-dark-100">
                             <div className="ml-8">
-                              <div className={`text-xs font-semibold mb-2 uppercase ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>
+                              <div className="text-xs font-semibold mb-2 uppercase text-gray-500 dark:text-zinc-400">
                                 Field Changes
                               </div>
                               <div className="space-y-1">
                                 {(log.changes as ActivityChange[]).map((ch, i) => (
-                                  <div key={i} className={`flex items-center gap-2 text-xs ${isDark ? 'text-zinc-300' : 'text-slate-600'}`}>
+                                  <div key={i} className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-300">
                                     <span className="font-medium w-32 shrink-0">
                                       {ch.field.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
                                     </span>
-                                    <span className={`line-through ${isDark ? 'text-red-400/70' : 'text-red-500/70'}`}>
+                                    <span className="line-through text-red-500/70 dark:text-red-400/70">
                                       {ch.old || '(empty)'}
                                     </span>
-                                    <span className={isDark ? 'text-zinc-500' : 'text-slate-400'}>→</span>
-                                    <span className={isDark ? 'text-emerald-400' : 'text-emerald-600'}>
+                                    <span className="text-gray-400 dark:text-zinc-500">&rarr;</span>
+                                    <span className="text-emerald-600 dark:text-emerald-400">
                                       {ch.new || '(empty)'}
                                     </span>
                                   </div>
@@ -222,37 +209,31 @@ export const ActivityLogTab: React.FC<Props> = ({ isDark, cardClass, inputClass,
 
         {/* Pagination */}
         {totalPages > 1 && (
-          <div className={`flex items-center justify-between px-4 py-3 border-t ${isDark ? 'border-zinc-800' : 'border-slate-200'}`}>
-            <span className={`text-sm ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>
+          <div className="flex items-center justify-between px-4 py-3 border-t border-gray-200 dark:border-zinc-800">
+            <span className="text-sm text-gray-500 dark:text-zinc-400">
               Page {page} of {totalPages}
             </span>
             <div className="flex gap-2">
-              <button
+              <Button
+                variant="ghost"
+                size="sm"
                 disabled={page <= 1}
                 onClick={() => setPage(p => p - 1)}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                  page <= 1
-                    ? isDark ? 'text-zinc-600 cursor-not-allowed' : 'text-slate-300 cursor-not-allowed'
-                    : isDark ? 'text-zinc-300 hover:bg-zinc-800' : 'text-slate-600 hover:bg-slate-100'
-                }`}
               >
                 Previous
-              </button>
-              <button
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
                 disabled={page >= totalPages}
                 onClick={() => setPage(p => p + 1)}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                  page >= totalPages
-                    ? isDark ? 'text-zinc-600 cursor-not-allowed' : 'text-slate-300 cursor-not-allowed'
-                    : isDark ? 'text-zinc-300 hover:bg-zinc-800' : 'text-slate-600 hover:bg-slate-100'
-                }`}
               >
                 Next
-              </button>
+              </Button>
             </div>
           </div>
         )}
-      </div>
+      </Card>
     </div>
   );
 };

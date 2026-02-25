@@ -1,7 +1,6 @@
 import { User, ViewAccess, NavigationItem } from '@/types';
 
 export interface WidgetProps {
-  isDark: boolean;
   user: User | null;
   currentView: ViewAccess;
   navigate: (tab: NavigationItem) => void;

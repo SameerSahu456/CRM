@@ -1,21 +1,29 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
-  Plus, X, Edit2, Trash2, Loader2, AlertCircle, CheckCircle,
-  Clock, MapPin, Link as LinkIcon, Video, Phone, Presentation,
-  Search, ChevronDown, ExternalLink
+  Plus, Edit2, Trash2, Loader2, AlertCircle, CheckCircle,
+  MapPin, Link as LinkIcon, Video, Phone, Presentation,
+  Search, ExternalLink
 } from 'lucide-react';
-import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { calendarApi } from '@/services/api';
 import { CalendarEvent } from '@/types';
+import { Card, Button, Input, Select, Modal, Badge, Alert, Textarea, EmptyState } from '@/components/ui';
+import { cx } from '@/utils/cx';
 
 const MEETING_TYPES = ['Meeting', 'Call', 'Demo', 'Webinar'];
 
-const TYPE_COLORS: Record<string, { bg: string; text: string; darkBg: string; darkText: string; dot: string }> = {
-  Meeting: { bg: 'bg-blue-50', text: 'text-blue-700', darkBg: 'bg-blue-900/30', darkText: 'text-blue-400', dot: 'bg-blue-500' },
-  Call: { bg: 'bg-emerald-50', text: 'text-emerald-700', darkBg: 'bg-emerald-900/30', darkText: 'text-emerald-400', dot: 'bg-emerald-500' },
-  Demo: { bg: 'bg-purple-50', text: 'text-purple-700', darkBg: 'bg-purple-900/30', darkText: 'text-purple-400', dot: 'bg-purple-500' },
-  Webinar: { bg: 'bg-orange-50', text: 'text-orange-700', darkBg: 'bg-orange-900/30', darkText: 'text-orange-400', dot: 'bg-orange-500' },
+const TYPE_BADGE_VARIANT: Record<string, 'blue' | 'emerald' | 'purple' | 'amber'> = {
+  Meeting: 'blue',
+  Call: 'emerald',
+  Demo: 'purple',
+  Webinar: 'amber',
+};
+
+const TYPE_DOT_COLOR: Record<string, string> = {
+  Meeting: 'bg-blue-500',
+  Call: 'bg-emerald-500',
+  Demo: 'bg-purple-500',
+  Webinar: 'bg-orange-500',
 };
 
 const TYPE_ICONS: Record<string, React.ReactNode> = {
@@ -89,10 +97,13 @@ function isToday(dateStr: string): boolean {
     d.getDate() === now.getDate();
 }
 
+const FILTER_TYPE_OPTIONS = [
+  { value: '', label: 'All Types' },
+  ...MEETING_TYPES.map(t => ({ value: t, label: t })),
+];
+
 export const MeetingsPage: React.FC = () => {
-  const { theme } = useTheme();
   const { user } = useAuth();
-  const isDark = theme === 'dark';
 
   const [meetings, setMeetings] = useState<CalendarEvent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -111,15 +122,6 @@ export const MeetingsPage: React.FC = () => {
 
   // Delete state
   const [deletingId, setDeletingId] = useState<string | null>(null);
-
-  const cardClass = `premium-card ${isDark ? '' : 'shadow-soft'}`;
-  const inputClass = `w-full px-3 py-2.5 rounded-xl border text-sm transition-all ${
-    isDark
-      ? 'bg-dark-100 border-zinc-700 text-white placeholder-zinc-500 focus:border-brand-500'
-      : 'bg-white border-slate-200 text-slate-900 placeholder-slate-400 focus:border-brand-500'
-  } focus:outline-none focus:ring-1 focus:ring-brand-500`;
-  const labelClass = `block text-sm font-medium mb-1.5 ${isDark ? 'text-slate-300' : 'text-slate-700'}`;
-  const selectClass = `${inputClass} appearance-none cursor-pointer`;
 
   const fetchMeetings = useCallback(async () => {
     setIsLoading(true);
@@ -242,60 +244,60 @@ export const MeetingsPage: React.FC = () => {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className={`text-xl font-bold font-display ${isDark ? 'text-white' : 'text-slate-900'}`}>
+          <h1 className="text-xl font-bold font-display text-slate-900 dark:text-white">
             Meetings
           </h1>
-          <p className={`text-sm mt-1 ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>
+          <p className="text-sm mt-1 text-slate-500 dark:text-zinc-400">
             Schedule and manage your meetings, calls, and demos
           </p>
         </div>
-        <button
-          onClick={openCreateForm}
-          className="flex items-center gap-2 px-4 py-2.5 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-sm font-medium transition-all"
-        >
-          <Plus className="w-4 h-4" /> New Meeting
-        </button>
+        <Button onClick={openCreateForm} icon={<Plus className="w-4 h-4" />}>
+          New Meeting
+        </Button>
       </div>
 
       {/* Success toast */}
       {successMsg && (
-        <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400 text-sm">
-          <CheckCircle className="w-4 h-4" /> {successMsg}
-        </div>
+        <Alert variant="success" icon={<CheckCircle className="w-4 h-4" />}>
+          {successMsg}
+        </Alert>
       )}
 
       {/* Filters */}
-      <div className={`flex flex-wrap items-center gap-3 ${cardClass} p-4`}>
-        <div className="relative flex-1 min-w-[200px]">
-          <Search className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`} />
-          <input
-            type="text"
-            placeholder="Search meetings..."
-            value={searchTerm}
-            onChange={e => setSearchTerm(e.target.value)}
-            className={`${inputClass} pl-9`}
+      <Card padding="none" className="p-4">
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex-1 min-w-[200px]">
+            <Input
+              placeholder="Search meetings..."
+              value={searchTerm}
+              onChange={e => setSearchTerm(e.target.value)}
+              icon={<Search className="w-4 h-4" />}
+            />
+          </div>
+          <Select
+            value={filterType}
+            onChange={e => setFilterType(e.target.value)}
+            options={FILTER_TYPE_OPTIONS}
+            className="w-40"
           />
+          <div className="flex rounded-xl border overflow-hidden border-slate-200 dark:border-zinc-700">
+            {(['upcoming', 'past', 'all'] as const).map(v => (
+              <button
+                key={v}
+                onClick={() => setFilterView(v)}
+                className={cx(
+                  'px-3 py-2 text-sm font-medium capitalize transition-colors',
+                  filterView === v
+                    ? 'bg-brand-50 text-brand-700 dark:bg-brand-600/20 dark:text-brand-400'
+                    : 'text-slate-600 hover:bg-slate-50 dark:text-zinc-400 dark:hover:text-white dark:hover:bg-zinc-800'
+                )}
+              >
+                {v}
+              </button>
+            ))}
+          </div>
         </div>
-        <select value={filterType} onChange={e => setFilterType(e.target.value)} className={`${selectClass} w-40`}>
-          <option value="">All Types</option>
-          {MEETING_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-        </select>
-        <div className={`flex rounded-xl border overflow-hidden ${isDark ? 'border-zinc-700' : 'border-slate-200'}`}>
-          {(['upcoming', 'past', 'all'] as const).map(v => (
-            <button
-              key={v}
-              onClick={() => setFilterView(v)}
-              className={`px-3 py-2 text-sm font-medium capitalize transition-colors ${
-                filterView === v
-                  ? isDark ? 'bg-brand-600/20 text-brand-400' : 'bg-brand-50 text-brand-700'
-                  : isDark ? 'text-zinc-400 hover:text-white hover:bg-zinc-800' : 'text-slate-600 hover:bg-slate-50'
-              }`}
-            >
-              {v}
-            </button>
-          ))}
-        </div>
-      </div>
+      </Card>
 
       {/* Loading / Error */}
       {isLoading && (
@@ -305,11 +307,9 @@ export const MeetingsPage: React.FC = () => {
       )}
 
       {error && (
-        <div className={`p-4 rounded-xl flex items-center gap-2 text-sm ${
-          isDark ? 'bg-red-900/20 border border-red-800 text-red-400' : 'bg-red-50 border border-red-200 text-red-700'
-        }`}>
-          <AlertCircle className="w-4 h-4" /> {error}
-        </div>
+        <Alert variant="error" icon={<AlertCircle className="w-4 h-4" />}>
+          {error}
+        </Alert>
       )}
 
       {/* Meetings List */}
@@ -318,7 +318,7 @@ export const MeetingsPage: React.FC = () => {
           {/* Today's meetings */}
           {todayMeetings.length > 0 && (
             <div>
-              <h2 className={`text-sm font-semibold mb-3 uppercase tracking-wider ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
+              <h2 className="text-sm font-semibold mb-3 uppercase tracking-wider text-slate-400 dark:text-zinc-500">
                 Today
               </h2>
               <div className="space-y-2">
@@ -331,7 +331,7 @@ export const MeetingsPage: React.FC = () => {
           {otherMeetings.length > 0 && (
             <div>
               {todayMeetings.length > 0 && (
-                <h2 className={`text-sm font-semibold mb-3 uppercase tracking-wider ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
+                <h2 className="text-sm font-semibold mb-3 uppercase tracking-wider text-slate-400 dark:text-zinc-500">
                   {filterView === 'past' ? 'Past Meetings' : 'Upcoming'}
                 </h2>
               )}
@@ -342,253 +342,198 @@ export const MeetingsPage: React.FC = () => {
           )}
 
           {filteredMeetings.length === 0 && (
-            <div className={`text-center py-16 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
-              <Video className="w-12 h-12 mx-auto mb-3 opacity-40" />
-              <p className="text-lg font-medium">No meetings found</p>
-              <p className="text-sm mt-1">
-                {filterView === 'upcoming' ? 'Schedule a new meeting to get started' : 'No past meetings match your filters'}
-              </p>
-            </div>
+            <EmptyState
+              icon={<Video className="w-12 h-12" />}
+              title="No meetings found"
+              description={
+                filterView === 'upcoming'
+                  ? 'Schedule a new meeting to get started'
+                  : 'No past meetings match your filters'
+              }
+            />
           )}
         </div>
       )}
 
       {/* Create / Edit modal */}
-      {showForm && renderFormModal()}
+      <Modal
+        open={showForm}
+        onClose={() => setShowForm(false)}
+        title={editingId ? 'Edit Meeting' : 'New Meeting'}
+        icon={<Video className="w-5 h-5" />}
+        size="md"
+        footer={
+          <>
+            <Button
+              variant="ghost"
+              onClick={() => setShowForm(false)}
+              disabled={isSaving}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSave}
+              loading={isSaving}
+              icon={!isSaving ? <CheckCircle className="w-4 h-4" /> : undefined}
+            >
+              {isSaving ? 'Saving...' : editingId ? 'Update Meeting' : 'Create Meeting'}
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          {formError && (
+            <Alert variant="error" icon={<AlertCircle className="w-4 h-4" />}>
+              {formError}
+            </Alert>
+          )}
+
+          <Input
+            label="Title"
+            value={formData.title}
+            onChange={e => setFormData(p => ({ ...p, title: e.target.value }))}
+            placeholder="e.g. Product Demo with Acme Corp"
+          />
+
+          <Select
+            label="Type"
+            value={formData.type}
+            onChange={e => setFormData(p => ({ ...p, type: e.target.value }))}
+            options={MEETING_TYPES.map(t => ({ value: t, label: t }))}
+          />
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <Input
+              label="Start Time"
+              type="datetime-local"
+              value={formData.startTime}
+              onChange={e => setFormData(p => ({ ...p, startTime: e.target.value }))}
+            />
+            <Input
+              label="End Time"
+              type="datetime-local"
+              value={formData.endTime}
+              onChange={e => setFormData(p => ({ ...p, endTime: e.target.value }))}
+            />
+          </div>
+
+          <Input
+            label="Location"
+            value={formData.location}
+            onChange={e => setFormData(p => ({ ...p, location: e.target.value }))}
+            placeholder="Conference room, office, etc."
+          />
+
+          <Input
+            label="Meeting Link"
+            value={formData.meetingLink}
+            onChange={e => setFormData(p => ({ ...p, meetingLink: e.target.value }))}
+            placeholder="https://meet.google.com/..."
+          />
+
+          <Textarea
+            label="Description"
+            rows={3}
+            value={formData.description}
+            onChange={e => setFormData(p => ({ ...p, description: e.target.value }))}
+            placeholder="Meeting agenda or notes..."
+          />
+        </div>
+      </Modal>
     </div>
   );
 
   function renderMeetingCard(m: CalendarEvent) {
-    const typeColor = TYPE_COLORS[m.type || 'Meeting'] || TYPE_COLORS.Meeting;
+    const badgeVariant = TYPE_BADGE_VARIANT[m.type || 'Meeting'] || 'blue';
+    const dotColor = TYPE_DOT_COLOR[m.type || 'Meeting'] || 'bg-blue-500';
     const isPast = !isUpcoming(m.startTime);
 
     return (
-      <div
+      <Card
         key={m.id}
-        className={`${cardClass} p-4 flex items-start gap-4 group transition-all hover:shadow-md ${isPast ? 'opacity-70' : ''}`}
+        padding="none"
+        className={cx('p-4 group transition-all hover:shadow-md', isPast && 'opacity-70')}
       >
-        {/* Time column */}
-        <div className={`flex-shrink-0 w-20 text-center pt-1 ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>
-          <p className="text-sm font-medium">{formatTime(m.startTime)}</p>
-          {m.endTime && <p className="text-xs mt-0.5">{formatTime(m.endTime)}</p>}
-          <p className="text-[10px] mt-1 uppercase tracking-wider">
-            {new Date(m.startTime).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-          </p>
-        </div>
+        <div className="flex items-start gap-4">
+          {/* Time column */}
+          <div className="flex-shrink-0 w-20 text-center pt-1 text-slate-500 dark:text-zinc-400">
+            <p className="text-sm font-medium">{formatTime(m.startTime)}</p>
+            {m.endTime && <p className="text-xs mt-0.5">{formatTime(m.endTime)}</p>}
+            <p className="text-[10px] mt-1 uppercase tracking-wider">
+              {new Date(m.startTime).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+            </p>
+          </div>
 
-        {/* Divider dot */}
-        <div className="flex flex-col items-center pt-2">
-          <div className={`w-2.5 h-2.5 rounded-full ${typeColor.dot}`} />
-          <div className={`w-px flex-1 mt-1 ${isDark ? 'bg-zinc-800' : 'bg-slate-200'}`} />
-        </div>
+          {/* Divider dot */}
+          <div className="flex flex-col items-center pt-2">
+            <div className={cx('w-2.5 h-2.5 rounded-full', dotColor)} />
+            <div className="w-px flex-1 mt-1 bg-slate-200 dark:bg-zinc-800" />
+          </div>
 
-        {/* Content */}
-        <div className="flex-1 min-w-0">
-          <div className="flex items-start justify-between gap-2">
-            <div className="min-w-0">
-              <h3 className={`font-medium truncate ${isDark ? 'text-white' : 'text-slate-900'}`}>{m.title}</h3>
-              <div className="flex items-center gap-2 mt-1 flex-wrap">
-                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${
-                  isDark ? `${typeColor.darkBg} ${typeColor.darkText}` : `${typeColor.bg} ${typeColor.text}`
-                }`}>
-                  {TYPE_ICONS[m.type || 'Meeting']}
-                  {m.type}
-                </span>
-                {m.location && (
-                  <span className={`inline-flex items-center gap-1 text-xs ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
-                    <MapPin className="w-3 h-3" /> {m.location}
-                  </span>
+          {/* Content */}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0">
+                <h3 className="font-medium truncate text-slate-900 dark:text-white">{m.title}</h3>
+                <div className="flex items-center gap-2 mt-1 flex-wrap">
+                  <Badge variant={badgeVariant} size="sm">
+                    {TYPE_ICONS[m.type || 'Meeting']}
+                    {m.type}
+                  </Badge>
+                  {m.location && (
+                    <span className="inline-flex items-center gap-1 text-xs text-slate-400 dark:text-zinc-500">
+                      <MapPin className="w-3 h-3" /> {m.location}
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                {m.meetingLink && (
+                  <a
+                    href={m.meetingLink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="p-1.5 rounded-lg text-brand-500 hover:bg-brand-50 dark:hover:bg-brand-900/20 transition-colors"
+                    title="Join meeting"
+                  >
+                    <ExternalLink className="w-4 h-4" />
+                  </a>
                 )}
-              </div>
-            </div>
-
-            {/* Actions */}
-            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-              {m.meetingLink && (
-                <a
-                  href={m.meetingLink}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="p-1.5 rounded-lg text-brand-500 hover:bg-brand-50 dark:hover:bg-brand-900/20 transition-colors"
-                  title="Join meeting"
+                <button
+                  onClick={() => openEditForm(m)}
+                  className="p-1.5 rounded-lg transition-colors text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:text-zinc-400 dark:hover:text-white dark:hover:bg-zinc-800"
                 >
-                  <ExternalLink className="w-4 h-4" />
-                </a>
-              )}
-              <button
-                onClick={() => openEditForm(m)}
-                className={`p-1.5 rounded-lg transition-colors ${
-                  isDark ? 'text-zinc-400 hover:text-white hover:bg-zinc-800' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100'
-                }`}
-              >
-                <Edit2 className="w-4 h-4" />
-              </button>
-              <button
-                onClick={() => handleDelete(m.id)}
-                disabled={deletingId === m.id}
-                className={`p-1.5 rounded-lg transition-colors ${
-                  isDark ? 'text-red-400 hover:bg-red-900/20' : 'text-red-500 hover:bg-red-50'
-                } disabled:opacity-50`}
-              >
-                {deletingId === m.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
-              </button>
-            </div>
-          </div>
-
-          {m.description && (
-            <p className={`text-sm mt-2 line-clamp-2 ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>{m.description}</p>
-          )}
-
-          {m.meetingLink && (
-            <a
-              href={m.meetingLink}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 text-xs text-brand-500 hover:text-brand-600 mt-2"
-            >
-              <LinkIcon className="w-3 h-3" /> {m.meetingLink}
-            </a>
-          )}
-        </div>
-      </div>
-    );
-  }
-
-  function renderFormModal() {
-    return (
-      <div className="fixed inset-0 z-50 flex items-start justify-center p-4 pt-[10vh] overflow-y-auto">
-        <div className="fixed inset-0 bg-black/50 animate-backdrop" onClick={() => setShowForm(false)} />
-        <div className={`relative w-full max-w-lg rounded-2xl animate-fade-in-up ${
-          isDark ? 'bg-dark-50 border border-zinc-800' : 'bg-white shadow-premium'
-        }`}>
-          {/* Header */}
-          <div className={`flex items-center justify-between px-6 py-4 border-b ${
-            isDark ? 'border-zinc-800' : 'border-slate-200'
-          }`}>
-            <div className="flex items-center gap-2">
-              <Video className="w-5 h-5 text-brand-500" />
-              <h2 className={`text-lg font-semibold font-display ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                {editingId ? 'Edit Meeting' : 'New Meeting'}
-              </h2>
-            </div>
-            <button onClick={() => setShowForm(false)} className={`p-2 rounded-lg transition-colors ${
-              isDark ? 'text-zinc-400 hover:text-white hover:bg-zinc-800' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100'
-            }`}>
-              <X className="w-5 h-5" />
-            </button>
-          </div>
-
-          {/* Body */}
-          <div className="p-6 space-y-4">
-            {formError && (
-              <div className={`p-3 rounded-xl flex items-center gap-2 text-sm ${
-                isDark ? 'bg-red-900/20 border border-red-800 text-red-400' : 'bg-red-50 border border-red-200 text-red-700'
-              }`}>
-                <AlertCircle className="w-4 h-4" /> {formError}
+                  <Edit2 className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => handleDelete(m.id)}
+                  disabled={deletingId === m.id}
+                  className="p-1.5 rounded-lg transition-colors text-red-500 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20 disabled:opacity-50"
+                >
+                  {deletingId === m.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                </button>
               </div>
+            </div>
+
+            {m.description && (
+              <p className="text-sm mt-2 line-clamp-2 text-slate-500 dark:text-zinc-400">{m.description}</p>
             )}
 
-            <div>
-              <label className={labelClass}>Title <span className="text-red-500">*</span></label>
-              <input
-                value={formData.title}
-                onChange={e => setFormData(p => ({ ...p, title: e.target.value }))}
-                className={inputClass}
-                placeholder="e.g. Product Demo with Acme Corp"
-              />
-            </div>
-
-            <div>
-              <label className={labelClass}>Type</label>
-              <select
-                value={formData.type}
-                onChange={e => setFormData(p => ({ ...p, type: e.target.value }))}
-                className={selectClass}
+            {m.meetingLink && (
+              <a
+                href={m.meetingLink}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-xs text-brand-500 hover:text-brand-600 mt-2"
               >
-                {MEETING_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-              </select>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label className={labelClass}>Start Time <span className="text-red-500">*</span></label>
-                <input
-                  type="datetime-local"
-                  value={formData.startTime}
-                  onChange={e => setFormData(p => ({ ...p, startTime: e.target.value }))}
-                  className={inputClass}
-                />
-              </div>
-              <div>
-                <label className={labelClass}>End Time</label>
-                <input
-                  type="datetime-local"
-                  value={formData.endTime}
-                  onChange={e => setFormData(p => ({ ...p, endTime: e.target.value }))}
-                  className={inputClass}
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className={labelClass}>Location</label>
-              <input
-                value={formData.location}
-                onChange={e => setFormData(p => ({ ...p, location: e.target.value }))}
-                className={inputClass}
-                placeholder="Conference room, office, etc."
-              />
-            </div>
-
-            <div>
-              <label className={labelClass}>Meeting Link</label>
-              <input
-                value={formData.meetingLink}
-                onChange={e => setFormData(p => ({ ...p, meetingLink: e.target.value }))}
-                className={inputClass}
-                placeholder="https://meet.google.com/..."
-              />
-            </div>
-
-            <div>
-              <label className={labelClass}>Description</label>
-              <textarea
-                rows={3}
-                value={formData.description}
-                onChange={e => setFormData(p => ({ ...p, description: e.target.value }))}
-                className={inputClass}
-                placeholder="Meeting agenda or notes..."
-              />
-            </div>
-          </div>
-
-          {/* Footer */}
-          <div className={`flex items-center justify-end gap-3 px-6 py-4 border-t ${
-            isDark ? 'border-zinc-800' : 'border-slate-200'
-          }`}>
-            <button
-              onClick={() => setShowForm(false)}
-              disabled={isSaving}
-              className={`px-4 py-2.5 rounded-xl text-sm font-medium transition-colors ${
-                isDark ? 'text-zinc-400 hover:text-white hover:bg-zinc-800' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-              } disabled:opacity-50`}
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleSave}
-              disabled={isSaving}
-              className="flex items-center gap-2 px-5 py-2.5 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-sm font-medium transition-all disabled:opacity-50"
-            >
-              {isSaving ? (
-                <><Loader2 className="w-4 h-4 animate-spin" /> Saving...</>
-              ) : (
-                <><CheckCircle className="w-4 h-4" /> {editingId ? 'Update Meeting' : 'Create Meeting'}</>
-              )}
-            </button>
+                <LinkIcon className="w-3 h-3" /> {m.meetingLink}
+              </a>
+            )}
           </div>
         </div>
-      </div>
+      </Card>
     );
   }
 };

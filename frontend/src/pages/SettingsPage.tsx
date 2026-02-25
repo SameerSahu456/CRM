@@ -75,12 +75,17 @@ export const SettingsPage: React.FC = () => {
     }
   };
 
+  const [settingError, setSettingError] = useState('');
+
   const handleSaveSetting = async (key: string, value: string) => {
     setSettingSaving(key);
+    setSettingError('');
     try {
       await settingsApi.update(key, value);
-    } catch {
-      // ignore
+    } catch (err: any) {
+      setSettingError(err.message || `Failed to save setting "${key}"`);
+      // Revert to server state on failure
+      fetchSettings();
     } finally {
       setSettingSaving(null);
     }
@@ -217,6 +222,7 @@ export const SettingsPage: React.FC = () => {
             </div>
           </div>
 
+          {settingError && <Alert variant="error" className="mb-4">{settingError}</Alert>}
           {isLoadingSettings ? (
             <div className="flex items-center justify-center py-8">
               <Loader2 className="w-6 h-6 text-brand-600 animate-spin" />

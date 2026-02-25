@@ -5,7 +5,7 @@ import { WidgetProps, DashboardData, BreakdownData } from '@/types';
 import { useDashboardData } from '@/contexts/DashboardDataContext';
 import { formatCompact } from '@/utils/dashboard';
 
-export const PartnersWidget: React.FC<WidgetProps> = ({ isDark, navigate, onDetailClick }) => {
+export const PartnersWidget: React.FC<WidgetProps> = ({ navigate, onDetailClick }) => {
   const { data: all } = useDashboardData();
   const stats: DashboardData | null = all?.stats ?? null;
   const breakdownData: BreakdownData = all?.breakdown || { byProduct: [], byPartner: [], bySalesperson: [] };
@@ -14,42 +14,41 @@ export const PartnersWidget: React.FC<WidgetProps> = ({ isDark, navigate, onDeta
   const totalPartnerDeals = sortedPartners.reduce((s, p) => s + p.count, 0);
   const currentMonth = new Date().toLocaleString('default', { month: 'long', year: 'numeric' });
 
-  const thClass = `text-[10px] font-semibold uppercase tracking-wider ${isDark ? 'text-zinc-500' : 'text-slate-400'}`;
-  const tdClass = `text-xs ${isDark ? 'text-zinc-300' : 'text-slate-700'}`;
-  const tdBold = `text-xs font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`;
-  const rowBorder = isDark ? 'border-zinc-800/50' : 'border-slate-100';
+  const thClass = 'text-[10px] font-semibold uppercase tracking-wider text-slate-400 dark:text-zinc-500';
+  const tdClass = 'text-xs text-slate-700 dark:text-zinc-300';
+  const tdBold = 'text-xs font-semibold text-slate-900 dark:text-white';
+  const rowBorder = 'border-slate-100 dark:border-zinc-800/50';
 
   return (
     <AnalyticsCard
       icon={<Building2 className="w-4 h-4" />}
-      iconBg={isDark ? 'bg-blue-900/30' : 'bg-blue-50'}
-      iconColor={isDark ? 'text-blue-400' : 'text-blue-600'}
+      iconBg="bg-blue-50 dark:bg-blue-900/30"
+      iconColor="text-blue-600 dark:text-blue-400"
       title="Partners"
-      titleColor={isDark ? 'text-blue-400' : 'text-blue-700'}
+      titleColor="text-blue-700 dark:text-blue-400"
       subtitle={currentMonth}
-      isDark={isDark}
       onClick={() => onDetailClick?.()}
     >
       {/* Status badges */}
       <div className="flex flex-wrap gap-2 mb-4">
-        <div className={`px-2.5 py-1.5 rounded-lg text-center ${isDark ? 'bg-blue-900/20 border border-blue-800/30' : 'bg-blue-50 border border-blue-200'}`}>
-          <p className={`text-sm font-bold ${isDark ? 'text-blue-400' : 'text-blue-700'}`}>{stats?.totalPartners ?? 0}</p>
-          <p className={`text-[9px] uppercase tracking-wider font-medium ${isDark ? 'text-blue-500/70' : 'text-blue-500'}`}>Active</p>
+        <div className="px-2.5 py-1.5 rounded-lg text-center bg-blue-50 border border-blue-200 dark:bg-blue-900/20 dark:border-blue-800/30">
+          <p className="text-sm font-bold text-blue-700 dark:text-blue-400">{stats?.totalPartners ?? 0}</p>
+          <p className="text-[9px] uppercase tracking-wider font-medium text-blue-500 dark:text-blue-500/70">Active</p>
         </div>
-        <div className={`px-2.5 py-1.5 rounded-lg text-center ${isDark ? 'bg-amber-900/20 border border-amber-800/30' : 'bg-amber-50 border border-amber-200'}`}>
-          <p className={`text-sm font-bold ${isDark ? 'text-amber-400' : 'text-amber-700'}`}>{stats?.pendingPartners ?? 0}</p>
-          <p className={`text-[9px] uppercase tracking-wider font-medium ${isDark ? 'text-amber-500/70' : 'text-amber-500'}`}>Pending</p>
+        <div className="px-2.5 py-1.5 rounded-lg text-center bg-amber-50 border border-amber-200 dark:bg-amber-900/20 dark:border-amber-800/30">
+          <p className="text-sm font-bold text-amber-700 dark:text-amber-400">{stats?.pendingPartners ?? 0}</p>
+          <p className="text-[9px] uppercase tracking-wider font-medium text-amber-500 dark:text-amber-500/70">Pending</p>
         </div>
-        <div className={`px-2.5 py-1.5 rounded-lg text-center ${isDark ? 'bg-emerald-900/20 border border-emerald-800/30' : 'bg-emerald-50 border border-emerald-200'}`}>
-          <p className={`text-sm font-bold ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`}>{sortedPartners.filter(p => p.totalAmount > 0).length}</p>
-          <p className={`text-[9px] uppercase tracking-wider font-medium ${isDark ? 'text-emerald-500/70' : 'text-emerald-500'}`}>Billed</p>
+        <div className="px-2.5 py-1.5 rounded-lg text-center bg-emerald-50 border border-emerald-200 dark:bg-emerald-900/20 dark:border-emerald-800/30">
+          <p className="text-sm font-bold text-emerald-700 dark:text-emerald-400">{sortedPartners.filter(p => p.totalAmount > 0).length}</p>
+          <p className="text-[9px] uppercase tracking-wider font-medium text-emerald-500 dark:text-emerald-500/70">Billed</p>
         </div>
       </div>
 
       {/* Partner table */}
       {sortedPartners.length === 0 ? (
-        <div className={`h-24 flex items-center justify-center rounded-xl ${isDark ? 'bg-zinc-900/50' : 'bg-slate-50'}`}>
-          <p className={`text-xs ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>No partner data</p>
+        <div className="h-24 flex items-center justify-center rounded-xl bg-slate-50 dark:bg-zinc-900/50">
+          <p className="text-xs text-slate-400 dark:text-zinc-500">No partner data</p>
         </div>
       ) : (
         <>
@@ -73,8 +72,8 @@ export const PartnersWidget: React.FC<WidgetProps> = ({ isDark, navigate, onDeta
           </div>
           {/* Footer */}
           <div className={`flex items-center justify-between pt-3 mt-3 border-t ${rowBorder}`}>
-            <span className={`text-xs font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>{totalPartnerDeals}</span>
-            <span className={`text-[10px] uppercase tracking-wider ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Total Deals</span>
+            <span className="text-xs font-bold text-slate-900 dark:text-white">{totalPartnerDeals}</span>
+            <span className="text-[10px] uppercase tracking-wider text-slate-400 dark:text-zinc-500">Total Deals</span>
           </div>
         </>
       )}

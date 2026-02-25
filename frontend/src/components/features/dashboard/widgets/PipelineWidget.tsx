@@ -5,7 +5,7 @@ import { WidgetProps } from '@/types';
 import { useDashboardData } from '@/contexts/DashboardDataContext';
 import { formatCompact } from '@/utils/dashboard';
 
-export const PipelineWidget: React.FC<WidgetProps> = ({ isDark, navigate, onDetailClick }) => {
+export const PipelineWidget: React.FC<WidgetProps> = ({ navigate, onDetailClick }) => {
   const { data } = useDashboardData();
   const dealStatsRaw: Record<string, { count: number; value: number }> = data?.dealStats || {};
 
@@ -24,47 +24,46 @@ export const PipelineWidget: React.FC<WidgetProps> = ({ isDark, navigate, onDeta
     Negotiation: '#f97316', 'Closed Lost': '#ef4444', 'Closed Won': '#10b981',
   };
 
-  const thClass = `text-[10px] font-semibold uppercase tracking-wider ${isDark ? 'text-zinc-500' : 'text-slate-400'}`;
-  const tdClass = `text-xs ${isDark ? 'text-zinc-300' : 'text-slate-700'}`;
-  const tdBold = `text-xs font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`;
-  const rowBorder = isDark ? 'border-zinc-800/50' : 'border-slate-100';
+  const thClass = 'text-[10px] font-semibold uppercase tracking-wider text-slate-400 dark:text-zinc-500';
+  const tdClass = 'text-xs text-slate-700 dark:text-zinc-300';
+  const tdBold = 'text-xs font-semibold text-slate-900 dark:text-white';
+  const rowBorder = 'border-slate-100 dark:border-zinc-800/50';
 
   return (
     <AnalyticsCard
       icon={<Layers className="w-4 h-4" />}
-      iconBg={isDark ? 'bg-purple-900/30' : 'bg-purple-50'}
-      iconColor={isDark ? 'text-purple-400' : 'text-purple-600'}
+      iconBg="bg-purple-50 dark:bg-purple-900/30"
+      iconColor="text-purple-600 dark:text-purple-400"
       title="Deal Stages"
-      titleColor={isDark ? 'text-purple-400' : 'text-purple-700'}
+      titleColor="text-purple-700 dark:text-purple-400"
       subtitle="Stage Distribution"
       badgeRight={
         <div className="flex items-center gap-1">
-          <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${isDark ? 'bg-zinc-800 text-zinc-300' : 'bg-slate-100 text-slate-600'}`}>{totalDeals}</span>
+          <span className="text-[10px] px-1.5 py-0.5 rounded font-medium bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-300">{totalDeals}</span>
         </div>
       }
-      isDark={isDark}
       onClick={() => onDetailClick?.()}
     >
       {/* Big metric */}
       <div className="flex items-baseline justify-between mb-4">
         <div>
-          <p className={`text-2xl font-bold tracking-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>
+          <p className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
             {formatCompact(totalDealValue)}
           </p>
-          <p className={`text-[10px] uppercase tracking-wider mt-0.5 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
+          <p className="text-[10px] uppercase tracking-wider mt-0.5 text-slate-400 dark:text-zinc-500">
             Total Value
           </p>
         </div>
         <div className="text-right">
-          <p className={`text-lg font-bold ${isDark ? 'text-purple-400' : 'text-purple-600'}`}>{dealWinRate}%</p>
-          <p className={`text-[10px] uppercase tracking-wider ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Win Rate</p>
+          <p className="text-lg font-bold text-purple-600 dark:text-purple-400">{dealWinRate}%</p>
+          <p className="text-[10px] uppercase tracking-wider text-slate-400 dark:text-zinc-500">Win Rate</p>
         </div>
       </div>
 
       {/* Table */}
       {pipelineStages.length === 0 ? (
-        <div className={`h-24 flex items-center justify-center rounded-xl ${isDark ? 'bg-zinc-900/50' : 'bg-slate-50'}`}>
-          <p className={`text-xs ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>No pipeline data</p>
+        <div className="h-24 flex items-center justify-center rounded-xl bg-slate-50 dark:bg-zinc-900/50">
+          <p className="text-xs text-slate-400 dark:text-zinc-500">No pipeline data</p>
         </div>
       ) : (
         <div className="max-h-[200px] overflow-y-auto">
@@ -88,7 +87,7 @@ export const PipelineWidget: React.FC<WidgetProps> = ({ isDark, navigate, onDeta
                       </div>
                     </td>
                     <td className={`${tdBold} py-2 text-right`}>{formatCompact(s.value)}</td>
-                    <td className={`text-xs py-2 text-right ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>{pct}%</td>
+                    <td className="text-xs py-2 text-right text-slate-400 dark:text-zinc-500">{pct}%</td>
                   </tr>
                 );
               })}

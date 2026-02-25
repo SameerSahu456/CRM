@@ -1,6 +1,5 @@
-import React, { useMemo } from 'react';
+import React from 'react';
 import { X, Eye, EyeOff, RotateCcw, Loader2 } from 'lucide-react';
-import { useTheme } from '@/contexts/ThemeContext';
 import { WIDGET_REGISTRY } from '@/config/widgetRegistry';
 import { useDashboardLayout } from '@/hooks/useDashboardLayout';
 
@@ -9,8 +8,6 @@ interface WidgetLibraryProps {
 }
 
 export const WidgetLibrary: React.FC<WidgetLibraryProps> = ({ onClose }) => {
-  const { theme } = useTheme();
-  const isDark = theme === 'dark';
   const {
     accessibleWidgets,
     isWidgetVisible,
@@ -33,27 +30,27 @@ export const WidgetLibrary: React.FC<WidgetLibraryProps> = ({ onClose }) => {
       <div className="absolute inset-0 bg-black/50 animate-backdrop" onClick={onClose} />
 
       {/* Modal */}
-      <div className={`relative w-full max-w-3xl max-h-[80vh] overflow-y-auto rounded-2xl animate-fade-in-up ${isDark ? 'bg-[rgba(8,13,27,0.92)] backdrop-blur-2xl border border-white/[0.06]' : 'bg-white/72 backdrop-blur-2xl border border-white/50'}`}>
+      <div className="relative w-full max-w-3xl max-h-[80vh] overflow-y-auto rounded-2xl animate-fade-in-up bg-white/72 backdrop-blur-2xl border border-white/50 dark:bg-[rgba(8,13,27,0.92)] dark:border-white/[0.06]">
         {/* Header */}
-        <div className={`sticky top-0 z-10 px-6 py-4 border-b flex items-center justify-between ${isDark ? 'bg-[rgba(8,13,27,0.95)] backdrop-blur-xl border-white/[0.06]' : 'bg-white/70 backdrop-blur-xl border-white/40'}`}>
+        <div className="sticky top-0 z-10 px-6 py-4 border-b flex items-center justify-between bg-white/70 backdrop-blur-xl border-white/40 dark:bg-[rgba(8,13,27,0.95)] dark:border-white/[0.06]">
           <div>
-            <h2 className={`text-xl font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>
+            <h2 className="text-xl font-bold text-slate-900 dark:text-white">
               Dashboard Widgets
             </h2>
-            <p className={`text-sm mt-1 ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>
+            <p className="text-sm mt-1 text-slate-500 dark:text-zinc-400">
               Customize which analytics cards appear on your dashboard
             </p>
           </div>
           <div className="flex items-center gap-2">
             <button
               onClick={resetToDefaults}
-              className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors ${isDark ? 'hover:bg-white/[0.06] text-zinc-400 hover:text-white' : 'hover:bg-slate-100 text-slate-600 hover:text-slate-900'}`}
+              className="flex items-center gap-2 px-3 py-2 rounded-lg transition-colors hover:bg-slate-100 text-slate-600 hover:text-slate-900 dark:hover:bg-white/[0.06] dark:text-zinc-400 dark:hover:text-white"
             >
               <RotateCcw className="w-4 h-4" />
               Reset
             </button>
-            <button onClick={onClose} className={`p-2 rounded-lg ${isDark ? 'hover:bg-white/[0.06]' : 'hover:bg-slate-100'}`}>
-              <X className={`w-5 h-5 ${isDark ? 'text-zinc-400' : 'text-slate-600'}`} />
+            <button onClick={onClose} className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-white/[0.06]">
+              <X className="w-5 h-5 text-slate-600 dark:text-zinc-400" />
             </button>
           </div>
         </div>
@@ -66,7 +63,7 @@ export const WidgetLibrary: React.FC<WidgetLibraryProps> = ({ onClose }) => {
 
             return (
               <div key={category.key}>
-                <h3 className={`text-sm font-semibold uppercase tracking-wider mb-3 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
+                <h3 className="text-sm font-semibold uppercase tracking-wider mb-3 text-slate-400 dark:text-zinc-500">
                   {category.label}
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -75,24 +72,20 @@ export const WidgetLibrary: React.FC<WidgetLibraryProps> = ({ onClose }) => {
                       key={widget.id}
                       className={`p-4 rounded-xl border transition-all ${
                         isWidgetVisible(widget.id)
-                          ? isDark
-                            ? 'bg-[rgba(10,16,32,0.5)] border-white/[0.06]'
-                            : 'bg-slate-50 border-slate-200'
-                          : isDark
-                          ? 'bg-[rgba(10,16,32,0.3)] border-white/[0.03] opacity-60'
-                          : 'bg-slate-50/50 border-slate-200/50 opacity-60'
+                          ? 'bg-slate-50 border-slate-200 dark:bg-[rgba(10,16,32,0.5)] dark:border-white/[0.06]'
+                          : 'bg-slate-50/50 border-slate-200/50 opacity-60 dark:bg-[rgba(10,16,32,0.3)] dark:border-white/[0.03]'
                       }`}
                     >
                       <div className="flex items-start justify-between">
                         <div className="flex items-start gap-3 flex-1">
-                          <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${isDark ? 'bg-brand-900/30 text-brand-400' : 'bg-brand-100 text-brand-600'}`}>
+                          <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-brand-100 text-brand-600 dark:bg-brand-900/30 dark:text-brand-400">
                             {widget.icon}
                           </div>
                           <div className="flex-1">
-                            <h4 className={`font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                            <h4 className="font-semibold text-slate-900 dark:text-white">
                               {widget.label}
                             </h4>
-                            <p className={`text-sm mt-1 ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>
+                            <p className="text-sm mt-1 text-slate-500 dark:text-zinc-400">
                               {widget.description}
                             </p>
                           </div>
@@ -117,8 +110,8 @@ export const WidgetLibrary: React.FC<WidgetLibraryProps> = ({ onClose }) => {
         </div>
 
         {/* Footer */}
-        <div className={`sticky bottom-0 px-6 py-4 border-t flex items-center justify-between ${isDark ? 'bg-[rgba(8,13,27,0.95)] backdrop-blur-xl border-white/[0.06]' : 'bg-white/70 backdrop-blur-xl border-white/40'}`}>
-          <p className={`text-sm ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>
+        <div className="sticky bottom-0 px-6 py-4 border-t flex items-center justify-between bg-white/70 backdrop-blur-xl border-white/40 dark:bg-[rgba(8,13,27,0.95)] dark:border-white/[0.06]">
+          <p className="text-sm text-slate-500 dark:text-zinc-400">
             {accessibleWidgets.filter(w => isWidgetVisible(w.id)).length} of {accessibleWidgets.length} widgets visible
           </p>
           {isSaving && (

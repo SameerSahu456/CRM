@@ -1,13 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
-  Plus, Search, X, ChevronLeft, ChevronRight, Edit2, Trash2,
+  Plus, Search, X, Edit2, Trash2,
   IndianRupee, Loader2, AlertCircle, Building2,
   Phone, Mail, Globe, Users, MapPin, Hash,
   TrendingUp, FileText, Briefcase, User as UserIcon,
   Download, Upload, Wallet, Target, Leaf, Snowflake,
   Filter
 } from 'lucide-react';
-import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigation } from '@/contexts/NavigationContext';
 import { accountsApi, partnersApi, adminApi, salesApi, formatINR, ACCOUNT_LIST_FIELDS } from '@/services/api';
@@ -16,6 +15,8 @@ import { Account, Contact, Deal, PaginatedResponse, Partner, User } from '@/type
 import { EnhancedAccountForm, EnhancedAccountFormData } from '@/components/common/EnhancedAccountForm';
 import { BulkImportModal } from '@/components/common/BulkImportModal';
 import { useColumnResize } from '@/hooks/useColumnResize';
+import { Card, Button, Input, Select, Modal, Badge, Alert, Pagination, Tabs } from '@/components/ui';
+import { cx } from '@/utils/cx';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -50,10 +51,8 @@ function formatDate(dateStr?: string): string {
 // ---------------------------------------------------------------------------
 
 export const AccountsPage: React.FC = () => {
-  const { theme } = useTheme();
   const { user } = useAuth();
   const { setActiveTab: navigate, consumeNavParams } = useNavigation();
-  const isDark = theme === 'dark';
 
   // Data state
   const [showBulkImport, setShowBulkImport] = useState(false);
@@ -114,8 +113,6 @@ export const AccountsPage: React.FC = () => {
   const { colWidths, onMouseDown } = useColumnResize({
     initialWidths: [45, 170, 110, 120, 110, 120, 100, 120, 120, 200],
   });
-
-  const cardClass = `premium-card ${isDark ? '' : 'shadow-soft'}`;
 
   // ---------------------------------------------------------------------------
   // Data fetching
@@ -253,9 +250,15 @@ export const AccountsPage: React.FC = () => {
     setShowFormModal(true);
   };
 
-  const openEditModal = (account: Account) => {
+  const openEditModal = async (account: Account) => {
+    // Fetch full record to avoid partial-field overwrites
+    let full = account;
+    try {
+      const res = await accountsApi.getById(account.id);
+      full = res?.data ?? res;
+    } catch { /* fall back to list data */ }
     setEditingAccountId(account.id);
-    setDetailAccount(account);
+    setDetailAccount(full);
     setFormError('');
     setShowFormModal(true);
   };
@@ -387,64 +390,48 @@ export const AccountsPage: React.FC = () => {
   // Render: Toolbar
   // ---------------------------------------------------------------------------
 
-  const filterSelectClass = `px-3 py-2.5 rounded-xl border text-sm transition-all ${
-    isDark
-      ? 'bg-dark-100 border-zinc-700 text-white focus:border-brand-500'
-      : 'bg-white border-slate-200 text-slate-900 focus:border-brand-500'
-  } focus:outline-none focus:ring-1 focus:ring-brand-500`;
-
   const renderToolbar = () => (
-    <div className={`${cardClass} p-4 space-y-3`}>
+    <Card padding="none" className="p-4 space-y-3">
       <div className="flex flex-col lg:flex-row lg:items-center gap-3">
         {/* Search */}
         <div className="relative flex-1 min-w-0">
-          <Search className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${
-            isDark ? 'text-zinc-500' : 'text-slate-400'
-          }`} />
-          <input
+          <Input
             type="text"
             placeholder="Search by account name..."
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
-            className={`w-full pl-10 pr-4 py-2.5 rounded-xl border text-sm transition-all ${
-              isDark
-                ? 'bg-dark-100 border-zinc-700 text-white placeholder-zinc-500 focus:border-brand-500'
-                : 'bg-white border-slate-200 text-slate-900 placeholder-slate-400 focus:border-brand-500'
-            } focus:outline-none focus:ring-1 focus:ring-brand-500`}
+            icon={<Search className="w-4 h-4" />}
           />
         </div>
 
         {/* Filters Toggle */}
-        <button
+        <Button
+          variant={showFilters || hasActiveFilters ? 'primary' : 'secondary'}
+          size="md"
+          icon={<Filter className="w-4 h-4" />}
           onClick={() => setShowFilters(!showFilters)}
-          className={`flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-normal transition-colors whitespace-nowrap ${
-            showFilters || hasActiveFilters
-              ? 'bg-brand-600 text-white'
-              : isDark
-                ? 'text-zinc-400 border border-zinc-700 hover:bg-zinc-800'
-                : 'text-slate-500 border border-slate-200 hover:bg-slate-50'
-          }`}
+          className="whitespace-nowrap font-normal"
         >
-          <Filter className="w-4 h-4" />
           Filters{hasActiveFilters ? ' (active)' : ''}
-        </button>
+        </Button>
 
         {/* Bulk Import */}
-        <button
+        <Button
+          variant="secondary"
+          size="md"
+          icon={<Upload className="w-4 h-4" />}
           onClick={() => setShowBulkImport(true)}
           title="Import from CSV"
-          className={`flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-normal transition-colors whitespace-nowrap ${
-            isDark
-              ? 'text-zinc-400 border border-zinc-700 hover:bg-zinc-800'
-              : 'text-slate-500 border border-slate-200 hover:bg-slate-50'
-          }`}
+          className="whitespace-nowrap font-normal"
         >
-          <Upload className="w-4 h-4" />
           Import
-        </button>
+        </Button>
 
         {/* Export CSV */}
-        <button
+        <Button
+          variant="secondary"
+          size="md"
+          icon={<Download className="w-4 h-4" />}
           onClick={() => exportToCsv('accounts', [
             { header: 'Name', accessor: (r: Account) => r.name },
             { header: 'Industry', accessor: (r: Account) => r.industry },
@@ -463,89 +450,84 @@ export const AccountsPage: React.FC = () => {
           ], accounts)}
           disabled={accounts.length === 0}
           title="Export to Excel"
-          className={`flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-normal transition-colors whitespace-nowrap ${
-            isDark
-              ? 'text-zinc-400 border border-zinc-700 hover:bg-zinc-800 disabled:opacity-30'
-              : 'text-slate-500 border border-slate-200 hover:bg-slate-50 disabled:opacity-30'
-          }`}
+          className="whitespace-nowrap font-normal"
         >
-          <Download className="w-4 h-4" />
           Export
-        </button>
+        </Button>
 
         {/* New Account */}
-        <button
+        <Button
+          variant="primary"
+          size="md"
+          icon={<Plus className="w-4 h-4" />}
           onClick={openCreateModal}
-          className="flex items-center gap-2 px-4 py-2.5 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-sm font-medium transition-all btn-premium whitespace-nowrap"
+          shine
+          className="whitespace-nowrap"
         >
-          <Plus className="w-4 h-4" />
           New Account
-        </button>
+        </Button>
       </div>
 
       {/* Filter Row */}
       {showFilters && (
         <div className="flex flex-wrap items-center gap-3">
-          <select value={industryFilter} onChange={e => setIndustryFilter(e.target.value)} className={filterSelectClass}>
+          <Select value={industryFilter} onChange={e => setIndustryFilter(e.target.value)}>
             <option value="">All Industries</option>
             {INDUSTRIES.map(ind => <option key={ind} value={ind}>{ind}</option>)}
-          </select>
-          <select value={accountTypeFilter} onChange={e => setAccountTypeFilter(e.target.value)} className={filterSelectClass}>
+          </Select>
+          <Select value={accountTypeFilter} onChange={e => setAccountTypeFilter(e.target.value)}>
             <option value="">All Account Types</option>
             <option value="Channel Partner">Channel Partner</option>
             <option value="End Customer">End Customer</option>
-          </select>
-          <select value={tagFilter} onChange={e => setTagFilter(e.target.value)} className={filterSelectClass}>
+          </Select>
+          <Select value={tagFilter} onChange={e => setTagFilter(e.target.value)}>
             <option value="">All Tags (Tag 1)</option>
             <option value="Digital Account">Digital Account</option>
             <option value="Existing Account">Existing Account</option>
-          </select>
-          <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)} className={filterSelectClass}>
+          </Select>
+          <Select value={typeFilter} onChange={e => setTypeFilter(e.target.value)}>
             <option value="">All Types (Tag 2)</option>
             <option value="Hunting">Hunting</option>
             <option value="Farming">Farming</option>
             <option value="Cold">Cold</option>
-          </select>
+          </Select>
           {hasActiveFilters && (
-            <button
+            <Button
+              variant="ghost"
+              size="md"
+              icon={<X className="w-3.5 h-3.5" />}
               onClick={clearAllFilters}
-              className={`flex items-center gap-1 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${
-                isDark ? 'text-red-400 hover:bg-red-900/20' : 'text-red-600 hover:bg-red-50'
-              }`}
+              className="text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
             >
-              <X className="w-3.5 h-3.5" />
               Clear
-            </button>
+            </Button>
           )}
         </div>
       )}
-    </div>
+    </Card>
   );
 
   // ---------------------------------------------------------------------------
   // Render: Table
   // ---------------------------------------------------------------------------
 
-  const cellBase = `px-4 py-3 text-sm ${isDark ? 'border-zinc-800' : 'border-slate-100'}`;
-  const hdrCell = `px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider ${isDark ? 'text-zinc-400 bg-dark-100' : 'text-slate-500 bg-slate-50'}`;
+  const cellBase = 'px-4 py-3 text-sm border-slate-100 dark:border-zinc-800';
+  const hdrCell = 'px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500 bg-slate-50 dark:text-zinc-400 dark:bg-dark-100';
 
   const renderTable = () => (
-    <div className={`${cardClass} overflow-hidden`}>
+    <Card padding="none" className="overflow-hidden">
       {tableError && (
-        <div className={`m-4 p-3 rounded-xl flex items-center gap-2 text-sm ${
-          isDark
-            ? 'bg-red-900/20 border border-red-800 text-red-400'
-            : 'bg-red-50 border border-red-200 text-red-700'
-        }`}>
-          <AlertCircle className="w-4 h-4 flex-shrink-0" />
-          {tableError}
+        <div className="m-4">
+          <Alert variant="error" icon={<AlertCircle className="w-4 h-4" />}>
+            {tableError}
+          </Alert>
         </div>
       )}
 
       {isLoading ? (
         <div className="flex flex-col items-center justify-center py-20">
           <Loader2 className="w-8 h-8 text-brand-600 animate-spin" />
-          <p className={`mt-3 text-sm ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>
+          <p className="mt-3 text-sm text-slate-500 dark:text-zinc-400">
             Loading accounts...
           </p>
         </div>
@@ -554,11 +536,11 @@ export const AccountsPage: React.FC = () => {
           <div className="overflow-x-auto">
             <table className="premium-table">
               <thead>
-                <tr className={`border-b ${isDark ? 'border-zinc-700' : 'border-slate-200'}`}>
+                <tr className="border-b border-slate-200 dark:border-zinc-700">
                   {['#', 'Name', 'Industry', 'Tag 1', 'Tag 2', 'Account Type', 'Phone', 'Email', 'Revenue', 'Overdue'].map((label, i) => (
                     <th
                       key={label}
-                      className={`${hdrCell} resizable-th ${i === 0 ? 'text-center' : ''}`}
+                      className={cx(hdrCell, 'resizable-th', i === 0 && 'text-center')}
                       style={{ width: colWidths[i] }}
                     >
                       {label}
@@ -571,8 +553,8 @@ export const AccountsPage: React.FC = () => {
                 {accounts.length === 0 ? (
                   <tr>
                     <td colSpan={10} className="py-16 text-center">
-                      <Building2 className={`w-8 h-8 mx-auto ${isDark ? 'text-zinc-700' : 'text-slate-300'}`} />
-                      <p className={`mt-2 text-sm ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
+                      <Building2 className="w-8 h-8 mx-auto text-slate-300 dark:text-zinc-700" />
+                      <p className="mt-2 text-sm text-slate-400 dark:text-zinc-500">
                         {hasActiveFilters ? 'No accounts match filters' : 'No accounts yet'}
                       </p>
                     </td>
@@ -581,35 +563,27 @@ export const AccountsPage: React.FC = () => {
                     <tr
                       key={account.id}
                       onClick={() => openDetailModal(account)}
-                      className={`border-b cursor-pointer transition-colors ${
-                        isDark
-                          ? 'border-zinc-800 hover:bg-zinc-800/50'
-                          : 'border-slate-100 hover:bg-slate-50'
-                      }`}
+                      className="border-b cursor-pointer transition-colors border-slate-100 hover:bg-slate-50 dark:border-zinc-800 dark:hover:bg-zinc-800/50"
                     >
-                      <td className={`${cellBase} text-center ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
+                      <td className={cx(cellBase, 'text-center text-slate-400 dark:text-zinc-500')}>
                         {(page - 1) * PAGE_SIZE + idx + 1}
                       </td>
-                      <td className={`${cellBase} ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
+                      <td className={cx(cellBase, 'text-slate-700 dark:text-zinc-300')}>
                         <span className="font-medium">{account.name}</span>
                       </td>
-                      <td className={`${cellBase} ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
+                      <td className={cx(cellBase, 'text-slate-700 dark:text-zinc-300')}>
                         {account.industry || '-'}
                       </td>
                       {/* Tag 1 */}
                       <td className={cellBase}>
                         {(() => {
                           const tag1 = account.tag || '';
-                          if (!tag1) return <span className={isDark ? 'text-zinc-600' : 'text-slate-300'}>-</span>;
+                          if (!tag1) return <span className="text-slate-300 dark:text-zinc-600">-</span>;
                           const isDigital = tag1.toLowerCase().includes('digital');
                           return (
-                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                              isDigital
-                                ? (isDark ? 'bg-blue-900/30 text-blue-400' : 'bg-blue-50 text-blue-700')
-                                : (isDark ? 'bg-purple-900/30 text-purple-400' : 'bg-purple-50 text-purple-700')
-                            }`}>
+                            <Badge variant={isDigital ? 'blue' : 'purple'} size="sm">
                               {tag1}
-                            </span>
+                            </Badge>
                           );
                         })()}
                       </td>
@@ -617,16 +591,12 @@ export const AccountsPage: React.FC = () => {
                       <td className={cellBase}>
                         {(() => {
                           const t = (account.type || '').toLowerCase();
-                          if (!t) return <span className={isDark ? 'text-zinc-600' : 'text-slate-300'}>-</span>;
-                          const color = t === 'hunting'
-                            ? (isDark ? 'bg-amber-900/30 text-amber-400' : 'bg-amber-50 text-amber-700')
-                            : t === 'farming'
-                              ? (isDark ? 'bg-teal-900/30 text-teal-400' : 'bg-teal-50 text-teal-700')
-                              : (isDark ? 'bg-sky-900/30 text-sky-400' : 'bg-sky-50 text-sky-700');
+                          if (!t) return <span className="text-slate-300 dark:text-zinc-600">-</span>;
+                          const variant = t === 'hunting' ? 'amber' : t === 'farming' ? 'emerald' : 'cyan';
                           return (
-                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${color}`}>
+                            <Badge variant={variant} size="sm">
                               {account.type}
-                            </span>
+                            </Badge>
                           );
                         })()}
                       </td>
@@ -634,40 +604,34 @@ export const AccountsPage: React.FC = () => {
                       <td className={cellBase}>
                         {(() => {
                           const at = (account.accountType || '').toLowerCase();
-                          if (!at) return <span className={isDark ? 'text-zinc-600' : 'text-slate-300'}>-</span>;
+                          if (!at) return <span className="text-slate-300 dark:text-zinc-600">-</span>;
                           const isChannel = at === 'channel partner';
                           return (
-                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                              isChannel
-                                ? (isDark ? 'bg-emerald-900/30 text-emerald-400' : 'bg-emerald-50 text-emerald-700')
-                                : (isDark ? 'bg-orange-900/30 text-orange-400' : 'bg-orange-50 text-orange-700')
-                            }`}>
+                            <Badge variant={isChannel ? 'emerald' : 'warning'} size="sm">
                               {account.accountType}
-                            </span>
+                            </Badge>
                           );
                         })()}
                       </td>
-                      <td className={`${cellBase} ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
+                      <td className={cx(cellBase, 'text-slate-700 dark:text-zinc-300')}>
                         <span className="whitespace-nowrap">{account.phone || '-'}</span>
                       </td>
-                      <td className={`${cellBase} ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
+                      <td className={cx(cellBase, 'text-slate-700 dark:text-zinc-300')}>
                         <span className="truncate block max-w-[170px]">{account.email || '-'}</span>
                       </td>
-                      <td className={`${cellBase} ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
+                      <td className={cx(cellBase, 'text-slate-700 dark:text-zinc-300')}>
                         <span className="font-semibold whitespace-nowrap">{account.revenue ? formatINR(account.revenue) : '-'}</span>
                       </td>
                       <td className={cellBase}>
                         {(() => {
                           const col = collectionsMap[(account.name || '').toLowerCase()];
-                          if (!col) return <span className={isDark ? 'text-zinc-600' : 'text-slate-300'}>-</span>;
+                          if (!col) return <span className="text-slate-300 dark:text-zinc-600">-</span>;
                           const overdue = (col.pending || 0) + (col.partial || 0);
-                          if (overdue <= 0) return <span className={isDark ? 'text-zinc-600' : 'text-slate-300'}>-</span>;
+                          if (overdue <= 0) return <span className="text-slate-300 dark:text-zinc-600">-</span>;
                           return (
-                            <span className={`inline-flex items-center px-1.5 py-px rounded text-[10px] font-semibold ${
-                              isDark ? 'bg-red-900/30 text-red-400' : 'bg-red-50 text-red-600'
-                            }`}>
+                            <Badge variant="red" size="sm" className="text-[10px]">
                               {formatINR(overdue)}
-                            </span>
+                            </Badge>
                           );
                         })()}
                       </td>
@@ -678,414 +642,291 @@ export const AccountsPage: React.FC = () => {
           </div>
 
           {/* Pagination */}
-          <div className={`flex flex-col sm:flex-row items-center justify-between gap-3 px-4 py-3 border-t ${
-            isDark ? 'border-zinc-800' : 'border-slate-100'
-          }`}>
-            <p className={`text-xs ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
-              Showing {(page - 1) * PAGE_SIZE + 1}
-              {' '}&ndash;{' '}
-              {Math.min(page * PAGE_SIZE, totalRecords)} of {totalRecords} accounts
-            </p>
-
-            <div className="flex items-center gap-1">
-              <button
-                onClick={() => setPage(p => Math.max(1, p - 1))}
-                disabled={page <= 1}
-                className={`p-2 rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed ${
-                  isDark
-                    ? 'text-zinc-400 hover:text-white hover:bg-zinc-800'
-                    : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100'
-                }`}
-              >
-                <ChevronLeft className="w-4 h-4" />
-              </button>
-
-              {Array.from({ length: totalPages }, (_, i) => i + 1)
-                .filter(p => {
-                  if (p === 1 || p === totalPages) return true;
-                  if (Math.abs(p - page) <= 1) return true;
-                  return false;
-                })
-                .reduce<(number | 'ellipsis')[]>((acc, p, idx, arr) => {
-                  if (idx > 0) {
-                    const prev = arr[idx - 1];
-                    if (p - prev > 1) acc.push('ellipsis');
-                  }
-                  acc.push(p);
-                  return acc;
-                }, [])
-                .map((item, idx) =>
-                  item === 'ellipsis' ? (
-                    <span
-                      key={`ellipsis-${idx}`}
-                      className={`px-1 text-xs ${isDark ? 'text-zinc-600' : 'text-slate-300'}`}
-                    >
-                      ...
-                    </span>
-                  ) : (
-                    <button
-                      key={item}
-                      onClick={() => setPage(item as number)}
-                      className={`min-w-[32px] h-8 rounded-lg text-xs font-medium transition-colors ${
-                        page === item
-                          ? 'bg-brand-600 text-white'
-                          : isDark
-                            ? 'text-zinc-400 hover:text-white hover:bg-zinc-800'
-                            : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100'
-                      }`}
-                    >
-                      {item}
-                    </button>
-                  )
-                )}
-
-              <button
-                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                disabled={page >= totalPages}
-                className={`p-2 rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed ${
-                  isDark
-                    ? 'text-zinc-400 hover:text-white hover:bg-zinc-800'
-                    : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100'
-                }`}
-              >
-                <ChevronRight className="w-4 h-4" />
-              </button>
-            </div>
+          <div className="border-t border-slate-100 dark:border-zinc-800">
+            <Pagination
+              currentPage={page}
+              totalPages={totalPages}
+              totalItems={totalRecords}
+              pageSize={PAGE_SIZE}
+              onPageChange={setPage}
+            />
           </div>
         </>
       )}
-    </div>
+    </Card>
   );
 
   // ---------------------------------------------------------------------------
   // Render: Detail Modal
   // ---------------------------------------------------------------------------
 
+  const detailTabs = [
+    { id: 'contacts', label: `Contacts (${detailContacts.length})`, icon: <Users className="w-3.5 h-3.5" /> },
+    { id: 'deals', label: `Deals (${detailDeals.length})`, icon: <TrendingUp className="w-3.5 h-3.5" /> },
+    { id: 'collections', label: `Collections (${detailCollections.length})`, icon: <Wallet className="w-3.5 h-3.5" /> },
+  ];
+
   const renderDetailModal = () => {
-    if (!showDetailModal || !detailAccount) return null;
+    if (!detailAccount) return null;
     const account = detailAccount;
 
     return (
-      <div className="fixed inset-0 z-50 flex items-start justify-center p-4 pt-[5vh] overflow-y-auto">
-        <div className="fixed inset-0 bg-black/50 animate-backdrop" onClick={closeDetailModal} />
-        <div className={`relative w-full max-w-2xl max-h-[85vh] rounded-2xl animate-fade-in-up flex flex-col overflow-hidden ${
-          isDark ? 'bg-dark-50 border border-zinc-800' : 'bg-white shadow-premium'
-        }`}>
-          {/* Header */}
-          <div className={`flex-shrink-0 flex items-center justify-between px-6 py-4 border-b ${
-            isDark ? 'bg-dark-50 border-zinc-800' : 'bg-white border-slate-200'
-          }`}>
-            <div className="flex items-center gap-3 min-w-0">
-              <h2 className={`text-lg font-semibold font-display truncate ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                {account.name}
-              </h2>
-            </div>
-            <div className="flex items-center gap-2 flex-shrink-0">
-              <button
+      <Modal
+        open={showDetailModal}
+        onClose={closeDetailModal}
+        title={account.name}
+        size="xl"
+        footer={
+          <div className="flex items-center gap-2 w-full justify-between">
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                icon={<Edit2 className="w-4 h-4" />}
                 onClick={() => { closeDetailModal(); openEditModal(account); }}
-                className={`p-2 rounded-lg transition-colors ${
-                  isDark ? 'text-zinc-400 hover:text-white hover:bg-zinc-800' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100'
-                }`}
-                title="Edit"
               >
-                <Edit2 className="w-4 h-4" />
-              </button>
+                Edit
+              </Button>
               {deleteConfirmId === account.id ? (
                 <div className="flex items-center gap-1">
-                  <button
+                  <Button
+                    variant="danger"
+                    size="sm"
                     onClick={() => { handleDelete(account.id); closeDetailModal(); }}
-                    className="px-2 py-1 rounded-lg text-xs font-medium bg-red-600 text-white hover:bg-red-700 transition-colors"
                   >
                     Confirm
-                  </button>
-                  <button
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
                     onClick={() => setDeleteConfirmId(null)}
-                    className={`px-2 py-1 rounded-lg text-xs font-medium transition-colors ${
-                      isDark ? 'text-zinc-400 hover:bg-zinc-800' : 'text-slate-500 hover:bg-slate-100'
-                    }`}
                   >
                     Cancel
-                  </button>
+                  </Button>
                 </div>
               ) : (
-                <button
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  icon={<Trash2 className="w-4 h-4" />}
                   onClick={() => setDeleteConfirmId(account.id)}
-                  className={`p-2 rounded-lg transition-colors ${
-                    isDark ? 'text-zinc-400 hover:text-red-400 hover:bg-red-900/20' : 'text-slate-400 hover:text-red-600 hover:bg-red-50'
-                  }`}
-                  title="Delete"
+                  className="text-slate-400 hover:text-red-600 hover:bg-red-50 dark:text-zinc-400 dark:hover:text-red-400 dark:hover:bg-red-900/20"
                 >
-                  <Trash2 className="w-4 h-4" />
-                </button>
-              )}
-              <button
-                onClick={closeDetailModal}
-                className={`p-2 rounded-lg transition-colors ${
-                  isDark ? 'text-zinc-400 hover:text-white hover:bg-zinc-800' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100'
-                }`}
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-          </div>
-
-          <div className="flex-1 overflow-y-auto">
-          <div className="p-6 space-y-6 pb-6">
-            {/* Account info grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <InfoRow label="Industry" value={account.industry} isDark={isDark} icon={<Briefcase className="w-3.5 h-3.5" />} />
-              <InfoRow label="Type" value={account.type} isDark={isDark} icon={<Building2 className="w-3.5 h-3.5" />} />
-              <InfoRow label="Phone" value={account.phone} isDark={isDark} icon={<Phone className="w-3.5 h-3.5" />} />
-              <InfoRow label="Email" value={account.email} isDark={isDark} icon={<Mail className="w-3.5 h-3.5" />} />
-              <InfoRow label="Website" value={account.website} isDark={isDark} icon={<Globe className="w-3.5 h-3.5" />} />
-              <InfoRow label="Location" value={account.location} isDark={isDark} icon={<MapPin className="w-3.5 h-3.5" />} />
-              <InfoRow label="Revenue" value={account.revenue ? formatINR(account.revenue) : undefined} isDark={isDark} icon={<IndianRupee className="w-3.5 h-3.5" />} />
-              <InfoRow label="Employees" value={account.employees ? String(account.employees) : undefined} isDark={isDark} icon={<Users className="w-3.5 h-3.5" />} />
-              <InfoRow label="Owner" value={account.ownerName} isDark={isDark} icon={<UserIcon className="w-3.5 h-3.5" />} />
-              <InfoRow label="GSTIN" value={account.gstinNo} isDark={isDark} icon={<Hash className="w-3.5 h-3.5" />} />
-              <InfoRow label="Payment Terms" value={account.paymentTerms} isDark={isDark} icon={<FileText className="w-3.5 h-3.5" />} />
-              <InfoRow label="Account Type" value={account.accountType} isDark={isDark} icon={<Building2 className="w-3.5 h-3.5" />} />
-              <InfoRow label="Tag" value={account.tag} isDark={isDark} icon={<Building2 className="w-3.5 h-3.5" />} />
-            </div>
-
-            {/* Description */}
-            {account.description && (
-              <div>
-                <h4 className={`text-xs font-semibold uppercase tracking-wider mb-2 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
-                  Description
-                </h4>
-                <p className={`text-sm whitespace-pre-wrap ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
-                  {account.description}
-                </p>
-              </div>
-            )}
-
-            {/* Tabs: Contacts, Deals & Collections */}
-            <div>
-              <div className={`flex items-center gap-1 border-b mb-4 ${isDark ? 'border-zinc-800' : 'border-slate-200'}`}>
-                <button
-                  onClick={() => setDetailTab('contacts')}
-                  className={`px-4 py-2.5 text-sm font-medium transition-colors border-b-2 -mb-px ${
-                    detailTab === 'contacts'
-                      ? 'border-brand-600 text-brand-600'
-                      : isDark
-                        ? 'border-transparent text-zinc-500 hover:text-zinc-300'
-                        : 'border-transparent text-slate-400 hover:text-slate-600'
-                  }`}
-                >
-                  <span className="flex items-center gap-1.5">
-                    <Users className="w-3.5 h-3.5" />
-                    Contacts ({detailContacts.length})
-                  </span>
-                </button>
-                <button
-                  onClick={() => setDetailTab('deals')}
-                  className={`px-4 py-2.5 text-sm font-medium transition-colors border-b-2 -mb-px ${
-                    detailTab === 'deals'
-                      ? 'border-brand-600 text-brand-600'
-                      : isDark
-                        ? 'border-transparent text-zinc-500 hover:text-zinc-300'
-                        : 'border-transparent text-slate-400 hover:text-slate-600'
-                  }`}
-                >
-                  <span className="flex items-center gap-1.5">
-                    <TrendingUp className="w-3.5 h-3.5" />
-                    Deals ({detailDeals.length})
-                  </span>
-                </button>
-                <button
-                  onClick={() => setDetailTab('collections')}
-                  className={`px-4 py-2.5 text-sm font-medium transition-colors border-b-2 -mb-px ${
-                    detailTab === 'collections'
-                      ? 'border-brand-600 text-brand-600'
-                      : isDark
-                        ? 'border-transparent text-zinc-500 hover:text-zinc-300'
-                        : 'border-transparent text-slate-400 hover:text-slate-600'
-                  }`}
-                >
-                  <span className="flex items-center gap-1.5">
-                    <Wallet className="w-3.5 h-3.5" />
-                    Collections ({detailCollections.length})
-                  </span>
-                </button>
-              </div>
-
-              {isDetailLoading ? (
-                <div className="flex items-center justify-center py-8">
-                  <Loader2 className="w-5 h-5 text-brand-600 animate-spin" />
-                </div>
-              ) : detailTab === 'contacts' ? (
-                detailContacts.length === 0 ? (
-                  <p className={`text-sm py-4 text-center ${isDark ? 'text-zinc-600' : 'text-slate-400'}`}>
-                    No contacts linked to this account
-                  </p>
-                ) : (
-                  <div className="space-y-2 pr-1">
-                    {detailContacts.map((contact: any) => (
-                      <div
-                        key={contact.id}
-                        onClick={() => { closeDetailModal(); navigate('contacts', { accountId: account.id }); }}
-                        className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-colors ${
-                          isDark ? 'border-zinc-800 hover:bg-zinc-800/30' : 'border-slate-100 hover:bg-slate-50'
-                        }`}
-                      >
-                        <div className={`w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 ${
-                          isDark ? 'bg-zinc-800' : 'bg-slate-100'
-                        }`}>
-                          <UserIcon className={`w-4 h-4 ${isDark ? 'text-zinc-400' : 'text-slate-500'}`} />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className={`text-sm font-medium ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                            {contact.firstName} {contact.lastName || ''}
-                          </p>
-                          <div className="flex items-center gap-3 mt-0.5">
-                            {contact.email && (
-                              <span className={`text-xs ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
-                                {contact.email}
-                              </span>
-                            )}
-                            {contact.jobTitle && (
-                              <span className={`text-xs ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
-                                {contact.jobTitle}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${isDark ? 'bg-zinc-800 text-zinc-400' : 'bg-slate-100 text-slate-500'}`}>{contact.status}</span>
-                      </div>
-                    ))}
-                    <button
-                      onClick={() => { closeDetailModal(); navigate('contacts', { accountId: account.id }); }}
-                      className={`w-full mt-2 py-2 text-xs font-medium rounded-lg transition-colors ${
-                        isDark ? 'text-brand-400 hover:bg-zinc-800/50' : 'text-brand-600 hover:bg-slate-50'
-                      }`}
-                    >
-                      View All Contacts →
-                    </button>
-                  </div>
-                )
-              ) : detailTab === 'deals' ? (
-                detailDeals.length === 0 ? (
-                  <p className={`text-sm py-4 text-center ${isDark ? 'text-zinc-600' : 'text-slate-400'}`}>
-                    No deals linked to this account
-                  </p>
-                ) : (
-                  <div className="space-y-2 pr-1">
-                    {detailDeals.map((deal: any) => (
-                      <div
-                        key={deal.id}
-                        className={`flex items-center justify-between gap-3 p-3 rounded-xl border transition-colors ${
-                          isDark ? 'border-zinc-800 hover:bg-zinc-800/30' : 'border-slate-100 hover:bg-slate-50'
-                        }`}
-                      >
-                        <div className="flex-1 min-w-0">
-                          <p className={`text-sm font-medium ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                            {deal.title}
-                          </p>
-                          <div className="flex items-center gap-3 mt-0.5">
-                            <span className={`text-xs ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
-                              {deal.stage}
-                            </span>
-                            {deal.closingDate && (
-                              <span className={`text-xs ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
-                                Close: {formatDate(deal.closingDate)}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                        {deal.value !== undefined && deal.value !== null && (
-                          <p className={`text-sm font-semibold whitespace-nowrap ${isDark ? 'text-emerald-400' : 'text-emerald-600'}`}>
-                            {formatINR(deal.value)}
-                          </p>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )
-              ) : (
-                /* Collections tab */
-                detailCollections.length === 0 ? (
-                  <p className={`text-sm py-4 text-center ${isDark ? 'text-zinc-600' : 'text-slate-400'}`}>
-                    No collections for this account
-                  </p>
-                ) : (
-                  <div className="space-y-3 pr-1">
-                    {/* Collection summary */}
-                    {(() => {
-                      const pending = detailCollections.filter((e: any) => e.paymentStatus === 'pending');
-                      const partial = detailCollections.filter((e: any) => e.paymentStatus === 'partial');
-                      const paid = detailCollections.filter((e: any) => e.paymentStatus === 'paid');
-                      const pendingTotal = pending.reduce((s: number, e: any) => s + (e.amount || 0), 0);
-                      const partialTotal = partial.reduce((s: number, e: any) => s + (e.amount || 0), 0);
-                      const paidTotal = paid.reduce((s: number, e: any) => s + (e.amount || 0), 0);
-                      return (
-                        <div className="grid grid-cols-3 gap-2">
-                          <div className={`rounded-lg p-2.5 text-center ${isDark ? 'bg-red-900/20' : 'bg-red-50'}`}>
-                            <p className={`text-[10px] uppercase tracking-wider font-semibold ${isDark ? 'text-red-400' : 'text-red-600'}`}>Pending</p>
-                            <p className={`text-sm font-bold ${isDark ? 'text-red-400' : 'text-red-600'}`}>{formatINR(pendingTotal)}</p>
-                            <p className={`text-[10px] ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>{pending.length} orders</p>
-                          </div>
-                          <div className={`rounded-lg p-2.5 text-center ${isDark ? 'bg-amber-900/20' : 'bg-amber-50'}`}>
-                            <p className={`text-[10px] uppercase tracking-wider font-semibold ${isDark ? 'text-amber-400' : 'text-amber-600'}`}>Partial</p>
-                            <p className={`text-sm font-bold ${isDark ? 'text-amber-400' : 'text-amber-600'}`}>{formatINR(partialTotal)}</p>
-                            <p className={`text-[10px] ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>{partial.length} orders</p>
-                          </div>
-                          <div className={`rounded-lg p-2.5 text-center ${isDark ? 'bg-emerald-900/20' : 'bg-emerald-50'}`}>
-                            <p className={`text-[10px] uppercase tracking-wider font-semibold ${isDark ? 'text-emerald-400' : 'text-emerald-600'}`}>Collected</p>
-                            <p className={`text-sm font-bold ${isDark ? 'text-emerald-400' : 'text-emerald-600'}`}>{formatINR(paidTotal)}</p>
-                            <p className={`text-[10px] ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>{paid.length} orders</p>
-                          </div>
-                        </div>
-                      );
-                    })()}
-
-                    {/* Orders table */}
-                    <div className={`rounded-lg border overflow-hidden ${isDark ? 'border-zinc-800' : 'border-slate-200'}`}>
-                      <table className="w-full text-xs">
-                        <thead>
-                          <tr className={isDark ? 'bg-zinc-900/50' : 'bg-slate-50'}>
-                            <th className={`text-left px-2.5 py-1.5 text-[10px] font-semibold uppercase tracking-wider ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Date</th>
-                            <th className={`text-left px-2.5 py-1.5 text-[10px] font-semibold uppercase tracking-wider ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Product</th>
-                            <th className={`text-right px-2.5 py-1.5 text-[10px] font-semibold uppercase tracking-wider ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Amount</th>
-                            <th className={`text-center px-2.5 py-1.5 text-[10px] font-semibold uppercase tracking-wider ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Status</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {detailCollections.map((entry: any, j: number) => (
-                            <tr key={j} className={`border-t ${isDark ? 'border-zinc-800' : 'border-slate-100'}`}>
-                              <td className={`px-2.5 py-1.5 ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>{entry.saleDate ? formatDate(entry.saleDate) : '-'}</td>
-                              <td className={`px-2.5 py-1.5 ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>{entry.productName || '-'}</td>
-                              <td className={`px-2.5 py-1.5 text-right font-medium ${isDark ? 'text-white' : 'text-slate-900'}`}>{formatINR(entry.amount || 0)}</td>
-                              <td className="px-2.5 py-1.5 text-center">
-                                <span className={`inline-flex px-1.5 py-px rounded-full text-[9px] font-semibold ${
-                                  entry.paymentStatus === 'paid' ? (isDark ? 'bg-emerald-900/30 text-emerald-400' : 'bg-emerald-50 text-emerald-600')
-                                  : entry.paymentStatus === 'partial' ? (isDark ? 'bg-amber-900/30 text-amber-400' : 'bg-amber-50 text-amber-600')
-                                  : (isDark ? 'bg-red-900/30 text-red-400' : 'bg-red-50 text-red-600')
-                                }`}>
-                                  {entry.paymentStatus || 'pending'}
-                                </span>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                )
+                  Delete
+                </Button>
               )}
             </div>
-
-            {/* Timestamps */}
-            <div className={`flex items-center gap-4 text-[11px] pt-2 border-t ${
-              isDark ? 'border-zinc-800 text-zinc-600' : 'border-slate-100 text-slate-400'
-            }`}>
+            <div className={cx(
+              'flex items-center gap-4 text-[11px]',
+              'text-slate-400 dark:text-zinc-600'
+            )}>
               {account.createdAt && <span>Created: {formatDate(account.createdAt)}</span>}
               {account.updatedAt && <span>Updated: {formatDate(account.updatedAt)}</span>}
             </div>
           </div>
+        }
+      >
+        <div className="space-y-6">
+          {/* Account info grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <InfoRow label="Industry" value={account.industry} icon={<Briefcase className="w-3.5 h-3.5" />} />
+            <InfoRow label="Type" value={account.type} icon={<Building2 className="w-3.5 h-3.5" />} />
+            <InfoRow label="Phone" value={account.phone} icon={<Phone className="w-3.5 h-3.5" />} />
+            <InfoRow label="Email" value={account.email} icon={<Mail className="w-3.5 h-3.5" />} />
+            <InfoRow label="Website" value={account.website} icon={<Globe className="w-3.5 h-3.5" />} />
+            <InfoRow label="Location" value={account.location} icon={<MapPin className="w-3.5 h-3.5" />} />
+            <InfoRow label="Revenue" value={account.revenue ? formatINR(account.revenue) : undefined} icon={<IndianRupee className="w-3.5 h-3.5" />} />
+            <InfoRow label="Employees" value={account.employees ? String(account.employees) : undefined} icon={<Users className="w-3.5 h-3.5" />} />
+            <InfoRow label="Owner" value={account.ownerName} icon={<UserIcon className="w-3.5 h-3.5" />} />
+            <InfoRow label="GSTIN" value={account.gstinNo} icon={<Hash className="w-3.5 h-3.5" />} />
+            <InfoRow label="Payment Terms" value={account.paymentTerms} icon={<FileText className="w-3.5 h-3.5" />} />
+            <InfoRow label="Account Type" value={account.accountType} icon={<Building2 className="w-3.5 h-3.5" />} />
+            <InfoRow label="Tag" value={account.tag} icon={<Building2 className="w-3.5 h-3.5" />} />
+          </div>
+
+          {/* Description */}
+          {account.description && (
+            <div>
+              <h4 className="text-xs font-semibold uppercase tracking-wider mb-2 text-slate-400 dark:text-zinc-500">
+                Description
+              </h4>
+              <p className="text-sm whitespace-pre-wrap text-slate-700 dark:text-zinc-300">
+                {account.description}
+              </p>
+            </div>
+          )}
+
+          {/* Tabs: Contacts, Deals & Collections */}
+          <div>
+            <Tabs
+              tabs={detailTabs}
+              activeTab={detailTab}
+              onTabChange={(tabId) => setDetailTab(tabId as 'contacts' | 'deals' | 'collections')}
+              className="mb-4"
+            />
+
+            {isDetailLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="w-5 h-5 text-brand-600 animate-spin" />
+              </div>
+            ) : detailTab === 'contacts' ? (
+              detailContacts.length === 0 ? (
+                <p className="text-sm py-4 text-center text-slate-400 dark:text-zinc-600">
+                  No contacts linked to this account
+                </p>
+              ) : (
+                <div className="space-y-2 pr-1">
+                  {detailContacts.map((contact: any) => (
+                    <div
+                      key={contact.id}
+                      onClick={() => { closeDetailModal(); navigate('contacts', { accountId: account.id }); }}
+                      className="flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-colors border-slate-100 hover:bg-slate-50 dark:border-zinc-800 dark:hover:bg-zinc-800/30"
+                    >
+                      <div className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 bg-slate-100 dark:bg-zinc-800">
+                        <UserIcon className="w-4 h-4 text-slate-500 dark:text-zinc-400" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-slate-900 dark:text-white">
+                          {contact.firstName} {contact.lastName || ''}
+                        </p>
+                        <div className="flex items-center gap-3 mt-0.5">
+                          {contact.email && (
+                            <span className="text-xs text-slate-400 dark:text-zinc-500">
+                              {contact.email}
+                            </span>
+                          )}
+                          {contact.jobTitle && (
+                            <span className="text-xs text-slate-400 dark:text-zinc-500">
+                              {contact.jobTitle}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <Badge variant="gray" size="sm">{contact.status}</Badge>
+                    </div>
+                  ))}
+                  <button
+                    onClick={() => { closeDetailModal(); navigate('contacts', { accountId: account.id }); }}
+                    className="w-full mt-2 py-2 text-xs font-medium rounded-lg transition-colors text-brand-600 hover:bg-slate-50 dark:text-brand-400 dark:hover:bg-zinc-800/50"
+                  >
+                    View All Contacts &rarr;
+                  </button>
+                </div>
+              )
+            ) : detailTab === 'deals' ? (
+              detailDeals.length === 0 ? (
+                <p className="text-sm py-4 text-center text-slate-400 dark:text-zinc-600">
+                  No deals linked to this account
+                </p>
+              ) : (
+                <div className="space-y-2 pr-1">
+                  {detailDeals.map((deal: any) => (
+                    <div
+                      key={deal.id}
+                      className="flex items-center justify-between gap-3 p-3 rounded-xl border transition-colors border-slate-100 hover:bg-slate-50 dark:border-zinc-800 dark:hover:bg-zinc-800/30"
+                    >
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-slate-900 dark:text-white">
+                          {deal.title}
+                        </p>
+                        <div className="flex items-center gap-3 mt-0.5">
+                          <span className="text-xs text-slate-400 dark:text-zinc-500">
+                            {deal.stage}
+                          </span>
+                          {deal.closingDate && (
+                            <span className="text-xs text-slate-400 dark:text-zinc-500">
+                              Close: {formatDate(deal.closingDate)}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      {deal.value !== undefined && deal.value !== null && (
+                        <p className="text-sm font-semibold whitespace-nowrap text-emerald-600 dark:text-emerald-400">
+                          {formatINR(deal.value)}
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )
+            ) : (
+              /* Collections tab */
+              detailCollections.length === 0 ? (
+                <p className="text-sm py-4 text-center text-slate-400 dark:text-zinc-600">
+                  No collections for this account
+                </p>
+              ) : (
+                <div className="space-y-3 pr-1">
+                  {/* Collection summary */}
+                  {(() => {
+                    const pending = detailCollections.filter((e: any) => e.paymentStatus === 'pending');
+                    const partial = detailCollections.filter((e: any) => e.paymentStatus === 'partial');
+                    const paid = detailCollections.filter((e: any) => e.paymentStatus === 'paid');
+                    const pendingTotal = pending.reduce((s: number, e: any) => s + (e.amount || 0), 0);
+                    const partialTotal = partial.reduce((s: number, e: any) => s + (e.amount || 0), 0);
+                    const paidTotal = paid.reduce((s: number, e: any) => s + (e.amount || 0), 0);
+                    return (
+                      <div className="grid grid-cols-3 gap-2">
+                        <div className="rounded-lg p-2.5 text-center bg-red-50 dark:bg-red-900/20">
+                          <p className="text-[10px] uppercase tracking-wider font-semibold text-red-600 dark:text-red-400">Pending</p>
+                          <p className="text-sm font-bold text-red-600 dark:text-red-400">{formatINR(pendingTotal)}</p>
+                          <p className="text-[10px] text-slate-400 dark:text-zinc-500">{pending.length} orders</p>
+                        </div>
+                        <div className="rounded-lg p-2.5 text-center bg-amber-50 dark:bg-amber-900/20">
+                          <p className="text-[10px] uppercase tracking-wider font-semibold text-amber-600 dark:text-amber-400">Partial</p>
+                          <p className="text-sm font-bold text-amber-600 dark:text-amber-400">{formatINR(partialTotal)}</p>
+                          <p className="text-[10px] text-slate-400 dark:text-zinc-500">{partial.length} orders</p>
+                        </div>
+                        <div className="rounded-lg p-2.5 text-center bg-emerald-50 dark:bg-emerald-900/20">
+                          <p className="text-[10px] uppercase tracking-wider font-semibold text-emerald-600 dark:text-emerald-400">Collected</p>
+                          <p className="text-sm font-bold text-emerald-600 dark:text-emerald-400">{formatINR(paidTotal)}</p>
+                          <p className="text-[10px] text-slate-400 dark:text-zinc-500">{paid.length} orders</p>
+                        </div>
+                      </div>
+                    );
+                  })()}
+
+                  {/* Orders table */}
+                  <div className="rounded-lg border overflow-hidden border-slate-200 dark:border-zinc-800">
+                    <table className="w-full text-xs">
+                      <thead>
+                        <tr className="bg-slate-50 dark:bg-zinc-900/50">
+                          <th className="text-left px-2.5 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-slate-400 dark:text-zinc-500">Date</th>
+                          <th className="text-left px-2.5 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-slate-400 dark:text-zinc-500">Product</th>
+                          <th className="text-right px-2.5 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-slate-400 dark:text-zinc-500">Amount</th>
+                          <th className="text-center px-2.5 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-slate-400 dark:text-zinc-500">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {detailCollections.map((entry: any, j: number) => (
+                          <tr key={j} className="border-t border-slate-100 dark:border-zinc-800">
+                            <td className="px-2.5 py-1.5 text-slate-700 dark:text-zinc-300">{entry.saleDate ? formatDate(entry.saleDate) : '-'}</td>
+                            <td className="px-2.5 py-1.5 text-slate-700 dark:text-zinc-300">{entry.productName || '-'}</td>
+                            <td className="px-2.5 py-1.5 text-right font-medium text-slate-900 dark:text-white">{formatINR(entry.amount || 0)}</td>
+                            <td className="px-2.5 py-1.5 text-center">
+                              <Badge
+                                variant={
+                                  entry.paymentStatus === 'paid' ? 'emerald'
+                                  : entry.paymentStatus === 'partial' ? 'amber'
+                                  : 'red'
+                                }
+                                size="sm"
+                                className="text-[9px]"
+                              >
+                                {entry.paymentStatus || 'pending'}
+                              </Badge>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )
+            )}
           </div>
         </div>
-      </div>
+      </Modal>
     );
   };
 
@@ -1119,10 +960,10 @@ export const AccountsPage: React.FC = () => {
       {/* Page header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className={`text-xl font-bold font-display ${isDark ? 'text-white' : 'text-slate-900'}`}>
+          <h1 className="text-xl font-bold font-display text-slate-900 dark:text-white">
             Accounts
           </h1>
-          <p className={`text-sm mt-0.5 ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>
+          <p className="text-sm mt-0.5 text-slate-500 dark:text-zinc-400">
             Manage customer accounts and track revenue
           </p>
         </div>
@@ -1130,60 +971,60 @@ export const AccountsPage: React.FC = () => {
 
       {/* Summary Cards */}
       <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
-        <div className={`${cardClass} p-4 flex items-center gap-3`}>
-          <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${isDark ? 'bg-blue-500/10 text-blue-400' : 'bg-blue-50 text-blue-600'}`}>
+        <Card padding="none" className="p-4 flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400">
             <Building2 className="w-5 h-5" />
           </div>
           <div>
-            <p className={`text-2xl font-bold font-display ${isDark ? 'text-white' : 'text-slate-900'}`}>{typeSummary.total}</p>
-            <p className={`text-xs ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Total</p>
+            <p className="text-2xl font-bold font-display text-slate-900 dark:text-white">{typeSummary.total}</p>
+            <p className="text-xs text-slate-400 dark:text-zinc-500">Total</p>
           </div>
-        </div>
-        <div className={`${cardClass} p-4 flex items-center gap-3`}>
-          <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${isDark ? 'bg-emerald-500/10 text-emerald-400' : 'bg-emerald-50 text-emerald-600'}`}>
+        </Card>
+        <Card padding="none" className="p-4 flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400">
             <Briefcase className="w-5 h-5" />
           </div>
           <div>
-            <p className={`text-2xl font-bold font-display ${isDark ? 'text-white' : 'text-slate-900'}`}>{typeSummary.channel}</p>
-            <p className={`text-xs ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Channel</p>
+            <p className="text-2xl font-bold font-display text-slate-900 dark:text-white">{typeSummary.channel}</p>
+            <p className="text-xs text-slate-400 dark:text-zinc-500">Channel</p>
           </div>
-        </div>
-        <div className={`${cardClass} p-4 flex items-center gap-3`}>
-          <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${isDark ? 'bg-orange-500/10 text-orange-400' : 'bg-orange-50 text-orange-600'}`}>
+        </Card>
+        <Card padding="none" className="p-4 flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 bg-orange-50 text-orange-600 dark:bg-orange-500/10 dark:text-orange-400">
             <Users className="w-5 h-5" />
           </div>
           <div>
-            <p className={`text-2xl font-bold font-display ${isDark ? 'text-white' : 'text-slate-900'}`}>{typeSummary.endCustomer}</p>
-            <p className={`text-xs ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>End Customer</p>
+            <p className="text-2xl font-bold font-display text-slate-900 dark:text-white">{typeSummary.endCustomer}</p>
+            <p className="text-xs text-slate-400 dark:text-zinc-500">End Customer</p>
           </div>
-        </div>
-        <div className={`${cardClass} p-4 flex items-center gap-3`}>
-          <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${isDark ? 'bg-amber-500/10 text-amber-400' : 'bg-amber-50 text-amber-600'}`}>
+        </Card>
+        <Card padding="none" className="p-4 flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400">
             <Target className="w-5 h-5" />
           </div>
           <div>
-            <p className={`text-2xl font-bold font-display ${isDark ? 'text-white' : 'text-slate-900'}`}>{typeSummary.hunting}</p>
-            <p className={`text-xs ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Hunting</p>
+            <p className="text-2xl font-bold font-display text-slate-900 dark:text-white">{typeSummary.hunting}</p>
+            <p className="text-xs text-slate-400 dark:text-zinc-500">Hunting</p>
           </div>
-        </div>
-        <div className={`${cardClass} p-4 flex items-center gap-3`}>
-          <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${isDark ? 'bg-teal-500/10 text-teal-400' : 'bg-teal-50 text-teal-600'}`}>
+        </Card>
+        <Card padding="none" className="p-4 flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 bg-teal-50 text-teal-600 dark:bg-teal-500/10 dark:text-teal-400">
             <Leaf className="w-5 h-5" />
           </div>
           <div>
-            <p className={`text-2xl font-bold font-display ${isDark ? 'text-white' : 'text-slate-900'}`}>{typeSummary.farming}</p>
-            <p className={`text-xs ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Farming</p>
+            <p className="text-2xl font-bold font-display text-slate-900 dark:text-white">{typeSummary.farming}</p>
+            <p className="text-xs text-slate-400 dark:text-zinc-500">Farming</p>
           </div>
-        </div>
-        <div className={`${cardClass} p-4 flex items-center gap-3`}>
-          <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${isDark ? 'bg-sky-500/10 text-sky-400' : 'bg-sky-50 text-sky-600'}`}>
+        </Card>
+        <Card padding="none" className="p-4 flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 bg-sky-50 text-sky-600 dark:bg-sky-500/10 dark:text-sky-400">
             <Snowflake className="w-5 h-5" />
           </div>
           <div>
-            <p className={`text-2xl font-bold font-display ${isDark ? 'text-white' : 'text-slate-900'}`}>{typeSummary.cold}</p>
-            <p className={`text-xs ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Cold</p>
+            <p className="text-2xl font-bold font-display text-slate-900 dark:text-white">{typeSummary.cold}</p>
+            <p className="text-xs text-slate-400 dark:text-zinc-500">Cold</p>
           </div>
-        </div>
+        </Card>
       </div>
 
       {/* Toolbar */}
@@ -1201,7 +1042,6 @@ export const AccountsPage: React.FC = () => {
         onClose={() => setShowBulkImport(false)}
         entity="accounts"
         entityLabel="Accounts"
-        isDark={isDark}
         onSuccess={() => { fetchAccounts(); fetchSummary(); fetchCollections(); }}
       />
     </div>
@@ -1215,18 +1055,17 @@ export const AccountsPage: React.FC = () => {
 const InfoRow: React.FC<{
   label: string;
   value?: string;
-  isDark: boolean;
   icon?: React.ReactNode;
-}> = ({ label, value, isDark, icon }) => (
-  <div className={`flex items-start gap-2 p-2.5 rounded-lg ${isDark ? 'bg-dark-100' : 'bg-slate-50'}`}>
+}> = ({ label, value, icon }) => (
+  <div className="flex items-start gap-2 p-2.5 rounded-lg bg-slate-50 dark:bg-dark-100">
     {icon && (
-      <span className={`mt-0.5 flex-shrink-0 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
+      <span className="mt-0.5 flex-shrink-0 text-slate-400 dark:text-zinc-500">
         {icon}
       </span>
     )}
     <div className="min-w-0">
-      <p className={`text-[11px] font-medium ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>{label}</p>
-      <p className={`text-sm ${isDark ? 'text-white' : 'text-slate-900'}`}>
+      <p className="text-[11px] font-medium text-slate-400 dark:text-zinc-500">{label}</p>
+      <p className="text-sm text-slate-900 dark:text-white">
         {value || '-'}
       </p>
     </div>

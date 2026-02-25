@@ -1,16 +1,19 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
-  Plus, Search, X, ChevronLeft, ChevronRight, Edit2, Trash2,
+  Plus, Search, X, Edit2, Trash2,
   IndianRupee, Loader2, AlertCircle, CheckCircle, Calendar,
-  FileText, Eye, Package, Send, ArrowLeft, Copy, Download,
+  FileText, Eye, Package, Send, ArrowLeft, Download,
   User as UserIcon, Building2, Hash
 } from 'lucide-react';
-import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { quotesApi, productsApi, partnersApi, quoteTermsApi, formatINR } from '@/services/api';
-import { Quote, QuoteLineItem, QuoteTerm, Product, Partner, PaginatedResponse } from '@/types';
+import { Quote, QuoteTerm, Product, Partner, PaginatedResponse } from '@/types';
 import { RichTextEditor } from '@/components/common/RichTextEditor';
 import { useColumnResize } from '@/hooks/useColumnResize';
+import {
+  Card, Button, Input, Select, Badge, Alert, Textarea,
+  Pagination,
+} from '@/components/ui';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -27,11 +30,11 @@ const QUOTE_STATUSES: { value: QuoteStatus; label: string }[] = [
   { value: 'rejected', label: 'Rejected' },
 ];
 
-const STATUS_COLORS: Record<QuoteStatus, { bg: string; text: string; darkBg: string; darkText: string }> = {
-  draft:    { bg: 'bg-slate-100', text: 'text-slate-700', darkBg: 'bg-zinc-800', darkText: 'text-zinc-300' },
-  sent:     { bg: 'bg-blue-50', text: 'text-blue-700', darkBg: 'bg-blue-900/30', darkText: 'text-blue-400' },
-  accepted: { bg: 'bg-emerald-50', text: 'text-emerald-700', darkBg: 'bg-emerald-900/30', darkText: 'text-emerald-400' },
-  rejected: { bg: 'bg-red-50', text: 'text-red-700', darkBg: 'bg-red-900/30', darkText: 'text-red-400' },
+const STATUS_BADGE_VARIANT: Record<QuoteStatus, 'gray' | 'blue' | 'emerald' | 'red'> = {
+  draft: 'gray',
+  sent: 'blue',
+  accepted: 'emerald',
+  rejected: 'red',
 };
 
 // ---------------------------------------------------------------------------
@@ -117,12 +120,6 @@ function formatDateTime(dateStr?: string): string {
   }
 }
 
-function statusBadge(status: QuoteStatus, isDark: boolean): string {
-  const base = 'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium';
-  const c = STATUS_COLORS[status] || STATUS_COLORS.draft;
-  return `${base} ${isDark ? `${c.darkBg} ${c.darkText}` : `${c.bg} ${c.text}`}`;
-}
-
 function calcLineTotal(qty: number, unitPrice: number): number {
   return qty * unitPrice;
 }
@@ -132,9 +129,7 @@ function calcLineTotal(qty: number, unitPrice: number): number {
 // ---------------------------------------------------------------------------
 
 export const QuoteBuilderPage: React.FC = () => {
-  const { theme } = useTheme();
   const { user } = useAuth();
-  const isDark = theme === 'dark';
 
   // View state
   const [viewMode, setViewMode] = useState<ViewMode>('list');
@@ -168,19 +163,6 @@ export const QuoteBuilderPage: React.FC = () => {
   const [detailQuote, setDetailQuote] = useState<Quote | null>(null);
   const [isDetailLoading, setIsDetailLoading] = useState(false);
   const [isStatusUpdating, setIsStatusUpdating] = useState(false);
-
-  // ---------------------------------------------------------------------------
-  // Styling helpers
-  // ---------------------------------------------------------------------------
-
-  const cardClass = `premium-card ${isDark ? '' : 'shadow-soft'}`;
-  const inputClass = `w-full px-3 py-2.5 rounded-xl border text-sm transition-all ${
-    isDark
-      ? 'bg-dark-100 border-zinc-700 text-white placeholder-zinc-500 focus:border-brand-500'
-      : 'bg-white border-slate-200 text-slate-900 placeholder-slate-400 focus:border-brand-500'
-  } focus:outline-none focus:ring-1 focus:ring-brand-500`;
-  const labelClass = `block text-sm font-medium mb-1.5 ${isDark ? 'text-slate-300' : 'text-slate-700'}`;
-  const selectClass = `${inputClass} appearance-none cursor-pointer`;
 
   // Column resize for list table
   const { colWidths: quoteColWidths, onMouseDown: onQuoteMouseDown } = useColumnResize({
@@ -450,6 +432,7 @@ export const QuoteBuilderPage: React.FC = () => {
       setDetailQuote(savedQuote);
       setViewMode('detail');
       setEditingQuoteId(null);
+      fetchQuotes();
     } catch (err: any) {
       setFormError(err.message || 'Failed to save quote');
     } finally {
@@ -533,122 +516,105 @@ export const QuoteBuilderPage: React.FC = () => {
       {/* Page header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className={`text-xl font-bold font-display ${isDark ? 'text-white' : 'text-slate-900'}`}>
+          <h1 className="text-xl font-bold font-display text-gray-900 dark:text-white">
             Quote Builder
           </h1>
-          <p className={`text-sm mt-0.5 ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>
+          <p className="text-sm mt-0.5 text-gray-500 dark:text-zinc-400">
             Create, manage, and send quotations to customers
           </p>
         </div>
       </div>
 
       {/* Toolbar */}
-      <div className={`${cardClass} p-4`}>
+      <Card padding="none" className="p-4">
         <div className="flex flex-col lg:flex-row lg:items-center gap-3">
           {/* Search */}
-          <div className="relative flex-1 min-w-0">
-            <Search className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${
-              isDark ? 'text-zinc-500' : 'text-slate-400'
-            }`} />
-            <input
-              type="text"
+          <div className="flex-1 min-w-0">
+            <Input
               placeholder="Search by customer name or quote number..."
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
-              className={`w-full pl-10 pr-4 py-2.5 rounded-xl border text-sm transition-all ${
-                isDark
-                  ? 'bg-dark-100 border-zinc-700 text-white placeholder-zinc-500 focus:border-brand-500'
-                  : 'bg-white border-slate-200 text-slate-900 placeholder-slate-400 focus:border-brand-500'
-              } focus:outline-none focus:ring-1 focus:ring-brand-500`}
+              icon={<Search className="w-4 h-4" />}
             />
           </div>
 
           {/* Filter: Status */}
           <div className="w-full lg:w-44">
-            <select
+            <Select
               value={filterStatus}
               onChange={e => setFilterStatus(e.target.value)}
-              className={selectClass}
             >
               <option value="">All Statuses</option>
               {QUOTE_STATUSES.map(s => (
                 <option key={s.value} value={s.value}>{s.label}</option>
               ))}
-            </select>
+            </Select>
           </div>
 
           {/* Clear Filters */}
           {hasActiveFilters && (
-            <button
+            <Button
+              variant="ghost"
+              size="md"
+              icon={<X className="w-3.5 h-3.5" />}
               onClick={clearFilters}
-              className={`flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${
-                isDark
-                  ? 'text-zinc-400 hover:text-white hover:bg-zinc-800'
-                  : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100'
-              }`}
             >
-              <X className="w-3.5 h-3.5" />
               Clear
-            </button>
+            </Button>
           )}
 
           {/* New Quote */}
-          <button
+          <Button
+            variant="primary"
+            icon={<Plus className="w-4 h-4" />}
             onClick={goToCreate}
-            className="flex items-center gap-2 px-4 py-2.5 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-sm font-medium transition-all btn-premium whitespace-nowrap"
+            shine
+            className="whitespace-nowrap"
           >
-            <Plus className="w-4 h-4" />
             New Quote
-          </button>
+          </Button>
         </div>
-      </div>
+      </Card>
 
       {/* Data Table */}
-      <div className={`${cardClass} overflow-hidden`}>
+      <Card padding="none" className="overflow-hidden">
         {tableError && (
-          <div className={`m-4 p-3 rounded-xl flex items-center gap-2 text-sm ${
-            isDark
-              ? 'bg-red-900/20 border border-red-800 text-red-400'
-              : 'bg-red-50 border border-red-200 text-red-700'
-          }`}>
-            <AlertCircle className="w-4 h-4 flex-shrink-0" />
-            {tableError}
+          <div className="m-4">
+            <Alert variant="error" icon={<AlertCircle className="w-4 h-4" />} onClose={() => setTableError('')}>
+              {tableError}
+            </Alert>
           </div>
         )}
 
         {isLoading ? (
           <div className="flex flex-col items-center justify-center py-20">
             <Loader2 className="w-8 h-8 text-brand-600 animate-spin" />
-            <p className={`mt-3 text-sm ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>
+            <p className="mt-3 text-sm text-gray-500 dark:text-zinc-400">
               Loading quotes...
             </p>
           </div>
         ) : quotes.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20">
-            <div className={`w-16 h-16 rounded-2xl flex items-center justify-center mb-4 ${
-              isDark ? 'bg-zinc-800' : 'bg-slate-100'
-            }`}>
-              <FileText className={`w-7 h-7 ${isDark ? 'text-zinc-600' : 'text-slate-300'}`} />
+            <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4 bg-gray-100 dark:bg-zinc-800">
+              <FileText className="w-7 h-7 text-gray-300 dark:text-zinc-600" />
             </div>
-            <p className={`text-sm font-medium ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>
+            <p className="text-sm font-medium text-gray-500 dark:text-zinc-400">
               {hasActiveFilters ? 'No quotes match your filters' : 'No quotes yet'}
             </p>
-            <p className={`text-xs mt-1 ${isDark ? 'text-zinc-600' : 'text-slate-400'}`}>
+            <p className="text-xs mt-1 text-gray-400 dark:text-zinc-500">
               {hasActiveFilters ? 'Try adjusting your filters' : 'Click "New Quote" to create one'}
             </p>
           </div>
         ) : (
           <>
             <div className="overflow-x-auto">
-              <table className="premium-table">
+              <table className="w-full text-sm">
                 <thead>
-                  <tr className={`border-b ${isDark ? 'border-zinc-800' : 'border-slate-100'}`}>
+                  <tr className="border-b border-gray-100 dark:border-zinc-800">
                     {['Quote #', 'Customer', 'Partner', 'Date', 'Amount', 'Status', 'Actions'].map((h, i) => (
                       <th
                         key={h}
-                        className={`px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider resizable-th ${
-                          isDark ? 'text-zinc-500' : 'text-slate-400'
-                        }`}
+                        className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400 resizable-th"
                         style={{ width: quoteColWidths[i] }}
                       >
                         {h}
@@ -662,110 +628,95 @@ export const QuoteBuilderPage: React.FC = () => {
                     <tr
                       key={quote.id}
                       onClick={() => goToDetail(quote.id)}
-                      className={`border-b transition-colors cursor-pointer ${
-                        isDark
-                          ? 'border-zinc-800/50 hover:bg-zinc-800/30'
-                          : 'border-slate-50 hover:bg-slate-50/80'
-                      }`}
+                      className="border-b transition-colors cursor-pointer border-gray-50 hover:bg-gray-50/80 dark:border-zinc-800/50 dark:hover:bg-zinc-800/30"
                     >
                       {/* Quote # */}
-                      <td className={`px-4 py-3 ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                      <td className="px-4 py-3 text-gray-900 dark:text-white">
                         <div className="flex items-center gap-2">
-                          <Hash className={`w-3.5 h-3.5 flex-shrink-0 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`} />
+                          <Hash className="w-3.5 h-3.5 flex-shrink-0 text-gray-400 dark:text-zinc-500" />
                           <span className="font-medium">{quote.quoteNumber || quote.id.slice(0, 8)}</span>
                         </div>
                       </td>
 
                       {/* Customer */}
-                      <td className={`px-4 py-3 ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
+                      <td className="px-4 py-3 text-gray-700 dark:text-gray-300">
                         <div className="flex items-center gap-2">
-                          <UserIcon className={`w-3.5 h-3.5 flex-shrink-0 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`} />
+                          <UserIcon className="w-3.5 h-3.5 flex-shrink-0 text-gray-400 dark:text-zinc-500" />
                           {quote.customerName}
                         </div>
                       </td>
 
                       {/* Partner */}
-                      <td className={`px-4 py-3 ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
+                      <td className="px-4 py-3 text-gray-700 dark:text-gray-300">
                         {quote.partnerName || '-'}
                       </td>
 
                       {/* Date */}
-                      <td className={`px-4 py-3 whitespace-nowrap ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
+                      <td className="px-4 py-3 whitespace-nowrap text-gray-700 dark:text-gray-300">
                         <div className="flex items-center gap-1.5">
-                          <Calendar className={`w-3.5 h-3.5 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`} />
+                          <Calendar className="w-3.5 h-3.5 text-gray-400 dark:text-zinc-500" />
                           {formatDate(quote.createdAt)}
                         </div>
                       </td>
 
                       {/* Amount */}
-                      <td className={`px-4 py-3 whitespace-nowrap font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                      <td className="px-4 py-3 whitespace-nowrap font-semibold text-gray-900 dark:text-white">
                         {formatINR(quote.totalAmount)}
                       </td>
 
                       {/* Status */}
                       <td className="px-4 py-3">
-                        <span className={statusBadge(quote.status, isDark)}>
+                        <Badge variant={STATUS_BADGE_VARIANT[quote.status]}>
                           {quote.status.charAt(0).toUpperCase() + quote.status.slice(1)}
-                        </span>
+                        </Badge>
                       </td>
 
                       {/* Actions */}
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
-                          <button
+                          <Button
+                            variant="ghost"
+                            size="xs"
+                            icon={<Eye className="w-4 h-4" />}
                             onClick={() => goToDetail(quote.id)}
                             title="View"
-                            className={`p-1.5 rounded-lg transition-colors ${
-                              isDark
-                                ? 'text-zinc-400 hover:text-brand-400 hover:bg-brand-900/20'
-                                : 'text-slate-400 hover:text-brand-600 hover:bg-brand-50'
-                            }`}
-                          >
-                            <Eye className="w-4 h-4" />
-                          </button>
-                          <button
+                            className="p-1.5"
+                          />
+                          <Button
+                            variant="ghost"
+                            size="xs"
+                            icon={<Edit2 className="w-4 h-4" />}
                             onClick={() => goToEdit(quote.id)}
                             title="Edit"
-                            className={`p-1.5 rounded-lg transition-colors ${
-                              isDark
-                                ? 'text-zinc-400 hover:text-brand-400 hover:bg-brand-900/20'
-                                : 'text-slate-400 hover:text-brand-600 hover:bg-brand-50'
-                            }`}
-                          >
-                            <Edit2 className="w-4 h-4" />
-                          </button>
+                            className="p-1.5"
+                          />
 
                           {deleteConfirmId === quote.id ? (
                             <div className="flex items-center gap-1">
-                              <button
+                              <Button
+                                variant="danger"
+                                size="xs"
                                 onClick={() => handleDelete(quote.id)}
-                                className="px-2 py-1 rounded-lg text-xs font-medium bg-red-600 text-white hover:bg-red-700 transition-colors"
                               >
                                 Confirm
-                              </button>
-                              <button
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="xs"
                                 onClick={() => setDeleteConfirmId(null)}
-                                className={`px-2 py-1 rounded-lg text-xs font-medium transition-colors ${
-                                  isDark
-                                    ? 'text-zinc-400 hover:bg-zinc-800'
-                                    : 'text-slate-500 hover:bg-slate-100'
-                                }`}
                               >
                                 Cancel
-                              </button>
+                              </Button>
                             </div>
                           ) : (
-                            <button
+                            <Button
+                              variant="ghost"
+                              size="xs"
+                              icon={<Trash2 className="w-4 h-4" />}
                               onClick={() => setDeleteConfirmId(quote.id)}
                               title="Delete"
-                              className={`p-1.5 rounded-lg transition-colors ${
-                                isDark
-                                  ? 'text-zinc-400 hover:text-red-400 hover:bg-red-900/20'
-                                  : 'text-slate-400 hover:text-red-600 hover:bg-red-50'
-                              }`}
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
+                              className="p-1.5 hover:text-red-600 dark:hover:text-red-400"
+                            />
                           )}
                         </div>
                       </td>
@@ -776,83 +727,18 @@ export const QuoteBuilderPage: React.FC = () => {
             </div>
 
             {/* Pagination */}
-            <div className={`flex flex-col sm:flex-row items-center justify-between gap-3 px-4 py-3 border-t ${
-              isDark ? 'border-zinc-800' : 'border-slate-100'
-            }`}>
-              <p className={`text-xs ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
-                Showing {(page - 1) * PAGE_SIZE + 1}
-                {' '}&ndash;{' '}
-                {Math.min(page * PAGE_SIZE, totalRecords)} of {totalRecords} quotes
-              </p>
-
-              <div className="flex items-center gap-1">
-                <button
-                  onClick={() => setPage(p => Math.max(1, p - 1))}
-                  disabled={page <= 1}
-                  className={`p-2 rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed ${
-                    isDark
-                      ? 'text-zinc-400 hover:text-white hover:bg-zinc-800'
-                      : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100'
-                  }`}
-                >
-                  <ChevronLeft className="w-4 h-4" />
-                </button>
-
-                {Array.from({ length: totalPages }, (_, i) => i + 1)
-                  .filter(p => {
-                    if (p === 1 || p === totalPages) return true;
-                    if (Math.abs(p - page) <= 1) return true;
-                    return false;
-                  })
-                  .reduce<(number | 'ellipsis')[]>((acc, p, idx, arr) => {
-                    if (idx > 0) {
-                      const prev = arr[idx - 1];
-                      if (p - prev > 1) acc.push('ellipsis');
-                    }
-                    acc.push(p);
-                    return acc;
-                  }, [])
-                  .map((item, idx) =>
-                    item === 'ellipsis' ? (
-                      <span
-                        key={`ellipsis-${idx}`}
-                        className={`px-1 text-xs ${isDark ? 'text-zinc-600' : 'text-slate-300'}`}
-                      >
-                        ...
-                      </span>
-                    ) : (
-                      <button
-                        key={item}
-                        onClick={() => setPage(item as number)}
-                        className={`min-w-[32px] h-8 rounded-lg text-xs font-medium transition-colors ${
-                          page === item
-                            ? 'bg-brand-600 text-white'
-                            : isDark
-                              ? 'text-zinc-400 hover:text-white hover:bg-zinc-800'
-                              : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100'
-                        }`}
-                      >
-                        {item}
-                      </button>
-                    )
-                  )}
-
-                <button
-                  onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                  disabled={page >= totalPages}
-                  className={`p-2 rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed ${
-                    isDark
-                      ? 'text-zinc-400 hover:text-white hover:bg-zinc-800'
-                      : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100'
-                  }`}
-                >
-                  <ChevronRight className="w-4 h-4" />
-                </button>
-              </div>
+            <div className="border-t border-gray-100 dark:border-zinc-800">
+              <Pagination
+                currentPage={page}
+                totalPages={totalPages}
+                totalItems={totalRecords}
+                pageSize={PAGE_SIZE}
+                onPageChange={setPage}
+              />
             </div>
           </>
         )}
-      </div>
+      </Card>
     </>
   );
 
@@ -869,21 +755,18 @@ export const QuoteBuilderPage: React.FC = () => {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <button
+            <Button
+              variant="ghost"
+              size="sm"
+              icon={<ArrowLeft className="w-5 h-5" />}
               onClick={goToList}
-              className={`p-2 rounded-lg transition-colors ${
-                isDark
-                  ? 'text-zinc-400 hover:text-white hover:bg-zinc-800'
-                  : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100'
-              }`}
-            >
-              <ArrowLeft className="w-5 h-5" />
-            </button>
+              className="p-2"
+            />
             <div>
-              <h1 className={`text-xl font-bold font-display ${isDark ? 'text-white' : 'text-slate-900'}`}>
+              <h1 className="text-xl font-bold font-display text-gray-900 dark:text-white">
                 {isEdit ? 'Edit Quote' : 'New Quote'}
               </h1>
-              <p className={`text-sm mt-0.5 ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>
+              <p className="text-sm mt-0.5 text-gray-500 dark:text-zinc-400">
                 {isEdit ? 'Update quotation details' : 'Build a new quotation for your customer'}
               </p>
             </div>
@@ -892,107 +775,85 @@ export const QuoteBuilderPage: React.FC = () => {
 
         {/* Form Error */}
         {formError && (
-          <div className={`p-3 rounded-xl flex items-center gap-2 text-sm ${
-            isDark
-              ? 'bg-red-900/20 border border-red-800 text-red-400'
-              : 'bg-red-50 border border-red-200 text-red-700'
-          }`}>
-            <AlertCircle className="w-4 h-4 flex-shrink-0" />
+          <Alert variant="error" icon={<AlertCircle className="w-4 h-4" />} onClose={() => setFormError('')}>
             {formError}
-          </div>
+          </Alert>
         )}
 
         {/* Quote Header Section */}
-        <div className={`${cardClass} p-6`}>
-          <h3 className={`text-sm font-semibold mb-4 flex items-center gap-2 ${isDark ? 'text-zinc-300' : 'text-slate-600'}`}>
+        <Card>
+          <h3 className="text-sm font-semibold mb-4 flex items-center gap-2 text-gray-600 dark:text-gray-300">
             <FileText className="w-4 h-4" />
             Quote Details
           </h3>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             {/* Partner */}
-            <div>
-              <label htmlFor="partnerId" className={labelClass}>Partner</label>
-              <select
-                id="partnerId"
-                name="partnerId"
-                value={formData.partnerId}
-                onChange={handleFormFieldChange}
-                className={selectClass}
-              >
-                <option value="">Select Partner (Optional)</option>
-                {partners.map(p => (
-                  <option key={p.id} value={p.id}>{p.companyName}</option>
-                ))}
-              </select>
-            </div>
+            <Select
+              label="Partner"
+              id="partnerId"
+              name="partnerId"
+              value={formData.partnerId}
+              onChange={handleFormFieldChange}
+            >
+              <option value="">Select Partner (Optional)</option>
+              {partners.map(p => (
+                <option key={p.id} value={p.id}>{p.companyName}</option>
+              ))}
+            </Select>
 
             {/* Customer Name */}
-            <div>
-              <label htmlFor="customerName" className={labelClass}>
-                Customer Name <span className="text-red-500">*</span>
-              </label>
-              <div className="relative">
-                <UserIcon className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`} />
-                <input
-                  id="customerName"
-                  name="customerName"
-                  type="text"
-                  placeholder="Enter customer name"
-                  value={formData.customerName}
-                  onChange={handleFormFieldChange}
-                  className={`${inputClass} pl-10`}
-                  required
-                />
-              </div>
-            </div>
+            <Input
+              label="Customer Name *"
+              id="customerName"
+              name="customerName"
+              type="text"
+              placeholder="Enter customer name"
+              value={formData.customerName}
+              onChange={handleFormFieldChange}
+              icon={<UserIcon className="w-4 h-4" />}
+              required
+            />
 
             {/* Valid Until */}
-            <div>
-              <label htmlFor="validUntil" className={labelClass}>Valid Until</label>
-              <div className="relative">
-                <Calendar className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`} />
-                <input
-                  id="validUntil"
-                  name="validUntil"
-                  type="date"
-                  value={formData.validUntil}
-                  onChange={handleFormFieldChange}
-                  className={`${inputClass} pl-10`}
-                />
-              </div>
-            </div>
+            <Input
+              label="Valid Until"
+              id="validUntil"
+              name="validUntil"
+              type="date"
+              value={formData.validUntil}
+              onChange={handleFormFieldChange}
+              icon={<Calendar className="w-4 h-4" />}
+            />
           </div>
-        </div>
+        </Card>
 
         {/* Line Items Section */}
-        <div className={`${cardClass} p-6`}>
+        <Card>
           <div className="flex items-center justify-between mb-4">
-            <h3 className={`text-sm font-semibold flex items-center gap-2 ${isDark ? 'text-zinc-300' : 'text-slate-600'}`}>
+            <h3 className="text-sm font-semibold flex items-center gap-2 text-gray-600 dark:text-gray-300">
               <Package className="w-4 h-4" />
               Line Items
             </h3>
-            <button
-              type="button"
+            <Button
+              variant="primary"
+              size="xs"
+              icon={<Plus className="w-3.5 h-3.5" />}
               onClick={addLineItem}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-brand-600 hover:bg-brand-700 text-white transition-colors"
             >
-              <Plus className="w-3.5 h-3.5" />
               Add Line Item
-            </button>
+            </Button>
           </div>
 
           {/* Line items table */}
           <div className="overflow-x-auto">
-            <table className="premium-table">
+            <table className="w-full text-sm">
               <thead>
-                <tr className={`border-b ${isDark ? 'border-zinc-800' : 'border-slate-100'}`}>
+                <tr className="border-b border-gray-100 dark:border-zinc-800">
                   {['#', 'Product', 'Description', 'Qty', 'Unit Price', 'Line Total', ''].map(h => (
                     <th
                       key={h}
-                      className={`px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider ${
-                        isDark ? 'text-zinc-500' : 'text-slate-400'
-                      }`}
+                      className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400"
                     >
                       {h}
                     </th>
@@ -1003,29 +864,25 @@ export const QuoteBuilderPage: React.FC = () => {
                 {formData.lineItems.map((item, idx) => (
                   <tr
                     key={idx}
-                    className={`border-b ${isDark ? 'border-zinc-800/50' : 'border-slate-50'}`}
+                    className="border-b border-gray-50 dark:border-zinc-800/50"
                   >
                     {/* Row number */}
-                    <td className={`px-3 py-2 text-center ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
+                    <td className="px-3 py-2 text-center text-gray-400 dark:text-zinc-500">
                       {idx + 1}
                     </td>
 
                     {/* Product */}
                     <td className="px-3 py-2">
-                      <select
+                      <Select
                         value={item.productId}
                         onChange={e => updateLineItem(idx, 'productId', e.target.value)}
-                        className={`w-full px-2 py-1.5 rounded-lg border text-xs transition-all ${
-                          isDark
-                            ? 'bg-dark-100 border-zinc-700 text-white focus:border-brand-500'
-                            : 'bg-white border-slate-200 text-slate-900 focus:border-brand-500'
-                        } focus:outline-none focus:ring-1 focus:ring-brand-500 appearance-none cursor-pointer`}
+                        className="text-xs py-1.5"
                       >
                         <option value="">Select product</option>
                         {products.filter(p => p.isActive).map(p => (
                           <option key={p.id} value={p.id}>{p.name}</option>
                         ))}
-                      </select>
+                      </Select>
                     </td>
 
                     {/* Description */}
@@ -1034,84 +891,69 @@ export const QuoteBuilderPage: React.FC = () => {
                         value={item.description}
                         onChange={(html) => updateLineItem(idx, 'description', html)}
                         placeholder="Enter description..."
-                        isDark={isDark}
                         minHeight="50px"
                       />
                     </td>
 
                     {/* Quantity */}
                     <td className="px-3 py-2">
-                      <input
+                      <Input
                         type="number"
-                        min="1"
-                        step="1"
+                        min={1}
+                        step={1}
                         value={item.quantity || ''}
                         onChange={e => updateLineItem(idx, 'quantity', Number(e.target.value) || 0)}
-                        className={`w-20 px-2 py-1.5 rounded-lg border text-xs text-right transition-all ${
-                          isDark
-                            ? 'bg-dark-100 border-zinc-700 text-white focus:border-brand-500'
-                            : 'bg-white border-slate-200 text-slate-900 focus:border-brand-500'
-                        } focus:outline-none focus:ring-1 focus:ring-brand-500`}
+                        className="w-20 text-xs text-right py-1.5"
                       />
                     </td>
 
                     {/* Unit Price */}
                     <td className="px-3 py-2">
-                      <input
+                      <Input
                         type="number"
-                        min="0"
-                        step="0.01"
+                        min={0}
+                        step={0.01}
                         value={item.unitPrice || ''}
                         onChange={e => updateLineItem(idx, 'unitPrice', Number(e.target.value) || 0)}
-                        className={`w-28 px-2 py-1.5 rounded-lg border text-xs text-right transition-all ${
-                          isDark
-                            ? 'bg-dark-100 border-zinc-700 text-white focus:border-brand-500'
-                            : 'bg-white border-slate-200 text-slate-900 focus:border-brand-500'
-                        } focus:outline-none focus:ring-1 focus:ring-brand-500`}
+                        className="w-28 text-xs text-right py-1.5"
                       />
                     </td>
 
                     {/* Line Total */}
-                    <td className={`px-3 py-2 text-right whitespace-nowrap font-semibold ${
-                      isDark ? 'text-white' : 'text-slate-900'
-                    }`}>
+                    <td className="px-3 py-2 text-right whitespace-nowrap font-semibold text-gray-900 dark:text-white">
                       {formatINR(item.lineTotal)}
                     </td>
 
                     {/* Remove button */}
                     <td className="px-3 py-2">
-                      <button
-                        type="button"
+                      <Button
+                        variant="ghost"
+                        size="xs"
+                        icon={<Trash2 className="w-3.5 h-3.5" />}
                         onClick={() => removeLineItem(idx)}
                         disabled={formData.lineItems.length <= 1}
                         title="Remove line item"
-                        className={`p-1 rounded-lg transition-colors disabled:opacity-20 disabled:cursor-not-allowed ${
-                          isDark
-                            ? 'text-zinc-500 hover:text-red-400 hover:bg-red-900/20'
-                            : 'text-slate-400 hover:text-red-600 hover:bg-red-50'
-                        }`}
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+                        className="p-1 hover:text-red-600 dark:hover:text-red-400"
+                      />
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
-        </div>
+        </Card>
 
         {/* Totals + Terms/Notes Section */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Terms & Notes */}
-          <div className={`${cardClass} p-6 space-y-4`}>
+          <Card className="space-y-4">
             <div>
-              <label className={labelClass}>Terms &amp; Conditions</label>
-              <div className={`rounded-xl border p-3 space-y-2 ${
-                isDark ? 'bg-dark-100 border-zinc-700' : 'bg-white border-slate-200'
-              }`}>
+              <label className="block text-sm font-medium mb-1.5 text-gray-700 dark:text-gray-300">
+                Terms &amp; Conditions
+              </label>
+              <div className="rounded-xl border p-3 space-y-2 bg-white border-gray-200 dark:bg-dark-100 dark:border-zinc-700">
                 {availableTerms.length === 0 && (
-                  <p className={`text-xs ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>No terms available. Add a custom term below.</p>
+                  <p className="text-xs text-gray-400 dark:text-zinc-500">No terms available. Add a custom term below.</p>
                 )}
                 {availableTerms.map(term => (
                   <div key={term.id} className="flex items-start gap-2">
@@ -1127,14 +969,16 @@ export const QuoteBuilderPage: React.FC = () => {
                             : [...prev.selectedTermIds, term.id],
                         }));
                       }}
-                      className="mt-1 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+                      className="mt-1 rounded border-gray-300 text-brand-600 focus:ring-brand-500"
                     />
-                    <label htmlFor={`term-${term.id}`} className={`text-sm flex-1 ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
+                    <label htmlFor={`term-${term.id}`} className="text-sm flex-1 text-gray-700 dark:text-gray-300">
                       {term.content}
                     </label>
                     {!term.isPredefined && (
-                      <button
-                        type="button"
+                      <Button
+                        variant="ghost"
+                        size="xs"
+                        icon={<X className="w-3.5 h-3.5" />}
                         onClick={async () => {
                           try {
                             await quoteTermsApi.delete(term.id);
@@ -1145,27 +989,20 @@ export const QuoteBuilderPage: React.FC = () => {
                             }));
                           } catch { /* ignore */ }
                         }}
-                        className={`p-0.5 rounded hover:bg-red-100 ${isDark ? 'text-zinc-500 hover:text-red-400 hover:bg-red-900/20' : 'text-slate-400 hover:text-red-500'}`}
                         title="Delete custom term"
-                      >
-                        <X className="w-3.5 h-3.5" />
-                      </button>
+                        className="p-0.5 hover:text-red-500 dark:hover:text-red-400"
+                      />
                     )}
                   </div>
                 ))}
 
                 {/* Add custom term */}
                 <div className="flex items-center gap-2 pt-1">
-                  <input
-                    type="text"
+                  <Input
                     value={newTermText}
                     onChange={e => setNewTermText(e.target.value)}
                     placeholder="Add a custom term..."
-                    className={`flex-1 px-2 py-1.5 rounded-lg border text-xs transition-all ${
-                      isDark
-                        ? 'bg-dark-200 border-zinc-600 text-white placeholder-zinc-500 focus:border-brand-500'
-                        : 'bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400 focus:border-brand-500'
-                    } focus:outline-none focus:ring-1 focus:ring-brand-500`}
+                    className="flex-1 text-xs py-1.5"
                     onKeyDown={async (e) => {
                       if (e.key === 'Enter' && newTermText.trim()) {
                         e.preventDefault();
@@ -1178,8 +1015,10 @@ export const QuoteBuilderPage: React.FC = () => {
                       }
                     }}
                   />
-                  <button
-                    type="button"
+                  <Button
+                    variant="primary"
+                    size="xs"
+                    icon={<Plus className="w-3 h-3" />}
                     onClick={async () => {
                       if (!newTermText.trim()) return;
                       try {
@@ -1189,31 +1028,27 @@ export const QuoteBuilderPage: React.FC = () => {
                         setNewTermText('');
                       } catch { /* ignore */ }
                     }}
-                    className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-brand-600 hover:bg-brand-700 text-white transition-colors"
                   >
-                    <Plus className="w-3 h-3" />
                     Add
-                  </button>
+                  </Button>
                 </div>
               </div>
             </div>
-            <div>
-              <label htmlFor="notes" className={labelClass}>Internal Notes</label>
-              <textarea
-                id="notes"
-                name="notes"
-                rows={3}
-                placeholder="Notes visible only to your team..."
-                value={formData.notes}
-                onChange={handleFormFieldChange}
-                className={`${inputClass} resize-none`}
-              />
-            </div>
-          </div>
+            <Textarea
+              label="Internal Notes"
+              id="notes"
+              name="notes"
+              rows={3}
+              placeholder="Notes visible only to your team..."
+              value={formData.notes}
+              onChange={handleFormFieldChange}
+              className="resize-none"
+            />
+          </Card>
 
           {/* Totals */}
-          <div className={`${cardClass} p-6`}>
-            <h3 className={`text-sm font-semibold mb-4 flex items-center gap-2 ${isDark ? 'text-zinc-300' : 'text-slate-600'}`}>
+          <Card>
+            <h3 className="text-sm font-semibold mb-4 flex items-center gap-2 text-gray-600 dark:text-gray-300">
               <IndianRupee className="w-4 h-4" />
               Totals
             </h3>
@@ -1221,122 +1056,100 @@ export const QuoteBuilderPage: React.FC = () => {
             <div className="space-y-3">
               {/* Subtotal */}
               <div className="flex items-center justify-between">
-                <span className={`text-sm ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>Subtotal</span>
-                <span className={`text-sm font-medium ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                <span className="text-sm text-gray-500 dark:text-zinc-400">Subtotal</span>
+                <span className="text-sm font-medium text-gray-900 dark:text-white">
                   {formatINR(subtotal)}
                 </span>
               </div>
 
               {/* Discount Amount */}
               <div className="flex items-center justify-between gap-4">
-                <span className={`text-sm ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>Discount Amount</span>
-                <input
+                <span className="text-sm text-gray-500 dark:text-zinc-400">Discount Amount</span>
+                <Input
                   type="number"
                   name="discountAmount"
-                  min="0"
-                  step="0.01"
+                  min={0}
+                  step={0.01}
                   value={formData.discountAmount || ''}
                   onChange={handleFormFieldChange}
-                  className={`w-36 px-3 py-1.5 rounded-lg border text-sm text-right transition-all ${
-                    isDark
-                      ? 'bg-dark-100 border-zinc-700 text-white focus:border-brand-500'
-                      : 'bg-white border-slate-200 text-slate-900 focus:border-brand-500'
-                  } focus:outline-none focus:ring-1 focus:ring-brand-500`}
+                  className="w-36 text-sm text-right py-1.5"
                 />
               </div>
 
               {/* Tax Rate */}
               <div className="flex items-center justify-between gap-4">
-                <span className={`text-sm ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>Tax Rate %</span>
-                <input
+                <span className="text-sm text-gray-500 dark:text-zinc-400">Tax Rate %</span>
+                <Input
                   type="number"
                   name="taxRate"
-                  min="0"
-                  max="100"
-                  step="0.1"
+                  min={0}
+                  max={100}
+                  step={0.1}
                   value={formData.taxRate || ''}
                   onChange={handleFormFieldChange}
-                  className={`w-36 px-3 py-1.5 rounded-lg border text-sm text-right transition-all ${
-                    isDark
-                      ? 'bg-dark-100 border-zinc-700 text-white focus:border-brand-500'
-                      : 'bg-white border-slate-200 text-slate-900 focus:border-brand-500'
-                  } focus:outline-none focus:ring-1 focus:ring-brand-500`}
+                  className="w-36 text-sm text-right py-1.5"
                 />
               </div>
 
               {/* Tax Amount */}
               <div className="flex items-center justify-between">
-                <span className={`text-sm ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>Tax Amount</span>
-                <span className={`text-sm font-medium ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                <span className="text-sm text-gray-500 dark:text-zinc-400">Tax Amount</span>
+                <span className="text-sm font-medium text-gray-900 dark:text-white">
                   {formatINR(taxAmount)}
                 </span>
               </div>
 
               {/* Separator */}
-              <div className={`border-t pt-3 ${isDark ? 'border-zinc-700' : 'border-slate-200'}`}>
+              <div className="border-t pt-3 border-gray-200 dark:border-zinc-700">
                 <div className="flex items-center justify-between">
-                  <span className={`text-base font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                  <span className="text-base font-bold text-gray-900 dark:text-white">
                     Total Amount
                   </span>
-                  <span className={`text-lg font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                  <span className="text-lg font-bold text-gray-900 dark:text-white">
                     {formatINR(totalAmount)}
                   </span>
                 </div>
               </div>
             </div>
-          </div>
+          </Card>
         </div>
 
         {/* Action Buttons */}
-        <div className={`${cardClass} p-4`}>
+        <Card padding="none" className="p-4">
           <div className="flex items-center justify-between">
-            <button
-              type="button"
+            <Button
+              variant="ghost"
+              icon={<ArrowLeft className="w-4 h-4" />}
               onClick={goToList}
               disabled={isSubmitting}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-colors ${
-                isDark
-                  ? 'text-zinc-400 hover:text-white hover:bg-zinc-800'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-              } disabled:opacity-50`}
             >
-              <ArrowLeft className="w-4 h-4" />
               Cancel
-            </button>
+            </Button>
 
             <div className="flex items-center gap-3">
-              <button
-                type="button"
+              <Button
+                variant="secondary"
+                icon={<FileText className="w-4 h-4" />}
                 onClick={() => handleSave(false)}
                 disabled={isSubmitting}
-                className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium transition-all disabled:opacity-50 ${
-                  isDark
-                    ? 'bg-zinc-800 hover:bg-zinc-700 text-white border border-zinc-700'
-                    : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200'
-                }`}
+                loading={isSubmitting}
               >
-                {isSubmitting ? (
-                  <><Loader2 className="w-4 h-4 animate-spin" /> Saving...</>
-                ) : (
-                  <><FileText className="w-4 h-4" /> Save as Draft</>
-                )}
-              </button>
+                {isSubmitting ? 'Saving...' : 'Save as Draft'}
+              </Button>
 
-              <button
-                type="button"
+              <Button
+                variant="primary"
+                icon={<Send className="w-4 h-4" />}
                 onClick={() => handleSave(true)}
                 disabled={isSubmitting}
-                className="flex items-center gap-2 px-5 py-2.5 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-sm font-medium transition-all btn-premium disabled:opacity-50"
+                loading={isSubmitting}
+                shine
               >
-                {isSubmitting ? (
-                  <><Loader2 className="w-4 h-4 animate-spin" /> Sending...</>
-                ) : (
-                  <><Send className="w-4 h-4" /> Save &amp; Send</>
-                )}
-              </button>
+                {isSubmitting ? 'Sending...' : 'Save & Send'}
+              </Button>
             </div>
           </div>
-        </div>
+        </Card>
       </>
     );
   };
@@ -1350,7 +1163,7 @@ export const QuoteBuilderPage: React.FC = () => {
       return (
         <div className="flex flex-col items-center justify-center py-20">
           <Loader2 className="w-8 h-8 text-brand-600 animate-spin" />
-          <p className={`mt-3 text-sm ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>
+          <p className="mt-3 text-sm text-gray-500 dark:text-zinc-400">
             Loading quote...
           </p>
         </div>
@@ -1360,17 +1173,18 @@ export const QuoteBuilderPage: React.FC = () => {
     if (!detailQuote) {
       return (
         <div className="flex flex-col items-center justify-center py-20">
-          <AlertCircle className={`w-8 h-8 ${isDark ? 'text-zinc-600' : 'text-slate-300'}`} />
-          <p className={`mt-3 text-sm ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>
+          <AlertCircle className="w-8 h-8 text-gray-300 dark:text-zinc-600" />
+          <p className="mt-3 text-sm text-gray-500 dark:text-zinc-400">
             Quote not found
           </p>
-          <button
+          <Button
+            variant="primary"
+            icon={<ArrowLeft className="w-4 h-4" />}
             onClick={goToList}
-            className="mt-4 flex items-center gap-2 px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-sm font-medium transition-all"
+            className="mt-4"
           >
-            <ArrowLeft className="w-4 h-4" />
             Back to Quotes
-          </button>
+          </Button>
         </div>
       );
     }
@@ -1382,26 +1196,23 @@ export const QuoteBuilderPage: React.FC = () => {
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <button
+            <Button
+              variant="ghost"
+              size="sm"
+              icon={<ArrowLeft className="w-5 h-5" />}
               onClick={goToList}
-              className={`p-2 rounded-lg transition-colors ${
-                isDark
-                  ? 'text-zinc-400 hover:text-white hover:bg-zinc-800'
-                  : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100'
-              }`}
-            >
-              <ArrowLeft className="w-5 h-5" />
-            </button>
+              className="p-2"
+            />
             <div>
               <div className="flex items-center gap-3">
-                <h1 className={`text-xl font-bold font-display ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                <h1 className="text-xl font-bold font-display text-gray-900 dark:text-white">
                   {q.quoteNumber || `Quote #${q.id.slice(0, 8)}`}
                 </h1>
-                <span className={statusBadge(q.status, isDark)}>
+                <Badge variant={STATUS_BADGE_VARIANT[q.status]}>
                   {q.status.charAt(0).toUpperCase() + q.status.slice(1)}
-                </span>
+                </Badge>
               </div>
-              <p className={`text-sm mt-0.5 ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>
+              <p className="text-sm mt-0.5 text-gray-500 dark:text-zinc-400">
                 Created {formatDate(q.createdAt)}
                 {q.validUntil && ` \u00B7 Valid until ${formatDate(q.validUntil)}`}
               </p>
@@ -1410,148 +1221,122 @@ export const QuoteBuilderPage: React.FC = () => {
 
           <div className="flex items-center gap-2 flex-shrink-0">
             {/* Edit button */}
-            <button
+            <Button
+              variant="secondary"
+              icon={<Edit2 className="w-4 h-4" />}
               onClick={() => goToEdit(q.id)}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-colors ${
-                isDark
-                  ? 'bg-zinc-800 hover:bg-zinc-700 text-white border border-zinc-700'
-                  : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200'
-              }`}
             >
-              <Edit2 className="w-4 h-4" />
               Edit
-            </button>
+            </Button>
 
             {/* Download PDF */}
-            <button
+            <Button
+              variant="success"
+              icon={<Download className="w-4 h-4" />}
               onClick={() => handleDownloadPDF(false)}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-colors ${
-                isDark
-                  ? 'bg-emerald-900/30 hover:bg-emerald-900/50 text-emerald-400 border border-emerald-800'
-                  : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200'
-              }`}
             >
-              <Download className="w-4 h-4" />
               {q.pdfUrl ? 'Download PDF' : 'Generate PDF'}
-            </button>
+            </Button>
 
             {q.pdfUrl && (
-              <button
+              <Button
+                variant="secondary"
+                icon={<FileText className="w-4 h-4" />}
                 onClick={() => handleDownloadPDF(true)}
-                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-colors ${
-                  isDark
-                    ? 'text-zinc-400 hover:text-white hover:bg-zinc-800 border border-zinc-700'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100 border border-slate-200'
-                }`}
               >
-                <FileText className="w-4 h-4" />
                 Regenerate PDF
-              </button>
+              </Button>
             )}
 
             {/* Delete */}
             {deleteConfirmId === q.id ? (
               <div className="flex items-center gap-2">
-                <button
+                <Button
+                  variant="danger"
                   onClick={() => handleDelete(q.id)}
-                  className="px-4 py-2.5 rounded-xl text-sm font-medium bg-red-600 text-white hover:bg-red-700 transition-colors"
                 >
                   Confirm Delete
-                </button>
-                <button
+                </Button>
+                <Button
+                  variant="ghost"
                   onClick={() => setDeleteConfirmId(null)}
-                  className={`px-4 py-2.5 rounded-xl text-sm font-medium transition-colors ${
-                    isDark ? 'text-zinc-400 hover:bg-zinc-800' : 'text-slate-500 hover:bg-slate-100'
-                  }`}
                 >
                   Cancel
-                </button>
+                </Button>
               </div>
             ) : (
-              <button
+              <Button
+                variant="outline"
+                icon={<Trash2 className="w-4 h-4" />}
                 onClick={() => setDeleteConfirmId(q.id)}
-                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-colors ${
-                  isDark
-                    ? 'text-red-400 hover:bg-red-900/20 border border-zinc-700'
-                    : 'text-red-600 hover:bg-red-50 border border-slate-200'
-                }`}
+                className="text-red-600 border-red-300 hover:bg-red-50 dark:text-red-400 dark:border-zinc-700 dark:hover:bg-red-900/20"
               >
-                <Trash2 className="w-4 h-4" />
                 Delete
-              </button>
+              </Button>
             )}
           </div>
         </div>
 
         {/* Status Actions */}
         {(q.status === 'draft' || q.status === 'sent') && (
-          <div className={`${cardClass} p-4`}>
+          <Card padding="none" className="p-4">
             <div className="flex flex-wrap items-center gap-3">
-              <span className={`text-sm font-medium ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>
+              <span className="text-sm font-medium text-gray-500 dark:text-zinc-400">
                 Actions:
               </span>
 
               {q.status === 'draft' && (
-                <button
+                <Button
+                  variant="primary"
+                  icon={isStatusUpdating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
                   onClick={() => handleStatusUpdate('sent')}
                   disabled={isStatusUpdating}
-                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-medium transition-all btn-premium disabled:opacity-50"
+                  shine
+                  className="bg-blue-600 hover:bg-blue-700"
                 >
-                  {isStatusUpdating ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <Send className="w-4 h-4" />
-                  )}
                   Mark as Sent
-                </button>
+                </Button>
               )}
 
               {q.status === 'sent' && (
                 <>
-                  <button
+                  <Button
+                    variant="success"
+                    icon={isStatusUpdating ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
                     onClick={() => handleStatusUpdate('accepted')}
                     disabled={isStatusUpdating}
-                    className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-medium transition-all btn-premium disabled:opacity-50"
+                    shine
                   >
-                    {isStatusUpdating ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : (
-                      <CheckCircle className="w-4 h-4" />
-                    )}
                     Mark as Accepted
-                  </button>
-                  <button
+                  </Button>
+                  <Button
+                    variant="danger"
+                    icon={isStatusUpdating ? <Loader2 className="w-4 h-4 animate-spin" /> : <X className="w-4 h-4" />}
                     onClick={() => handleStatusUpdate('rejected')}
                     disabled={isStatusUpdating}
-                    className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl text-sm font-medium transition-all disabled:opacity-50"
                   >
-                    {isStatusUpdating ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : (
-                      <X className="w-4 h-4" />
-                    )}
                     Mark as Rejected
-                  </button>
+                  </Button>
                 </>
               )}
             </div>
-          </div>
+          </Card>
         )}
 
         {/* Quote Info Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Left: Customer & Partner Info */}
-          <div className={`${cardClass} p-6 lg:col-span-1`}>
-            <h3 className={`text-xs font-semibold uppercase tracking-wider mb-4 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
+          <Card className="lg:col-span-1">
+            <h3 className="text-xs font-semibold uppercase tracking-wider mb-4 text-gray-500 dark:text-zinc-400">
               Quote Information
             </h3>
 
             <div className="space-y-4">
               <div>
-                <p className={`text-xs ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Customer</p>
+                <p className="text-xs text-gray-400 dark:text-zinc-500">Customer</p>
                 <div className="flex items-center gap-2 mt-1">
-                  <UserIcon className={`w-4 h-4 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`} />
-                  <p className={`text-sm font-medium ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                  <UserIcon className="w-4 h-4 text-gray-400 dark:text-zinc-500" />
+                  <p className="text-sm font-medium text-gray-900 dark:text-white">
                     {q.customerName}
                   </p>
                 </div>
@@ -1559,10 +1344,10 @@ export const QuoteBuilderPage: React.FC = () => {
 
               {q.partnerName && (
                 <div>
-                  <p className={`text-xs ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Partner</p>
+                  <p className="text-xs text-gray-400 dark:text-zinc-500">Partner</p>
                   <div className="flex items-center gap-2 mt-1">
-                    <Building2 className={`w-4 h-4 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`} />
-                    <p className={`text-sm font-medium ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                    <Building2 className="w-4 h-4 text-gray-400 dark:text-zinc-500" />
+                    <p className="text-sm font-medium text-gray-900 dark:text-white">
                       {q.partnerName}
                     </p>
                   </div>
@@ -1570,23 +1355,23 @@ export const QuoteBuilderPage: React.FC = () => {
               )}
 
               <div>
-                <p className={`text-xs ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Quote Number</p>
-                <p className={`text-sm font-medium mt-1 ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                <p className="text-xs text-gray-400 dark:text-zinc-500">Quote Number</p>
+                <p className="text-sm font-medium mt-1 text-gray-900 dark:text-white">
                   {q.quoteNumber || '-'}
                 </p>
               </div>
 
               <div>
-                <p className={`text-xs ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Created</p>
-                <p className={`text-sm mt-1 ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
+                <p className="text-xs text-gray-400 dark:text-zinc-500">Created</p>
+                <p className="text-sm mt-1 text-gray-700 dark:text-gray-300">
                   {formatDateTime(q.createdAt)}
                 </p>
               </div>
 
               {q.validUntil && (
                 <div>
-                  <p className={`text-xs ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Valid Until</p>
-                  <p className={`text-sm mt-1 ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
+                  <p className="text-xs text-gray-400 dark:text-zinc-500">Valid Until</p>
+                  <p className="text-sm mt-1 text-gray-700 dark:text-gray-300">
                     {formatDate(q.validUntil)}
                   </p>
                 </div>
@@ -1594,35 +1379,33 @@ export const QuoteBuilderPage: React.FC = () => {
 
               {q.updatedAt && (
                 <div>
-                  <p className={`text-xs ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Last Updated</p>
-                  <p className={`text-sm mt-1 ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
+                  <p className="text-xs text-gray-400 dark:text-zinc-500">Last Updated</p>
+                  <p className="text-sm mt-1 text-gray-700 dark:text-gray-300">
                     {formatDateTime(q.updatedAt)}
                   </p>
                 </div>
               )}
             </div>
-          </div>
+          </Card>
 
           {/* Right: Line items + Totals */}
           <div className="lg:col-span-2 space-y-6">
             {/* Line Items Table */}
-            <div className={`${cardClass} overflow-hidden`}>
-              <div className={`px-6 py-4 border-b ${isDark ? 'border-zinc-800' : 'border-slate-100'}`}>
-                <h3 className={`text-xs font-semibold uppercase tracking-wider ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
+            <Card padding="none" className="overflow-hidden">
+              <div className="px-6 py-4 border-b border-gray-100 dark:border-zinc-800">
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400">
                   Line Items
                 </h3>
               </div>
 
               <div className="overflow-x-auto">
-                <table className="premium-table">
+                <table className="w-full text-sm">
                   <thead>
-                    <tr className={`border-b ${isDark ? 'border-zinc-800' : 'border-slate-100'}`}>
+                    <tr className="border-b border-gray-100 dark:border-zinc-800">
                       {['#', 'Product / Description', 'Qty', 'Unit Price', 'Total'].map(h => (
                         <th
                           key={h}
-                          className={`px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider ${
-                            isDark ? 'text-zinc-500' : 'text-slate-400'
-                          }`}
+                          className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400"
                         >
                           {h}
                         </th>
@@ -1633,27 +1416,27 @@ export const QuoteBuilderPage: React.FC = () => {
                     {(q.lineItems || []).map((li, idx) => (
                       <tr
                         key={li.id || idx}
-                        className={`border-b ${isDark ? 'border-zinc-800/50' : 'border-slate-50'}`}
+                        className="border-b border-gray-50 dark:border-zinc-800/50"
                       >
-                        <td className={`px-4 py-3 text-center ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
+                        <td className="px-4 py-3 text-center text-gray-400 dark:text-zinc-500">
                           {idx + 1}
                         </td>
-                        <td className={`px-4 py-3 ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                        <td className="px-4 py-3 text-gray-900 dark:text-white">
                           <p className="font-medium">{li.productName || '-'}</p>
                           {li.description && li.description !== li.productName && (
                             <div
-                              className={`text-xs mt-0.5 ${isDark ? 'text-zinc-400' : 'text-slate-500'} [&_strong]:font-semibold [&_em]:italic [&_ul]:list-disc [&_ul]:pl-4 [&_ol]:list-decimal [&_ol]:pl-4`}
+                              className="text-xs mt-0.5 text-gray-500 dark:text-zinc-400 [&_strong]:font-semibold [&_em]:italic [&_ul]:list-disc [&_ul]:pl-4 [&_ol]:list-decimal [&_ol]:pl-4"
                               dangerouslySetInnerHTML={{ __html: li.description }}
                             />
                           )}
                         </td>
-                        <td className={`px-4 py-3 text-center ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
+                        <td className="px-4 py-3 text-center text-gray-700 dark:text-gray-300">
                           {li.quantity}
                         </td>
-                        <td className={`px-4 py-3 text-right whitespace-nowrap ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
+                        <td className="px-4 py-3 text-right whitespace-nowrap text-gray-700 dark:text-gray-300">
                           {formatINR(li.unitPrice)}
                         </td>
-                        <td className={`px-4 py-3 text-right whitespace-nowrap font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                        <td className="px-4 py-3 text-right whitespace-nowrap font-semibold text-gray-900 dark:text-white">
                           {formatINR(li.lineTotal)}
                         </td>
                       </tr>
@@ -1661,7 +1444,7 @@ export const QuoteBuilderPage: React.FC = () => {
 
                     {(!q.lineItems || q.lineItems.length === 0) && (
                       <tr>
-                        <td colSpan={5} className={`px-4 py-8 text-center ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
+                        <td colSpan={5} className="px-4 py-8 text-center text-gray-400 dark:text-zinc-500">
                           No line items
                         </td>
                       </tr>
@@ -1671,70 +1454,70 @@ export const QuoteBuilderPage: React.FC = () => {
               </div>
 
               {/* Totals Summary */}
-              <div className={`px-6 py-4 border-t ${isDark ? 'border-zinc-800' : 'border-slate-100'}`}>
+              <div className="px-6 py-4 border-t border-gray-100 dark:border-zinc-800">
                 <div className="flex justify-end">
                   <div className="w-64 space-y-2">
                     <div className="flex items-center justify-between">
-                      <span className={`text-sm ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>Subtotal</span>
-                      <span className={`text-sm font-medium ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                      <span className="text-sm text-gray-500 dark:text-zinc-400">Subtotal</span>
+                      <span className="text-sm font-medium text-gray-900 dark:text-white">
                         {formatINR(q.subtotal)}
                       </span>
                     </div>
 
                     {q.discountAmount > 0 && (
                       <div className="flex items-center justify-between">
-                        <span className={`text-sm ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>Discount</span>
-                        <span className={`text-sm font-medium ${isDark ? 'text-red-400' : 'text-red-600'}`}>
+                        <span className="text-sm text-gray-500 dark:text-zinc-400">Discount</span>
+                        <span className="text-sm font-medium text-red-600 dark:text-red-400">
                           -{formatINR(q.discountAmount)}
                         </span>
                       </div>
                     )}
 
                     <div className="flex items-center justify-between">
-                      <span className={`text-sm ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>
+                      <span className="text-sm text-gray-500 dark:text-zinc-400">
                         Tax ({q.taxRate}%)
                       </span>
-                      <span className={`text-sm font-medium ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                      <span className="text-sm font-medium text-gray-900 dark:text-white">
                         {formatINR(q.taxAmount)}
                       </span>
                     </div>
 
-                    <div className={`flex items-center justify-between pt-2 border-t ${isDark ? 'border-zinc-700' : 'border-slate-200'}`}>
-                      <span className={`text-base font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                    <div className="flex items-center justify-between pt-2 border-t border-gray-200 dark:border-zinc-700">
+                      <span className="text-base font-bold text-gray-900 dark:text-white">
                         Total
                       </span>
-                      <span className={`text-lg font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                      <span className="text-lg font-bold text-gray-900 dark:text-white">
                         {formatINR(q.totalAmount)}
                       </span>
                     </div>
                   </div>
                 </div>
               </div>
-            </div>
+            </Card>
 
             {/* Terms & Notes */}
             {(q.terms || q.notes) && (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 {q.terms && (
-                  <div className={`${cardClass} p-6`}>
-                    <h4 className={`text-xs font-semibold uppercase tracking-wider mb-2 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
+                  <Card>
+                    <h4 className="text-xs font-semibold uppercase tracking-wider mb-2 text-gray-500 dark:text-zinc-400">
                       Terms &amp; Conditions
                     </h4>
-                    <p className={`text-sm whitespace-pre-wrap ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
+                    <p className="text-sm whitespace-pre-wrap text-gray-700 dark:text-gray-300">
                       {q.terms}
                     </p>
-                  </div>
+                  </Card>
                 )}
 
                 {q.notes && (
-                  <div className={`${cardClass} p-6`}>
-                    <h4 className={`text-xs font-semibold uppercase tracking-wider mb-2 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
+                  <Card>
+                    <h4 className="text-xs font-semibold uppercase tracking-wider mb-2 text-gray-500 dark:text-zinc-400">
                       Notes
                     </h4>
-                    <p className={`text-sm whitespace-pre-wrap ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
+                    <p className="text-sm whitespace-pre-wrap text-gray-700 dark:text-gray-300">
                       {q.notes}
                     </p>
-                  </div>
+                  </Card>
                 )}
               </div>
             )}

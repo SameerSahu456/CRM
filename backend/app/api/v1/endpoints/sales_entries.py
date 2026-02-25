@@ -138,6 +138,18 @@ async def sales_collections(
     )
 
 
+@router.get("/{entry_id}", response_model=Dict[str, Any])
+async def get_sales_entry(
+    entry_id: str,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> Dict[str, Any]:
+    """Get a single sales entry by ID."""
+    service = SalesEntryService(db)
+    entry = await service.get_sales_entry_by_id(entry_id=entry_id, user=user)
+    return success_response(data=entry, message="Sales entry retrieved successfully")
+
+
 @router.post("/", response_model=Dict[str, Any])
 async def create_sales_entry(
     body: SalesEntryCreate,

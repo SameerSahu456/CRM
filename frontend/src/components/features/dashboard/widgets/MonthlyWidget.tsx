@@ -6,7 +6,9 @@ import { WidgetProps, MonthlyStat } from '@/types';
 import { useDashboardData } from '@/contexts/DashboardDataContext';
 import { formatCompact, pctChange } from '@/utils/dashboard';
 
-export const MonthlyWidget: React.FC<WidgetProps> = ({ isDark, navigate, onDetailClick }) => {
+export const MonthlyWidget: React.FC<WidgetProps> = ({ navigate, onDetailClick }) => {
+  const isDark = document.documentElement.classList.contains('dark');
+
   const { data: all } = useDashboardData();
   const monthly: MonthlyStat[] = Array.isArray(all?.monthlyStats) ? all.monthlyStats : [];
 
@@ -18,38 +20,37 @@ export const MonthlyWidget: React.FC<WidgetProps> = ({ isDark, navigate, onDetai
   const totalMonthlyDeals = monthly.reduce((s, m) => s + m.count, 0);
   const monthlyChange = monthly.length >= 2 ? pctChange(monthly[monthly.length - 1].revenue, monthly[monthly.length - 2].revenue) : 0;
 
-  const thClass = `text-[10px] font-semibold uppercase tracking-wider ${isDark ? 'text-zinc-500' : 'text-slate-400'}`;
-  const tdClass = `text-xs ${isDark ? 'text-zinc-300' : 'text-slate-700'}`;
-  const tdBold = `text-xs font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`;
-  const rowBorder = isDark ? 'border-zinc-800/50' : 'border-slate-100';
+  const thClass = 'text-[10px] font-semibold uppercase tracking-wider text-slate-400 dark:text-zinc-500';
+  const tdClass = 'text-xs text-slate-700 dark:text-zinc-300';
+  const tdBold = 'text-xs font-semibold text-slate-900 dark:text-white';
+  const rowBorder = 'border-slate-100 dark:border-zinc-800/50';
 
   return (
     <AnalyticsCard
       icon={<Calendar className="w-4 h-4" />}
-      iconBg={isDark ? 'bg-green-900/30' : 'bg-green-50'}
-      iconColor={isDark ? 'text-green-400' : 'text-green-600'}
+      iconBg="bg-green-50 dark:bg-green-900/30"
+      iconColor="text-green-600 dark:text-green-400"
       title="Monthly"
-      titleColor={isDark ? 'text-green-400' : 'text-green-700'}
+      titleColor="text-green-700 dark:text-green-400"
       subtitle="Last 6 Months"
       badge={monthlyChange !== 0 ? { value: monthlyChange } : undefined}
-      isDark={isDark}
       onClick={() => onDetailClick?.()}
     >
       {/* Big metric */}
       <div className="flex items-baseline justify-between mb-3">
         <div>
-          <p className={`text-2xl font-bold tracking-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>
+          <p className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
             {formatCompact(totalMonthlyRevenue)}
           </p>
-          <p className={`text-[10px] uppercase tracking-wider mt-0.5 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
+          <p className="text-[10px] uppercase tracking-wider mt-0.5 text-slate-400 dark:text-zinc-500">
             Total Revenue
           </p>
         </div>
         <div className="text-right">
-          <p className={`text-lg font-bold ${isDark ? 'text-green-400' : 'text-green-600'}`}>
+          <p className="text-lg font-bold text-green-600 dark:text-green-400">
             {totalMonthlyDeals.toLocaleString()}
           </p>
-          <p className={`text-[10px] uppercase tracking-wider ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Deals</p>
+          <p className="text-[10px] uppercase tracking-wider text-slate-400 dark:text-zinc-500">Deals</p>
         </div>
       </div>
 
@@ -66,8 +67,8 @@ export const MonthlyWidget: React.FC<WidgetProps> = ({ isDark, navigate, onDetai
 
       {/* Table */}
       {monthlyWithChange.length === 0 ? (
-        <div className={`h-24 flex items-center justify-center rounded-xl ${isDark ? 'bg-zinc-900/50' : 'bg-slate-50'}`}>
-          <p className={`text-xs ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>No monthly data</p>
+        <div className="h-24 flex items-center justify-center rounded-xl bg-slate-50 dark:bg-zinc-900/50">
+          <p className="text-xs text-slate-400 dark:text-zinc-500">No monthly data</p>
         </div>
       ) : (
         <div className="max-h-[200px] overflow-y-auto">
@@ -87,7 +88,7 @@ export const MonthlyWidget: React.FC<WidgetProps> = ({ isDark, navigate, onDetai
                   <td className={`${tdBold} py-2 text-right`}>{formatCompact(m.revenue)}</td>
                   <td className="py-2 text-right">
                     {i > 0 && (
-                      <span className={`text-[10px] font-semibold ${m.change >= 0 ? (isDark ? 'text-emerald-400' : 'text-emerald-600') : (isDark ? 'text-red-400' : 'text-red-600')}`}>
+                      <span className={`text-[10px] font-semibold ${m.change >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
                         {m.change >= 0 ? '+' : ''}{m.change}%
                       </span>
                     )}

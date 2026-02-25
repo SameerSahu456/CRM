@@ -72,18 +72,18 @@ class MasterDataService:
     async def _get_dropdowns(self, entity: str) -> List[Dict]:
         """Get dropdown items for a specific entity."""
         try:
-            result = await self.db.execute(
-                text(
-                    "SELECT id, entity, value, label, sort_order, is_active, metadata "
-                    "FROM master_dropdowns "
-                    "WHERE entity = :entity AND is_active = TRUE "
-                    "ORDER BY sort_order"
-                ),
-                {"entity": entity},
-            )
-            rows = result.mappings().all()
+            async with self.db.begin_nested():
+                result = await self.db.execute(
+                    text(
+                        "SELECT id, entity, value, label, sort_order, is_active, metadata "
+                        "FROM master_dropdowns "
+                        "WHERE entity = :entity AND is_active = TRUE "
+                        "ORDER BY sort_order"
+                    ),
+                    {"entity": entity},
+                )
+                rows = result.mappings().all()
         except Exception:
-            await self.db.rollback()
             await self._ensure_table_and_seed()
             result = await self.db.execute(
                 text(
@@ -198,23 +198,23 @@ class MasterDataService:
             Dictionary with entity names as keys and lists of dropdown items as values
         """
         try:
-            # Clean up obsolete stages
-            await self.db.execute(text(
-                "DELETE FROM master_dropdowns "
-                "WHERE entity = 'deal-stages' AND value = 'Need Analysis'"
-            ))
-            result = await self.db.execute(
-                text(
-                    "SELECT id, entity, value, label, sort_order, is_active, metadata "
-                    "FROM master_dropdowns "
-                    "WHERE is_active = TRUE "
-                    "ORDER BY entity, sort_order"
+            async with self.db.begin_nested():
+                # Clean up obsolete stages
+                await self.db.execute(text(
+                    "DELETE FROM master_dropdowns "
+                    "WHERE entity = 'deal-stages' AND value = 'Need Analysis'"
+                ))
+                result = await self.db.execute(
+                    text(
+                        "SELECT id, entity, value, label, sort_order, is_active, metadata "
+                        "FROM master_dropdowns "
+                        "WHERE is_active = TRUE "
+                        "ORDER BY entity, sort_order"
+                    )
                 )
-            )
-            rows = result.mappings().all()
+                rows = result.mappings().all()
         except Exception:
             # Table likely doesn't exist — create and seed it
-            await self.db.rollback()
             await self._ensure_table_and_seed()
             result = await self.db.execute(
                 text(

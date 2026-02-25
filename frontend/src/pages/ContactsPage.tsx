@@ -1,12 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
-  Plus, Search, X, ChevronLeft, ChevronRight, Edit2, Trash2,
+  Plus, Search, X, Edit2, Trash2,
   Loader2, AlertCircle, CheckCircle, Building2,
   Phone, Mail, Briefcase, User as UserIcon,
   Smartphone, Users,
   Download, Upload
 } from 'lucide-react';
-import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigation } from '@/contexts/NavigationContext';
 import { useDropdowns } from '@/contexts/DropdownsContext';
@@ -15,6 +14,8 @@ import { exportToCsv } from '@/utils/exportCsv';
 import { Contact, Account, PaginatedResponse } from '@/types';
 import { BulkImportModal } from '@/components/common/BulkImportModal';
 import { useColumnResize } from '@/hooks/useColumnResize';
+import { Card, Button, Input, Select, Modal, Alert, Pagination, Textarea } from '@/components/ui';
+import { cx } from '@/utils/cx';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -79,11 +80,9 @@ function formatDate(dateStr?: string): string {
 // ---------------------------------------------------------------------------
 
 export const ContactsPage: React.FC = () => {
-  const { theme } = useTheme();
   const { user } = useAuth();
   const { setActiveTab: navigate, consumeNavParams } = useNavigation();
   const { getValues } = useDropdowns();
-  const isDark = theme === 'dark';
 
   // Dropdown data from DB
   const CONTACT_TYPES = getValues('contact-types');
@@ -128,15 +127,6 @@ export const ContactsPage: React.FC = () => {
   const { colWidths, onMouseDown } = useColumnResize({
     initialWidths: [45, 200, 240, 150, 170, 200],
   });
-
-  const cardClass = `premium-card ${isDark ? '' : 'shadow-soft'}`;
-  const inputClass = `w-full px-3 py-2.5 rounded-xl border text-sm transition-all ${
-    isDark
-      ? 'bg-dark-100 border-zinc-700 text-white placeholder-zinc-500 focus:border-brand-500'
-      : 'bg-white border-slate-200 text-slate-900 placeholder-slate-400 focus:border-brand-500'
-  } focus:outline-none focus:ring-1 focus:ring-brand-500`;
-  const labelClass = `block text-sm font-medium mb-1.5 ${isDark ? 'text-slate-300' : 'text-slate-700'}`;
-  const selectClass = `${inputClass} appearance-none cursor-pointer`;
 
   // ---------------------------------------------------------------------------
   // Data fetching
@@ -211,20 +201,26 @@ export const ContactsPage: React.FC = () => {
     setShowFormModal(true);
   };
 
-  const openEditModal = (contact: Contact) => {
+  const openEditModal = async (contact: Contact) => {
+    // Fetch full record to avoid partial-field overwrites
+    let full: any = contact;
+    try {
+      const res = await contactsApi.getById(contact.id);
+      full = res?.data ?? res;
+    } catch { /* fall back to list data */ }
     setFormData({
-      firstName: contact.firstName || '',
-      lastName: contact.lastName || '',
-      email: contact.email || '',
-      phone: contact.phone || '',
-      mobile: contact.mobile || '',
-      jobTitle: contact.jobTitle || '',
-      department: contact.department || '',
-      accountId: contact.accountId || '',
-      type: contact.type || '',
-      preferredContact: contact.preferredContact || '',
-      notes: contact.notes || '',
-      status: (contact as any).status || 'Active',
+      firstName: full.firstName || '',
+      lastName: full.lastName || '',
+      email: full.email || '',
+      phone: full.phone || '',
+      mobile: full.mobile || '',
+      jobTitle: full.jobTitle || '',
+      department: full.department || '',
+      accountId: full.accountId || '',
+      type: full.type || '',
+      preferredContact: full.preferredContact || '',
+      notes: full.notes || '',
+      status: (full as any).status || 'Active',
     });
     setEditingContactId(contact.id);
     setFormError('');
@@ -321,71 +317,59 @@ export const ContactsPage: React.FC = () => {
   // ---------------------------------------------------------------------------
 
   const renderToolbar = () => (
-    <div className={`${cardClass} p-4`}>
+    <Card padding="none" className="p-4">
       <div className="flex flex-col lg:flex-row lg:items-center gap-3">
         {/* Search */}
         <div className="relative flex-1 min-w-0">
-          <Search className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${
-            isDark ? 'text-zinc-500' : 'text-slate-400'
-          }`} />
-          <input
-            type="text"
+          <Input
             placeholder="Search by name..."
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
-            className={`w-full pl-10 pr-4 py-2.5 rounded-xl border text-sm transition-all ${
-              isDark
-                ? 'bg-dark-100 border-zinc-700 text-white placeholder-zinc-500 focus:border-brand-500'
-                : 'bg-white border-slate-200 text-slate-900 placeholder-slate-400 focus:border-brand-500'
-            } focus:outline-none focus:ring-1 focus:ring-brand-500`}
+            icon={<Search className="w-4 h-4" />}
           />
         </div>
 
         {/* Filter: Account */}
         <div className="w-full lg:w-48">
-          <select
+          <Select
             value={filterAccountId}
             onChange={e => setFilterAccountId(e.target.value)}
-            className={selectClass}
           >
             <option value="">All Accounts</option>
             {accountsList.map(a => (
               <option key={a.id} value={a.id}>{a.name}</option>
             ))}
-          </select>
+          </Select>
         </div>
 
         {/* Clear Filters */}
         {hasActiveFilters && (
-          <button
+          <Button
+            variant="ghost"
+            size="md"
             onClick={clearFilters}
-            className={`flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${
-              isDark
-                ? 'text-zinc-400 hover:text-white hover:bg-zinc-800'
-                : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100'
-            }`}
+            icon={<X className="w-3.5 h-3.5" />}
           >
-            <X className="w-3.5 h-3.5" />
             Clear
-          </button>
+          </Button>
         )}
 
         {/* Bulk Import */}
-        <button
+        <Button
+          variant="secondary"
+          size="md"
           onClick={() => setShowBulkImport(true)}
           title="Import from CSV"
-          className={`flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-normal transition-colors whitespace-nowrap ${
-            isDark
-              ? 'text-zinc-400 border border-zinc-700 hover:bg-zinc-800'
-              : 'text-slate-500 border border-slate-200 hover:bg-slate-50'
-          }`}
+          icon={<Upload className="w-4 h-4" />}
+          className="whitespace-nowrap"
         >
-          <Upload className="w-4 h-4" />
           Import
-        </button>
+        </Button>
 
         {/* Export CSV */}
-        <button
+        <Button
+          variant="secondary"
+          size="md"
           onClick={() => exportToCsv('contacts', [
             { header: 'First Name', accessor: (r: Contact) => r.firstName },
             { header: 'Last Name', accessor: (r: Contact) => r.lastName },
@@ -400,51 +384,47 @@ export const ContactsPage: React.FC = () => {
           ], contacts)}
           disabled={contacts.length === 0}
           title="Export to Excel"
-          className={`flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-normal transition-colors whitespace-nowrap ${
-            isDark
-              ? 'text-zinc-400 border border-zinc-700 hover:bg-zinc-800 disabled:opacity-30'
-              : 'text-slate-500 border border-slate-200 hover:bg-slate-50 disabled:opacity-30'
-          }`}
+          icon={<Download className="w-4 h-4" />}
+          className="whitespace-nowrap"
         >
-          <Download className="w-4 h-4" />
           Export
-        </button>
+        </Button>
 
         {/* New Contact */}
-        <button
+        <Button
+          variant="primary"
+          size="md"
           onClick={openCreateModal}
-          className="flex items-center gap-2 px-4 py-2.5 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-sm font-medium transition-all btn-premium whitespace-nowrap"
+          icon={<Plus className="w-4 h-4" />}
+          shine
+          className="whitespace-nowrap"
         >
-          <Plus className="w-4 h-4" />
           New Contact
-        </button>
+        </Button>
       </div>
-    </div>
+    </Card>
   );
 
   // ---------------------------------------------------------------------------
   // Render: Table
   // ---------------------------------------------------------------------------
 
-  const cellBase = `px-3 py-2.5 text-sm ${isDark ? 'text-zinc-300' : 'text-slate-700'}`;
-  const hdrCell = `px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider ${isDark ? 'text-zinc-400' : 'text-slate-500'}`;
+  const hdrCell = 'px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400';
+  const cellBase = 'px-3 py-2.5 text-sm text-gray-700 dark:text-zinc-300';
 
   const renderTable = () => (
-    <div className={`${cardClass} overflow-hidden`}>
+    <Card padding="none" className="overflow-hidden">
       {tableError && (
-        <div className={`m-4 p-3 rounded-xl flex items-center gap-2 text-sm ${
-          isDark
-            ? 'bg-red-900/20 border border-red-800 text-red-400'
-            : 'bg-red-50 border border-red-200 text-red-700'
-        }`}>
-          <AlertCircle className="w-4 h-4 flex-shrink-0" />
-          {tableError}
+        <div className="m-4">
+          <Alert variant="error" icon={<AlertCircle className="w-4 h-4" />}>
+            {tableError}
+          </Alert>
         </div>
       )}
 
       {/* Record count */}
       {totalRecords > 0 && (
-        <div className={`px-4 py-2 text-xs ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
+        <div className="px-4 py-2 text-xs text-gray-400 dark:text-zinc-500">
           {totalRecords} contact{totalRecords !== 1 ? 's' : ''} found
         </div>
       )}
@@ -452,7 +432,7 @@ export const ContactsPage: React.FC = () => {
       {isLoading ? (
         <div className="flex flex-col items-center justify-center py-20">
           <Loader2 className="w-8 h-8 text-brand-600 animate-spin" />
-          <p className={`mt-3 text-sm ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>
+          <p className="mt-3 text-sm text-gray-500 dark:text-zinc-400">
             Loading contacts...
           </p>
         </div>
@@ -461,11 +441,11 @@ export const ContactsPage: React.FC = () => {
           <div className="overflow-x-auto">
             <table className="premium-table">
               <thead>
-                <tr className={`border-b ${isDark ? 'border-zinc-700' : 'border-slate-200'}`}>
+                <tr className="border-b border-gray-200 dark:border-zinc-700">
                   {['#', 'Name', 'Email', 'Phone', 'Designation', 'Account'].map((label, i) => (
                     <th
                       key={label}
-                      className={`${hdrCell} resizable-th ${i === 0 ? 'text-center' : ''}`}
+                      className={cx(hdrCell, 'resizable-th', i === 0 && 'text-center')}
                       style={{ width: colWidths[i] }}
                     >
                       {label}
@@ -478,8 +458,8 @@ export const ContactsPage: React.FC = () => {
                 {contacts.length === 0 ? (
                   <tr>
                     <td colSpan={6} className="py-16 text-center">
-                      <Users className={`w-8 h-8 mx-auto ${isDark ? 'text-zinc-700' : 'text-slate-300'}`} />
-                      <p className={`mt-2 text-sm ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
+                      <Users className="w-8 h-8 mx-auto text-gray-300 dark:text-zinc-700" />
+                      <p className="mt-2 text-sm text-gray-400 dark:text-zinc-500">
                         {hasActiveFilters ? 'No contacts match filters' : 'No contacts yet'}
                       </p>
                     </td>
@@ -488,13 +468,9 @@ export const ContactsPage: React.FC = () => {
                   <tr
                     key={contact.id}
                     onClick={() => openDetailModal(contact)}
-                    className={`border-b cursor-pointer transition-colors ${
-                      isDark
-                        ? 'border-zinc-800 hover:bg-zinc-800/50'
-                        : 'border-slate-100 hover:bg-slate-50'
-                    }`}
+                    className="border-b cursor-pointer transition-colors border-gray-100 hover:bg-gray-50 dark:border-zinc-800 dark:hover:bg-zinc-800/50"
                   >
-                    <td className={`${cellBase} text-center ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
+                    <td className={cx(cellBase, 'text-center text-gray-400 dark:text-zinc-500')}>
                       {(page - 1) * PAGE_SIZE + idx + 1}
                     </td>
                     <td className={cellBase}>
@@ -513,7 +489,7 @@ export const ContactsPage: React.FC = () => {
                       {contact.accountName ? (
                         <button
                           onClick={(e) => { e.stopPropagation(); navigate('accounts', { accountId: contact.accountId }); }}
-                          className={`text-left truncate max-w-[150px] font-medium hover:underline ${isDark ? 'text-brand-400 hover:text-brand-300' : 'text-brand-600 hover:text-brand-500'}`}
+                          className="text-left truncate max-w-[150px] font-medium hover:underline text-brand-600 hover:text-brand-500 dark:text-brand-400 dark:hover:text-brand-300"
                         >
                           {contact.accountName}
                         </button>
@@ -526,83 +502,18 @@ export const ContactsPage: React.FC = () => {
           </div>
 
           {/* Pagination */}
-          <div className={`flex flex-col sm:flex-row items-center justify-between gap-3 px-4 py-3 border-t ${
-            isDark ? 'border-zinc-800' : 'border-slate-100'
-          }`}>
-            <p className={`text-xs ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
-              Showing {(page - 1) * PAGE_SIZE + 1}
-              {' '}&ndash;{' '}
-              {Math.min(page * PAGE_SIZE, totalRecords)} of {totalRecords} contacts
-            </p>
-
-            <div className="flex items-center gap-1">
-              <button
-                onClick={() => setPage(p => Math.max(1, p - 1))}
-                disabled={page <= 1}
-                className={`p-2 rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed ${
-                  isDark
-                    ? 'text-zinc-400 hover:text-white hover:bg-zinc-800'
-                    : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100'
-                }`}
-              >
-                <ChevronLeft className="w-4 h-4" />
-              </button>
-
-              {Array.from({ length: totalPages }, (_, i) => i + 1)
-                .filter(p => {
-                  if (p === 1 || p === totalPages) return true;
-                  if (Math.abs(p - page) <= 1) return true;
-                  return false;
-                })
-                .reduce<(number | 'ellipsis')[]>((acc, p, idx, arr) => {
-                  if (idx > 0) {
-                    const prev = arr[idx - 1];
-                    if (p - prev > 1) acc.push('ellipsis');
-                  }
-                  acc.push(p);
-                  return acc;
-                }, [])
-                .map((item, idx) =>
-                  item === 'ellipsis' ? (
-                    <span
-                      key={`ellipsis-${idx}`}
-                      className={`px-1 text-xs ${isDark ? 'text-zinc-600' : 'text-slate-300'}`}
-                    >
-                      ...
-                    </span>
-                  ) : (
-                    <button
-                      key={item}
-                      onClick={() => setPage(item as number)}
-                      className={`min-w-[32px] h-8 rounded-lg text-xs font-medium transition-colors ${
-                        page === item
-                          ? 'bg-brand-600 text-white'
-                          : isDark
-                            ? 'text-zinc-400 hover:text-white hover:bg-zinc-800'
-                            : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100'
-                      }`}
-                    >
-                      {item}
-                    </button>
-                  )
-                )}
-
-              <button
-                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                disabled={page >= totalPages}
-                className={`p-2 rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed ${
-                  isDark
-                    ? 'text-zinc-400 hover:text-white hover:bg-zinc-800'
-                    : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100'
-                }`}
-              >
-                <ChevronRight className="w-4 h-4" />
-              </button>
-            </div>
+          <div className="border-t border-gray-100 dark:border-zinc-800">
+            <Pagination
+              currentPage={page}
+              totalPages={totalPages}
+              totalItems={totalRecords}
+              pageSize={PAGE_SIZE}
+              onPageChange={setPage}
+            />
           </div>
         </>
       )}
-    </div>
+    </Card>
   );
 
   // ---------------------------------------------------------------------------
@@ -610,127 +521,105 @@ export const ContactsPage: React.FC = () => {
   // ---------------------------------------------------------------------------
 
   const renderDetailModal = () => {
-    if (!showDetailModal || !detailContact) return null;
+    if (!detailContact) return null;
     const contact = detailContact;
 
     return (
-      <div className="fixed inset-0 z-50 flex items-start justify-center pt-[5vh] overflow-y-auto p-4">
-        <div className="absolute inset-0 bg-black/50 animate-backdrop" onClick={closeDetailModal} />
-        <div className={`relative w-full max-w-xl max-h-[90vh] rounded-2xl animate-fade-in-up flex flex-col overflow-hidden ${
-          isDark ? 'bg-dark-50 border border-zinc-800' : 'bg-white shadow-premium'
-        }`}>
-          {/* Header */}
-          <div className={`flex-shrink-0 flex items-center justify-between px-6 py-4 border-b ${
-            isDark ? 'bg-dark-50 border-zinc-800' : 'bg-white border-slate-200'
-          }`}>
-            <div className="flex items-center gap-3 min-w-0">
-              <h2 className={`text-lg font-semibold font-display truncate ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                {contact.firstName} {contact.lastName || ''}
-              </h2>
-            </div>
-            <div className="flex items-center gap-2 flex-shrink-0">
-              <button
-                onClick={() => { closeDetailModal(); openEditModal(contact); }}
-                className={`p-2 rounded-lg transition-colors ${
-                  isDark ? 'text-zinc-400 hover:text-white hover:bg-zinc-800' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100'
-                }`}
-                title="Edit"
+      <Modal
+        open={showDetailModal}
+        onClose={closeDetailModal}
+        title={`${contact.firstName} ${contact.lastName || ''}`}
+        size="lg"
+      >
+        {/* Action buttons row */}
+        <div className="flex items-center gap-2 mb-6 -mt-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => { closeDetailModal(); openEditModal(contact); }}
+            icon={<Edit2 className="w-4 h-4" />}
+            title="Edit"
+          >
+            Edit
+          </Button>
+          {deleteConfirmId === contact.id ? (
+            <div className="flex items-center gap-1">
+              <Button
+                variant="danger"
+                size="xs"
+                onClick={() => { handleDelete(contact.id); closeDetailModal(); }}
               >
-                <Edit2 className="w-4 h-4" />
-              </button>
-              {deleteConfirmId === contact.id ? (
-                <div className="flex items-center gap-1">
-                  <button
-                    onClick={() => { handleDelete(contact.id); closeDetailModal(); }}
-                    className="px-2 py-1 rounded-lg text-xs font-medium bg-red-600 text-white hover:bg-red-700 transition-colors"
-                  >
-                    Confirm
-                  </button>
-                  <button
-                    onClick={() => setDeleteConfirmId(null)}
-                    className={`px-2 py-1 rounded-lg text-xs font-medium transition-colors ${
-                      isDark ? 'text-zinc-400 hover:bg-zinc-800' : 'text-slate-500 hover:bg-slate-100'
-                    }`}
-                  >
-                    Cancel
-                  </button>
-                </div>
-              ) : (
-                <button
-                  onClick={() => setDeleteConfirmId(contact.id)}
-                  className={`p-2 rounded-lg transition-colors ${
-                    isDark ? 'text-zinc-400 hover:text-red-400 hover:bg-red-900/20' : 'text-slate-400 hover:text-red-600 hover:bg-red-50'
-                  }`}
-                  title="Delete"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
-              )}
-              <button
-                onClick={closeDetailModal}
-                className={`p-2 rounded-lg transition-colors ${
-                  isDark ? 'text-zinc-400 hover:text-white hover:bg-zinc-800' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100'
-                }`}
+                Confirm
+              </Button>
+              <Button
+                variant="ghost"
+                size="xs"
+                onClick={() => setDeleteConfirmId(null)}
               >
-                <X className="w-5 h-5" />
-              </button>
+                Cancel
+              </Button>
             </div>
-          </div>
+          ) : (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setDeleteConfirmId(contact.id)}
+              icon={<Trash2 className="w-4 h-4" />}
+              title="Delete"
+              className="text-gray-400 hover:text-red-600 dark:text-zinc-400 dark:hover:text-red-400"
+            >
+              Delete
+            </Button>
+          )}
+        </div>
 
-          <div className="flex-1 overflow-y-auto">
-          <div className="p-6 space-y-6 pb-6">
-            {/* Contact info grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <InfoRow label="First Name" value={contact.firstName} isDark={isDark} icon={<UserIcon className="w-3.5 h-3.5" />} />
-              <InfoRow label="Last Name" value={contact.lastName} isDark={isDark} icon={<UserIcon className="w-3.5 h-3.5" />} />
-              <InfoRow label="Email" value={contact.email} isDark={isDark} icon={<Mail className="w-3.5 h-3.5" />} />
-              <InfoRow label="Phone" value={contact.phone} isDark={isDark} icon={<Phone className="w-3.5 h-3.5" />} />
-              <InfoRow label="Mobile" value={contact.mobile} isDark={isDark} icon={<Smartphone className="w-3.5 h-3.5" />} />
-              <InfoRow label="Designation" value={contact.designation || contact.jobTitle} isDark={isDark} icon={<Briefcase className="w-3.5 h-3.5" />} />
-              <InfoRow label="Department" value={contact.department} isDark={isDark} icon={<Building2 className="w-3.5 h-3.5" />} />
-              {contact.accountName && contact.accountId ? (
-                <div
-                  onClick={() => { setShowDetailModal(false); setDetailContact(null); navigate('accounts', { accountId: contact.accountId! }); }}
-                  className={`flex items-start gap-2 p-2.5 rounded-lg cursor-pointer transition-colors ${isDark ? 'bg-dark-100 hover:bg-zinc-800' : 'bg-slate-50 hover:bg-slate-100'}`}
-                >
-                  <span className={`mt-0.5 flex-shrink-0 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
-                    <Building2 className="w-3.5 h-3.5" />
-                  </span>
-                  <div className="min-w-0">
-                    <p className={`text-[11px] font-medium ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>Account</p>
-                    <p className={`text-sm font-medium hover:underline ${isDark ? 'text-brand-400' : 'text-brand-600'}`}>
-                      {contact.accountName}
-                    </p>
-                  </div>
-                </div>
-              ) : (
-                <InfoRow label="Account" value={contact.accountName} isDark={isDark} icon={<Building2 className="w-3.5 h-3.5" />} />
-              )}
-            </div>
-
-            {/* Notes */}
-            {contact.notes && (
-              <div>
-                <h4 className={`text-xs font-semibold uppercase tracking-wider mb-2 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
-                  Notes
-                </h4>
-                <p className={`text-sm whitespace-pre-wrap ${isDark ? 'text-zinc-300' : 'text-slate-700'}`}>
-                  {contact.notes}
+        {/* Contact info grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <InfoRow label="First Name" value={contact.firstName} icon={<UserIcon className="w-3.5 h-3.5" />} />
+          <InfoRow label="Last Name" value={contact.lastName} icon={<UserIcon className="w-3.5 h-3.5" />} />
+          <InfoRow label="Email" value={contact.email} icon={<Mail className="w-3.5 h-3.5" />} />
+          <InfoRow label="Phone" value={contact.phone} icon={<Phone className="w-3.5 h-3.5" />} />
+          <InfoRow label="Mobile" value={contact.mobile} icon={<Smartphone className="w-3.5 h-3.5" />} />
+          <InfoRow label="Designation" value={contact.designation || contact.jobTitle} icon={<Briefcase className="w-3.5 h-3.5" />} />
+          <InfoRow label="Department" value={contact.department} icon={<Building2 className="w-3.5 h-3.5" />} />
+          {contact.accountName && contact.accountId ? (
+            <div
+              onClick={() => { setShowDetailModal(false); setDetailContact(null); navigate('accounts', { accountId: contact.accountId! }); }}
+              className="flex items-start gap-2 p-2.5 rounded-lg cursor-pointer transition-colors bg-gray-50 hover:bg-gray-100 dark:bg-dark-100 dark:hover:bg-zinc-800"
+            >
+              <span className="mt-0.5 flex-shrink-0 text-gray-400 dark:text-zinc-500">
+                <Building2 className="w-3.5 h-3.5" />
+              </span>
+              <div className="min-w-0">
+                <p className="text-[11px] font-medium text-gray-400 dark:text-zinc-500">Account</p>
+                <p className="text-sm font-medium hover:underline text-brand-600 dark:text-brand-400">
+                  {contact.accountName}
                 </p>
               </div>
-            )}
-
-            {/* Timestamps */}
-            <div className={`flex items-center gap-4 text-[11px] pt-2 border-t ${
-              isDark ? 'border-zinc-800 text-zinc-600' : 'border-slate-100 text-slate-400'
-            }`}>
-              {contact.createdAt && <span>Created: {formatDate(contact.createdAt)}</span>}
-              {contact.updatedAt && <span>Updated: {formatDate(contact.updatedAt)}</span>}
             </div>
-          </div>
-          </div>
+          ) : (
+            <InfoRow label="Account" value={contact.accountName} icon={<Building2 className="w-3.5 h-3.5" />} />
+          )}
         </div>
-      </div>
+
+        {/* Notes */}
+        {contact.notes && (
+          <div className="mt-6">
+            <h4 className="text-xs font-semibold uppercase tracking-wider mb-2 text-gray-400 dark:text-zinc-500">
+              Notes
+            </h4>
+            <p className="text-sm whitespace-pre-wrap text-gray-700 dark:text-zinc-300">
+              {contact.notes}
+            </p>
+          </div>
+        )}
+
+        {/* Timestamps */}
+        <div className="flex items-center gap-4 text-[11px] pt-4 mt-6 border-t border-gray-100 text-gray-400 dark:border-zinc-800 dark:text-zinc-600">
+          {contact.createdAt && <span>Created: {formatDate(contact.createdAt)}</span>}
+          {contact.updatedAt && <span>Updated: {formatDate(contact.updatedAt)}</span>}
+        </div>
+      </Modal>
     );
   };
 
@@ -739,254 +628,174 @@ export const ContactsPage: React.FC = () => {
   // ---------------------------------------------------------------------------
 
   const renderFormModal = () => {
-    if (!showFormModal) return null;
-
     return (
-      <div className="fixed inset-0 z-50 flex items-start justify-center pt-[5vh] overflow-y-auto p-4">
-        <div className="absolute inset-0 bg-black/50 animate-backdrop" onClick={closeFormModal} />
-        <div className={`relative w-full max-w-xl max-h-[90vh] rounded-2xl animate-fade-in-up flex flex-col overflow-hidden ${
-          isDark ? 'bg-dark-50 border border-zinc-800' : 'bg-white shadow-premium'
-        }`}>
-          {/* Header */}
-          <div className={`flex-shrink-0 flex items-center justify-between px-6 py-4 border-b ${
-            isDark ? 'bg-dark-50 border-zinc-800' : 'bg-white border-slate-200'
-          }`}>
-            <h2 className={`text-lg font-semibold font-display ${isDark ? 'text-white' : 'text-slate-900'}`}>
-              {editingContactId ? 'Edit Contact' : 'New Contact'}
-            </h2>
-            <button
+      <Modal
+        open={showFormModal}
+        onClose={closeFormModal}
+        title={editingContactId ? 'Edit Contact' : 'New Contact'}
+        size="lg"
+        footer={
+          <>
+            <Button
+              variant="ghost"
               onClick={closeFormModal}
-              className={`p-2 rounded-lg transition-colors ${
-                isDark ? 'text-zinc-400 hover:text-white hover:bg-zinc-800' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100'
-              }`}
+              disabled={isSubmitting}
             >
-              <X className="w-5 h-5" />
-            </button>
-          </div>
-
-          {/* Form */}
-          <form onSubmit={handleFormSubmit} className="flex-1 overflow-y-auto">
-            <div className="p-6 space-y-5 pb-6">
+              Cancel
+            </Button>
+            <Button
+              variant="primary"
+              onClick={handleFormSubmit as any}
+              loading={isSubmitting}
+              icon={!isSubmitting ? <CheckCircle className="w-4 h-4" /> : undefined}
+              shine
+            >
+              {isSubmitting ? 'Saving...' : editingContactId ? 'Update Contact' : 'Create Contact'}
+            </Button>
+          </>
+        }
+      >
+        <form onSubmit={handleFormSubmit} id="contact-form">
+          <div className="space-y-5">
             {formError && (
-              <div className={`p-3 rounded-xl flex items-center gap-2 text-sm ${
-                isDark ? 'bg-red-900/20 border border-red-800 text-red-400' : 'bg-red-50 border border-red-200 text-red-700'
-              }`}>
-                <AlertCircle className="w-4 h-4 flex-shrink-0" />
+              <Alert variant="error" icon={<AlertCircle className="w-4 h-4" />}>
                 {formError}
-              </div>
+              </Alert>
             )}
 
             {/* Row 1: First Name + Last Name */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label htmlFor="firstName" className={labelClass}>
-                  First Name <span className="text-red-500">*</span>
-                </label>
-                <div className="relative">
-                  <UserIcon className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`} />
-                  <input
-                    id="firstName"
-                    name="firstName"
-                    type="text"
-                    placeholder="First name"
-                    value={formData.firstName}
-                    onChange={handleFormChange}
-                    className={`${inputClass} pl-10`}
-                    required
-                  />
-                </div>
-              </div>
-              <div>
-                <label htmlFor="lastName" className={labelClass}>
-                  Last Name <span className="text-red-500">*</span>
-                </label>
-                <div className="relative">
-                  <UserIcon className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`} />
-                  <input
-                    id="lastName"
-                    name="lastName"
-                    type="text"
-                    placeholder="Last name"
-                    value={formData.lastName}
-                    onChange={handleFormChange}
-                    className={`${inputClass} pl-10`}
-                    required
-                  />
-                </div>
-              </div>
+              <Input
+                label="First Name *"
+                id="firstName"
+                name="firstName"
+                type="text"
+                placeholder="First name"
+                value={formData.firstName}
+                onChange={handleFormChange}
+                icon={<UserIcon className="w-4 h-4" />}
+                required
+              />
+              <Input
+                label="Last Name *"
+                id="lastName"
+                name="lastName"
+                type="text"
+                placeholder="Last name"
+                value={formData.lastName}
+                onChange={handleFormChange}
+                icon={<UserIcon className="w-4 h-4" />}
+                required
+              />
             </div>
 
             {/* Row 2: Email (full width) */}
-            <div>
-              <label htmlFor="email" className={labelClass}>
-                Email <span className="text-red-500">*</span>
-              </label>
-              <div className="relative">
-                <Mail className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`} />
-                <input
-                  id="email"
-                  name="email"
-                  type="email"
-                  placeholder="contact@company.com"
-                  value={formData.email}
-                  onChange={handleFormChange}
-                  className={`${inputClass} pl-10`}
-                  required
-                />
-              </div>
-            </div>
+            <Input
+              label="Email *"
+              id="email"
+              name="email"
+              type="email"
+              placeholder="contact@company.com"
+              value={formData.email}
+              onChange={handleFormChange}
+              icon={<Mail className="w-4 h-4" />}
+              required
+            />
 
             {/* Row 3: Phone + Mobile */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label htmlFor="phone" className={labelClass}>Phone</label>
-                <div className="relative">
-                  <Phone className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`} />
-                  <input
-                    id="phone"
-                    name="phone"
-                    type="text"
-                    placeholder="+91 XXXXX XXXXX"
-                    value={formData.phone}
-                    onChange={handleFormChange}
-                    className={`${inputClass} pl-10`}
-                  />
-                </div>
-              </div>
-              <div>
-                <label htmlFor="mobile" className={labelClass}>Mobile</label>
-                <div className="relative">
-                  <Smartphone className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`} />
-                  <input
-                    id="mobile"
-                    name="mobile"
-                    type="text"
-                    placeholder="+91 XXXXX XXXXX"
-                    value={formData.mobile}
-                    onChange={handleFormChange}
-                    className={`${inputClass} pl-10`}
-                  />
-                </div>
-              </div>
+              <Input
+                label="Phone"
+                id="phone"
+                name="phone"
+                type="text"
+                placeholder="+91 XXXXX XXXXX"
+                value={formData.phone}
+                onChange={handleFormChange}
+                icon={<Phone className="w-4 h-4" />}
+              />
+              <Input
+                label="Mobile"
+                id="mobile"
+                name="mobile"
+                type="text"
+                placeholder="+91 XXXXX XXXXX"
+                value={formData.mobile}
+                onChange={handleFormChange}
+                icon={<Smartphone className="w-4 h-4" />}
+              />
             </div>
 
             {/* Row 4: Designation + Department */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label htmlFor="jobTitle" className={labelClass}>Designation</label>
-                <div className="relative">
-                  <Briefcase className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`} />
-                  <input
-                    id="jobTitle"
-                    name="jobTitle"
-                    type="text"
-                    placeholder="e.g. Sales Manager"
-                    value={formData.jobTitle}
-                    onChange={handleFormChange}
-                    className={`${inputClass} pl-10`}
-                  />
-                </div>
-              </div>
-              <div>
-                <label htmlFor="department" className={labelClass}>Department</label>
-                <div className="relative">
-                  <Building2 className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`} />
-                  <input
-                    id="department"
-                    name="department"
-                    type="text"
-                    placeholder="e.g. Engineering"
-                    value={formData.department}
-                    onChange={handleFormChange}
-                    className={`${inputClass} pl-10`}
-                  />
-                </div>
-              </div>
+              <Input
+                label="Designation"
+                id="jobTitle"
+                name="jobTitle"
+                type="text"
+                placeholder="e.g. Sales Manager"
+                value={formData.jobTitle}
+                onChange={handleFormChange}
+                icon={<Briefcase className="w-4 h-4" />}
+              />
+              <Input
+                label="Department"
+                id="department"
+                name="department"
+                type="text"
+                placeholder="e.g. Engineering"
+                value={formData.department}
+                onChange={handleFormChange}
+                icon={<Building2 className="w-4 h-4" />}
+              />
             </div>
 
-            {/* Row 5: Account + Type */}
+            {/* Row 5: Account */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label htmlFor="accountId" className={labelClass}>Account <span className="text-red-500">*</span></label>
-                <select
-                  id="accountId"
-                  name="accountId"
-                  value={formData.accountId}
-                  onChange={handleFormChange}
-                  className={selectClass}
-                  required
-                >
-                  <option value="">Select Account</option>
-                  {accountsList.map(a => (
-                    <option key={a.id} value={a.id}>{a.name}</option>
-                  ))}
-                </select>
-              </div>
+              <Select
+                label="Account *"
+                id="accountId"
+                name="accountId"
+                value={formData.accountId}
+                onChange={handleFormChange}
+                required
+              >
+                <option value="">Select Account</option>
+                {accountsList.map(a => (
+                  <option key={a.id} value={a.id}>{a.name}</option>
+                ))}
+              </Select>
             </div>
 
             {/* Row 6: Preferred Contact */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label htmlFor="preferredContact" className={labelClass}>Preferred Contact</label>
-                <select
-                  id="preferredContact"
-                  name="preferredContact"
-                  value={formData.preferredContact}
-                  onChange={handleFormChange}
-                  className={selectClass}
-                >
-                  <option value="">Select...</option>
-                  <option value="Email">Email</option>
-                  <option value="Phone">Phone</option>
-                  <option value="Mobile">Mobile</option>
-                </select>
-              </div>
+              <Select
+                label="Preferred Contact"
+                id="preferredContact"
+                name="preferredContact"
+                value={formData.preferredContact}
+                onChange={handleFormChange}
+              >
+                <option value="">Select...</option>
+                <option value="Email">Email</option>
+                <option value="Phone">Phone</option>
+                <option value="Mobile">Mobile</option>
+              </Select>
             </div>
 
             {/* Row 7: Notes */}
-            <div>
-              <label htmlFor="notes" className={labelClass}>Notes</label>
-              <textarea
-                id="notes"
-                name="notes"
-                rows={3}
-                placeholder="Additional notes..."
-                value={formData.notes}
-                onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
-                className={inputClass}
-              />
-            </div>
-
-            </div>
-            {/* Footer - sticky at bottom */}
-            <div className={`sticky bottom-0 flex items-center justify-end gap-3 px-6 py-4 border-t ${
-              isDark ? 'bg-dark-50 border-zinc-800' : 'bg-white border-slate-200'
-            }`}>
-              <button
-                type="button"
-                onClick={closeFormModal}
-                disabled={isSubmitting}
-                className={`px-4 py-2.5 rounded-xl text-sm font-medium transition-colors ${
-                  isDark ? 'text-zinc-400 hover:text-white hover:bg-zinc-800' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                } disabled:opacity-50`}
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={isSubmitting}
-                className="flex items-center gap-2 px-5 py-2.5 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-sm font-medium transition-all btn-premium disabled:opacity-50"
-              >
-                {isSubmitting ? (
-                  <><Loader2 className="w-4 h-4 animate-spin" /> Saving...</>
-                ) : (
-                  <><CheckCircle className="w-4 h-4" /> {editingContactId ? 'Update Contact' : 'Create Contact'}</>
-                )}
-              </button>
-            </div>
-          </form>
-        </div>
-      </div>
+            <Textarea
+              label="Notes"
+              id="notes"
+              name="notes"
+              rows={3}
+              placeholder="Additional notes..."
+              value={formData.notes}
+              onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
+            />
+          </div>
+        </form>
+      </Modal>
     );
   };
 
@@ -999,10 +808,10 @@ export const ContactsPage: React.FC = () => {
       {/* Page header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className={`text-xl font-bold font-display ${isDark ? 'text-white' : 'text-slate-900'}`}>
+          <h1 className="text-xl font-bold font-display text-gray-900 dark:text-white">
             Contacts
           </h1>
-          <p className={`text-sm mt-0.5 ${isDark ? 'text-zinc-400' : 'text-slate-500'}`}>
+          <p className="text-sm mt-0.5 text-gray-500 dark:text-zinc-400">
             Manage contacts, track communication preferences, and link to accounts
           </p>
         </div>
@@ -1023,7 +832,6 @@ export const ContactsPage: React.FC = () => {
         onClose={() => setShowBulkImport(false)}
         entity="contacts"
         entityLabel="Contacts"
-        isDark={isDark}
         onSuccess={() => fetchContacts()}
       />
     </div>
@@ -1037,18 +845,17 @@ export const ContactsPage: React.FC = () => {
 const InfoRow: React.FC<{
   label: string;
   value?: string;
-  isDark: boolean;
   icon?: React.ReactNode;
-}> = ({ label, value, isDark, icon }) => (
-  <div className={`flex items-start gap-2 p-2.5 rounded-lg ${isDark ? 'bg-dark-100' : 'bg-slate-50'}`}>
+}> = ({ label, value, icon }) => (
+  <div className="flex items-start gap-2 p-2.5 rounded-lg bg-gray-50 dark:bg-dark-100">
     {icon && (
-      <span className={`mt-0.5 flex-shrink-0 ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>
+      <span className="mt-0.5 flex-shrink-0 text-gray-400 dark:text-zinc-500">
         {icon}
       </span>
     )}
     <div className="min-w-0">
-      <p className={`text-[11px] font-medium ${isDark ? 'text-zinc-500' : 'text-slate-400'}`}>{label}</p>
-      <p className={`text-sm ${isDark ? 'text-white' : 'text-slate-900'}`}>
+      <p className="text-[11px] font-medium text-gray-400 dark:text-zinc-500">{label}</p>
+      <p className="text-sm text-gray-900 dark:text-white">
         {value || '-'}
       </p>
     </div>
