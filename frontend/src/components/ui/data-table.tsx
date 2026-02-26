@@ -14,8 +14,8 @@ export interface DataTableColumn<T> {
   key: string;
   /** Header label */
   label: string;
-  /** CSS width for <col> (e.g. '20%', '150px'). If any column sets this, a <colgroup> is rendered. */
-  width?: string;
+  /** If true, this column shrinks to fit content (e.g. icon buttons, index). */
+  shrink?: boolean;
   /** Text alignment. Defaults to 'left'. */
   align?: 'left' | 'center' | 'right';
   /** Extra className merged onto every <td> in this column */
@@ -70,8 +70,6 @@ export interface DataTableProps<T> {
 
   /** Extra className on the outer Card wrapper */
   className?: string;
-  /** Min-width on the <table> element for tables that scroll horizontally */
-  minWidth?: number | string;
 }
 
 // ---------------------------------------------------------------------------
@@ -79,9 +77,9 @@ export interface DataTableProps<T> {
 // ---------------------------------------------------------------------------
 
 const hdrCell =
-  'px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400';
+  'px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400 whitespace-nowrap';
 const cellBase =
-  'px-3 py-2.5 text-sm text-gray-700 dark:text-zinc-300';
+  'px-3 py-2.5 text-sm text-gray-700 dark:text-zinc-300 whitespace-nowrap';
 const rowBase =
   'border-b transition-colors border-gray-100 hover:bg-gray-50 dark:border-zinc-800 dark:hover:bg-zinc-800/50';
 
@@ -105,9 +103,7 @@ export function DataTable<T>({
   pageSize = 10,
   pagination,
   className,
-  minWidth,
 }: DataTableProps<T>) {
-  const hasColWidths = columns.some(c => c.width);
   const totalCols = columns.length + (showIndex ? 1 : 0);
 
   return (
@@ -131,30 +127,18 @@ export function DataTable<T>({
       ) : (
         <>
           <div className="overflow-x-auto">
-            <table
-              className="premium-table w-full"
-              style={minWidth ? { minWidth: typeof minWidth === 'number' ? `${minWidth}px` : minWidth } : undefined}
-            >
-              {/* Optional colgroup for explicit column widths */}
-              {hasColWidths && (
-                <colgroup>
-                  {showIndex && <col style={{ width: '5%' }} />}
-                  {columns.map(col => (
-                    <col key={col.key} style={col.width ? { width: col.width } : undefined} />
-                  ))}
-                </colgroup>
-              )}
-
+            <table className="premium-table w-full">
               <thead>
                 <tr className="border-b border-gray-200 dark:border-zinc-700">
                   {showIndex && (
-                    <th className={cx(hdrCell, 'index-col text-center')}>#</th>
+                    <th className={cx(hdrCell, 'index-col text-center w-[48px]')}>#</th>
                   )}
                   {columns.map(col => (
                     <th
                       key={col.key}
                       className={cx(
                         hdrCell,
+                        col.shrink && 'w-0',
                         col.align === 'center' && 'text-center',
                         col.align === 'right' && 'text-right',
                         col.headerClassName,
@@ -194,7 +178,7 @@ export function DataTable<T>({
                         )}
                       >
                         {showIndex && (
-                          <td className={cx(cellBase, 'index-col text-center text-gray-400 dark:text-zinc-500')}>
+                          <td className={cx(cellBase, 'index-col text-center text-gray-400 dark:text-zinc-500 w-[48px]')}>
                             {(page - 1) * pageSize + idx + 1}
                           </td>
                         )}
@@ -203,6 +187,7 @@ export function DataTable<T>({
                             key={col.key}
                             className={cx(
                               cellBase,
+                              col.shrink && 'w-0',
                               col.align === 'center' && 'text-center',
                               col.align === 'right' && 'text-right',
                               col.className,

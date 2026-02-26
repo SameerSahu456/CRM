@@ -286,14 +286,8 @@ html.dark .premium-card {
   font-size: 0.8125rem;
   border-collapse: separate;
   border-spacing: 0;
-  table-layout: fixed;
+  table-layout: auto;
   position: relative;
-}
-
-@media (max-width: 768px) {
-  .premium-table {
-    table-layout: auto;
-  }
 }
 
 /* --- Header --- */
@@ -328,7 +322,7 @@ html.dark .premium-card {
 }
 
 /* Header gradient separator line */
-.premium-table thead tr::after {
+/* .premium-table thead tr::after {
   content: '';
   position: absolute;
   bottom: 0;
@@ -342,7 +336,7 @@ html.dark .premium-card {
 :is(.dark) .premium-table thead tr::after {
   background: linear-gradient(90deg, transparent 0%, rgba(99, 102, 241, 0.15) 15%, rgba(16, 185, 129, 0.12) 50%, rgba(139, 92, 246, 0.1) 85%, transparent 100%);
   opacity: 0.8;
-}
+} */
 
 /* --- Row number (first column) --- */
 .premium-table thead th:first-child {

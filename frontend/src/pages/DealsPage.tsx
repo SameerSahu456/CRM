@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Plus, Search, X, ChevronLeft, ChevronRight, Edit2, Trash2,
   IndianRupee, Loader2, AlertCircle, CheckCircle, Calendar,
-  Target, TrendingUp, ArrowRight, Eye, LayoutGrid, List,
+  TrendingUp, ArrowRight, Eye, LayoutGrid, List,
   XCircle, ChevronDown, Building2, User as UserIcon,
   Handshake, FileText, Briefcase, DollarSign,
   Layers, Snowflake,
@@ -1239,7 +1239,7 @@ export const DealsPage: React.FC = () => {
       {
         key: 'summarise',
         label: 'Summarise',
-        width: '84px',
+        shrink: true,
         align: 'center',
         render: (deal) => (
           <button
@@ -1254,7 +1254,6 @@ export const DealsPage: React.FC = () => {
       {
         key: 'company',
         label: 'Company',
-        width: '170px',
         render: (deal) => (
           <>
             <span className="font-medium">{deal.company || deal.accountName || '-'}</span>
@@ -1265,7 +1264,6 @@ export const DealsPage: React.FC = () => {
       {
         key: 'overdue',
         label: 'Overdue',
-        width: '120px',
         render: (deal) => (
           dealOverdueMap[deal.id]
             ? <span className="font-medium text-red-600 dark:text-red-400">{formatINR(dealOverdueMap[deal.id])}</span>
@@ -1275,84 +1273,71 @@ export const DealsPage: React.FC = () => {
       {
         key: 'contactName',
         label: 'Contact Name',
-        width: '150px',
         render: (deal) => <>{deal.contactName || '-'}</>,
       },
       {
         key: 'contactNo',
         label: 'Contact No',
-        width: '130px',
         render: (deal) => <>{deal.contactNo || '-'}</>,
       },
       {
         key: 'designation',
         label: 'Designation',
-        width: '130px',
         render: (deal) => <>{deal.designation || '-'}</>,
       },
       {
         key: 'email',
         label: 'Email',
-        width: '220px',
-        render: (deal) => (
-          <span className="truncate block max-w-[140px]">{deal.email || '-'}</span>
-        ),
+        render: (deal) => <>{deal.email || '-'}</>,
       },
       {
         key: 'location',
         label: 'Location',
-        width: '130px',
         render: (deal) => <>{deal.location || '-'}</>,
       },
       {
         key: 'requirement',
         label: 'Requirement',
-        width: '160px',
-        render: (deal) => (
-          <span className="truncate block max-w-[150px]">{deal.requirement || '-'}</span>
-        ),
+        render: (deal) => <>{deal.requirement || '-'}</>,
       },
       {
         key: 'quotedRequirement',
         label: 'Quoted Requirement',
-        width: '160px',
-        render: (deal) => (
-          <span className="truncate block max-w-[150px]">{deal.quotedRequirement || '-'}</span>
-        ),
+        render: (deal) => <>{deal.quotedRequirement || '-'}</>,
       },
       {
         key: 'value',
         label: 'Value',
-        width: '110px',
         render: (deal) => (
-          <span className="font-semibold whitespace-nowrap">{deal.value ? formatINR(deal.value) : '-'}</span>
+          <span className="font-semibold">{deal.value ? formatINR(deal.value) : '-'}</span>
         ),
       },
       {
         key: 'stage',
         label: 'Stage',
-        width: '120px',
         render: (deal) => (
           <Badge variant={STAGE_BADGE_VARIANT[deal.stage] || 'gray'}>{deal.stage}</Badge>
         ),
       },
       {
+        key: 'type',
+        label: 'Type',
+        render: (deal) => <>{deal.type || '-'}</>,
+      },
+      {
         key: 'orderType',
         label: 'Order Type',
-        width: '100px',
         render: (deal) => <>{deal.typeOfOrder || '-'}</>,
       },
       // Conditionally include Assignee column
       ...(canSeeAssignee ? [{
         key: 'assignee',
         label: 'Assignee',
-        width: '120px',
         render: (deal: Deal) => <>{deal.ownerName || '-'}</>,
       }] : []),
       {
         key: 'followUpDate',
         label: 'Follow-up Date',
-        width: '120px',
         render: (deal) => <>{deal.nextFollowUp ? formatDate(deal.nextFollowUp) : '-'}</>,
       },
     ];
@@ -1371,7 +1356,6 @@ export const DealsPage: React.FC = () => {
         showIndex
         page={page}
         pageSize={PAGE_SIZE}
-        minWidth={2200}
         pagination={{
           currentPage: page,
           totalPages,
@@ -1431,8 +1415,8 @@ export const DealsPage: React.FC = () => {
           </p>
         )}
 
-        {/* Pricing */}
-        {deal.value ? (
+        {/* Pricing (hidden for New stage) */}
+        {deal.value && deal.stage !== 'New' ? (
           <p className="text-xs font-semibold mb-1 text-emerald-600 dark:text-emerald-400">
             {formatINR(deal.value)}
           </p>
@@ -1511,7 +1495,6 @@ export const DealsPage: React.FC = () => {
           {DEAL_STAGES.map(stage => {
             const stageDeals = (groupedDeals[stage] || []).filter(filterDeal);
             const c = STAGE_COLORS[stage] || STAGE_COLORS['New'];
-            const stageTotal = stageDeals.reduce((sum, d) => sum + (d.value || 0), 0);
             const isOver = dragOverStage === stage;
             const isTerminal = stage === 'Closed Won' || stage === 'Closed Lost';
             return (
@@ -1553,18 +1536,6 @@ export const DealsPage: React.FC = () => {
                   </div>
                   <Badge variant="gray" size="sm">{stageDeals.length}</Badge>
                 </div>
-
-                {/* Stage total */}
-                {stageTotal > 0 && (
-                  <p className={cx(
-                    'text-xs font-semibold mb-3',
-                    stage === 'Closed Lost'
-                      ? 'text-red-600 dark:text-red-400'
-                      : 'text-emerald-600 dark:text-emerald-400'
-                  )}>
-                    {formatINR(stageTotal)}
-                  </p>
-                )}
 
                 {/* Cards */}
                 <div className="space-y-2">
@@ -1686,13 +1657,11 @@ export const DealsPage: React.FC = () => {
                 <DetailInfoRow label="Contact No" value={deal.contactNo} icon={<Phone className="w-3.5 h-3.5" />} />
                 <DetailInfoRow label="Email" value={deal.email} icon={<Mail className="w-3.5 h-3.5" />} />
                 <DetailInfoRow label="Designation" value={deal.designation} icon={<Briefcase className="w-3.5 h-3.5" />} />
-                <DetailInfoRow label="Location" value={deal.location} icon={<MapPin className="w-3.5 h-3.5" />} />
                 <DetailInfoRow label="Owner" value={deal.ownerName} icon={<UserIcon className="w-3.5 h-3.5" />} />
                 <DetailInfoRow label="Closing Date" value={deal.closingDate ? formatDate(deal.closingDate) : undefined} icon={<Calendar className="w-3.5 h-3.5" />} />
                 <DetailInfoRow label="Type" value={deal.type} icon={<Briefcase className="w-3.5 h-3.5" />} />
-                <DetailInfoRow label="Type" value={deal.tag} icon={<Layers className="w-3.5 h-3.5" />} />
-                <DetailInfoRow label="Forecast" value={deal.forecast} icon={<Target className="w-3.5 h-3.5" />} />
-                <DetailInfoRow label="Lead Source" value={deal.leadSource} icon={<TrendingUp className="w-3.5 h-3.5" />} />
+                <DetailInfoRow label="Tag" value={deal.tag} icon={<Layers className="w-3.5 h-3.5" />} />
+                <DetailInfoRow label="Source" value={deal.leadSource} icon={<TrendingUp className="w-3.5 h-3.5" />} />
                 <DetailInfoRow label="Order Type" value={deal.typeOfOrder} icon={<Tag className="w-3.5 h-3.5" />} />
               </div>
 
