@@ -305,7 +305,7 @@ export const CRMPage: React.FC = () => {
   const { getOptions, getValues } = useDropdowns();
 
   // Stage definitions (hardcoded to guarantee all stages always render)
-  const LEAD_STAGES: LeadStage[] = ['New', 'Cold', 'Proposal', 'Negotiation', 'Closed Won', 'Closed Lost'];
+  const LEAD_STAGES: LeadStage[] = ['New', 'Proposal', 'Cold', 'Negotiation', 'Closed Won', 'Closed Lost'];
   // Other dropdown data from DB
   const PRIORITIES = getValues('priorities');
   const SOURCES = getOptions('lead-sources');

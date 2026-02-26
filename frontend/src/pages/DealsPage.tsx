@@ -170,8 +170,8 @@ export const DealsPage: React.FC = () => {
   const canSeeAssignee = true; // Always show — backend controls data visibility via manager hierarchy
 
   // Stage definitions (hardcoded to guarantee all stages always render)
-  const DEAL_STAGES: DealStage[] = ['New', 'Cold', 'Proposal', 'Negotiation', 'Closed Won', 'Closed Lost'];
-  const PIPELINE_STAGES: DealStage[] = ['New', 'Cold', 'Proposal', 'Negotiation'];
+  const DEAL_STAGES: DealStage[] = ['New', 'Proposal', 'Cold', 'Negotiation', 'Closed Won', 'Closed Lost'];
+  const PIPELINE_STAGES: DealStage[] = ['New', 'Proposal', 'Cold', 'Negotiation'];
   const TERMINAL_STAGES: DealStage[] = ['Closed Won', 'Closed Lost'];
   // Other dropdown data from DB
   const DEAL_TYPES = getOptions('deal-types');
