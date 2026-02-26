@@ -32,23 +32,23 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
           </label>
         )}
         <div className="relative">
-          {icon && (
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400 dark:text-zinc-500">
-              {icon}
-            </div>
-          )}
           <input
             ref={ref}
             id={inputId}
             className={cx(
               inputStyles,
-              icon && 'pl-10',
-              iconRight && 'pr-10',
-              error && 'border-error-500 focus:border-error-500 focus:ring-error-500',
+              icon ? 'pl-10' : undefined,
+              iconRight ? 'pr-10' : undefined,
+              error ? 'border-error-500 focus:border-error-500 focus:ring-error-500' : undefined,
               className
             )}
             {...props}
           />
+          {icon && (
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400 dark:text-zinc-500">
+              {icon}
+            </div>
+          )}
           {iconRight && (
             <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none text-gray-400 dark:text-zinc-500">
               {iconRight}

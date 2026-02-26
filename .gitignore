@@ -47,3 +47,6 @@ backend/uploads/*
 .claude/
 frontend/node_modules
 frontend/dist
+
+
+changes-to-copy

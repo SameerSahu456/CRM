@@ -1560,14 +1560,9 @@ export const DealsPage: React.FC = () => {
     const stageColor = STAGE_COLORS[deal.stage] || STAGE_COLORS['New'];
 
     return (
-      <div className="fixed inset-0 z-50 flex items-start justify-center p-4 pt-[5vh] overflow-y-auto">
-        <div className="fixed inset-0 bg-black/50 animate-backdrop" onClick={closeDealDetailModal} />
-        <div className={cx(
-          'relative w-full max-w-2xl max-h-[85vh] rounded-2xl animate-fade-in-up flex flex-col overflow-hidden',
-          'bg-white shadow-premium dark:bg-dark-50 dark:border dark:border-zinc-800'
-        )}>
+      <Modal open={showDetailModal} onClose={closeDealDetailModal} size="xl" raw>
           {/* Header */}
-          <div className="flex-shrink-0 flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-white dark:bg-dark-50 dark:border-zinc-800">
+          <div className="flex-shrink-0 flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-zinc-800">
             <div className="flex items-center gap-3 min-w-0 flex-1">
               <h2 className="text-lg font-semibold font-display truncate text-gray-900 dark:text-white">
                 {deal.accountName || 'Deal Details'}
@@ -1629,9 +1624,9 @@ export const DealsPage: React.FC = () => {
               )}
               <button
                 onClick={closeDealDetailModal}
-                className="p-2 rounded-lg transition-colors text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:text-zinc-400 dark:hover:text-white dark:hover:bg-zinc-800"
+                className="group p-2 rounded-xl transition-all duration-200 hover:bg-gray-100 dark:hover:bg-zinc-800 cursor-pointer"
               >
-                <X className="w-5 h-5" />
+                <X className="w-5 h-5 text-gray-400 group-hover:text-gray-700 dark:group-hover:text-white transition-colors" />
               </button>
             </div>
           </div>
@@ -2010,8 +2005,7 @@ export const DealsPage: React.FC = () => {
               </div>
             </div>
           </div>
-        </div>
-      </div>
+      </Modal>
     );
   };
 
@@ -2028,8 +2022,29 @@ export const DealsPage: React.FC = () => {
         onClose={closeDealModal}
         title={editingDealId ? 'Edit Deal' : 'New Deal'}
         size="xl"
+        footer={
+          <>
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={closeDealModal}
+              disabled={isSubmitting}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              form="deal-form"
+              loading={isSubmitting}
+              icon={isSubmitting ? undefined : <CheckCircle className="w-4 h-4" />}
+              shine
+            >
+              {isSubmitting ? 'Saving...' : (editingDealId ? 'Update Deal' : 'Create Deal')}
+            </Button>
+          </>
+        }
       >
-        <form onSubmit={handleDealSubmit} className="space-y-5">
+        <form id="deal-form" onSubmit={handleDealSubmit} className="space-y-5">
           {dealFormError && (
             <Alert variant="error" icon={<AlertCircle className="w-4 h-4" />}>
               {dealFormError}
@@ -2213,25 +2228,6 @@ export const DealsPage: React.FC = () => {
             />
           </div>
 
-          {/* Footer - sticky at bottom */}
-          <div className="sticky bottom-0 flex items-center justify-end gap-3 pt-4 border-t border-gray-200 bg-white dark:bg-[rgba(8,14,30,0.95)] dark:border-zinc-800">
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={closeDealModal}
-              disabled={isSubmitting}
-            >
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              loading={isSubmitting}
-              icon={isSubmitting ? undefined : <CheckCircle className="w-4 h-4" />}
-              shine
-            >
-              {isSubmitting ? 'Saving...' : (editingDealId ? 'Update Deal' : 'Create Deal')}
-            </Button>
-          </div>
         </form>
       </Modal>
     );

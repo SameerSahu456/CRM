@@ -119,7 +119,6 @@ const MultiSelectDropdown: React.FC<{
           {/* Search */}
           <div className="p-2 border-b border-gray-100 dark:border-zinc-700/50">
             <div className="relative">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 dark:text-zinc-500" />
               <input
                 type="text"
                 placeholder="Search product managers..."
@@ -133,6 +132,7 @@ const MultiSelectDropdown: React.FC<{
                   'focus:outline-none'
                 )}
               />
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 dark:text-zinc-500 pointer-events-none" />
             </div>
           </div>
 

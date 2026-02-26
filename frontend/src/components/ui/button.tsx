@@ -17,8 +17,8 @@ const variants = {
     'dark:bg-dark-100 dark:text-gray-300 dark:border-zinc-700 dark:hover:bg-dark-50 dark:active:bg-zinc-800'
   ),
   ghost: cx(
-    'text-gray-600 hover:bg-gray-100 active:bg-gray-200',
-    'dark:text-gray-400 dark:hover:bg-zinc-800 dark:active:bg-zinc-700'
+    'bg-gray-100 text-gray-700 hover:bg-gray-200 active:bg-gray-300 border border-gray-200',
+    'dark:bg-zinc-800 dark:text-gray-300 dark:hover:bg-zinc-700 dark:active:bg-zinc-600 dark:border-zinc-700'
   ),
   danger: 'bg-error-600 text-white hover:bg-error-700 active:bg-error-800 shadow-xs focus:ring-2 focus:ring-error-500/30',
   success: 'bg-success-600 text-white hover:bg-success-700 active:bg-success-800 shadow-xs focus:ring-2 focus:ring-success-500/30',

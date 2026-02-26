@@ -807,7 +807,6 @@ const CategoriesTab: React.FC = () => {
             {/* Search */}
             {pmUsers.length > 4 && (
               <div className="relative mb-2">
-                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 dark:text-zinc-500" />
                 <input
                   type="text"
                   placeholder="Search product managers..."
@@ -820,6 +819,7 @@ const CategoriesTab: React.FC = () => {
                     'focus:outline-none'
                   )}
                 />
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 dark:text-zinc-500 pointer-events-none" />
               </div>
             )}
 

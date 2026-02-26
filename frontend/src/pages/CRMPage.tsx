@@ -1114,7 +1114,6 @@ export const CRMPage: React.FC = () => {
 
         {/* Search */}
         <div className="relative flex-1 min-w-0">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-zinc-500" />
           <input
             type="text"
             placeholder="Search by company name..."
@@ -1122,6 +1121,7 @@ export const CRMPage: React.FC = () => {
             onChange={e => setSearchTerm(e.target.value)}
             className={cx(inputStyles, 'pl-10')}
           />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-zinc-500 pointer-events-none" />
         </div>
 
         {/* Filter: Stage */}
@@ -1984,13 +1984,13 @@ export const CRMPage: React.FC = () => {
                 <div>
                   <label className={labelStyles}>Assigned To</label>
                   <div className="relative">
-                    <Users className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-zinc-500" />
                     <select name="assignedTo" value={leadFormData.assignedTo} onChange={handleLeadFormChange} className={cx(inputStyles, 'appearance-none cursor-pointer pl-10')}>
                       <option value="">Auto-assign (Me)</option>
                       {users.map(u => (
                         <option key={u.id} value={u.id}>{u.name}</option>
                       ))}
                     </select>
+                    <Users className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-zinc-500 pointer-events-none" />
                   </div>
                 </div>
                 <Select label="Partner" name="partnerId" value={leadFormData.partnerId} onChange={handleLeadFormChange}>

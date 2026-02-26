@@ -25,14 +25,14 @@ export const WidgetWrapper: React.FC<WidgetWrapperProps> = ({ id, children }) =>
   };
 
   return (
-    <div ref={setNodeRef} style={style} className="relative group">
-      {/* Drag Handle */}
+    <div ref={setNodeRef} style={style} className="relative group rounded-2xl">
+      {/* Drag Handle — left side, inside card padding */}
       <div
         {...attributes}
         {...listeners}
-        className="absolute -left-2 top-4 opacity-0 group-hover:opacity-100 transition-opacity cursor-grab active:cursor-grabbing z-10"
+        className="absolute left-1 top-5 z-10 p-1 rounded-lg cursor-grab active:cursor-grabbing opacity-40 hover:opacity-100 transition-opacity touch-none"
       >
-        <GripVertical className="w-5 h-5 text-gray-400 dark:text-zinc-500" />
+        <GripVertical className="w-3.5 h-3.5 text-gray-400 dark:text-zinc-500" />
       </div>
 
       {/* Widget Content */}

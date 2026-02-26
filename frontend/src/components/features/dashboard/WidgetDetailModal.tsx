@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { X, ExternalLink, Loader2, ArrowLeft, ChevronRight, Users, Briefcase, Target, TrendingUp } from 'lucide-react';
+import { Modal } from '@/components/ui';
 import { dashboardApi, formatINR } from '@/services/api';
 import { formatCompact, pctChange } from '@/utils/dashboard';
 import { NavigationItem } from '@/types';
@@ -1185,53 +1186,47 @@ export const WidgetDetailModal: React.FC<WidgetDetailModalProps> = ({ widgetId, 
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      {/* Backdrop */}
-      <div className="absolute inset-0 bg-black/50 animate-backdrop" onClick={onClose} />
-
-      {/* Modal */}
-      <div className="relative w-full max-w-2xl max-h-[80vh] overflow-y-auto rounded-2xl animate-fade-in-up bg-white dark:bg-[rgba(8,13,27,0.92)] dark:backdrop-blur-2xl dark:border dark:border-white/[0.06]">
-        {/* Header */}
-        <div className="sticky top-0 z-10 px-6 py-4 border-b flex items-center justify-between bg-white border-slate-200 dark:bg-[rgba(8,13,27,0.95)] dark:backdrop-blur-xl dark:border-white/[0.06]">
-          <div className="flex items-center gap-3">
-            {meta && (
-              <div className="w-9 h-9 rounded-xl flex items-center justify-center bg-brand-50 dark:bg-brand-900/30">
-                <span className="text-brand-600 dark:text-brand-400">{meta.icon}</span>
-              </div>
-            )}
-            <div>
-              <h2 className="text-lg font-bold text-slate-900 dark:text-white">
-                {meta?.label || widgetId}
-              </h2>
-              <p className="text-xs text-slate-400 dark:text-zinc-500">
-                {meta?.description || 'Widget Details'}
-              </p>
+    <Modal open={true} onClose={onClose} size="xl" raw>
+      {/* Header */}
+      <div className="sticky top-0 z-10 px-6 py-4 border-b flex items-center justify-between bg-white border-gray-100 dark:bg-zinc-900 dark:border-zinc-800">
+        <div className="flex items-center gap-3">
+          {meta && (
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center bg-brand-50 dark:bg-brand-900/30">
+              <span className="text-brand-600 dark:text-brand-400">{meta.icon}</span>
             </div>
-          </div>
-          <div className="flex items-center gap-2">
-            {targetPage && (
-              <button
-                onClick={handleGoToPage}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-colors bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-white/[0.06] dark:text-zinc-300 dark:hover:bg-white/[0.1] dark:border dark:border-white/[0.06]"
-              >
-                <ExternalLink className="w-3.5 h-3.5" />
-                View Full Page
-              </button>
-            )}
-            <button
-              onClick={onClose}
-              className="p-2 rounded-lg transition-colors hover:bg-slate-100 text-slate-400 dark:hover:bg-white/[0.06] dark:text-zinc-400"
-            >
-              <X className="w-5 h-5" />
-            </button>
+          )}
+          <div>
+            <h2 className="text-lg font-bold text-gray-900 dark:text-white">
+              {meta?.label || widgetId}
+            </h2>
+            <p className="text-xs text-gray-400 dark:text-zinc-500">
+              {meta?.description || 'Widget Details'}
+            </p>
           </div>
         </div>
-
-        {/* Content */}
-        <div className="p-6">
-          {renderContent()}
+        <div className="flex items-center gap-2">
+          {targetPage && (
+            <button
+              onClick={handleGoToPage}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-colors bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
+            >
+              <ExternalLink className="w-3.5 h-3.5" />
+              View Full Page
+            </button>
+          )}
+          <button
+            onClick={onClose}
+            className="group p-2 rounded-xl transition-all duration-200 hover:bg-gray-100 dark:hover:bg-zinc-800 cursor-pointer"
+          >
+            <X className="w-5 h-5 text-gray-400 group-hover:text-gray-700 dark:group-hover:text-white transition-colors" />
+          </button>
         </div>
       </div>
-    </div>
+
+      {/* Content */}
+      <div className="flex-1 overflow-y-auto p-6">
+        {renderContent()}
+      </div>
+    </Modal>
   );
 };

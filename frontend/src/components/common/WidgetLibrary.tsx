@@ -2,6 +2,7 @@ import React from 'react';
 import { X, Eye, EyeOff, RotateCcw, Loader2 } from 'lucide-react';
 import { WIDGET_REGISTRY } from '@/config/widgetRegistry';
 import { useDashboardLayout } from '@/hooks/useDashboardLayout';
+import { Modal } from '@/components/ui';
 
 interface WidgetLibraryProps {
   onClose: () => void;
@@ -25,103 +26,97 @@ export const WidgetLibrary: React.FC<WidgetLibraryProps> = ({ onClose }) => {
   ];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      {/* Backdrop */}
-      <div className="absolute inset-0 bg-black/50 animate-backdrop" onClick={onClose} />
-
-      {/* Modal */}
-      <div className="relative w-full max-w-3xl max-h-[80vh] overflow-y-auto rounded-2xl animate-fade-in-up bg-white/72 backdrop-blur-2xl border border-white/50 dark:bg-[rgba(8,13,27,0.92)] dark:border-white/[0.06]">
-        {/* Header */}
-        <div className="sticky top-0 z-10 px-6 py-4 border-b flex items-center justify-between bg-white/70 backdrop-blur-xl border-white/40 dark:bg-[rgba(8,13,27,0.95)] dark:border-white/[0.06]">
-          <div>
-            <h2 className="text-xl font-bold text-slate-900 dark:text-white">
-              Dashboard Widgets
-            </h2>
-            <p className="text-sm mt-1 text-slate-500 dark:text-zinc-400">
-              Customize which analytics cards appear on your dashboard
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={resetToDefaults}
-              className="flex items-center gap-2 px-3 py-2 rounded-lg transition-colors hover:bg-slate-100 text-slate-600 hover:text-slate-900 dark:hover:bg-white/[0.06] dark:text-zinc-400 dark:hover:text-white"
-            >
-              <RotateCcw className="w-4 h-4" />
-              Reset
-            </button>
-            <button onClick={onClose} className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-white/[0.06]">
-              <X className="w-5 h-5 text-slate-600 dark:text-zinc-400" />
-            </button>
-          </div>
-        </div>
-
-        {/* Content */}
-        <div className="p-6 space-y-6">
-          {categories.map(category => {
-            const widgets = Object.values(WIDGET_REGISTRY).filter(w => w.category === category.key);
-            if (widgets.length === 0) return null;
-
-            return (
-              <div key={category.key}>
-                <h3 className="text-sm font-semibold uppercase tracking-wider mb-3 text-slate-400 dark:text-zinc-500">
-                  {category.label}
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {widgets.map(widget => (
-                    <div
-                      key={widget.id}
-                      className={`p-4 rounded-xl border transition-all ${
-                        isWidgetVisible(widget.id)
-                          ? 'bg-slate-50 border-slate-200 dark:bg-[rgba(10,16,32,0.5)] dark:border-white/[0.06]'
-                          : 'bg-slate-50/50 border-slate-200/50 opacity-60 dark:bg-[rgba(10,16,32,0.3)] dark:border-white/[0.03]'
-                      }`}
-                    >
-                      <div className="flex items-start justify-between">
-                        <div className="flex items-start gap-3 flex-1">
-                          <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-brand-100 text-brand-600 dark:bg-brand-900/30 dark:text-brand-400">
-                            {widget.icon}
-                          </div>
-                          <div className="flex-1">
-                            <h4 className="font-semibold text-slate-900 dark:text-white">
-                              {widget.label}
-                            </h4>
-                            <p className="text-sm mt-1 text-slate-500 dark:text-zinc-400">
-                              {widget.description}
-                            </p>
-                          </div>
-                        </div>
-                        <button
-                          onClick={() => toggleVisibility(widget.id)}
-                          className={`p-2 rounded-lg transition-colors flex-shrink-0 ${
-                            isWidgetVisible(widget.id)
-                              ? 'text-brand-600 hover:bg-brand-100'
-                              : 'text-slate-400 hover:bg-slate-200'
-                          }`}
-                        >
-                          {isWidgetVisible(widget.id) ? <Eye className="w-5 h-5" /> : <EyeOff className="w-5 h-5" />}
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-
-        {/* Footer */}
-        <div className="sticky bottom-0 px-6 py-4 border-t flex items-center justify-between bg-white/70 backdrop-blur-xl border-white/40 dark:bg-[rgba(8,13,27,0.95)] dark:border-white/[0.06]">
-          <p className="text-sm text-slate-500 dark:text-zinc-400">
-            {accessibleWidgets.filter(w => isWidgetVisible(w.id)).length} of {accessibleWidgets.length} widgets visible
+    <Modal open={true} onClose={onClose} size="2xl" raw>
+      {/* Header */}
+      <div className="sticky top-0 z-10 px-6 py-4 border-b flex items-center justify-between bg-white/70 backdrop-blur-xl border-gray-100 dark:bg-zinc-900 dark:border-zinc-800">
+        <div>
+          <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+            Dashboard Widgets
+          </h2>
+          <p className="text-sm mt-1 text-gray-500 dark:text-zinc-400">
+            Customize which analytics cards appear on your dashboard
           </p>
-          {isSaving && (
-            <div className="flex items-center gap-2 text-sm text-zinc-400">
-              <Loader2 className="w-4 h-4 animate-spin" />
-              Saving...
-            </div>
-          )}
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={resetToDefaults}
+            className="flex items-center gap-2 px-3 py-2 rounded-lg transition-colors hover:bg-gray-100 text-gray-600 hover:text-gray-900 dark:hover:bg-zinc-800 dark:text-zinc-400 dark:hover:text-white"
+          >
+            <RotateCcw className="w-4 h-4" />
+            Reset
+          </button>
+          <button onClick={onClose} className="group p-2 rounded-xl transition-all duration-200 hover:bg-gray-100 dark:hover:bg-zinc-800 cursor-pointer">
+            <X className="w-5 h-5 text-gray-400 group-hover:text-gray-700 dark:group-hover:text-white transition-colors" />
+          </button>
         </div>
       </div>
-    </div>
+
+      {/* Content */}
+      <div className="flex-1 overflow-y-auto p-6 space-y-6">
+        {categories.map(category => {
+          const widgets = Object.values(WIDGET_REGISTRY).filter(w => w.category === category.key);
+          if (widgets.length === 0) return null;
+
+          return (
+            <div key={category.key}>
+              <h3 className="text-sm font-semibold uppercase tracking-wider mb-3 text-gray-400 dark:text-zinc-500">
+                {category.label}
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {widgets.map(widget => (
+                  <div
+                    key={widget.id}
+                    className={`p-4 rounded-xl border transition-all ${
+                      isWidgetVisible(widget.id)
+                        ? 'bg-gray-50 border-gray-200 dark:bg-zinc-800/50 dark:border-zinc-700'
+                        : 'bg-gray-50/50 border-gray-200/50 opacity-60 dark:bg-zinc-800/30 dark:border-zinc-700/30'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-start gap-3 flex-1">
+                        <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-brand-100 text-brand-600 dark:bg-brand-900/30 dark:text-brand-400">
+                          {widget.icon}
+                        </div>
+                        <div className="flex-1">
+                          <h4 className="font-semibold text-gray-900 dark:text-white">
+                            {widget.label}
+                          </h4>
+                          <p className="text-sm mt-1 text-gray-500 dark:text-zinc-400">
+                            {widget.description}
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => toggleVisibility(widget.id)}
+                        className={`p-2 rounded-lg transition-colors flex-shrink-0 ${
+                          isWidgetVisible(widget.id)
+                            ? 'text-brand-600 hover:bg-brand-100'
+                            : 'text-gray-400 hover:bg-gray-200'
+                        }`}
+                      >
+                        {isWidgetVisible(widget.id) ? <Eye className="w-5 h-5" /> : <EyeOff className="w-5 h-5" />}
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Footer */}
+      <div className="sticky bottom-0 px-6 py-4 border-t flex items-center justify-between bg-gray-50 border-gray-100 dark:bg-zinc-900 dark:border-zinc-800">
+        <p className="text-sm text-gray-500 dark:text-zinc-400">
+          {accessibleWidgets.filter(w => isWidgetVisible(w.id)).length} of {accessibleWidgets.length} widgets visible
+        </p>
+        {isSaving && (
+          <div className="flex items-center gap-2 text-sm text-zinc-400">
+            <Loader2 className="w-4 h-4 animate-spin" />
+            Saving...
+          </div>
+        )}
+      </div>
+    </Modal>
   );
 };

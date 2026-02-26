@@ -5,6 +5,7 @@ import {
   User as UserIcon, Copy, Briefcase
 } from 'lucide-react';
 import { Account } from '@/types';
+import { Modal } from '@/components/ui';
 
 // Form Data Interface
 export interface EnhancedAccountFormData {
@@ -230,21 +231,19 @@ export const EnhancedAccountForm: React.FC<Props> = ({
   }`;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/50 animate-backdrop" onClick={onClose} />
-      <div className="relative w-full max-w-5xl max-h-[95vh] rounded-2xl animate-fade-in-up flex flex-col overflow-hidden bg-white shadow-premium dark:bg-dark-50 dark:border dark:border-zinc-800">
-        {/* Header */}
-        <div className="flex-shrink-0 flex items-center justify-between px-6 py-4 border-b bg-white border-slate-200 dark:bg-dark-50 dark:border-zinc-800">
-          <h2 className="text-lg font-semibold font-display text-slate-900 dark:text-white">
-            {editingAccount ? 'Edit Account' : 'New Account'}
-          </h2>
-          <button
-            onClick={onClose}
-            className="p-2 rounded-lg transition-colors text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:text-zinc-400 dark:hover:text-white dark:hover:bg-zinc-800"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
+    <Modal open={isOpen} onClose={onClose} size="full" raw className="max-w-5xl">
+      {/* Header */}
+      <div className="flex-shrink-0 flex items-center justify-between px-6 py-4 border-b bg-white border-gray-100 dark:bg-zinc-900 dark:border-zinc-800">
+        <h2 className="text-lg font-semibold font-display text-gray-900 dark:text-white">
+          {editingAccount ? 'Edit Account' : 'New Account'}
+        </h2>
+        <button
+          onClick={onClose}
+          className="group p-2 rounded-xl transition-all duration-200 hover:bg-gray-100 dark:hover:bg-zinc-800 cursor-pointer"
+        >
+          <X className="w-5 h-5 text-gray-400 group-hover:text-gray-700 dark:group-hover:text-white transition-colors" />
+        </button>
+      </div>
 
         {/* Tabs */}
         <div className="flex-shrink-0 flex items-center gap-1 px-6 border-b border-slate-200 dark:border-zinc-800">
@@ -302,7 +301,6 @@ export const EnhancedAccountForm: React.FC<Props> = ({
                         Account Name <span className="text-red-500">*</span>
                       </label>
                       <div className="relative">
-                        <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 dark:text-zinc-500" />
                         <input
                           id="name"
                           name="name"
@@ -313,6 +311,7 @@ export const EnhancedAccountForm: React.FC<Props> = ({
                           placeholder="Enter account name"
                           required
                         />
+                        <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 dark:text-zinc-500 pointer-events-none" />
                       </div>
                     </div>
 
@@ -321,7 +320,6 @@ export const EnhancedAccountForm: React.FC<Props> = ({
                       <div>
                         <label htmlFor="phone" className={labelClass}>Phone</label>
                         <div className="relative">
-                          <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 dark:text-zinc-500" />
                           <input
                             id="phone"
                             name="phone"
@@ -331,12 +329,12 @@ export const EnhancedAccountForm: React.FC<Props> = ({
                             className={`${inputClass} pl-10`}
                             placeholder="+91 XXXXX XXXXX"
                           />
+                          <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 dark:text-zinc-500 pointer-events-none" />
                         </div>
                       </div>
                       <div>
                         <label htmlFor="website" className={labelClass}>Website</label>
                         <div className="relative">
-                          <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 dark:text-zinc-500" />
                           <input
                             id="website"
                             name="website"
@@ -346,6 +344,7 @@ export const EnhancedAccountForm: React.FC<Props> = ({
                             className={`${inputClass} pl-10`}
                             placeholder="https://example.com"
                           />
+                          <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 dark:text-zinc-500 pointer-events-none" />
                         </div>
                       </div>
                     </div>
@@ -536,7 +535,6 @@ export const EnhancedAccountForm: React.FC<Props> = ({
                   <div>
                     <label htmlFor="panNo" className={labelClass}>PAN</label>
                     <div className="relative">
-                      <Hash className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 dark:text-zinc-500" />
                       <input
                         id="panNo"
                         name="panNo"
@@ -546,12 +544,12 @@ export const EnhancedAccountForm: React.FC<Props> = ({
                         className={`${inputClass} pl-10`}
                         placeholder="ABCDE1234F"
                       />
+                      <Hash className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 dark:text-zinc-500 pointer-events-none" />
                     </div>
                   </div>
                   <div>
                     <label htmlFor="gstinNo" className={labelClass}>GSTIN No</label>
                     <div className="relative">
-                      <Hash className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 dark:text-zinc-500" />
                       <input
                         id="gstinNo"
                         name="gstinNo"
@@ -561,6 +559,7 @@ export const EnhancedAccountForm: React.FC<Props> = ({
                         className={`${inputClass} pl-10`}
                         placeholder="22AAAAA0000A1Z5"
                       />
+                      <Hash className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 dark:text-zinc-500 pointer-events-none" />
                     </div>
                   </div>
                 </div>
@@ -570,7 +569,6 @@ export const EnhancedAccountForm: React.FC<Props> = ({
                   <div>
                     <label htmlFor="revenue" className={labelClass}>Revenue (INR)</label>
                     <div className="relative">
-                      <IndianRupee className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 dark:text-zinc-500" />
                       <input
                         id="revenue"
                         name="revenue"
@@ -581,12 +579,12 @@ export const EnhancedAccountForm: React.FC<Props> = ({
                         className={`${inputClass} pl-10`}
                         placeholder="0"
                       />
+                      <IndianRupee className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 dark:text-zinc-500 pointer-events-none" />
                     </div>
                   </div>
                   <div>
                     <label htmlFor="employees" className={labelClass}>Employees</label>
                     <div className="relative">
-                      <Users className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 dark:text-zinc-500" />
                       <input
                         id="employees"
                         name="employees"
@@ -597,6 +595,7 @@ export const EnhancedAccountForm: React.FC<Props> = ({
                         className={`${inputClass} pl-10`}
                         placeholder="0"
                       />
+                      <Users className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 dark:text-zinc-500 pointer-events-none" />
                     </div>
                   </div>
                 </div>
@@ -605,7 +604,6 @@ export const EnhancedAccountForm: React.FC<Props> = ({
                 <div>
                   <label htmlFor="location" className={labelClass}>Location</label>
                   <div className="relative">
-                    <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 dark:text-zinc-500" />
                     <input
                       id="location"
                       name="location"
@@ -615,6 +613,7 @@ export const EnhancedAccountForm: React.FC<Props> = ({
                       className={`${inputClass} pl-10`}
                       placeholder="City, Country"
                     />
+                    <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 dark:text-zinc-500 pointer-events-none" />
                   </div>
                 </div>
               </div>
@@ -626,7 +625,6 @@ export const EnhancedAccountForm: React.FC<Props> = ({
                 <div>
                   <label htmlFor="contactName" className={labelClass}>Name {!editingAccount && <span className="text-red-500">*</span>}</label>
                   <div className="relative">
-                    <UserIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 dark:text-zinc-500" />
                     <input
                       id="contactName"
                       name="contactName"
@@ -637,13 +635,13 @@ export const EnhancedAccountForm: React.FC<Props> = ({
                       placeholder="Contact name"
                       required={!editingAccount}
                     />
+                    <UserIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 dark:text-zinc-500 pointer-events-none" />
                   </div>
                 </div>
 
                 <div>
                   <label htmlFor="contactEmail" className={labelClass}>Email</label>
                   <div className="relative">
-                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 dark:text-zinc-500" />
                     <input
                       id="contactEmail"
                       name="contactEmail"
@@ -653,13 +651,13 @@ export const EnhancedAccountForm: React.FC<Props> = ({
                       className={`${inputClass} pl-10`}
                       placeholder="contact@example.com"
                     />
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 dark:text-zinc-500 pointer-events-none" />
                   </div>
                 </div>
 
                 <div>
                   <label htmlFor="contactPhone" className={labelClass}>Contact Phone</label>
                   <div className="relative">
-                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 dark:text-zinc-500" />
                     <input
                       id="contactPhone"
                       name="contactPhone"
@@ -669,6 +667,7 @@ export const EnhancedAccountForm: React.FC<Props> = ({
                       className={`${inputClass} pl-10`}
                       placeholder="+91 XXXXX XXXXX"
                     />
+                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 dark:text-zinc-500 pointer-events-none" />
                   </div>
                 </div>
 
@@ -896,7 +895,6 @@ export const EnhancedAccountForm: React.FC<Props> = ({
             </button>
           </div>
         </form>
-      </div>
-    </div>
+    </Modal>
   );
 };
