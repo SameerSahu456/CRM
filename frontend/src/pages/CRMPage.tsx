@@ -11,9 +11,9 @@ import {
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigation } from '@/contexts/NavigationContext';
 import { useDropdowns } from '@/contexts/DropdownsContext';
-import { leadsApi, dealsApi, partnersApi, productsApi, adminApi, accountsApi, contactsApi, uploadsApi, salesApi, formatINR, LEAD_LIST_FIELDS, LEAD_KANBAN_FIELDS } from '@/services/api';
+import { leadsApi, dealsApi, partnersApi, productsApi, quotesApi, adminApi, accountsApi, contactsApi, uploadsApi, salesApi, formatINR, LEAD_LIST_FIELDS, LEAD_KANBAN_FIELDS } from '@/services/api';
 import { exportToCsv } from '@/utils/exportCsv';
-import { Lead, LeadStage, PaginatedResponse, Partner, Product, User, ActivityLog } from '@/types';
+import { Lead, LeadStage, Quote, PaginatedResponse, Partner, Product, User, ActivityLog } from '@/types';
 import { BulkImportModal } from '@/components/common/BulkImportModal';
 import { RichTextEditor } from '@/components/common/RichTextEditor';
 import { Card, Button, Input, Select, Modal, Badge, Alert, Textarea, DataTable, DataTableColumn } from '@/components/ui';
@@ -422,6 +422,30 @@ export const CRMPage: React.FC = () => {
   const [showSummariseModal, setShowSummariseModal] = useState(false);
   const [summariseLead, setSummariseLead] = useState<Lead | null>(null);
 
+  // Inline quote builder state (inside lead detail)
+  interface LeadInlineLineItem {
+    productId: string;
+    description: string;
+    quantity: number;
+    unitPrice: number;
+  }
+  const emptyLeadLineItem: LeadInlineLineItem = { productId: '', description: '', quantity: 1, unitPrice: 0 };
+  const [leadQuoteOpen, setLeadQuoteOpen] = useState(false);
+  const [leadQuoteLineItems, setLeadQuoteLineItems] = useState<LeadInlineLineItem[]>([{ ...emptyLeadLineItem }]);
+  const [leadQuoteTaxRate, setLeadQuoteTaxRate] = useState(18);
+  const [leadQuoteDiscountAmount, setLeadQuoteDiscountAmount] = useState(0);
+  const [leadQuoteCustomerName, setLeadQuoteCustomerName] = useState('');
+  const [leadQuoteValidUntil, setLeadQuoteValidUntil] = useState('');
+  const [leadQuoteNotes, setLeadQuoteNotes] = useState('');
+  const [leadQuoteTerms, setLeadQuoteTerms] = useState('');
+  const [leadQuoteSaving, setLeadQuoteSaving] = useState(false);
+  const [leadQuoteError, setLeadQuoteError] = useState('');
+  const [leadQuoteSuccess, setLeadQuoteSuccess] = useState('');
+  // Existing quotes for the lead
+  const [leadQuotes, setLeadQuotes] = useState<Quote[]>([]);
+  const [leadQuotesLoading, setLeadQuotesLoading] = useState(false);
+  const [leadQuotePdfLoading, setLeadQuotePdfLoading] = useState<string | null>(null);
+  const [editingLeadQuoteId, setEditingLeadQuoteId] = useState<string | null>(null);
 
   // ---------------------------------------------------------------------------
   // Data fetching
@@ -619,10 +643,14 @@ export const CRMPage: React.FC = () => {
   // ---------------------------------------------------------------------------
 
   const openDetailModal = async (lead: Lead) => {
+    fetchDropdownData(); // ensure products are loaded for quote builder
     setDetailLead(lead);
     setAuditLogs([]);
     setActivities([]);
+    setLeadQuotes([]);
     setShowDetailModal(true);
+    // Pre-fill customer name
+    setLeadQuoteCustomerName(lead.companyName || lead.contactPerson || '');
     setIsAuditLoading(true);
     try {
       const [auditData, actData] = await Promise.all([
@@ -637,6 +665,8 @@ export const CRMPage: React.FC = () => {
     } finally {
       setIsAuditLoading(false);
     }
+    // Load quotes for this lead
+    await fetchLeadQuotes(lead.id);
   };
 
   const closeDetailModal = () => {
@@ -645,6 +675,159 @@ export const CRMPage: React.FC = () => {
     setActivityType('note');
     setActivityTitle('');
     setActivityDesc('');
+    // Reset quote builder
+    setLeadQuoteOpen(false);
+    setEditingLeadQuoteId(null);
+    setLeadQuoteLineItems([{ ...emptyLeadLineItem }]);
+    setLeadQuoteTaxRate(18);
+    setLeadQuoteDiscountAmount(0);
+    setLeadQuoteCustomerName('');
+    setLeadQuoteValidUntil('');
+    setLeadQuoteNotes('');
+    setLeadQuoteTerms('');
+    setLeadQuoteError('');
+    setLeadQuoteSuccess('');
+    setLeadQuotes([]);
+  };
+
+  const fetchLeadQuotes = useCallback(async (leadId: string) => {
+    setLeadQuotesLoading(true);
+    try {
+      const res = await quotesApi.list({ lead_id: leadId, limit: '50' });
+      const data = res?.data ?? res ?? [];
+      setLeadQuotes(Array.isArray(data) ? data : []);
+    } catch {
+      setLeadQuotes([]);
+    } finally {
+      setLeadQuotesLoading(false);
+    }
+  }, []);
+
+  const handleLeadQuotePdf = async (quote: Quote) => {
+    setLeadQuotePdfLoading(quote.id);
+    try {
+      if (quote.pdfUrl) {
+        window.open(quote.pdfUrl, '_blank');
+      } else {
+        const result = await quotesApi.getPdf(quote.id, true);
+        if (result.pdfUrl) {
+          window.open(result.pdfUrl, '_blank');
+          setLeadQuotes(prev => prev.map(q => q.id === quote.id ? { ...q, pdfUrl: result.pdfUrl } : q));
+        }
+      }
+    } catch {
+      // silent
+    } finally {
+      setLeadQuotePdfLoading(null);
+    }
+  };
+
+  const handleEditLeadQuote = async (quote: Quote) => {
+    setLeadQuoteError('');
+    setLeadQuoteSuccess('');
+    try {
+      const full = await quotesApi.getById(quote.id);
+      const q: Quote = full?.data ?? full;
+      setEditingLeadQuoteId(q.id);
+      setLeadQuoteCustomerName(q.customerName || '');
+      setLeadQuoteValidUntil(q.validUntil ? q.validUntil.split('T')[0] : '');
+      setLeadQuoteTaxRate(q.taxRate ?? 18);
+      setLeadQuoteDiscountAmount(q.discountAmount ?? 0);
+      setLeadQuoteTerms(q.terms || '');
+      setLeadQuoteNotes('');
+      setLeadQuoteLineItems(
+        q.lineItems && q.lineItems.length > 0
+          ? q.lineItems.map(li => ({
+              productId: li.productId || '',
+              description: li.description || '',
+              quantity: li.quantity,
+              unitPrice: li.unitPrice,
+            }))
+          : [{ ...emptyLeadLineItem }]
+      );
+      setLeadQuoteOpen(true);
+    } catch {
+      setLeadQuoteError('Failed to load quote for editing');
+    }
+  };
+
+  const handleLeadInlineLineItemChange = (index: number, field: keyof LeadInlineLineItem, value: string | number) => {
+    setLeadQuoteLineItems(prev => {
+      const updated = [...prev];
+      updated[index] = { ...updated[index], [field]: value };
+      if (field === 'productId' && value) {
+        const product = products.find(p => p.id === value);
+        if (product && product.basePrice) {
+          updated[index].unitPrice = product.basePrice;
+          if (!updated[index].description) updated[index].description = product.name || '';
+        }
+      }
+      return updated;
+    });
+  };
+
+  const handleLeadQuoteSubmit = async () => {
+    if (!detailLead) return;
+    if (!leadQuoteCustomerName.trim()) {
+      setLeadQuoteError('Account name is required');
+      return;
+    }
+    const validItems = leadQuoteLineItems.filter(li => li.productId || (li.description && li.quantity > 0 && li.unitPrice > 0));
+    if (validItems.length === 0) {
+      setLeadQuoteError('Add at least one line item with product or description, quantity, and price');
+      return;
+    }
+
+    setLeadQuoteSaving(true);
+    setLeadQuoteError('');
+    try {
+      const lineItems = validItems.map((li, idx) => ({
+        productId: li.productId || null,
+        description: li.description,
+        quantity: li.quantity,
+        unitPrice: li.unitPrice,
+        lineTotal: li.quantity * li.unitPrice,
+        sortOrder: idx,
+      }));
+      const subtotal = lineItems.reduce((sum, li) => sum + li.lineTotal, 0);
+      const taxable = subtotal - leadQuoteDiscountAmount;
+      const taxAmount = taxable > 0 ? taxable * (leadQuoteTaxRate / 100) : 0;
+
+      const payload = {
+        customerName: leadQuoteCustomerName,
+        leadId: detailLead.id,
+        validUntil: leadQuoteValidUntil || null,
+        taxRate: leadQuoteTaxRate,
+        discountAmount: leadQuoteDiscountAmount,
+        subtotal,
+        taxAmount,
+        totalAmount: taxable + taxAmount,
+        terms: leadQuoteTerms,
+        lineItems,
+      };
+
+      if (editingLeadQuoteId) {
+        await quotesApi.update(editingLeadQuoteId, payload);
+        setLeadQuoteSuccess('Quote updated successfully!');
+      } else {
+        const created = await quotesApi.create({ ...payload, status: 'draft' });
+        setLeadQuoteSuccess('Quote created successfully!');
+        if (created) setLeadQuotes(prev => [created, ...prev]);
+      }
+
+      setTimeout(() => setLeadQuoteSuccess(''), 4000);
+      setEditingLeadQuoteId(null);
+      setLeadQuoteLineItems([{ ...emptyLeadLineItem }]);
+      setLeadQuoteDiscountAmount(0);
+      setLeadQuoteValidUntil('');
+      setLeadQuoteTerms('');
+      setLeadQuoteOpen(false);
+      await fetchLeadQuotes(detailLead.id);
+    } catch (err: any) {
+      setLeadQuoteError(err.message || (editingLeadQuoteId ? 'Failed to update quote' : 'Failed to create quote'));
+    } finally {
+      setLeadQuoteSaving(false);
+    }
   };
 
   const handleAddLeadActivity = async () => {
@@ -1588,6 +1771,271 @@ export const CRMPage: React.FC = () => {
               Sale ID: {lead.wonSaleId}
             </Alert>
           )}
+
+          {/* Quote Builder */}
+          <div>
+            {/* Existing Quotes */}
+            {(leadQuotesLoading || leadQuotes.length > 0) && (
+              <div className="mb-3">
+                <h4 className="text-xs font-semibold uppercase tracking-wider mb-2 flex items-center gap-1.5 text-gray-400 dark:text-zinc-500">
+                  <FileText className="w-3.5 h-3.5" /> Quotes
+                </h4>
+                {leadQuotesLoading ? (
+                  <div className="flex items-center gap-2 text-xs text-gray-400 dark:text-zinc-500 py-2">
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" /> Loading quotes...
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {leadQuotes.map(q => (
+                      <div key={q.id} className="flex items-center justify-between p-2.5 rounded-lg border border-gray-200 bg-white dark:border-zinc-700 dark:bg-dark-50">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-semibold text-gray-700 dark:text-zinc-300">
+                              {q.quoteNumber || q.id.slice(0, 8)}
+                            </span>
+                            <span className={cx('text-[10px] px-1.5 py-0.5 rounded-full font-medium',
+                              q.status === 'draft' ? 'bg-gray-100 text-gray-600 dark:bg-zinc-800 dark:text-zinc-400' :
+                              q.status === 'sent' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' :
+                              q.status === 'accepted' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' :
+                              'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                            )}>
+                              {q.status.charAt(0).toUpperCase() + q.status.slice(1)}
+                            </span>
+                          </div>
+                          <p className="text-[10px] text-gray-500 dark:text-zinc-500 mt-0.5">
+                            {q.customerName} · {formatINR(q.totalAmount)}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-1 ml-2">
+                          <button
+                            onClick={() => handleEditLeadQuote(q)}
+                            className="p-1.5 rounded-lg transition-colors text-gray-500 hover:bg-gray-100 dark:text-zinc-400 dark:hover:bg-zinc-700"
+                            title="Edit Quote"
+                          >
+                            <Edit2 className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={() => handleLeadQuotePdf(q)}
+                            disabled={leadQuotePdfLoading === q.id}
+                            className="p-1.5 rounded-lg transition-colors text-indigo-600 hover:bg-indigo-50 dark:text-indigo-400 dark:hover:bg-indigo-900/20 disabled:opacity-50"
+                            title="Download PDF"
+                          >
+                            {leadQuotePdfLoading === q.id
+                              ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                              : <Download className="w-3.5 h-3.5" />
+                            }
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Create / Edit Quote toggle */}
+            <button
+              onClick={() => {
+                if (leadQuoteOpen && editingLeadQuoteId) {
+                  setLeadQuoteOpen(false);
+                  setEditingLeadQuoteId(null);
+                  setLeadQuoteLineItems([{ ...emptyLeadLineItem }]);
+                  setLeadQuoteCustomerName(detailLead?.companyName || detailLead?.contactPerson || '');
+                  setLeadQuoteValidUntil('');
+                  setLeadQuoteTaxRate(18);
+                  setLeadQuoteDiscountAmount(0);
+                  setLeadQuoteTerms('');
+                } else {
+                  setLeadQuoteOpen(prev => !prev);
+                  if (!leadQuoteOpen) setEditingLeadQuoteId(null);
+                }
+              }}
+              className="w-full flex items-center justify-between p-3 rounded-xl border transition-all border-indigo-200 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 dark:border-indigo-800 dark:bg-indigo-900/10 dark:hover:bg-indigo-900/20 dark:text-indigo-400"
+            >
+              <div className="flex items-center gap-2">
+                {editingLeadQuoteId ? <Edit2 className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
+                <span className="text-sm font-semibold">{editingLeadQuoteId ? 'Edit Quote' : 'Create Quote'}</span>
+              </div>
+              <ChevronDown className={cx('w-4 h-4 transition-transform', leadQuoteOpen && 'rotate-180')} />
+            </button>
+
+            {leadQuoteOpen && (
+              <div className="mt-3 p-4 rounded-xl border space-y-4 border-gray-200 bg-gray-50 dark:border-zinc-800 dark:bg-dark-100">
+                {leadQuoteError && (
+                  <Alert variant="error" icon={<AlertCircle className="w-3.5 h-3.5" />}>
+                    {leadQuoteError}
+                  </Alert>
+                )}
+                {leadQuoteSuccess && (
+                  <Alert variant="success" icon={<CheckCircle className="w-3.5 h-3.5" />}>
+                    {leadQuoteSuccess}
+                  </Alert>
+                )}
+
+                {/* Quote Header */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-[10px] font-medium text-gray-500 dark:text-zinc-400">Account Name *</label>
+                    <Input
+                      type="text"
+                      placeholder="Account name..."
+                      value={leadQuoteCustomerName}
+                      onChange={e => setLeadQuoteCustomerName(e.target.value)}
+                      className="!text-xs !py-1.5"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-medium text-gray-500 dark:text-zinc-400">Valid Until</label>
+                    <Input
+                      type="date"
+                      value={leadQuoteValidUntil}
+                      onChange={e => setLeadQuoteValidUntil(e.target.value)}
+                      className="!text-xs !py-1.5"
+                    />
+                  </div>
+                </div>
+
+                {/* Line Items */}
+                <div className="space-y-2">
+                  <h5 className="text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-zinc-500">
+                    Line Items
+                  </h5>
+                  {leadQuoteLineItems.map((li, idx) => (
+                    <div key={idx} className="p-3 rounded-lg border space-y-2 border-gray-200 bg-white dark:border-zinc-700 dark:bg-dark-50">
+                      <div className="flex items-center justify-between gap-2">
+                        <Select
+                          value={li.productId}
+                          onChange={e => handleLeadInlineLineItemChange(idx, 'productId', e.target.value)}
+                          className="flex-1 !text-xs !py-1.5"
+                        >
+                          <option value="">Select product...</option>
+                          {products.map(p => (
+                            <option key={p.id} value={p.id}>{p.name}</option>
+                          ))}
+                        </Select>
+                        {leadQuoteLineItems.length > 1 && (
+                          <button
+                            onClick={() => setLeadQuoteLineItems(prev => prev.filter((_, i) => i !== idx))}
+                            className="p-1 rounded-lg transition-colors text-gray-400 hover:text-red-500 dark:text-zinc-500 dark:hover:text-red-400"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </button>
+                        )}
+                      </div>
+                      <div>
+                        <label className="text-[10px] text-gray-400 dark:text-zinc-500">Description</label>
+                        <RichTextEditor
+                          value={li.description}
+                          onChange={val => handleLeadInlineLineItemChange(idx, 'description', val)}
+                          placeholder="Description — supports paste from Word/Excel..."
+                          minHeight="50px"
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="text-[10px] text-gray-400 dark:text-zinc-500">Qty</label>
+                          <Input
+                            type="number"
+                            min={1}
+                            value={li.quantity}
+                            onChange={e => handleLeadInlineLineItemChange(idx, 'quantity', Number(e.target.value) || 0)}
+                            className="!text-xs !py-1.5"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] text-gray-400 dark:text-zinc-500">Unit Price (₹)</label>
+                          <Input
+                            type="number"
+                            min={0}
+                            value={li.unitPrice}
+                            onChange={e => handleLeadInlineLineItemChange(idx, 'unitPrice', Number(e.target.value) || 0)}
+                            className="!text-xs !py-1.5"
+                          />
+                        </div>
+                      </div>
+                      <div className="text-right text-xs font-medium text-gray-700 dark:text-zinc-300">
+                        Line Total: {formatINR(li.quantity * li.unitPrice)}
+                      </div>
+                    </div>
+                  ))}
+                  <Button
+                    variant="secondary"
+                    size="xs"
+                    onClick={() => setLeadQuoteLineItems(prev => [...prev, { ...emptyLeadLineItem }])}
+                    icon={<Plus className="w-3 h-3" />}
+                  >
+                    Add Item
+                  </Button>
+                </div>
+
+                {/* Tax, Discount & Totals */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-2">
+                    <div>
+                      <label className="text-[10px] font-medium text-gray-500 dark:text-zinc-400">Tax Rate %</label>
+                      <Input
+                        type="number"
+                        min={0}
+                        value={leadQuoteTaxRate}
+                        onChange={e => setLeadQuoteTaxRate(Number(e.target.value) || 0)}
+                        className="!text-xs !py-1.5"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-medium text-gray-500 dark:text-zinc-400">Discount (₹)</label>
+                      <Input
+                        type="number"
+                        min={0}
+                        value={leadQuoteDiscountAmount}
+                        onChange={e => setLeadQuoteDiscountAmount(Number(e.target.value) || 0)}
+                        className="!text-xs !py-1.5"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex flex-col justify-end text-right text-xs space-y-1 text-gray-700 dark:text-zinc-300 pb-1">
+                    {(() => {
+                      const subtotal = leadQuoteLineItems.reduce((sum, li) => sum + li.quantity * li.unitPrice, 0);
+                      const taxable = subtotal - leadQuoteDiscountAmount;
+                      const tax = taxable > 0 ? taxable * (leadQuoteTaxRate / 100) : 0;
+                      return (
+                        <>
+                          <span>Subtotal: {formatINR(subtotal)}</span>
+                          {leadQuoteDiscountAmount > 0 && <span className="text-emerald-600 dark:text-emerald-400">Discount: -{formatINR(leadQuoteDiscountAmount)}</span>}
+                          <span>Tax ({leadQuoteTaxRate}%): {formatINR(tax)}</span>
+                          <span className="font-bold text-sm border-t pt-1 border-gray-200 dark:border-zinc-700">Total: {formatINR(taxable + tax)}</span>
+                        </>
+                      );
+                    })()}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-medium text-gray-500 dark:text-zinc-400">Terms & Conditions</label>
+                  <Textarea
+                    rows={2}
+                    placeholder="Terms..."
+                    value={leadQuoteTerms}
+                    onChange={e => setLeadQuoteTerms(e.target.value)}
+                    className="!text-xs !py-1.5"
+                  />
+                </div>
+
+                {/* Submit */}
+                <Button
+                  onClick={handleLeadQuoteSubmit}
+                  loading={leadQuoteSaving}
+                  icon={<FileText className="w-3.5 h-3.5" />}
+                  className="w-full"
+                  size="sm"
+                >
+                  {leadQuoteSaving
+                    ? (editingLeadQuoteId ? 'Saving...' : 'Creating...')
+                    : (editingLeadQuoteId ? 'Save Changes & Regenerate PDF' : 'Create Quote & Generate PDF')
+                  }
+                </Button>
+              </div>
+            )}
+          </div>
 
           {/* Add Activity */}
           <div>

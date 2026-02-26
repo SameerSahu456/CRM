@@ -184,6 +184,8 @@ class QuoteService:
         page: int,
         limit: int,
         status: Optional[str] = None,
+        lead_id: Optional[str] = None,
+        deal_id: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         List quotes with filtering and pagination.
@@ -192,6 +194,8 @@ class QuoteService:
             page: Page number
             limit: Items per page
             status: Filter by status
+            lead_id: Filter by lead ID
+            deal_id: Filter by deal ID
 
         Returns:
             Dictionary with data and pagination info
@@ -199,6 +203,10 @@ class QuoteService:
         filters = []
         if status:
             filters.append(Quote.status == status)
+        if lead_id:
+            filters.append(Quote.lead_id == lead_id)
+        if deal_id:
+            filters.append(Quote.deal_id == deal_id)
 
         stmt = select(Quote, Partner.company_name.label("partner_name")).outerjoin(
             Partner, Quote.partner_id == Partner.id

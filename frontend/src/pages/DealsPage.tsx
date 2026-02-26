@@ -16,7 +16,7 @@ import { dealsApi, accountsApi, contactsApi, salesApi, quotesApi, productsApi, p
 import { exportToCsv } from '@/utils/exportCsv';
 import { BulkImportModal } from '@/components/common/BulkImportModal';
 import { RichTextEditor } from '@/components/common/RichTextEditor';
-import { Deal, DealStage, Account, Contact, Product, Partner, PaginatedResponse, ActivityLog } from '@/types';
+import { Deal, DealStage, Account, Contact, Product, Partner, Quote, PaginatedResponse, ActivityLog } from '@/types';
 import { Card, Button, Input, Select, Modal, Badge, Alert, Textarea, DataTable, DataTableColumn } from '@/components/ui';
 import { cx } from '@/utils/cx';
 
@@ -269,7 +269,7 @@ export const DealsPage: React.FC = () => {
   // Overdue amount map: dealId → overdue amount (only for non-paid sales entries)
   const [dealOverdueMap, setDealOverdueMap] = useState<Record<string, number>>({});
 
-  // Inline quote builder state (inside deal detail for Channel tag)
+  // Inline quote builder state (inside deal detail)
   interface InlineLineItem {
     productId: string;
     description: string;
@@ -280,11 +280,19 @@ export const DealsPage: React.FC = () => {
   const [inlineQuoteOpen, setInlineQuoteOpen] = useState(false);
   const [inlineLineItems, setInlineLineItems] = useState<InlineLineItem[]>([{ ...emptyLineItem }]);
   const [inlineTaxRate, setInlineTaxRate] = useState(18);
+  const [inlineDiscountAmount, setInlineDiscountAmount] = useState(0);
+  const [inlineCustomerName, setInlineCustomerName] = useState('');
+  const [inlineValidUntil, setInlineValidUntil] = useState('');
   const [inlineQuoteNotes, setInlineQuoteNotes] = useState('');
   const [inlineQuoteTerms, setInlineQuoteTerms] = useState('');
   const [inlineQuoteSaving, setInlineQuoteSaving] = useState(false);
   const [inlineQuoteError, setInlineQuoteError] = useState('');
   const [inlineQuoteSuccess, setInlineQuoteSuccess] = useState('');
+  const [editingInlineQuoteId, setEditingInlineQuoteId] = useState<string | null>(null);
+  // Existing quotes for the deal
+  const [dealQuotes, setDealQuotes] = useState<Quote[]>([]);
+  const [dealQuotesLoading, setDealQuotesLoading] = useState(false);
+  const [dealQuotePdfLoading, setDealQuotePdfLoading] = useState<string | null>(null);
 
 
   // ---------------------------------------------------------------------------
@@ -451,10 +459,14 @@ export const DealsPage: React.FC = () => {
   };
 
   const openDealDetailModal = async (deal: Deal) => {
+    fetchDropdownData(); // ensure products are loaded for quote builder
     setDetailDeal(deal);
     setShowDetailModal(true);
     setAuditLogs([]);
     setActivities([]);
+    setDealQuotes([]);
+    // Pre-fill customer name from deal
+    setInlineCustomerName(deal.accountName || deal.company || '');
 
     setIsAuditLoading(true);
     try {
@@ -466,6 +478,8 @@ export const DealsPage: React.FC = () => {
       setActivities(Array.isArray(actData) ? actData : []);
     } catch (err) { console.error('Failed to load audit logs', err); }
     setIsAuditLoading(false);
+    // Load quotes for this deal
+    await fetchDealQuotes(deal.id);
   };
 
   const closeDealDetailModal = () => {
@@ -500,12 +514,77 @@ export const DealsPage: React.FC = () => {
 
   const resetInlineQuote = () => {
     setInlineQuoteOpen(false);
+    setEditingInlineQuoteId(null);
     setInlineLineItems([{ ...emptyLineItem }]);
     setInlineTaxRate(18);
+    setInlineDiscountAmount(0);
+    setInlineCustomerName(detailDeal?.accountName || detailDeal?.company || '');
+    setInlineValidUntil('');
     setInlineQuoteNotes('');
     setInlineQuoteTerms('');
     setInlineQuoteError('');
     setInlineQuoteSuccess('');
+  };
+
+  const handleEditDealQuote = async (quote: Quote) => {
+    setInlineQuoteError('');
+    setInlineQuoteSuccess('');
+    try {
+      const full = await quotesApi.getById(quote.id);
+      const q: Quote = full?.data ?? full;
+      setEditingInlineQuoteId(q.id);
+      setInlineCustomerName(q.customerName || '');
+      setInlineValidUntil(q.validUntil ? q.validUntil.split('T')[0] : '');
+      setInlineTaxRate(q.taxRate ?? 18);
+      setInlineDiscountAmount(q.discountAmount ?? 0);
+      setInlineQuoteTerms(q.terms || '');
+      setInlineQuoteNotes('');
+      setInlineLineItems(
+        q.lineItems && q.lineItems.length > 0
+          ? q.lineItems.map(li => ({
+              productId: li.productId || '',
+              description: li.description || '',
+              quantity: li.quantity,
+              unitPrice: li.unitPrice,
+            }))
+          : [{ ...emptyLineItem }]
+      );
+      setInlineQuoteOpen(true);
+    } catch {
+      setInlineQuoteError('Failed to load quote for editing');
+    }
+  };
+
+  const fetchDealQuotes = useCallback(async (dealId: string) => {
+    setDealQuotesLoading(true);
+    try {
+      const res = await quotesApi.list({ deal_id: dealId, limit: '50' });
+      const data = res?.data ?? res ?? [];
+      setDealQuotes(Array.isArray(data) ? data : []);
+    } catch {
+      setDealQuotes([]);
+    } finally {
+      setDealQuotesLoading(false);
+    }
+  }, []);
+
+  const handleDealQuotePdf = async (quote: Quote) => {
+    setDealQuotePdfLoading(quote.id);
+    try {
+      if (quote.pdfUrl) {
+        window.open(quote.pdfUrl, '_blank');
+      } else {
+        const result = await quotesApi.getPdf(quote.id, true);
+        if (result.pdfUrl) {
+          window.open(result.pdfUrl, '_blank');
+          setDealQuotes(prev => prev.map(q => q.id === quote.id ? { ...q, pdfUrl: result.pdfUrl } : q));
+        }
+      }
+    } catch {
+      // silent
+    } finally {
+      setDealQuotePdfLoading(null);
+    }
   };
 
   const handleInlineLineItemChange = (index: number, field: keyof InlineLineItem, value: string | number) => {
@@ -526,9 +605,13 @@ export const DealsPage: React.FC = () => {
 
   const handleInlineQuoteSubmit = async () => {
     if (!detailDeal) return;
-    const validItems = inlineLineItems.filter(li => li.productId && li.quantity > 0 && li.unitPrice > 0);
+    if (!inlineCustomerName.trim()) {
+      setInlineQuoteError('Account name is required');
+      return;
+    }
+    const validItems = inlineLineItems.filter(li => li.productId || (li.description && li.quantity > 0 && li.unitPrice > 0));
     if (validItems.length === 0) {
-      setInlineQuoteError('Add at least one line item with product, quantity, and price');
+      setInlineQuoteError('Add at least one line item with product or description, quantity, and price');
       return;
     }
 
@@ -536,7 +619,7 @@ export const DealsPage: React.FC = () => {
     setInlineQuoteError('');
     try {
       const lineItems = validItems.map((li, idx) => ({
-        productId: li.productId,
+        productId: li.productId || null,
         description: li.description,
         quantity: li.quantity,
         unitPrice: li.unitPrice,
@@ -544,29 +627,41 @@ export const DealsPage: React.FC = () => {
         sortOrder: idx,
       }));
       const subtotal = lineItems.reduce((sum, li) => sum + li.lineTotal, 0);
-      const taxAmount = subtotal * (inlineTaxRate / 100);
+      const taxable = subtotal - inlineDiscountAmount;
+      const taxAmount = taxable > 0 ? taxable * (inlineTaxRate / 100) : 0;
 
-      await quotesApi.create({
-        customerName: detailDeal.accountName || detailDeal.company || 'Deal',
-        leadId: detailDeal.id,
-        validUntil: null,
+      const payload = {
+        customerName: inlineCustomerName,
+        dealId: detailDeal.id,
+        validUntil: inlineValidUntil || null,
         taxRate: inlineTaxRate,
-        discountAmount: 0,
+        discountAmount: inlineDiscountAmount,
         subtotal,
         taxAmount,
-        totalAmount: subtotal + taxAmount,
+        totalAmount: taxable + taxAmount,
         terms: inlineQuoteTerms,
-        notes: inlineQuoteNotes,
-        status: 'draft',
         lineItems,
-      });
-      setInlineQuoteSuccess('Quote created successfully!');
-      setTimeout(() => setInlineQuoteSuccess(''), 3000);
+      };
+
+      if (editingInlineQuoteId) {
+        await quotesApi.update(editingInlineQuoteId, payload);
+        setInlineQuoteSuccess('Quote updated successfully!');
+      } else {
+        const created = await quotesApi.create({ ...payload, status: 'draft' });
+        setInlineQuoteSuccess('Quote created successfully!');
+        if (created) setDealQuotes(prev => [created, ...prev]);
+      }
+
+      setTimeout(() => setInlineQuoteSuccess(''), 4000);
+      setEditingInlineQuoteId(null);
       setInlineLineItems([{ ...emptyLineItem }]);
-      setInlineQuoteNotes('');
+      setInlineDiscountAmount(0);
+      setInlineValidUntil('');
       setInlineQuoteTerms('');
+      setInlineQuoteOpen(false);
+      await fetchDealQuotes(detailDeal.id);
     } catch (err: any) {
-      setInlineQuoteError(err.message || 'Failed to create quote');
+      setInlineQuoteError(err.message || (editingInlineQuoteId ? 'Failed to update quote' : 'Failed to create quote'));
     } finally {
       setInlineQuoteSaving(false);
     }
@@ -1646,111 +1741,200 @@ export const DealsPage: React.FC = () => {
                 </div>
               )}
 
-              {/* Inline Quote Builder — End Customer only */}
-              {deal.tag === 'End Customer' && (
-                <div>
-                  <button
-                    onClick={() => setInlineQuoteOpen(prev => !prev)}
-                    className="w-full flex items-center justify-between p-3 rounded-xl border transition-all border-indigo-200 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 dark:border-indigo-800 dark:bg-indigo-900/10 dark:hover:bg-indigo-900/20 dark:text-indigo-400"
-                  >
-                    <div className="flex items-center gap-2">
-                      <FileText className="w-4 h-4" />
-                      <span className="text-sm font-semibold">Quote Builder</span>
-                    </div>
-                    <ChevronDown className={cx('w-4 h-4 transition-transform', inlineQuoteOpen && 'rotate-180')} />
-                  </button>
-
-                  {inlineQuoteOpen && (
-                    <div className="mt-3 p-4 rounded-xl border space-y-4 border-gray-200 bg-gray-50 dark:border-zinc-800 dark:bg-dark-100">
-                      {inlineQuoteError && (
-                        <Alert variant="error" icon={<AlertCircle className="w-3.5 h-3.5" />}>
-                          {inlineQuoteError}
-                        </Alert>
-                      )}
-                      {inlineQuoteSuccess && (
-                        <Alert variant="success" icon={<CheckCircle className="w-3.5 h-3.5" />}>
-                          {inlineQuoteSuccess}
-                        </Alert>
-                      )}
-
-                      {/* Line Items */}
+              {/* Quote Builder — available for all deals */}
+              <div>
+                {/* Existing Quotes */}
+                {(dealQuotesLoading || dealQuotes.length > 0) && (
+                  <div className="mb-3">
+                    <h4 className="text-xs font-semibold uppercase tracking-wider mb-2 flex items-center gap-1.5 text-gray-400 dark:text-zinc-500">
+                      <FileText className="w-3.5 h-3.5" /> Quotes
+                    </h4>
+                    {dealQuotesLoading ? (
+                      <div className="flex items-center gap-2 text-xs text-gray-400 dark:text-zinc-500 py-2">
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" /> Loading quotes...
+                      </div>
+                    ) : (
                       <div className="space-y-2">
-                        <div className="flex items-center justify-between">
-                          <h5 className="text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-zinc-500">
-                            Line Items
-                          </h5>
-                        </div>
-                        {inlineLineItems.map((li, idx) => (
-                          <div key={idx} className="p-3 rounded-lg border space-y-2 border-gray-200 bg-white dark:border-zinc-700 dark:bg-dark-50">
-                            <div className="flex items-center justify-between gap-2">
-                              <Select
-                                value={li.productId}
-                                onChange={e => handleInlineLineItemChange(idx, 'productId', e.target.value)}
-                                className="flex-1 !text-xs !py-1.5"
+                        {dealQuotes.map(q => (
+                          <div key={q.id} className="flex items-center justify-between p-2.5 rounded-lg border border-gray-200 bg-white dark:border-zinc-700 dark:bg-dark-50">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs font-semibold text-gray-700 dark:text-zinc-300">
+                                  {q.quoteNumber || q.id.slice(0, 8)}
+                                </span>
+                                <span className={cx('text-[10px] px-1.5 py-0.5 rounded-full font-medium',
+                                  q.status === 'draft' ? 'bg-gray-100 text-gray-600 dark:bg-zinc-800 dark:text-zinc-400' :
+                                  q.status === 'sent' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' :
+                                  q.status === 'accepted' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' :
+                                  'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                                )}>
+                                  {q.status.charAt(0).toUpperCase() + q.status.slice(1)}
+                                </span>
+                              </div>
+                              <p className="text-[10px] text-gray-500 dark:text-zinc-500 mt-0.5">
+                                {q.customerName} · {formatINR(q.totalAmount)}
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-1 ml-2">
+                              <button
+                                onClick={() => handleEditDealQuote(q)}
+                                className="p-1.5 rounded-lg transition-colors text-gray-500 hover:bg-gray-100 dark:text-zinc-400 dark:hover:bg-zinc-700"
+                                title="Edit Quote"
                               >
-                                <option value="">Select product...</option>
-                                {products.map(p => (
-                                  <option key={p.id} value={p.id}>{p.name}</option>
-                                ))}
-                              </Select>
-                              {inlineLineItems.length > 1 && (
-                                <button
-                                  onClick={() => setInlineLineItems(prev => prev.filter((_, i) => i !== idx))}
-                                  className="p-1 rounded-lg transition-colors text-gray-400 hover:text-red-500 dark:text-zinc-500 dark:hover:text-red-400"
-                                >
-                                  <Trash2 className="w-3 h-3" />
-                                </button>
-                              )}
-                            </div>
-                            <Input
-                              type="text"
-                              placeholder="Description"
-                              value={li.description}
-                              onChange={e => handleInlineLineItemChange(idx, 'description', e.target.value)}
-                              className="!text-xs !py-1.5"
-                            />
-                            <div className="grid grid-cols-3 gap-2">
-                              <div>
-                                <label className="text-[10px] text-gray-400 dark:text-zinc-500">Qty</label>
-                                <Input
-                                  type="number"
-                                  min={1}
-                                  value={li.quantity}
-                                  onChange={e => handleInlineLineItemChange(idx, 'quantity', Number(e.target.value) || 0)}
-                                  className="!text-xs !py-1.5"
-                                />
-                              </div>
-                              <div>
-                                <label className="text-[10px] text-gray-400 dark:text-zinc-500">Unit Price</label>
-                                <Input
-                                  type="number"
-                                  min={0}
-                                  value={li.unitPrice}
-                                  onChange={e => handleInlineLineItemChange(idx, 'unitPrice', Number(e.target.value) || 0)}
-                                  className="!text-xs !py-1.5"
-                                />
-                              </div>
-                            </div>
-                            <div className="text-right text-xs font-medium text-gray-700 dark:text-zinc-300">
-                              Line Total: {formatINR(li.quantity * li.unitPrice)}
+                                <Edit2 className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                onClick={() => handleDealQuotePdf(q)}
+                                disabled={dealQuotePdfLoading === q.id}
+                                className="p-1.5 rounded-lg transition-colors text-indigo-600 hover:bg-indigo-50 dark:text-indigo-400 dark:hover:bg-indigo-900/20 disabled:opacity-50"
+                                title="Download PDF"
+                              >
+                                {dealQuotePdfLoading === q.id
+                                  ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                  : <Download className="w-3.5 h-3.5" />
+                                }
+                              </button>
                             </div>
                           </div>
                         ))}
-
-                        <Button
-                          variant="secondary"
-                          size="xs"
-                          onClick={() => setInlineLineItems(prev => [...prev, { ...emptyLineItem }])}
-                          icon={<Plus className="w-3 h-3" />}
-                        >
-                          Add Item
-                        </Button>
                       </div>
+                    )}
+                  </div>
+                )}
 
-                      {/* Tax & Notes */}
-                      <div className="grid grid-cols-2 gap-3">
+                {/* Create / Edit Quote toggle */}
+                <button
+                  onClick={() => {
+                    if (inlineQuoteOpen && editingInlineQuoteId) {
+                      resetInlineQuote();
+                    } else {
+                      setInlineQuoteOpen(prev => !prev);
+                      if (!inlineQuoteOpen) setEditingInlineQuoteId(null);
+                    }
+                  }}
+                  className="w-full flex items-center justify-between p-3 rounded-xl border transition-all border-indigo-200 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 dark:border-indigo-800 dark:bg-indigo-900/10 dark:hover:bg-indigo-900/20 dark:text-indigo-400"
+                >
+                  <div className="flex items-center gap-2">
+                    {editingInlineQuoteId ? <Edit2 className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
+                    <span className="text-sm font-semibold">{editingInlineQuoteId ? 'Edit Quote' : 'Create Quote'}</span>
+                  </div>
+                  <ChevronDown className={cx('w-4 h-4 transition-transform', inlineQuoteOpen && 'rotate-180')} />
+                </button>
+
+                {inlineQuoteOpen && (
+                  <div className="mt-3 p-4 rounded-xl border space-y-4 border-gray-200 bg-gray-50 dark:border-zinc-800 dark:bg-dark-100">
+                    {inlineQuoteError && (
+                      <Alert variant="error" icon={<AlertCircle className="w-3.5 h-3.5" />}>
+                        {inlineQuoteError}
+                      </Alert>
+                    )}
+                    {inlineQuoteSuccess && (
+                      <Alert variant="success" icon={<CheckCircle className="w-3.5 h-3.5" />}>
+                        {inlineQuoteSuccess}
+                      </Alert>
+                    )}
+
+                    {/* Quote Header */}
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-[10px] font-medium text-gray-500 dark:text-zinc-400">Account Name *</label>
+                        <Input
+                          type="text"
+                          placeholder="Account name..."
+                          value={inlineCustomerName}
+                          onChange={e => setInlineCustomerName(e.target.value)}
+                          className="!text-xs !py-1.5"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-medium text-gray-500 dark:text-zinc-400">Valid Until</label>
+                        <Input
+                          type="date"
+                          value={inlineValidUntil}
+                          onChange={e => setInlineValidUntil(e.target.value)}
+                          className="!text-xs !py-1.5"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Line Items */}
+                    <div className="space-y-2">
+                      <h5 className="text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-zinc-500">
+                        Line Items
+                      </h5>
+                      {inlineLineItems.map((li, idx) => (
+                        <div key={idx} className="p-3 rounded-lg border space-y-2 border-gray-200 bg-white dark:border-zinc-700 dark:bg-dark-50">
+                          <div className="flex items-center justify-between gap-2">
+                            <Select
+                              value={li.productId}
+                              onChange={e => handleInlineLineItemChange(idx, 'productId', e.target.value)}
+                              className="flex-1 !text-xs !py-1.5"
+                            >
+                              <option value="">Select product...</option>
+                              {products.map(p => (
+                                <option key={p.id} value={p.id}>{p.name}</option>
+                              ))}
+                            </Select>
+                            {inlineLineItems.length > 1 && (
+                              <button
+                                onClick={() => setInlineLineItems(prev => prev.filter((_, i) => i !== idx))}
+                                className="p-1 rounded-lg transition-colors text-gray-400 hover:text-red-500 dark:text-zinc-500 dark:hover:text-red-400"
+                              >
+                                <Trash2 className="w-3 h-3" />
+                              </button>
+                            )}
+                          </div>
+                          <div>
+                            <label className="text-[10px] text-gray-400 dark:text-zinc-500">Description</label>
+                            <RichTextEditor
+                              value={li.description}
+                              onChange={val => handleInlineLineItemChange(idx, 'description', val)}
+                              placeholder="Description — supports paste from Word/Excel..."
+                              minHeight="50px"
+                            />
+                          </div>
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <label className="text-[10px] text-gray-400 dark:text-zinc-500">Qty</label>
+                              <Input
+                                type="number"
+                                min={1}
+                                value={li.quantity}
+                                onChange={e => handleInlineLineItemChange(idx, 'quantity', Number(e.target.value) || 0)}
+                                className="!text-xs !py-1.5"
+                              />
+                            </div>
+                            <div>
+                              <label className="text-[10px] text-gray-400 dark:text-zinc-500">Unit Price (₹)</label>
+                              <Input
+                                type="number"
+                                min={0}
+                                value={li.unitPrice}
+                                onChange={e => handleInlineLineItemChange(idx, 'unitPrice', Number(e.target.value) || 0)}
+                                className="!text-xs !py-1.5"
+                              />
+                            </div>
+                          </div>
+                          <div className="text-right text-xs font-medium text-gray-700 dark:text-zinc-300">
+                            Line Total: {formatINR(li.quantity * li.unitPrice)}
+                          </div>
+                        </div>
+                      ))}
+                      <Button
+                        variant="secondary"
+                        size="xs"
+                        onClick={() => setInlineLineItems(prev => [...prev, { ...emptyLineItem }])}
+                        icon={<Plus className="w-3 h-3" />}
+                      >
+                        Add Item
+                      </Button>
+                    </div>
+
+                    {/* Tax, Discount & Totals */}
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-2">
                         <div>
-                          <label className="text-[10px] font-medium text-gray-400 dark:text-zinc-500">Tax Rate %</label>
+                          <label className="text-[10px] font-medium text-gray-500 dark:text-zinc-400">Tax Rate %</label>
                           <Input
                             type="number"
                             min={0}
@@ -1759,57 +1943,61 @@ export const DealsPage: React.FC = () => {
                             className="!text-xs !py-1.5"
                           />
                         </div>
-                        <div className="flex flex-col justify-end text-right text-xs space-y-0.5 text-gray-700 dark:text-zinc-300">
-                          {(() => {
-                            const subtotal = inlineLineItems.reduce((sum, li) => sum + li.quantity * li.unitPrice, 0);
-                            const tax = subtotal * (inlineTaxRate / 100);
-                            return (
-                              <>
-                                <span>Subtotal: {formatINR(subtotal)}</span>
-                                <span>Tax: {formatINR(tax)}</span>
-                                <span className="font-bold text-sm">Total: {formatINR(subtotal + tax)}</span>
-                              </>
-                            );
-                          })()}
+                        <div>
+                          <label className="text-[10px] font-medium text-gray-500 dark:text-zinc-400">Discount (₹)</label>
+                          <Input
+                            type="number"
+                            min={0}
+                            value={inlineDiscountAmount}
+                            onChange={e => setInlineDiscountAmount(Number(e.target.value) || 0)}
+                            className="!text-xs !py-1.5"
+                          />
                         </div>
                       </div>
-
-                      <div>
-                        <label className="text-[10px] font-medium text-gray-400 dark:text-zinc-500">Notes</label>
-                        <Textarea
-                          rows={2}
-                          placeholder="Quote notes..."
-                          value={inlineQuoteNotes}
-                          onChange={e => setInlineQuoteNotes(e.target.value)}
-                          className="!text-xs !py-1.5"
-                        />
+                      <div className="flex flex-col justify-end text-right text-xs space-y-1 text-gray-700 dark:text-zinc-300 pb-1">
+                        {(() => {
+                          const subtotal = inlineLineItems.reduce((sum, li) => sum + li.quantity * li.unitPrice, 0);
+                          const taxable = subtotal - inlineDiscountAmount;
+                          const tax = taxable > 0 ? taxable * (inlineTaxRate / 100) : 0;
+                          return (
+                            <>
+                              <span>Subtotal: {formatINR(subtotal)}</span>
+                              {inlineDiscountAmount > 0 && <span className="text-emerald-600 dark:text-emerald-400">Discount: -{formatINR(inlineDiscountAmount)}</span>}
+                              <span>Tax ({inlineTaxRate}%): {formatINR(tax)}</span>
+                              <span className="font-bold text-sm border-t pt-1 border-gray-200 dark:border-zinc-700">Total: {formatINR(taxable + tax)}</span>
+                            </>
+                          );
+                        })()}
                       </div>
-
-                      <div>
-                        <label className="text-[10px] font-medium text-gray-400 dark:text-zinc-500">Terms & Conditions</label>
-                        <Textarea
-                          rows={2}
-                          placeholder="Terms..."
-                          value={inlineQuoteTerms}
-                          onChange={e => setInlineQuoteTerms(e.target.value)}
-                          className="!text-xs !py-1.5"
-                        />
-                      </div>
-
-                      {/* Submit */}
-                      <Button
-                        onClick={handleInlineQuoteSubmit}
-                        loading={inlineQuoteSaving}
-                        icon={<FileText className="w-3.5 h-3.5" />}
-                        className="w-full"
-                        size="sm"
-                      >
-                        {inlineQuoteSaving ? 'Creating...' : 'Create Quote'}
-                      </Button>
                     </div>
-                  )}
-                </div>
-              )}
+
+                    <div>
+                      <label className="text-[10px] font-medium text-gray-500 dark:text-zinc-400">Terms & Conditions</label>
+                      <Textarea
+                        rows={2}
+                        placeholder="Terms..."
+                        value={inlineQuoteTerms}
+                        onChange={e => setInlineQuoteTerms(e.target.value)}
+                        className="!text-xs !py-1.5"
+                      />
+                    </div>
+
+                    {/* Submit */}
+                    <Button
+                      onClick={handleInlineQuoteSubmit}
+                      loading={inlineQuoteSaving}
+                      icon={<FileText className="w-3.5 h-3.5" />}
+                      className="w-full"
+                      size="sm"
+                    >
+                      {inlineQuoteSaving
+                        ? (editingInlineQuoteId ? 'Saving...' : 'Creating...')
+                        : (editingInlineQuoteId ? 'Save Changes & Regenerate PDF' : 'Create Quote & Generate PDF')
+                      }
+                    </Button>
+                  </div>
+                )}
+              </div>
 
               {/* Add Activity */}
               <div>

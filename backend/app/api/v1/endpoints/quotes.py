@@ -25,6 +25,8 @@ async def list_quotes(
     page: int = Query(1, ge=1, description="Page number"),
     limit: int = Query(20, ge=1, le=100, description="Items per page"),
     status: str = Query(None, description="Filter by status"),
+    lead_id: str = Query(None, description="Filter by lead ID"),
+    deal_id: str = Query(None, description="Filter by deal ID"),
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> Dict[str, Any]:
@@ -35,6 +37,8 @@ async def list_quotes(
         page: Page number
         limit: Items per page
         status: Filter by status (draft, sent, accepted, rejected)
+        lead_id: Filter by lead ID
+        deal_id: Filter by deal ID
         user: Current user
         db: Database session
 
@@ -42,7 +46,9 @@ async def list_quotes(
         Paginated list of quotes with partner names
     """
     service = QuoteService(db)
-    result = await service.list_quotes(page=page, limit=limit, status=status)
+    result = await service.list_quotes(
+        page=page, limit=limit, status=status, lead_id=lead_id, deal_id=deal_id
+    )
 
     return paginated_response(
         data=result["data"],

@@ -18,6 +18,7 @@ class Quote(TimestampMixin, Base):
     )
     quote_number: Mapped[Optional[str]] = mapped_column(String(50), unique=True, nullable=True)
     lead_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), nullable=True)
+    deal_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), nullable=True)
     partner_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), nullable=True)
     customer_name: Mapped[str] = mapped_column(String(255), nullable=False)
     valid_until: Mapped[Optional[date]] = mapped_column(Date, nullable=True)

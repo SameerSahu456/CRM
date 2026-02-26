@@ -259,6 +259,7 @@ export interface Quote {
   id: string;
   quoteNumber?: string;
   leadId?: string;
+  dealId?: string;
   partnerId?: string;
   customerName: string;
   validUntil?: string;

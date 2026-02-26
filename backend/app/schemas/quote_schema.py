@@ -34,6 +34,7 @@ class QuoteOut(CamelModel):
     id: UUID
     quote_number: Optional[str] = None
     lead_id: Optional[UUID] = None
+    deal_id: Optional[UUID] = None
     partner_id: Optional[UUID] = None
     customer_name: str
     valid_until: Optional[date] = None
@@ -57,6 +58,7 @@ class QuoteOut(CamelModel):
 class QuoteCreate(CamelModel):
     partner_id: Optional[UUID] = None
     lead_id: Optional[UUID] = None
+    deal_id: Optional[UUID] = None
     customer_name: str
     valid_until: Optional[date] = None
     tax_rate: float = 18
@@ -70,6 +72,7 @@ class QuoteCreate(CamelModel):
 class QuoteUpdate(CamelModel):
     partner_id: Optional[UUID] = None
     lead_id: Optional[UUID] = None
+    deal_id: Optional[UUID] = None
     customer_name: Optional[str] = None
     valid_until: Optional[date] = None
     tax_rate: Optional[float] = None
