@@ -1352,7 +1352,7 @@ export const CRMPage: React.FC = () => {
           </p>
         )}
 
-        {lead.estimatedValue ? (
+        {lead.estimatedValue && lead.stage !== 'New' ? (
           <p className="text-xs font-semibold mb-1.5 text-emerald-600 dark:text-emerald-400">
             {formatINR(lead.estimatedValue)}
           </p>
