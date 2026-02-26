@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   Plus, Search, Trash2, X,
-  IndianRupee, CheckCircle, Loader2, AlertCircle,
+  IndianRupee, CheckCircle, AlertCircle,
   Download, Upload, Edit2,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
@@ -9,9 +9,7 @@ import { salesApi, productsApi, partnersApi, formatINR, SALES_LIST_FIELDS } from
 import { exportToCsv } from '@/utils/exportCsv';
 import { SalesEntry, Product, Partner, PaginatedResponse } from '@/types';
 import { BulkImportModal } from '@/components/common/BulkImportModal';
-import { useColumnResize } from '@/hooks/useColumnResize';
-import { Card, Button, Input, Select, Textarea, Modal, Badge, Alert, Pagination } from '@/components/ui';
-import { cx } from '@/utils/cx';
+import { Card, Button, Input, Select, Textarea, Modal, Badge, Alert, DataTable, DataTableColumn } from '@/components/ui';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -318,12 +316,85 @@ export const SalesEntryPage: React.FC = () => {
 
 
   // ---------------------------------------------------------------------------
-  // Styles
+  // Table columns
   // ---------------------------------------------------------------------------
 
-  const { colWidths: salesColWidths, onMouseDown: onSalesMouseDown } = useColumnResize({
-    initialWidths: [50, 120, 160, 140, 130, 70, 130, 120, 110, 100],
-  });
+  const salesColumns: DataTableColumn<SalesEntry>[] = [
+    {
+      key: 'saleDate',
+      label: 'Date',
+      width: '10%',
+      render: (entry) => (
+        <span className="whitespace-nowrap">{formatDate(entry.saleDate)}</span>
+      ),
+    },
+    {
+      key: 'account',
+      label: 'Account',
+      width: '13%',
+      render: (entry) => (
+        <span className="font-medium text-slate-900 dark:text-white">
+          {entry.customerName || '-'}
+        </span>
+      ),
+    },
+    {
+      key: 'product',
+      label: 'Product',
+      width: '15%',
+      render: (entry) =>
+        entry.productNames && entry.productNames.length > 0
+          ? entry.productNames.length === 1
+            ? entry.productNames[0]
+            : entry.productNames.map((name, i) => `${i + 1}. ${name}`).join(', ')
+          : entry.productName || '-',
+    },
+    {
+      key: 'customerName',
+      label: 'Account Name',
+      width: '13%',
+      render: (entry) => entry.customerName || '-',
+    },
+    {
+      key: 'quantity',
+      label: 'Qty',
+      width: '6%',
+      align: 'center',
+      render: (entry) => entry.quantity,
+    },
+    {
+      key: 'amount',
+      label: 'Amount',
+      width: '12%',
+      render: (entry) => (
+        <span className="font-semibold whitespace-nowrap text-slate-900 dark:text-white">
+          {formatINR(entry.amount)}
+        </span>
+      ),
+    },
+    {
+      key: 'poNumber',
+      label: 'PO #',
+      width: '10%',
+      render: (entry) => entry.poNumber || '-',
+    },
+    {
+      key: 'invoiceNo',
+      label: 'Invoice #',
+      width: '10%',
+      render: (entry) => entry.invoiceNo || '-',
+    },
+    {
+      key: 'paymentStatus',
+      label: 'Status',
+      width: '11%',
+      render: (entry) => (
+        <Badge variant={paymentBadgeVariant(entry.paymentStatus)} size="sm">
+          {entry.paymentStatus.charAt(0).toUpperCase() + entry.paymentStatus.slice(1)}
+        </Badge>
+      ),
+    },
+  ];
 
   // ---------------------------------------------------------------------------
   // Render
@@ -428,113 +499,26 @@ export const SalesEntryPage: React.FC = () => {
       )}
 
       {/* Data Table */}
-      <Card padding="none" className="overflow-hidden">
-        {isLoading ? (
-          <div className="flex flex-col items-center justify-center py-16">
-            <Loader2 className="w-6 h-6 text-brand-600 animate-spin" />
-            <p className="mt-2 text-sm text-slate-500 dark:text-zinc-400">Loading...</p>
-          </div>
-        ) : sales.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16">
-            <IndianRupee className="w-8 h-8 text-slate-300 dark:text-zinc-700" />
-            <p className="mt-2 text-sm text-slate-400 dark:text-zinc-500">
-              {hasActiveFilters ? 'No entries match filters' : 'No entries yet'}
-            </p>
-            {!hasActiveFilters && (
-              <Button
-                variant="primary"
-                size="md"
-                onClick={openCreateModal}
-                icon={<Plus className="w-4 h-4" />}
-                className="mt-3"
-              >
-                Add Entry
-              </Button>
-            )}
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="premium-table">
-              <thead>
-                <tr className="border-b border-slate-100 dark:border-zinc-800">
-                  {['#', 'Date', 'Account', 'Product', 'Account Name', 'Qty', 'Amount', 'PO #', 'Invoice #', 'Status'].map((h, i) => (
-                    <th
-                      key={h}
-                      className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider resizable-th text-slate-400 dark:text-zinc-500"
-                      style={{ width: salesColWidths[i] }}
-                    >
-                      {h}
-                      <div className="col-resize-handle" onMouseDown={e => onSalesMouseDown(i, e)} />
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {sales.map((entry, idx) => {
-                  const rowNum = (page - 1) * PAGE_SIZE + idx + 1;
-                  const isDeleting = deleteConfirmId === entry.id;
-
-                  return (
-                    <tr
-                      key={entry.id}
-                      onClick={() => !isDeleting && openDetailModal(entry)}
-                      className="border-b transition-colors cursor-pointer border-slate-50 hover:bg-slate-50/80 dark:border-zinc-800/50 dark:hover:bg-zinc-800/30"
-                    >
-                      <td className="px-4 py-3 text-slate-400 dark:text-zinc-500">{rowNum}</td>
-                      <td className="px-4 py-3 whitespace-nowrap text-slate-700 dark:text-zinc-300">
-                        {formatDate(entry.saleDate)}
-                      </td>
-                      <td className="px-4 py-3 font-medium text-slate-900 dark:text-white">
-                        {entry.customerName || '-'}
-                      </td>
-                      <td className="px-4 py-3 text-slate-700 dark:text-zinc-300">
-                        {entry.productNames && entry.productNames.length > 0
-                          ? entry.productNames.length === 1
-                            ? entry.productNames[0]
-                            : entry.productNames.map((name, i) => `${i + 1}. ${name}`).join(', ')
-                          : entry.productName || '-'}
-                      </td>
-                      <td className="px-4 py-3 text-slate-700 dark:text-zinc-300">
-                        {entry.customerName || '-'}
-                      </td>
-                      <td className="px-4 py-3 text-center text-slate-700 dark:text-zinc-300">
-                        {entry.quantity}
-                      </td>
-                      <td className="px-4 py-3 font-semibold whitespace-nowrap text-slate-900 dark:text-white">
-                        {formatINR(entry.amount)}
-                      </td>
-                      <td className="px-4 py-3 text-slate-700 dark:text-zinc-300">
-                        {entry.poNumber || '-'}
-                      </td>
-                      <td className="px-4 py-3 text-slate-700 dark:text-zinc-300">
-                        {entry.invoiceNo || '-'}
-                      </td>
-                      <td className="px-4 py-3">
-                        <Badge variant={paymentBadgeVariant(entry.paymentStatus)} size="sm">
-                          {entry.paymentStatus.charAt(0).toUpperCase() + entry.paymentStatus.slice(1)}
-                        </Badge>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-
-        {/* Pagination */}
-        {totalPages > 1 && (
-          <div className="border-t border-slate-100 dark:border-zinc-800">
-            <Pagination
-              currentPage={page}
-              totalPages={totalPages}
-              totalItems={totalRecords}
-              pageSize={PAGE_SIZE}
-              onPageChange={setPage}
-            />
-          </div>
-        )}
-      </Card>
+      <DataTable<SalesEntry>
+        columns={salesColumns}
+        data={sales}
+        isLoading={isLoading}
+        loadingMessage="Loading..."
+        emptyIcon={<IndianRupee className="w-8 h-8" />}
+        emptyMessage={hasActiveFilters ? 'No entries match filters' : 'No entries yet'}
+        showIndex
+        page={page}
+        pageSize={PAGE_SIZE}
+        onRowClick={(entry) => openDetailModal(entry)}
+        rowKey={(entry) => entry.id}
+        pagination={totalPages > 1 ? {
+          currentPage: page,
+          totalPages,
+          totalItems: totalRecords,
+          pageSize: PAGE_SIZE,
+          onPageChange: setPage,
+        } : undefined}
+      />
 
       {/* Detail Modal */}
       <Modal

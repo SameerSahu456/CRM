@@ -8,8 +8,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useNavigation } from '@/contexts/NavigationContext';
 import { carepacksApi, partnersApi } from '@/services/api';
 import { Carepack, Partner, PaginatedResponse } from '@/types';
-import { useColumnResize } from '@/hooks/useColumnResize';
-import { Card, Button, Input, Select, Modal, Badge, Alert, Pagination, Textarea } from '@/components/ui';
+import { Card, Button, Input, Select, Modal, Badge, Alert, Textarea, DataTable, DataTableColumn } from '@/components/ui';
 import { cx } from '@/utils/cx';
 
 // ---------------------------------------------------------------------------
@@ -381,40 +380,195 @@ export const CarepackPage: React.FC = () => {
     setDetailCarepack(null);
   };
 
-  // Column resize for tables
-  const { colWidths: cpColWidths, onMouseDown: onCpMouseDown } = useColumnResize({
-    initialWidths: [160, 150, 140, 140, 120, 110, 110, 100, 100, 90],
-  });
-  const { colWidths: expColWidths, onMouseDown: onExpMouseDown } = useColumnResize({
-    initialWidths: [180, 150, 140, 140, 120, 120, 100, 90],
-  });
-
   // ---------------------------------------------------------------------------
-  // Shared renderers
+  // Column definitions
   // ---------------------------------------------------------------------------
 
-  const renderEmptyState = (message: string, subMessage: string) => (
-    <div className="flex flex-col items-center justify-center py-20">
-      <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4 bg-gray-100 dark:bg-zinc-800">
-        <Shield className="w-7 h-7 text-gray-300 dark:text-zinc-600" />
-      </div>
-      <p className="text-sm font-medium text-gray-500 dark:text-zinc-400">
-        {message}
-      </p>
-      <p className="text-xs mt-1 text-gray-400 dark:text-zinc-600">
-        {subMessage}
-      </p>
-    </div>
-  );
+  const allCarepackColumns: DataTableColumn<Carepack>[] = [
+    {
+      key: 'account',
+      label: 'Account',
+      width: '12%',
+      render: (cp) => (
+        <span className="font-medium text-gray-900 dark:text-white">{cp.partnerName || '-'}</span>
+      ),
+    },
+    {
+      key: 'accountName',
+      label: 'Account Name',
+      width: '13%',
+      render: (cp) => <>{cp.customerName || '-'}</>,
+    },
+    {
+      key: 'productType',
+      label: 'Product Type',
+      width: '11%',
+      render: (cp) => <>{cp.productType || '-'}</>,
+    },
+    {
+      key: 'serialNumber',
+      label: 'Serial #',
+      width: '12%',
+      render: (cp) => (
+        <div className="flex items-center gap-1.5 whitespace-nowrap">
+          <Hash className="w-3 h-3 flex-shrink-0 text-gray-400 dark:text-zinc-500" />
+          <span className="font-mono text-xs">{cp.serialNumber || '-'}</span>
+        </div>
+      ),
+    },
+    {
+      key: 'sku',
+      label: 'SKU',
+      width: '10%',
+      className: 'whitespace-nowrap font-mono text-xs',
+      render: (cp) => <>{cp.carepackSku || '-'}</>,
+    },
+    {
+      key: 'startDate',
+      label: 'Start Date',
+      width: '10%',
+      className: 'whitespace-nowrap',
+      render: (cp) => <>{formatDate(cp.startDate)}</>,
+    },
+    {
+      key: 'endDate',
+      label: 'End Date',
+      width: '10%',
+      className: 'whitespace-nowrap',
+      render: (cp) => <>{formatDate(cp.endDate)}</>,
+    },
+    {
+      key: 'status',
+      label: 'Status',
+      width: '8%',
+      render: (cp) => (
+        <Badge variant={statusVariant(cp.status)}>
+          {capitalize(cp.status)}
+        </Badge>
+      ),
+    },
+    {
+      key: 'daysLeft',
+      label: 'Days Left',
+      width: '8%',
+      render: (cp) => {
+        const days = cp.status === 'active' ? getDaysRemaining(cp.endDate) : null;
+        return cp.status === 'active' ? (
+          <Badge variant={daysRemainingVariant(days)}>
+            {getDaysLabel(days)}
+          </Badge>
+        ) : (
+          <span className="text-xs text-gray-400 dark:text-zinc-500">-</span>
+        );
+      },
+    },
+    {
+      key: 'actions',
+      label: 'Actions',
+      width: '6%',
+      render: (cp) => renderActions(cp),
+    },
+  ];
 
-  const renderLoadingState = (message: string) => (
-    <div className="flex flex-col items-center justify-center py-20">
-      <Loader2 className="w-8 h-8 text-brand-600 animate-spin" />
-      <p className="mt-3 text-sm text-gray-500 dark:text-zinc-400">
-        {message}
-      </p>
-    </div>
-  );
+  const expiringColumns: DataTableColumn<Carepack>[] = [
+    {
+      key: 'account',
+      label: 'Account',
+      width: '16%',
+      render: (cp) => {
+        const days = getDaysRemaining(cp.endDate);
+        const isUrgent = days !== null && days <= 7;
+        return (
+          <div className="flex items-center gap-2.5">
+            <div className={cx(
+              'w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0',
+              isUrgent
+                ? 'bg-red-50 dark:bg-red-900/20'
+                : 'bg-amber-50 dark:bg-amber-900/20'
+            )}>
+              <AlertTriangle className={cx(
+                'w-4 h-4',
+                isUrgent
+                  ? 'text-red-600 dark:text-red-400'
+                  : 'text-amber-600 dark:text-amber-400'
+              )} />
+            </div>
+            <span className="font-medium text-gray-900 dark:text-white">{cp.partnerName || '-'}</span>
+          </div>
+        );
+      },
+    },
+    {
+      key: 'accountName',
+      label: 'Account Name',
+      width: '14%',
+      render: (cp) => <>{cp.customerName || '-'}</>,
+    },
+    {
+      key: 'productType',
+      label: 'Product Type',
+      width: '13%',
+      render: (cp) => <>{cp.productType || '-'}</>,
+    },
+    {
+      key: 'serialNumber',
+      label: 'Serial #',
+      width: '13%',
+      render: (cp) => (
+        <div className="flex items-center gap-1.5 whitespace-nowrap">
+          <Hash className="w-3 h-3 flex-shrink-0 text-gray-400 dark:text-zinc-500" />
+          <span className="font-mono text-xs">{cp.serialNumber || '-'}</span>
+        </div>
+      ),
+    },
+    {
+      key: 'sku',
+      label: 'SKU',
+      width: '11%',
+      className: 'whitespace-nowrap font-mono text-xs',
+      render: (cp) => <>{cp.carepackSku || '-'}</>,
+    },
+    {
+      key: 'endDate',
+      label: 'End Date',
+      width: '13%',
+      className: 'whitespace-nowrap',
+      render: (cp) => {
+        const days = getDaysRemaining(cp.endDate);
+        const isUrgent = days !== null && days <= 7;
+        return (
+          <div className="flex items-center gap-2">
+            <Calendar className={cx(
+              'w-3.5 h-3.5 flex-shrink-0',
+              isUrgent
+                ? 'text-red-500 dark:text-red-400'
+                : 'text-gray-400 dark:text-zinc-500'
+            )} />
+            {formatDate(cp.endDate)}
+          </div>
+        );
+      },
+    },
+    {
+      key: 'daysLeft',
+      label: 'Days Left',
+      width: '10%',
+      render: (cp) => {
+        const days = getDaysRemaining(cp.endDate);
+        return (
+          <Badge variant={daysRemainingVariant(days)}>
+            {getDaysLabel(days)}
+          </Badge>
+        );
+      },
+    },
+    {
+      key: 'actions',
+      label: 'Actions',
+      width: '10%',
+      render: (cp) => renderActions(cp),
+    },
+  ];
 
   // ---------------------------------------------------------------------------
   // Action buttons renderer (shared between tabs)
@@ -531,130 +685,25 @@ export const CarepackPage: React.FC = () => {
       </Card>
 
       {/* Data Table */}
-      <Card padding="none" className="overflow-hidden">
-        {tableError && (
-          <div className="m-4">
-            <Alert variant="error" icon={<AlertCircle className="w-4 h-4" />}>
-              {tableError}
-            </Alert>
-          </div>
-        )}
-
-        {isLoading ? (
-          renderLoadingState('Loading carepacks...')
-        ) : carepacks.length === 0 ? (
-          renderEmptyState(
-            hasActiveFilters ? 'No carepacks match your filters' : 'No carepacks yet',
-            hasActiveFilters ? 'Try adjusting your filters' : 'Click "New Carepack" to register one'
-          )
-        ) : (
-          <>
-            <div className="overflow-x-auto">
-              <table className="premium-table">
-                <thead>
-                  <tr className="border-b border-gray-100 dark:border-zinc-800">
-                    {['Account', 'Account Name', 'Product Type', 'Serial #', 'SKU', 'Start Date', 'End Date', 'Status', 'Days Left', 'Actions'].map((h, i) => (
-                      <th
-                        key={h}
-                        className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-zinc-500 resizable-th"
-                        style={{ width: cpColWidths[i] }}
-                      >
-                        {h}
-                        <div className="col-resize-handle" onMouseDown={e => onCpMouseDown(i, e)} />
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {carepacks.map(cp => {
-                    const days = cp.status === 'active' ? getDaysRemaining(cp.endDate) : null;
-                    return (
-                      <tr
-                        key={cp.id}
-                        onClick={() => openDetailModal(cp)}
-                        className="border-b border-gray-50 dark:border-zinc-800/50 hover:bg-gray-50/80 dark:hover:bg-zinc-800/30 transition-colors cursor-pointer"
-                      >
-                        {/* Partner */}
-                        <td className="px-4 py-3 text-gray-900 dark:text-white">
-                          <span className="font-medium">{cp.partnerName || '-'}</span>
-                        </td>
-
-                        {/* Customer */}
-                        <td className="px-4 py-3 text-gray-700 dark:text-zinc-300">
-                          {cp.customerName || '-'}
-                        </td>
-
-                        {/* Product Type */}
-                        <td className="px-4 py-3 text-gray-700 dark:text-zinc-300">
-                          {cp.productType || '-'}
-                        </td>
-
-                        {/* Serial # */}
-                        <td className="px-4 py-3 whitespace-nowrap text-gray-700 dark:text-zinc-300">
-                          <div className="flex items-center gap-1.5">
-                            <Hash className="w-3 h-3 flex-shrink-0 text-gray-400 dark:text-zinc-500" />
-                            <span className="font-mono text-xs">{cp.serialNumber || '-'}</span>
-                          </div>
-                        </td>
-
-                        {/* SKU */}
-                        <td className="px-4 py-3 whitespace-nowrap font-mono text-xs text-gray-700 dark:text-zinc-300">
-                          {cp.carepackSku || '-'}
-                        </td>
-
-                        {/* Start Date */}
-                        <td className="px-4 py-3 whitespace-nowrap text-gray-700 dark:text-zinc-300">
-                          {formatDate(cp.startDate)}
-                        </td>
-
-                        {/* End Date */}
-                        <td className="px-4 py-3 whitespace-nowrap text-gray-700 dark:text-zinc-300">
-                          {formatDate(cp.endDate)}
-                        </td>
-
-                        {/* Status */}
-                        <td className="px-4 py-3">
-                          <Badge variant={statusVariant(cp.status)}>
-                            {capitalize(cp.status)}
-                          </Badge>
-                        </td>
-
-                        {/* Days Remaining */}
-                        <td className="px-4 py-3">
-                          {cp.status === 'active' ? (
-                            <Badge variant={daysRemainingVariant(days)}>
-                              {getDaysLabel(days)}
-                            </Badge>
-                          ) : (
-                            <span className="text-xs text-gray-400 dark:text-zinc-500">-</span>
-                          )}
-                        </td>
-
-                        {/* Actions */}
-                        <td className="px-4 py-3">
-                          {renderActions(cp)}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-
-            {totalRecords > 0 && (
-              <div className="border-t border-gray-100 dark:border-zinc-800">
-                <Pagination
-                  currentPage={page}
-                  totalPages={totalPages}
-                  totalItems={totalRecords}
-                  pageSize={PAGE_SIZE}
-                  onPageChange={setPage}
-                />
-              </div>
-            )}
-          </>
-        )}
-      </Card>
+      <DataTable<Carepack>
+        columns={allCarepackColumns}
+        data={carepacks}
+        isLoading={isLoading}
+        loadingMessage="Loading carepacks..."
+        error={tableError}
+        emptyIcon={<Shield className="w-7 h-7" />}
+        emptyMessage={hasActiveFilters ? 'No carepacks match your filters' : 'No carepacks yet'}
+        onRowClick={(cp) => openDetailModal(cp)}
+        rowKey={(cp) => cp.id}
+        pagination={totalRecords > 0 ? {
+          currentPage: page,
+          totalPages,
+          totalItems: totalRecords,
+          pageSize: PAGE_SIZE,
+          onPageChange: setPage,
+        } : undefined}
+        minWidth={900}
+      />
     </>
   );
 

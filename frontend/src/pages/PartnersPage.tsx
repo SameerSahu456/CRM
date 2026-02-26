@@ -13,8 +13,7 @@ import { exportToCsv } from '@/utils/exportCsv';
 import { Partner, PaginatedResponse, User } from '@/types';
 import { BulkImportModal } from '@/components/common/BulkImportModal';
 import { useNavigation } from '@/contexts/NavigationContext';
-import { useColumnResize } from '@/hooks/useColumnResize';
-import { Card, Button, Input, Select, Modal, Badge, Alert, Pagination, Textarea } from '@/components/ui';
+import { Card, Button, Input, Select, Modal, Badge, Alert, Textarea, DataTable, DataTableColumn } from '@/components/ui';
 import { cx } from '@/utils/cx';
 
 // ---------------------------------------------------------------------------
@@ -519,25 +518,15 @@ export const PartnersPage: React.FC = () => {
   const hasActiveFilters = filterStatus || filterTier || filterCity || searchTerm;
 
   // ---------------------------------------------------------------------------
-  // Styling helpers
+  // Column definitions for DataTable
   // ---------------------------------------------------------------------------
 
-  const { colWidths: partnerColWidths, onMouseDown: onPartnerMouseDown } = useColumnResize({
-    initialWidths: [190, 170, 130, 140, 100, 100, 100],
-  });
-
-  // ---------------------------------------------------------------------------
-  // Table row renderer (shared between All & My tabs)
-  // ---------------------------------------------------------------------------
-
-  const renderPartnerRow = (partner: Partner, showActions: boolean = true) => (
-    <tr
-      key={partner.id}
-      className="border-b transition-colors cursor-pointer border-slate-50 hover:bg-slate-50/80 dark:border-zinc-800/50 dark:hover:bg-zinc-800/30"
-      onClick={() => openDetail(partner)}
-    >
-      {/* Company Name */}
-      <td className="px-4 py-3 text-slate-900 dark:text-white">
+  const basePartnerColumns: DataTableColumn<Partner>[] = [
+    {
+      key: 'companyName',
+      label: 'Company Name',
+      width: '22%',
+      render: (partner) => (
         <div className="flex items-center gap-2.5">
           <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 bg-brand-50 dark:bg-brand-900/20">
             <Building2 className="w-4 h-4 text-brand-600 dark:text-brand-400" />
@@ -551,152 +540,206 @@ export const PartnersPage: React.FC = () => {
             )}
           </div>
         </div>
-      </td>
-
-      {/* Contact Person */}
-      <td className="px-4 py-3 text-slate-700 dark:text-zinc-300">
-        {partner.contactPerson || '-'}
-      </td>
-
-      {/* City */}
-      <td className="px-4 py-3 text-slate-700 dark:text-zinc-300">
+      ),
+    },
+    {
+      key: 'contactPerson',
+      label: 'Contact Person',
+      width: '16%',
+      render: (partner) => partner.contactPerson || '-',
+    },
+    {
+      key: 'city',
+      label: 'City',
+      width: '14%',
+      render: (partner) => (
         <div className="flex items-center gap-1.5">
           {partner.city && <MapPin className="w-3 h-3 flex-shrink-0 text-slate-400 dark:text-zinc-500" />}
           {partner.city || '-'}
         </div>
-      </td>
-
-      {/* Type */}
-      <td className="px-4 py-3 text-slate-700 dark:text-zinc-300">
-        {capitalize(partner.partnerType || '')}
-      </td>
-
-      {/* Tier */}
-      <td className="px-4 py-3">
+      ),
+    },
+    {
+      key: 'type',
+      label: 'Type',
+      width: '14%',
+      render: (partner) => capitalize(partner.partnerType || ''),
+    },
+    {
+      key: 'tier',
+      label: 'Tier',
+      width: '10%',
+      render: (partner) => (
         <Badge variant={tierBadgeVariant(partner.tier)}>
           {capitalize(partner.tier)}
         </Badge>
-      </td>
-
-      {/* Status */}
-      <td className="px-4 py-3">
+      ),
+    },
+    {
+      key: 'status',
+      label: 'Status',
+      width: '10%',
+      render: (partner) => (
         <Badge variant={statusBadgeVariant(partner.status)}>
           {capitalize(partner.status)}
         </Badge>
-      </td>
+      ),
+    },
+  ];
 
-      {/* Actions */}
-      {showActions && (
-        <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
+  const actionsColumn: DataTableColumn<Partner> = {
+    key: 'actions',
+    label: 'Actions',
+    width: '14%',
+    render: (partner) => (
+      <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
+        <button
+          onClick={(e) => { e.stopPropagation(); openEditModal(partner); }}
+          title="Edit"
+          className="p-1.5 rounded-lg transition-colors text-slate-400 hover:text-brand-600 hover:bg-brand-50 dark:text-zinc-400 dark:hover:text-brand-400 dark:hover:bg-brand-900/20"
+        >
+          <Edit2 className="w-4 h-4" />
+        </button>
+
+        {deleteConfirmId === partner.id ? (
           <div className="flex items-center gap-1">
-            <button
-              onClick={(e) => { e.stopPropagation(); openEditModal(partner); }}
-              title="Edit"
-              className="p-1.5 rounded-lg transition-colors text-slate-400 hover:text-brand-600 hover:bg-brand-50 dark:text-zinc-400 dark:hover:text-brand-400 dark:hover:bg-brand-900/20"
+            <Button
+              size="xs"
+              variant="danger"
+              onClick={(e) => { e.stopPropagation(); handleDelete(partner.id); }}
             >
-              <Edit2 className="w-4 h-4" />
-            </button>
-
-            {deleteConfirmId === partner.id ? (
-              <div className="flex items-center gap-1">
-                <Button
-                  size="xs"
-                  variant="danger"
-                  onClick={(e) => { e.stopPropagation(); handleDelete(partner.id); }}
-                >
-                  Confirm
-                </Button>
-                <Button
-                  size="xs"
-                  variant="ghost"
-                  onClick={(e) => { e.stopPropagation(); setDeleteConfirmId(null); }}
-                >
-                  Cancel
-                </Button>
-              </div>
-            ) : (
-              <button
-                onClick={(e) => { e.stopPropagation(); setDeleteConfirmId(partner.id); }}
-                title="Delete"
-                className="p-1.5 rounded-lg transition-colors text-slate-400 hover:text-red-600 hover:bg-red-50 dark:text-zinc-400 dark:hover:text-red-400 dark:hover:bg-red-900/20"
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
-            )}
+              Confirm
+            </Button>
+            <Button
+              size="xs"
+              variant="ghost"
+              onClick={(e) => { e.stopPropagation(); setDeleteConfirmId(null); }}
+            >
+              Cancel
+            </Button>
           </div>
-        </td>
-      )}
-    </tr>
-  );
-
-  // ---------------------------------------------------------------------------
-  // Table header renderer
-  // ---------------------------------------------------------------------------
-
-  const renderTableHeader = (showActions: boolean = true) => {
-    const headers = ['Company Name', 'Contact Person', 'City', 'Type', 'Tier', 'Status'];
-    if (showActions) headers.push('Actions');
-
-    return (
-      <thead>
-        <tr className="border-b border-slate-100 dark:border-zinc-800">
-          {headers.map((h, i) => (
-            <th
-              key={h}
-              className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider resizable-th text-slate-400 dark:text-zinc-500"
-              style={{ width: partnerColWidths[i] }}
-            >
-              {h}
-              <div className="col-resize-handle" onMouseDown={e => onPartnerMouseDown(i, e)} />
-            </th>
-          ))}
-        </tr>
-      </thead>
-    );
+        ) : (
+          <button
+            onClick={(e) => { e.stopPropagation(); setDeleteConfirmId(partner.id); }}
+            title="Delete"
+            className="p-1.5 rounded-lg transition-colors text-slate-400 hover:text-red-600 hover:bg-red-50 dark:text-zinc-400 dark:hover:text-red-400 dark:hover:bg-red-900/20"
+          >
+            <Trash2 className="w-4 h-4" />
+          </button>
+        )}
+      </div>
+    ),
   };
 
-  // ---------------------------------------------------------------------------
-  // Empty state renderer
-  // ---------------------------------------------------------------------------
+  const allPartnersColumns: DataTableColumn<Partner>[] = [...basePartnerColumns, actionsColumn];
+  const myPartnersColumns: DataTableColumn<Partner>[] = basePartnerColumns;
 
-  const renderEmptyState = (message: string, subMessage: string) => (
-    <div className="flex flex-col items-center justify-center py-20">
-      <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4 bg-slate-100 dark:bg-zinc-800">
-        <Building2 className="w-7 h-7 text-slate-300 dark:text-zinc-600" />
-      </div>
-      <p className="text-sm font-medium text-slate-500 dark:text-zinc-400">
-        {message}
-      </p>
-      <p className="text-xs mt-1 text-slate-400 dark:text-zinc-600">
-        {subMessage}
-      </p>
-    </div>
-  );
-
-  // ---------------------------------------------------------------------------
-  // Loading state renderer
-  // ---------------------------------------------------------------------------
-
-  const renderLoadingState = (message: string) => (
-    <div className="flex flex-col items-center justify-center py-20">
-      <Loader2 className="w-8 h-8 text-brand-600 animate-spin" />
-      <p className="mt-3 text-sm text-slate-500 dark:text-zinc-400">
-        {message}
-      </p>
-    </div>
-  );
-
-  // ---------------------------------------------------------------------------
-  // Error banner renderer
-  // ---------------------------------------------------------------------------
-
-  const renderErrorBanner = (error: string) => (
-    <div className="m-4">
-      <Alert variant="error" icon={<AlertCircle className="w-4 h-4" />}>
-        {error}
-      </Alert>
-    </div>
-  );
+  const pendingColumns: DataTableColumn<Partner>[] = [
+    {
+      key: 'companyName',
+      label: 'Company Name',
+      width: '22%',
+      render: (partner) => (
+        <div className="flex items-center gap-2.5 cursor-pointer" onClick={() => openDetail(partner)}>
+          <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 bg-amber-50 dark:bg-amber-900/20">
+            <Clock className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+          </div>
+          <span className="font-medium">{partner.companyName}</span>
+        </div>
+      ),
+    },
+    {
+      key: 'contactPerson',
+      label: 'Contact Person',
+      width: '14%',
+      render: (partner) => partner.contactPerson || '-',
+    },
+    {
+      key: 'city',
+      label: 'City',
+      width: '12%',
+      render: (partner) => partner.city || '-',
+    },
+    {
+      key: 'type',
+      label: 'Type',
+      width: '12%',
+      render: (partner) => capitalize(partner.partnerType || ''),
+    },
+    {
+      key: 'tier',
+      label: 'Tier',
+      width: '10%',
+      render: (partner) => (
+        <Badge variant={tierBadgeVariant(partner.tier)}>
+          {capitalize(partner.tier)}
+        </Badge>
+      ),
+    },
+    {
+      key: 'registered',
+      label: 'Registered',
+      width: '12%',
+      className: 'whitespace-nowrap',
+      render: (partner) => formatDate(partner.createdAt),
+    },
+    {
+      key: 'actions',
+      label: 'Actions',
+      width: '18%',
+      render: (partner) => (
+        rejectingId === partner.id ? (
+          <div className="flex items-center gap-2 min-w-[280px]">
+            <Input
+              type="text"
+              placeholder="Rejection reason..."
+              value={rejectionReason}
+              onChange={e => setRejectionReason(e.target.value)}
+              className="flex-1 !py-1.5 !text-xs"
+              autoFocus
+            />
+            <Button
+              size="xs"
+              variant="danger"
+              onClick={() => handleReject(partner.id)}
+              disabled={approveSubmitting === partner.id}
+              loading={approveSubmitting === partner.id}
+            >
+              Reject
+            </Button>
+            <Button
+              size="xs"
+              variant="ghost"
+              onClick={() => { setRejectingId(null); setRejectionReason(''); setPendingError(''); }}
+            >
+              Cancel
+            </Button>
+          </div>
+        ) : (
+          <div className="flex items-center gap-2">
+            <Button
+              size="xs"
+              variant="success"
+              icon={approveSubmitting === partner.id ? undefined : <CheckCircle className="w-3 h-3" />}
+              loading={approveSubmitting === partner.id}
+              onClick={() => handleApprove(partner.id)}
+              disabled={approveSubmitting === partner.id}
+            >
+              Approve
+            </Button>
+            <Button
+              size="xs"
+              variant="danger"
+              icon={<XCircle className="w-3 h-3" />}
+              onClick={() => { setRejectingId(partner.id); setRejectionReason(''); setPendingError(''); }}
+            >
+              Reject
+            </Button>
+          </div>
+        )
+      ),
+    },
+  ];
 
   // ---------------------------------------------------------------------------
   // Render: All Partners Tab
@@ -834,36 +877,28 @@ export const PartnersPage: React.FC = () => {
       </Card>
 
       {/* Data Table */}
-      <Card padding="none" className="overflow-hidden">
-        {tableError && renderErrorBanner(tableError)}
-
-        {isLoading ? (
-          renderLoadingState('Loading accounts...')
-        ) : partners.length === 0 ? (
-          renderEmptyState(
-            hasActiveFilters ? 'No accounts match filters' : 'No accounts yet',
-            hasActiveFilters ? 'Try adjusting your search or filters' : 'Click "New Account" to add your first account'
-          )
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="premium-table">
-              {renderTableHeader(true)}
-              <tbody>
-                {partners.map(p => renderPartnerRow(p, true))}
-              </tbody>
-            </table>
-          </div>
-        )}
-
-        <Pagination
-          currentPage={page}
-          totalPages={totalPages}
-          totalItems={totalRecords}
-          pageSize={PAGE_SIZE}
-          onPageChange={setPage}
-          className="border-t border-slate-100 dark:border-zinc-800"
-        />
-      </Card>
+      <DataTable<Partner>
+        columns={allPartnersColumns}
+        data={partners}
+        isLoading={isLoading}
+        loadingMessage="Loading accounts..."
+        error={tableError || undefined}
+        emptyIcon={<Building2 className="w-10 h-10" />}
+        emptyMessage={
+          hasActiveFilters
+            ? 'No accounts match filters'
+            : 'No accounts yet'
+        }
+        onRowClick={(partner) => openDetail(partner)}
+        rowKey={(partner) => partner.id}
+        pagination={{
+          currentPage: page,
+          totalPages,
+          totalItems: totalRecords,
+          pageSize: PAGE_SIZE,
+          onPageChange: setPage,
+        }}
+      />
     </>
   );
 
@@ -872,27 +907,17 @@ export const PartnersPage: React.FC = () => {
   // ---------------------------------------------------------------------------
 
   const renderMyPartnersTab = () => (
-    <Card padding="none" className="overflow-hidden">
-      {myPartnersError && renderErrorBanner(myPartnersError)}
-
-      {myPartnersLoading ? (
-        renderLoadingState('Loading your accounts...')
-      ) : myPartners.length === 0 ? (
-        renderEmptyState(
-          'No accounts assigned to you',
-          'Accounts will appear here once they are assigned to you'
-        )
-      ) : (
-        <div className="overflow-x-auto">
-          <table className="premium-table">
-            {renderTableHeader(false)}
-            <tbody>
-              {myPartners.map(p => renderPartnerRow(p, false))}
-            </tbody>
-          </table>
-        </div>
-      )}
-    </Card>
+    <DataTable<Partner>
+      columns={myPartnersColumns}
+      data={myPartners}
+      isLoading={myPartnersLoading}
+      loadingMessage="Loading your accounts..."
+      error={myPartnersError || undefined}
+      emptyIcon={<Building2 className="w-10 h-10" />}
+      emptyMessage="No accounts assigned to you"
+      onRowClick={(partner) => openDetail(partner)}
+      rowKey={(partner) => partner.id}
+    />
   );
 
   // ---------------------------------------------------------------------------
@@ -900,138 +925,16 @@ export const PartnersPage: React.FC = () => {
   // ---------------------------------------------------------------------------
 
   const renderPendingTab = () => (
-    <Card padding="none" className="overflow-hidden">
-      {pendingError && renderErrorBanner(pendingError)}
-
-      {pendingLoading ? (
-        renderLoadingState('Loading pending accounts...')
-      ) : pendingPartners.length === 0 ? (
-        renderEmptyState(
-          'No pending approvals',
-          'All account registrations have been reviewed'
-        )
-      ) : (
-        <div className="overflow-x-auto">
-          <table className="premium-table">
-            <thead>
-              <tr className="border-b border-slate-100 dark:border-zinc-800">
-                {['Company Name', 'Contact Person', 'City', 'Type', 'Tier', 'Registered', 'Actions'].map((h, i) => (
-                  <th
-                    key={h}
-                    className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider resizable-th text-slate-400 dark:text-zinc-500"
-                    style={{ width: partnerColWidths[i] }}
-                  >
-                    {h}
-                    <div className="col-resize-handle" onMouseDown={e => onPartnerMouseDown(i, e)} />
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {pendingPartners.map(partner => (
-                <tr
-                  key={partner.id}
-                  className="border-b transition-colors border-slate-50 hover:bg-slate-50/80 dark:border-zinc-800/50 dark:hover:bg-zinc-800/30"
-                >
-                  {/* Company Name */}
-                  <td
-                    className="px-4 py-3 cursor-pointer text-slate-900 dark:text-white"
-                    onClick={() => openDetail(partner)}
-                  >
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 bg-amber-50 dark:bg-amber-900/20">
-                        <Clock className="w-4 h-4 text-amber-600 dark:text-amber-400" />
-                      </div>
-                      <span className="font-medium">{partner.companyName}</span>
-                    </div>
-                  </td>
-
-                  {/* Contact Person */}
-                  <td className="px-4 py-3 text-slate-700 dark:text-zinc-300">
-                    {partner.contactPerson || '-'}
-                  </td>
-
-                  {/* City */}
-                  <td className="px-4 py-3 text-slate-700 dark:text-zinc-300">
-                    {partner.city || '-'}
-                  </td>
-
-                  {/* Type */}
-                  <td className="px-4 py-3 text-slate-700 dark:text-zinc-300">
-                    {capitalize(partner.partnerType || '')}
-                  </td>
-
-                  {/* Tier */}
-                  <td className="px-4 py-3">
-                    <Badge variant={tierBadgeVariant(partner.tier)}>
-                      {capitalize(partner.tier)}
-                    </Badge>
-                  </td>
-
-                  {/* Registered */}
-                  <td className="px-4 py-3 whitespace-nowrap text-slate-700 dark:text-zinc-300">
-                    {formatDate(partner.createdAt)}
-                  </td>
-
-                  {/* Approve/Reject Actions */}
-                  <td className="px-4 py-3">
-                    {rejectingId === partner.id ? (
-                      <div className="flex items-center gap-2 min-w-[280px]">
-                        <Input
-                          type="text"
-                          placeholder="Rejection reason..."
-                          value={rejectionReason}
-                          onChange={e => setRejectionReason(e.target.value)}
-                          className="flex-1 !py-1.5 !text-xs"
-                          autoFocus
-                        />
-                        <Button
-                          size="xs"
-                          variant="danger"
-                          onClick={() => handleReject(partner.id)}
-                          disabled={approveSubmitting === partner.id}
-                          loading={approveSubmitting === partner.id}
-                        >
-                          Reject
-                        </Button>
-                        <Button
-                          size="xs"
-                          variant="ghost"
-                          onClick={() => { setRejectingId(null); setRejectionReason(''); setPendingError(''); }}
-                        >
-                          Cancel
-                        </Button>
-                      </div>
-                    ) : (
-                      <div className="flex items-center gap-2">
-                        <Button
-                          size="xs"
-                          variant="success"
-                          icon={approveSubmitting === partner.id ? undefined : <CheckCircle className="w-3 h-3" />}
-                          loading={approveSubmitting === partner.id}
-                          onClick={() => handleApprove(partner.id)}
-                          disabled={approveSubmitting === partner.id}
-                        >
-                          Approve
-                        </Button>
-                        <Button
-                          size="xs"
-                          variant="danger"
-                          icon={<XCircle className="w-3 h-3" />}
-                          onClick={() => { setRejectingId(partner.id); setRejectionReason(''); setPendingError(''); }}
-                        >
-                          Reject
-                        </Button>
-                      </div>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-    </Card>
+    <DataTable<Partner>
+      columns={pendingColumns}
+      data={pendingPartners}
+      isLoading={pendingLoading}
+      loadingMessage="Loading pending accounts..."
+      error={pendingError || undefined}
+      emptyIcon={<Building2 className="w-10 h-10" />}
+      emptyMessage="No pending approvals"
+      rowKey={(partner) => partner.id}
+    />
   );
 
   // ---------------------------------------------------------------------------

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   Plus, Search, X, Edit2, Trash2,
-  Loader2, AlertCircle, CheckCircle, Building2,
+  AlertCircle, CheckCircle, Building2,
   Phone, Mail, Briefcase, User as UserIcon,
   Smartphone, Users,
   Download, Upload
@@ -13,9 +13,7 @@ import { contactsApi, accountsApi, CONTACT_LIST_FIELDS } from '@/services/api';
 import { exportToCsv } from '@/utils/exportCsv';
 import { Contact, Account, PaginatedResponse } from '@/types';
 import { BulkImportModal } from '@/components/common/BulkImportModal';
-import { useColumnResize } from '@/hooks/useColumnResize';
-import { Card, Button, Input, Select, Modal, Alert, Pagination, Textarea } from '@/components/ui';
-import { cx } from '@/utils/cx';
+import { Card, Button, Input, Select, Modal, Alert, Textarea, DataTable, DataTableColumn } from '@/components/ui';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -124,9 +122,6 @@ export const ContactsPage: React.FC = () => {
   // Styling helpers
   // ---------------------------------------------------------------------------
 
-  const { colWidths, onMouseDown } = useColumnResize({
-    initialWidths: [56, 200, 240, 150, 170, 200],
-  });
 
   // ---------------------------------------------------------------------------
   // Data fetching
@@ -409,104 +404,68 @@ export const ContactsPage: React.FC = () => {
   // Render: Table
   // ---------------------------------------------------------------------------
 
-  const hdrCell = 'px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400';
-  const cellBase = 'px-3 py-2.5 text-sm text-gray-700 dark:text-zinc-300';
+  const contactColumns: DataTableColumn<Contact>[] = [
+    {
+      key: 'name',
+      label: 'Name',
+      width: '19%',
+      render: (c) => <span className="font-medium">{c.firstName} {c.lastName || ''}</span>,
+    },
+    {
+      key: 'email',
+      label: 'Email',
+      width: '24%',
+      render: (c) => <span className="truncate block max-w-[190px]">{c.email || '-'}</span>,
+    },
+    {
+      key: 'phone',
+      label: 'Phone',
+      width: '17%',
+      render: (c) => <span className="whitespace-nowrap">{c.phone || '-'}</span>,
+    },
+    {
+      key: 'designation',
+      label: 'Designation',
+      width: '16%',
+      render: (c) => <>{c.designation || c.jobTitle || '-'}</>,
+    },
+    {
+      key: 'account',
+      label: 'Account',
+      width: '19%',
+      render: (c) =>
+        c.accountName ? (
+          <button
+            onClick={(e) => { e.stopPropagation(); navigate('accounts', { accountId: c.accountId! }); }}
+            className="text-left truncate max-w-[150px] font-medium hover:underline text-brand-600 hover:text-brand-500 dark:text-brand-400 dark:hover:text-brand-300"
+          >
+            {c.accountName}
+          </button>
+        ) : <>-</>,
+    },
+  ];
 
   const renderTable = () => (
-    <Card padding="none" className="overflow-hidden">
-      {tableError && (
-        <div className="m-4">
-          <Alert variant="error" icon={<AlertCircle className="w-4 h-4" />}>
-            {tableError}
-          </Alert>
-        </div>
-      )}
-
-      {isLoading ? (
-        <div className="flex flex-col items-center justify-center py-20">
-          <Loader2 className="w-8 h-8 text-brand-600 animate-spin" />
-          <p className="mt-3 text-sm text-gray-500 dark:text-zinc-400">
-            Loading contacts...
-          </p>
-        </div>
-      ) : (
-        <>
-          <div className="overflow-x-auto">
-            <table className="premium-table">
-              <thead>
-                <tr className="border-b border-gray-200 dark:border-zinc-700">
-                  {['#', 'Name', 'Email', 'Phone', 'Designation', 'Account'].map((label, i) => (
-                    <th
-                      key={label}
-                      className={cx(hdrCell, 'resizable-th', i === 0 && 'index-col text-center')}
-                      style={{ width: colWidths[i] }}
-                    >
-                      {label}
-                      <div className="col-resize-handle" onMouseDown={e => onMouseDown(i, e)} />
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {contacts.length === 0 ? (
-                  <tr>
-                    <td colSpan={6} className="py-16 text-center">
-                      <Users className="w-8 h-8 mx-auto text-gray-300 dark:text-zinc-700" />
-                      <p className="mt-2 text-sm text-gray-400 dark:text-zinc-500">
-                        {hasActiveFilters ? 'No contacts match filters' : 'No contacts yet'}
-                      </p>
-                    </td>
-                  </tr>
-                ) : contacts.map((contact, idx) => (
-                  <tr
-                    key={contact.id}
-                    onClick={() => openDetailModal(contact)}
-                    className="border-b cursor-pointer transition-colors border-gray-100 hover:bg-gray-50 dark:border-zinc-800 dark:hover:bg-zinc-800/50"
-                  >
-                    <td className={cx(cellBase, 'index-col text-center text-gray-400 dark:text-zinc-500')}>
-                      {(page - 1) * PAGE_SIZE + idx + 1}
-                    </td>
-                    <td className={cellBase}>
-                      <span className="font-medium">{contact.firstName} {contact.lastName || ''}</span>
-                    </td>
-                    <td className={cellBase}>
-                      <span className="truncate block max-w-[190px]">{contact.email || '-'}</span>
-                    </td>
-                    <td className={cellBase}>
-                      <span className="whitespace-nowrap">{contact.phone || '-'}</span>
-                    </td>
-                    <td className={cellBase}>
-                      {contact.designation || contact.jobTitle || '-'}
-                    </td>
-                    <td className={cellBase}>
-                      {contact.accountName ? (
-                        <button
-                          onClick={(e) => { e.stopPropagation(); navigate('accounts', { accountId: contact.accountId }); }}
-                          className="text-left truncate max-w-[150px] font-medium hover:underline text-brand-600 hover:text-brand-500 dark:text-brand-400 dark:hover:text-brand-300"
-                        >
-                          {contact.accountName}
-                        </button>
-                      ) : '-'}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Pagination */}
-          <div className="border-t border-gray-100 dark:border-zinc-800">
-            <Pagination
-              currentPage={page}
-              totalPages={totalPages}
-              totalItems={totalRecords}
-              pageSize={PAGE_SIZE}
-              onPageChange={setPage}
-            />
-          </div>
-        </>
-      )}
-    </Card>
+    <DataTable<Contact>
+      columns={contactColumns}
+      data={contacts}
+      isLoading={isLoading}
+      loadingMessage="Loading contacts..."
+      error={tableError}
+      emptyIcon={<Users className="w-8 h-8" />}
+      emptyMessage={hasActiveFilters ? 'No contacts match filters' : 'No contacts yet'}
+      onRowClick={(contact) => openDetailModal(contact)}
+      showIndex
+      page={page}
+      pageSize={PAGE_SIZE}
+      pagination={{
+        currentPage: page,
+        totalPages,
+        totalItems: totalRecords,
+        pageSize: PAGE_SIZE,
+        onPageChange: setPage,
+      }}
+    />
   );
 
   // ---------------------------------------------------------------------------

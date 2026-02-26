@@ -17,8 +17,7 @@ import { exportToCsv } from '@/utils/exportCsv';
 import { BulkImportModal } from '@/components/common/BulkImportModal';
 import { RichTextEditor } from '@/components/common/RichTextEditor';
 import { Deal, DealStage, Account, Contact, Product, Partner, PaginatedResponse, ActivityLog } from '@/types';
-import { useColumnResize } from '@/hooks/useColumnResize';
-import { Card, Button, Input, Select, Modal, Badge, Alert, Pagination, Textarea } from '@/components/ui';
+import { Card, Button, Input, Select, Modal, Badge, Alert, Textarea, DataTable, DataTableColumn } from '@/components/ui';
 import { cx } from '@/utils/cx';
 
 // ---------------------------------------------------------------------------
@@ -201,7 +200,6 @@ export const DealsPage: React.FC = () => {
   // Filters
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStage, setFilterStage] = useState('');
-  const [filterAccount, setFilterAccount] = useState('');
 
   // UI state
   const [isLoading, setIsLoading] = useState(true);
@@ -290,17 +288,6 @@ export const DealsPage: React.FC = () => {
 
 
   // ---------------------------------------------------------------------------
-  // Styling helpers
-  // ---------------------------------------------------------------------------
-
-  const dealInitialWidths = canSeeAssignee
-    ? [56, 84, 170, 120, 150, 130, 130, 220, 130, 160, 160, 110, 120, 100, 120, 120]
-    : [56, 84, 170, 120, 150, 130, 130, 220, 130, 160, 160, 110, 120, 100, 120];
-  const { colWidths: dealColWidths, onMouseDown: onDealMouseDown } = useColumnResize({
-    initialWidths: dealInitialWidths,
-  });
-
-  // ---------------------------------------------------------------------------
   // Data fetching
   // ---------------------------------------------------------------------------
 
@@ -313,7 +300,6 @@ export const DealsPage: React.FC = () => {
         limit: String(PAGE_SIZE),
       };
       if (filterStage) params.stage = filterStage;
-      if (filterAccount) params.accountId = filterAccount;
       if (searchTerm) params.search = searchTerm;
       params.fields = DEAL_LIST_FIELDS;
 
@@ -328,7 +314,7 @@ export const DealsPage: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [page, filterStage, filterAccount, searchTerm]);
+  }, [page, filterStage, searchTerm]);
 
   const fetchPipelineDeals = useCallback(async () => {
     if (!pipelineLoadedRef.current) setIsPipelineLoading(true);
@@ -408,7 +394,7 @@ export const DealsPage: React.FC = () => {
   // Reset to page 1 when filters change
   useEffect(() => {
     setPage(1);
-  }, [filterStage, filterAccount, searchTerm]);
+  }, [filterStage, searchTerm]);
 
   // ---------------------------------------------------------------------------
   // Deal form handlers
@@ -1025,40 +1011,16 @@ export const DealsPage: React.FC = () => {
   };
 
 
-  const renderReadCell = (deal: Deal, colKey: string) => {
-    switch (colKey) {
-      case 'accountId':
-        return <span className="font-medium truncate block max-w-[200px]">{deal.accountName || '-'}</span>;
-      case 'value':
-        return <span className="font-semibold whitespace-nowrap">{deal.value ? formatINR(deal.value) : '-'}</span>;
-      case 'stage':
-        return <Badge variant={STAGE_BADGE_VARIANT[deal.stage] || 'gray'}>{deal.stage}</Badge>;
-      case 'closingDate':
-        return <span className="whitespace-nowrap">{deal.closingDate ? formatDate(deal.closingDate) : '-'}</span>;
-      case 'type':
-        return deal.type || '-';
-      case 'tag':
-        if (!deal.tag) return '-';
-        return (
-          <Badge variant={deal.tag === 'Channel' ? 'purple' : 'cyan'}>
-            {deal.tag}
-          </Badge>
-        );
-      default: return '-';
-    }
-  };
-
   // ---------------------------------------------------------------------------
   // Misc helpers
   // ---------------------------------------------------------------------------
 
   const clearFilters = () => {
     setFilterStage('');
-    setFilterAccount('');
     setSearchTerm('');
   };
 
-  const hasActiveFilters = filterStage || filterAccount || searchTerm;
+  const hasActiveFilters = filterStage || searchTerm;
 
   // ---------------------------------------------------------------------------
   // Render: Toolbar
@@ -1106,31 +1068,21 @@ export const DealsPage: React.FC = () => {
           />
         </div>
 
-        {/* Filter: Stage */}
-        <div className="w-full lg:w-44">
-          <Select
-            value={filterStage}
-            onChange={e => setFilterStage(e.target.value)}
-          >
-            <option value="">All Stages</option>
-            {DEAL_STAGES.map(s => (
-              <option key={s} value={s}>{s}</option>
-            ))}
-          </Select>
-        </div>
+        {/* Filter: Stage (only in table/list view) */}
+        {viewMode === 'table' && (
+          <div className="w-full lg:w-44">
+            <Select
+              value={filterStage}
+              onChange={e => setFilterStage(e.target.value)}
+            >
+              <option value="">All Stages</option>
+              {DEAL_STAGES.map(s => (
+                <option key={s} value={s}>{s}</option>
+              ))}
+            </Select>
+          </div>
+        )}
 
-        {/* Filter: Account */}
-        <div className="w-full lg:w-44">
-          <Select
-            value={filterAccount}
-            onChange={e => setFilterAccount(e.target.value)}
-          >
-            <option value="">All Accounts</option>
-            {accounts.map(a => (
-              <option key={a.id} value={a.id}>{a.name}</option>
-            ))}
-          </Select>
-        </div>
 
         {/* Clear Filters */}
         {hasActiveFilters && (
@@ -1188,167 +1140,151 @@ export const DealsPage: React.FC = () => {
   // ---------------------------------------------------------------------------
 
   const renderTableView = () => {
-    const cellBase = 'px-3 py-2.5 text-sm border-gray-100 dark:border-zinc-800';
-    const hdrCell = 'px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 bg-gray-50 dark:text-zinc-400 dark:bg-dark-100';
+    const dealColumns: DataTableColumn<Deal>[] = [
+      {
+        key: 'summarise',
+        label: 'Summarise',
+        width: '84px',
+        align: 'center',
+        render: (deal) => (
+          <button
+            onClick={(e) => { e.stopPropagation(); setSummariseDeal(deal); setShowSummariseModal(true); }}
+            title="Summarise"
+            className="p-1.5 rounded-lg transition-colors text-gray-400 hover:text-brand-600 hover:bg-brand-50 dark:text-zinc-400 dark:hover:text-brand-400 dark:hover:bg-brand-900/20"
+          >
+            <FileText className="w-4 h-4" />
+          </button>
+        ),
+      },
+      {
+        key: 'company',
+        label: 'Company',
+        width: '170px',
+        render: (deal) => (
+          <>
+            <span className="font-medium">{deal.company || deal.accountName || '-'}</span>
+            {deal.paymentFlag && <span title="Payment pending"><Flag className="w-3.5 h-3.5 text-red-500 fill-red-500 inline-block ml-1" /></span>}
+          </>
+        ),
+      },
+      {
+        key: 'overdue',
+        label: 'Overdue',
+        width: '120px',
+        render: (deal) => (
+          dealOverdueMap[deal.id]
+            ? <span className="font-medium text-red-600 dark:text-red-400">{formatINR(dealOverdueMap[deal.id])}</span>
+            : <span className="text-gray-300 dark:text-zinc-600">-</span>
+        ),
+      },
+      {
+        key: 'contactName',
+        label: 'Contact Name',
+        width: '150px',
+        render: (deal) => <>{deal.contactName || '-'}</>,
+      },
+      {
+        key: 'contactNo',
+        label: 'Contact No',
+        width: '130px',
+        render: (deal) => <>{deal.contactNo || '-'}</>,
+      },
+      {
+        key: 'designation',
+        label: 'Designation',
+        width: '130px',
+        render: (deal) => <>{deal.designation || '-'}</>,
+      },
+      {
+        key: 'email',
+        label: 'Email',
+        width: '220px',
+        render: (deal) => (
+          <span className="truncate block max-w-[140px]">{deal.email || '-'}</span>
+        ),
+      },
+      {
+        key: 'location',
+        label: 'Location',
+        width: '130px',
+        render: (deal) => <>{deal.location || '-'}</>,
+      },
+      {
+        key: 'requirement',
+        label: 'Requirement',
+        width: '160px',
+        render: (deal) => (
+          <span className="truncate block max-w-[150px]">{deal.requirement || '-'}</span>
+        ),
+      },
+      {
+        key: 'quotedRequirement',
+        label: 'Quoted Requirement',
+        width: '160px',
+        render: (deal) => (
+          <span className="truncate block max-w-[150px]">{deal.quotedRequirement || '-'}</span>
+        ),
+      },
+      {
+        key: 'value',
+        label: 'Value',
+        width: '110px',
+        render: (deal) => (
+          <span className="font-semibold whitespace-nowrap">{deal.value ? formatINR(deal.value) : '-'}</span>
+        ),
+      },
+      {
+        key: 'stage',
+        label: 'Stage',
+        width: '120px',
+        render: (deal) => (
+          <Badge variant={STAGE_BADGE_VARIANT[deal.stage] || 'gray'}>{deal.stage}</Badge>
+        ),
+      },
+      {
+        key: 'orderType',
+        label: 'Order Type',
+        width: '100px',
+        render: (deal) => <>{deal.typeOfOrder || '-'}</>,
+      },
+      // Conditionally include Assignee column
+      ...(canSeeAssignee ? [{
+        key: 'assignee',
+        label: 'Assignee',
+        width: '120px',
+        render: (deal: Deal) => <>{deal.ownerName || '-'}</>,
+      }] : []),
+      {
+        key: 'followUpDate',
+        label: 'Follow-up Date',
+        width: '120px',
+        render: (deal) => <>{deal.nextFollowUp ? formatDate(deal.nextFollowUp) : '-'}</>,
+      },
+    ];
 
     return (
-      <Card padding="none" className="overflow-hidden">
-        {tableError && (
-          <div className="m-4">
-            <Alert variant="error" icon={<AlertCircle className="w-4 h-4" />}>
-              {tableError}
-            </Alert>
-          </div>
-        )}
-
-        {isLoading ? (
-          <div className="flex flex-col items-center justify-center py-20">
-            <Loader2 className="w-8 h-8 text-brand-600 animate-spin" />
-            <p className="mt-3 text-sm text-gray-500 dark:text-zinc-400">
-              Loading deals...
-            </p>
-          </div>
-        ) : (
-          <>
-            <div className="overflow-x-auto">
-              <table className="premium-table" style={{ minWidth: dealColWidths.reduce((a, b) => a + b, 0) }}>
-                <colgroup>
-                  {dealColWidths.map((w, i) => (
-                    <col key={i} style={{ width: w }} />
-                  ))}
-                </colgroup>
-                <thead>
-                  <tr className="border-b border-gray-200 dark:border-zinc-700">
-                    {(['#', 'Summarise', 'Company', 'Overdue', 'Contact Name', 'Contact No', 'Designation', 'Email', 'Location', 'Requirement', 'Quoted Requirement', 'Value', 'Stage', 'Order Type', ...(canSeeAssignee ? ['Assignee'] : []), 'Follow-up Date'] as string[]).map((label, i, arr) => (
-                      <th
-                        key={label}
-                        className={cx(
-                          hdrCell,
-                          'resizable-th',
-                          i === 0 && 'index-col',
-                          i === 1 && 'summary-col',
-                          i === 0 || i === 1 ? '!px-2 text-center' : ''
-                        )}
-                        style={{ width: dealColWidths[i] }}
-                      >
-                        {label}
-                        <div className="col-resize-handle" onMouseDown={e => onDealMouseDown(i, e)} />
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {deals.length === 0 ? (
-                    <tr>
-                      <td colSpan={canSeeAssignee ? 16 : 15} className="py-16 text-center">
-                        <Briefcase className="w-8 h-8 mx-auto text-gray-300 dark:text-zinc-700" />
-                        <p className="mt-2 text-sm text-gray-400 dark:text-zinc-500">
-                          {hasActiveFilters ? 'No deals match filters' : 'No deals yet'}
-                        </p>
-                      </td>
-                    </tr>
-                  ) : deals.map((deal, idx) => (
-                    <tr
-                      key={deal.id}
-                      onClick={() => openDealDetailModal(deal)}
-                      className="border-b cursor-pointer transition-colors border-gray-100 hover:bg-gray-50 dark:border-zinc-800 dark:hover:bg-zinc-800/50"
-                    >
-                      {/* # */}
-                      <td className={cx(cellBase, 'index-col !px-2 text-center text-gray-400 dark:text-zinc-500')}>
-                        {(page - 1) * PAGE_SIZE + idx + 1}
-                      </td>
-                      {/* Summarise */}
-                      <td className={cx(cellBase, 'summary-col !px-2 text-center')}>
-                        <button
-                          onClick={(e) => { e.stopPropagation(); setSummariseDeal(deal); setShowSummariseModal(true); }}
-                          title="Summarise"
-                          className="p-1.5 rounded-lg transition-colors text-gray-400 hover:text-brand-600 hover:bg-brand-50 dark:text-zinc-400 dark:hover:text-brand-400 dark:hover:bg-brand-900/20"
-                        >
-                          <FileText className="w-4 h-4" />
-                        </button>
-                      </td>
-                      {/* Company */}
-                      <td className={cx(cellBase, 'text-gray-700 dark:text-zinc-300')}>
-                        <span className="font-medium">{deal.company || deal.accountName || '-'}</span>
-                        {deal.paymentFlag && <span title="Payment pending"><Flag className="w-3.5 h-3.5 text-red-500 fill-red-500 inline-block ml-1" /></span>}
-                      </td>
-                      {/* Overdue */}
-                      <td className={cellBase}>
-                        {dealOverdueMap[deal.id]
-                          ? <span className="font-medium text-red-600 dark:text-red-400">{formatINR(dealOverdueMap[deal.id])}</span>
-                          : <span className="text-gray-300 dark:text-zinc-600">-</span>
-                        }
-                      </td>
-                      {/* Contact Name */}
-                      <td className={cx(cellBase, 'text-gray-700 dark:text-zinc-300')}>
-                        {deal.contactName || '-'}
-                      </td>
-                      {/* Contact No */}
-                      <td className={cx(cellBase, 'text-gray-700 dark:text-zinc-300')}>
-                        {deal.contactNo || '-'}
-                      </td>
-                      {/* Designation */}
-                      <td className={cx(cellBase, 'text-gray-700 dark:text-zinc-300')}>
-                        {deal.designation || '-'}
-                      </td>
-                      {/* Email */}
-                      <td className={cx(cellBase, 'text-gray-700 dark:text-zinc-300')}>
-                        <span className="truncate block max-w-[140px]">{deal.email || '-'}</span>
-                      </td>
-                      {/* Location */}
-                      <td className={cx(cellBase, 'text-gray-700 dark:text-zinc-300')}>
-                        {deal.location || '-'}
-                      </td>
-                      {/* Requirement */}
-                      <td className={cx(cellBase, 'text-gray-700 dark:text-zinc-300')}>
-                        <span className="truncate block max-w-[150px]">{deal.requirement || '-'}</span>
-                      </td>
-                      {/* Quoted Requirement */}
-                      <td className={cx(cellBase, 'text-gray-700 dark:text-zinc-300')}>
-                        <span className="truncate block max-w-[150px]">{deal.quotedRequirement || '-'}</span>
-                      </td>
-                      {/* Value */}
-                      <td className={cellBase}>
-                        {renderReadCell(deal, 'value')}
-                      </td>
-                      {/* Stage */}
-                      <td className={cellBase}>
-                        {renderReadCell(deal, 'stage')}
-                      </td>
-                      {/* Order Type */}
-                      <td className={cx(cellBase, 'text-gray-700 dark:text-zinc-300')}>
-                        {deal.typeOfOrder || '-'}
-                      </td>
-                      {/* Assignee - only visible to admin/superadmin/managers */}
-                      {canSeeAssignee && (
-                        <td className={cx(cellBase, 'text-gray-700 dark:text-zinc-300')}>
-                          {deal.ownerName || '-'}
-                        </td>
-                      )}
-                      {/* Follow-up Date */}
-                      <td className={cx(cellBase, 'text-gray-700 dark:text-zinc-300')}>
-                        {deal.nextFollowUp ? formatDate(deal.nextFollowUp) : '-'}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Pagination */}
-            {deals.length > 0 && (
-              <Pagination
-                currentPage={page}
-                totalPages={totalPages}
-                totalItems={totalRecords}
-                pageSize={PAGE_SIZE}
-                onPageChange={setPage}
-                className="border-t border-gray-100 dark:border-zinc-800"
-              />
-            )}
-          </>
-        )}
-      </Card>
+      <DataTable<Deal>
+        columns={dealColumns}
+        data={deals}
+        isLoading={isLoading}
+        loadingMessage="Loading deals..."
+        error={tableError}
+        emptyIcon={<Briefcase className="w-8 h-8" />}
+        emptyMessage={hasActiveFilters ? 'No deals match filters' : 'No deals yet'}
+        onRowClick={(deal) => openDealDetailModal(deal)}
+        rowKey={(deal) => deal.id}
+        showIndex
+        page={page}
+        pageSize={PAGE_SIZE}
+        minWidth={2200}
+        pagination={{
+          currentPage: page,
+          totalPages,
+          totalItems: totalRecords,
+          pageSize: PAGE_SIZE,
+          onPageChange: setPage,
+        }}
+      />
     );
   };
 
@@ -1470,7 +1406,6 @@ export const DealsPage: React.FC = () => {
         const q = searchTerm.toLowerCase();
         if (!(deal.accountName || '').toLowerCase().includes(q)) return false;
       }
-      if (filterAccount && deal.accountId !== filterAccount) return false;
       return true;
     };
 

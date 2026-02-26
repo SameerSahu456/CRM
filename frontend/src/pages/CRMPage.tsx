@@ -16,8 +16,7 @@ import { exportToCsv } from '@/utils/exportCsv';
 import { Lead, LeadStage, PaginatedResponse, Partner, Product, User, ActivityLog } from '@/types';
 import { BulkImportModal } from '@/components/common/BulkImportModal';
 import { RichTextEditor } from '@/components/common/RichTextEditor';
-import { useColumnResize } from '@/hooks/useColumnResize';
-import { Card, Button, Input, Select, Modal, Badge, Alert, Pagination, Textarea } from '@/components/ui';
+import { Card, Button, Input, Select, Modal, Badge, Alert, Textarea, DataTable, DataTableColumn } from '@/components/ui';
 import { inputStyles, labelStyles } from '@/components/ui';
 import { cx } from '@/utils/cx';
 
@@ -423,14 +422,6 @@ export const CRMPage: React.FC = () => {
   const [showSummariseModal, setShowSummariseModal] = useState(false);
   const [summariseLead, setSummariseLead] = useState<Lead | null>(null);
 
-
-  // ---------------------------------------------------------------------------
-  // Styling helpers
-  // ---------------------------------------------------------------------------
-
-  const { colWidths: crmColWidths, onMouseDown: onCrmMouseDown } = useColumnResize({
-    initialWidths: [56, 84, 180, 150, 130, 130, 220, 130, 110, 160, 160, 110, 120, 100, 120, 120],
-  });
 
   // ---------------------------------------------------------------------------
   // Data fetching
@@ -1124,15 +1115,17 @@ export const CRMPage: React.FC = () => {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-zinc-500 pointer-events-none" />
         </div>
 
-        {/* Filter: Stage */}
-        <div className="w-full lg:w-40">
-          <Select value={filterStage} onChange={e => setFilterStage(e.target.value)}>
-            <option value="">All Stages</option>
-            {LEAD_STAGES.map(s => (
-              <option key={s} value={s}>{s}</option>
-            ))}
-          </Select>
-        </div>
+        {/* Filter: Stage (only in table/list view) */}
+        {viewMode === 'table' && (
+          <div className="w-full lg:w-40">
+            <Select value={filterStage} onChange={e => setFilterStage(e.target.value)}>
+              <option value="">All Stages</option>
+              {LEAD_STAGES.map(s => (
+                <option key={s} value={s}>{s}</option>
+              ))}
+            </Select>
+          </div>
+        )}
 
         {/* Filter: Priority */}
         <div className="w-full lg:w-36">
@@ -1207,150 +1200,139 @@ export const CRMPage: React.FC = () => {
   // Render: Table View
   // ---------------------------------------------------------------------------
 
-  const hdrCell = 'px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400';
-  const cellBase = 'px-4 py-3 text-sm whitespace-nowrap border-gray-100 dark:border-zinc-800';
+  const leadColumns: DataTableColumn<Lead>[] = [
+    {
+      key: 'summarise',
+      label: 'Summarise',
+      width: '84px',
+      align: 'center',
+      render: (lead) => (
+        <button
+          onClick={(e) => { e.stopPropagation(); setSummariseLead(lead); setShowSummariseModal(true); }}
+          title="Summarise"
+          className="p-1.5 rounded-lg transition-colors text-gray-400 hover:text-brand-600 hover:bg-brand-50 dark:text-zinc-400 dark:hover:text-brand-400 dark:hover:bg-brand-900/20"
+        >
+          <FileText className="w-4 h-4" />
+        </button>
+      ),
+    },
+    {
+      key: 'companyName',
+      label: 'Company',
+      width: '180px',
+      render: (lead) => <span className="font-medium">{lead.companyName}</span>,
+    },
+    {
+      key: 'contactPerson',
+      label: 'Contact Name',
+      width: '150px',
+      render: (lead) => <>{lead.contactPerson || '-'}</>,
+    },
+    {
+      key: 'phone',
+      label: 'Contact No',
+      width: '130px',
+      render: (lead) => <>{lead.phone || '-'}</>,
+    },
+    {
+      key: 'designation',
+      label: 'Designation',
+      width: '130px',
+      render: (lead) => <>{(lead as any).designation || '-'}</>,
+    },
+    {
+      key: 'email',
+      label: 'Email',
+      width: '220px',
+      render: (lead) => <span className="truncate block max-w-[150px]">{lead.email || '-'}</span>,
+    },
+    {
+      key: 'location',
+      label: 'Location',
+      width: '130px',
+      render: (lead) => <>{(lead as any).location || '-'}</>,
+    },
+    {
+      key: 'source',
+      label: 'Source',
+      width: '110px',
+      render: (lead) => <span className="capitalize">{lead.source || '-'}</span>,
+    },
+    {
+      key: 'requirement',
+      label: 'Requirement',
+      width: '160px',
+      render: (lead) => <span className="truncate block max-w-[150px]">{lead.requirement || '-'}</span>,
+    },
+    {
+      key: 'quotedRequirement',
+      label: 'Quoted Requirement',
+      width: '160px',
+      render: (lead) => <span className="truncate block max-w-[150px]">{lead.quotedRequirement || '-'}</span>,
+    },
+    {
+      key: 'estimatedValue',
+      label: 'Value',
+      width: '110px',
+      render: (lead) => <>{lead.estimatedValue ? formatINR(lead.estimatedValue) : '-'}</>,
+    },
+    {
+      key: 'stage',
+      label: 'Stage',
+      width: '120px',
+      render: (lead) => <Badge variant={STAGE_BADGE_VARIANT[lead.stage] || 'gray'}>{lead.stage}</Badge>,
+    },
+    {
+      key: 'tag',
+      label: 'Type',
+      width: '100px',
+      render: (lead) => (
+        <>
+          {(lead as any).tag ? (
+            <Badge variant={(lead as any).tag === 'Channel' ? 'cyan' : 'purple'}>
+              {(lead as any).tag}
+            </Badge>
+          ) : '-'}
+        </>
+      ),
+    },
+    {
+      key: 'assignee',
+      label: 'Assignee',
+      width: '120px',
+      render: (lead) => <>{(lead as any).assignedToName || '-'}</>,
+    },
+    {
+      key: 'nextFollowUp',
+      label: 'Follow-up Date',
+      width: '120px',
+      render: (lead) => <>{lead.nextFollowUp ? formatDate(lead.nextFollowUp) : '-'}</>,
+    },
+  ];
 
   const renderTableView = () => (
-    <Card padding="none" className="overflow-hidden">
-      {tableError && (
-        <div className="m-4">
-          <Alert variant="error" icon={<AlertCircle className="w-4 h-4" />}>
-            {tableError}
-          </Alert>
-        </div>
-      )}
-
-      {isLoading ? (
-        <div className="flex flex-col items-center justify-center py-20">
-          <Loader2 className="w-8 h-8 text-brand-600 animate-spin" />
-          <p className="mt-3 text-sm text-gray-500 dark:text-zinc-400">
-            Loading leads...
-          </p>
-        </div>
-      ) : (
-        <>
-          <div className="overflow-x-auto">
-            <table className="premium-table" style={{ minWidth: crmColWidths.reduce((a, b) => a + b, 0) }}>
-              <colgroup>
-                {crmColWidths.map((w, i) => (
-                  <col key={i} style={{ width: w }} />
-                ))}
-              </colgroup>
-              <thead>
-                <tr className="border-b border-gray-200 dark:border-zinc-700">
-                  {['#', 'Summarise', 'Company', 'Contact Name', 'Contact No', 'Designation', 'Email', 'Location', 'Source', 'Requirement', 'Quoted Requirement', 'Value', 'Stage', 'Type', 'Assignee', 'Follow-up Date'].map((label, i) => (
-                    <th
-                      key={label}
-                      className={cx(
-                        hdrCell,
-                        'resizable-th',
-                        i === 0 && 'index-col',
-                        i === 1 && 'summary-col',
-                        (i === 0 || i === 1) && '!px-2 text-center'
-                      )}
-                      style={{ width: crmColWidths[i] }}
-                    >
-                      {label}
-                      <div className="col-resize-handle" onMouseDown={e => onCrmMouseDown(i, e)} />
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {leads.length === 0 ? (
-                  <tr>
-                    <td colSpan={16} className="py-16 text-center">
-                      <Users className="w-8 h-8 mx-auto text-gray-300 dark:text-zinc-700" />
-                      <p className="mt-2 text-sm text-gray-400 dark:text-zinc-500">
-                        {hasActiveFilters ? 'No leads match filters' : 'No leads yet'}
-                      </p>
-                    </td>
-                  </tr>
-                ) : leads.map((lead, idx) => (
-                  <tr
-                    key={lead.id}
-                    onClick={() => openDetailModal(lead)}
-                    className="border-b cursor-pointer transition-colors border-gray-100 hover:bg-gray-50 dark:border-zinc-800 dark:hover:bg-zinc-800/50"
-                  >
-                    <td className={cx(cellBase, 'index-col !px-2 text-center text-gray-400 dark:text-zinc-500')}>
-                      {(page - 1) * PAGE_SIZE + idx + 1}
-                    </td>
-                    <td className={cx(cellBase, 'summary-col !px-2 text-center')}>
-                      <button
-                        onClick={(e) => { e.stopPropagation(); setSummariseLead(lead); setShowSummariseModal(true); }}
-                        title="Summarise"
-                        className="p-1.5 rounded-lg transition-colors text-gray-400 hover:text-brand-600 hover:bg-brand-50 dark:text-zinc-400 dark:hover:text-brand-400 dark:hover:bg-brand-900/20"
-                      >
-                        <FileText className="w-4 h-4" />
-                      </button>
-                    </td>
-                    <td className={cx(cellBase, 'text-gray-700 dark:text-zinc-300')}>
-                      <span className="font-medium">{lead.companyName}</span>
-                    </td>
-                    <td className={cx(cellBase, 'text-gray-700 dark:text-zinc-300')}>
-                      {lead.contactPerson || '-'}
-                    </td>
-                    <td className={cx(cellBase, 'text-gray-700 dark:text-zinc-300')}>
-                      {lead.phone || '-'}
-                    </td>
-                    <td className={cx(cellBase, 'text-gray-700 dark:text-zinc-300')}>
-                      {(lead as any).designation || '-'}
-                    </td>
-                    <td className={cx(cellBase, 'text-gray-700 dark:text-zinc-300')}>
-                      <span className="truncate block max-w-[150px]">{lead.email || '-'}</span>
-                    </td>
-                    <td className={cx(cellBase, 'text-gray-700 dark:text-zinc-300')}>
-                      {(lead as any).location || '-'}
-                    </td>
-                    <td className={cx(cellBase, 'text-gray-700 dark:text-zinc-300')}>
-                      <span className="capitalize">{lead.source || '-'}</span>
-                    </td>
-                    <td className={cx(cellBase, 'text-gray-700 dark:text-zinc-300')}>
-                      <span className="truncate block max-w-[150px]">{lead.requirement || '-'}</span>
-                    </td>
-                    <td className={cx(cellBase, 'text-gray-700 dark:text-zinc-300')}>
-                      <span className="truncate block max-w-[150px]">{lead.quotedRequirement || '-'}</span>
-                    </td>
-                    <td className={cx(cellBase, 'text-gray-700 dark:text-zinc-300')}>
-                      {lead.estimatedValue ? formatINR(lead.estimatedValue) : '-'}
-                    </td>
-                    <td className={cx(cellBase, 'text-gray-700 dark:text-zinc-300')}>
-                      <Badge variant={STAGE_BADGE_VARIANT[lead.stage] || 'gray'}>{lead.stage}</Badge>
-                    </td>
-                    <td className={cx(cellBase, 'text-gray-700 dark:text-zinc-300')}>
-                      {(lead as any).tag ? (
-                        <Badge variant={(lead as any).tag === 'Channel' ? 'cyan' : 'purple'}>
-                          {(lead as any).tag}
-                        </Badge>
-                      ) : '-'}
-                    </td>
-                    <td className={cx(cellBase, 'text-gray-700 dark:text-zinc-300')}>
-                      {(lead as any).assignedToName || '-'}
-                    </td>
-                    <td className={cx(cellBase, 'text-gray-700 dark:text-zinc-300')}>
-                      {lead.nextFollowUp ? formatDate(lead.nextFollowUp) : '-'}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Pagination */}
-          {totalRecords > 0 && (
-            <div className="border-t border-gray-100 dark:border-zinc-800">
-              <Pagination
-                currentPage={page}
-                totalPages={totalPages}
-                totalItems={totalRecords}
-                pageSize={PAGE_SIZE}
-                onPageChange={setPage}
-              />
-            </div>
-          )}
-        </>
-      )}
-    </Card>
+    <DataTable<Lead>
+      columns={leadColumns}
+      data={leads}
+      isLoading={isLoading}
+      loadingMessage="Loading leads..."
+      error={tableError}
+      emptyIcon={<Users className="w-8 h-8" />}
+      emptyMessage={hasActiveFilters ? 'No leads match filters' : 'No leads yet'}
+      onRowClick={(lead) => openDetailModal(lead)}
+      rowKey={(lead) => lead.id}
+      showIndex
+      page={page}
+      pageSize={PAGE_SIZE}
+      minWidth={2200}
+      pagination={totalRecords > 0 ? {
+        currentPage: page,
+        totalPages,
+        totalItems: totalRecords,
+        pageSize: PAGE_SIZE,
+        onPageChange: setPage,
+      } : undefined}
+    />
   );
 
   // ---------------------------------------------------------------------------
@@ -1416,7 +1398,6 @@ export const CRMPage: React.FC = () => {
     // Filter pipeline leads by search/filters
     const filterLead = (lead: Lead): boolean => {
       if (searchTerm && !lead.companyName.toLowerCase().includes(searchTerm.toLowerCase())) return false;
-      if (filterStage && lead.stage !== filterStage) return false;
       if (filterPriority && lead.priority !== filterPriority) return false;
       if (filterSource && lead.source !== filterSource) return false;
       return true;

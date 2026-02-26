@@ -9,10 +9,9 @@ import { useAuth } from '@/contexts/AuthContext';
 import { quotesApi, productsApi, partnersApi, quoteTermsApi, formatINR } from '@/services/api';
 import { Quote, QuoteTerm, Product, Partner, PaginatedResponse } from '@/types';
 import { RichTextEditor } from '@/components/common/RichTextEditor';
-import { useColumnResize } from '@/hooks/useColumnResize';
 import {
   Card, Button, Input, Select, Badge, Alert, Textarea,
-  Pagination,
+  Pagination, DataTable, DataTableColumn,
 } from '@/components/ui';
 
 // ---------------------------------------------------------------------------
@@ -163,11 +162,6 @@ export const QuoteBuilderPage: React.FC = () => {
   const [detailQuote, setDetailQuote] = useState<Quote | null>(null);
   const [isDetailLoading, setIsDetailLoading] = useState(false);
   const [isStatusUpdating, setIsStatusUpdating] = useState(false);
-
-  // Column resize for list table
-  const { colWidths: quoteColWidths, onMouseDown: onQuoteMouseDown } = useColumnResize({
-    initialWidths: [130, 200, 170, 120, 130, 110, 100],
-  });
 
   // ---------------------------------------------------------------------------
   // Data fetching
@@ -508,6 +502,125 @@ export const QuoteBuilderPage: React.FC = () => {
   };
 
   // ---------------------------------------------------------------------------
+  // Quote list columns
+  // ---------------------------------------------------------------------------
+
+  const quoteColumns: DataTableColumn<Quote>[] = [
+    {
+      key: 'quoteNumber',
+      label: 'Quote #',
+      width: '14%',
+      render: (quote) => (
+        <div className="flex items-center gap-2">
+          <Hash className="w-3.5 h-3.5 flex-shrink-0 text-gray-400 dark:text-zinc-500" />
+          <span className="font-medium">{quote.quoteNumber || quote.id.slice(0, 8)}</span>
+        </div>
+      ),
+    },
+    {
+      key: 'customerName',
+      label: 'Account',
+      width: '20%',
+      render: (quote) => (
+        <div className="flex items-center gap-2">
+          <UserIcon className="w-3.5 h-3.5 flex-shrink-0 text-gray-400 dark:text-zinc-500" />
+          {quote.customerName}
+        </div>
+      ),
+    },
+    {
+      key: 'partnerName',
+      label: 'Linked Account',
+      width: '17%',
+      render: (quote) => <>{quote.partnerName || '-'}</>,
+    },
+    {
+      key: 'createdAt',
+      label: 'Date',
+      width: '14%',
+      render: (quote) => (
+        <div className="flex items-center gap-1.5 whitespace-nowrap">
+          <Calendar className="w-3.5 h-3.5 text-gray-400 dark:text-zinc-500" />
+          {formatDate(quote.createdAt)}
+        </div>
+      ),
+    },
+    {
+      key: 'totalAmount',
+      label: 'Amount',
+      width: '14%',
+      render: (quote) => (
+        <span className="whitespace-nowrap font-semibold text-gray-900 dark:text-white">
+          {formatINR(quote.totalAmount)}
+        </span>
+      ),
+    },
+    {
+      key: 'status',
+      label: 'Status',
+      width: '11%',
+      render: (quote) => (
+        <Badge variant={STATUS_BADGE_VARIANT[quote.status]}>
+          {quote.status.charAt(0).toUpperCase() + quote.status.slice(1)}
+        </Badge>
+      ),
+    },
+    {
+      key: 'actions',
+      label: 'Actions',
+      width: '10%',
+      render: (quote) => (
+        <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
+          <Button
+            variant="ghost"
+            size="xs"
+            icon={<Eye className="w-4 h-4" />}
+            onClick={() => goToDetail(quote.id)}
+            title="View"
+            className="p-1.5"
+          />
+          <Button
+            variant="ghost"
+            size="xs"
+            icon={<Edit2 className="w-4 h-4" />}
+            onClick={() => goToEdit(quote.id)}
+            title="Edit"
+            className="p-1.5"
+          />
+
+          {deleteConfirmId === quote.id ? (
+            <div className="flex items-center gap-1">
+              <Button
+                variant="danger"
+                size="xs"
+                onClick={() => handleDelete(quote.id)}
+              >
+                Confirm
+              </Button>
+              <Button
+                variant="ghost"
+                size="xs"
+                onClick={() => setDeleteConfirmId(null)}
+              >
+                Cancel
+              </Button>
+            </div>
+          ) : (
+            <Button
+              variant="ghost"
+              size="xs"
+              icon={<Trash2 className="w-4 h-4" />}
+              onClick={() => setDeleteConfirmId(quote.id)}
+              title="Delete"
+              className="p-1.5 hover:text-red-600 dark:hover:text-red-400"
+            />
+          )}
+        </div>
+      ),
+    },
+  ];
+
+  // ---------------------------------------------------------------------------
   // Render: List View
   // ---------------------------------------------------------------------------
 
@@ -586,158 +699,23 @@ export const QuoteBuilderPage: React.FC = () => {
           </div>
         )}
 
-        {isLoading ? (
-          <div className="flex flex-col items-center justify-center py-20">
-            <Loader2 className="w-8 h-8 text-brand-600 animate-spin" />
-            <p className="mt-3 text-sm text-gray-500 dark:text-zinc-400">
-              Loading quotes...
-            </p>
-          </div>
-        ) : quotes.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20">
-            <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4 bg-gray-100 dark:bg-zinc-800">
-              <FileText className="w-7 h-7 text-gray-300 dark:text-zinc-600" />
-            </div>
-            <p className="text-sm font-medium text-gray-500 dark:text-zinc-400">
-              {hasActiveFilters ? 'No quotes match your filters' : 'No quotes yet'}
-            </p>
-            <p className="text-xs mt-1 text-gray-400 dark:text-zinc-500">
-              {hasActiveFilters ? 'Try adjusting your filters' : 'Click "New Quote" to create one'}
-            </p>
-          </div>
-        ) : (
-          <>
-            <div className="overflow-x-auto">
-              <table className="premium-table">
-                <thead>
-                  <tr className="border-b border-gray-100 dark:border-zinc-800">
-                    {['Quote #', 'Account', 'Linked Account', 'Date', 'Amount', 'Status', 'Actions'].map((h, i) => (
-                      <th
-                        key={h}
-                        className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400 resizable-th"
-                        style={{ width: quoteColWidths[i] }}
-                      >
-                        {h}
-                        <div className="col-resize-handle" onMouseDown={e => onQuoteMouseDown(i, e)} />
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {quotes.map(quote => (
-                    <tr
-                      key={quote.id}
-                      onClick={() => goToDetail(quote.id)}
-                      className="border-b transition-colors cursor-pointer border-gray-50 hover:bg-gray-50/80 dark:border-zinc-800/50 dark:hover:bg-zinc-800/30"
-                    >
-                      {/* Quote # */}
-                      <td className="px-4 py-3 text-gray-900 dark:text-white">
-                        <div className="flex items-center gap-2">
-                          <Hash className="w-3.5 h-3.5 flex-shrink-0 text-gray-400 dark:text-zinc-500" />
-                          <span className="font-medium">{quote.quoteNumber || quote.id.slice(0, 8)}</span>
-                        </div>
-                      </td>
-
-                      {/* Customer */}
-                      <td className="px-4 py-3 text-gray-700 dark:text-gray-300">
-                        <div className="flex items-center gap-2">
-                          <UserIcon className="w-3.5 h-3.5 flex-shrink-0 text-gray-400 dark:text-zinc-500" />
-                          {quote.customerName}
-                        </div>
-                      </td>
-
-                      {/* Partner */}
-                      <td className="px-4 py-3 text-gray-700 dark:text-gray-300">
-                        {quote.partnerName || '-'}
-                      </td>
-
-                      {/* Date */}
-                      <td className="px-4 py-3 whitespace-nowrap text-gray-700 dark:text-gray-300">
-                        <div className="flex items-center gap-1.5">
-                          <Calendar className="w-3.5 h-3.5 text-gray-400 dark:text-zinc-500" />
-                          {formatDate(quote.createdAt)}
-                        </div>
-                      </td>
-
-                      {/* Amount */}
-                      <td className="px-4 py-3 whitespace-nowrap font-semibold text-gray-900 dark:text-white">
-                        {formatINR(quote.totalAmount)}
-                      </td>
-
-                      {/* Status */}
-                      <td className="px-4 py-3">
-                        <Badge variant={STATUS_BADGE_VARIANT[quote.status]}>
-                          {quote.status.charAt(0).toUpperCase() + quote.status.slice(1)}
-                        </Badge>
-                      </td>
-
-                      {/* Actions */}
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
-                          <Button
-                            variant="ghost"
-                            size="xs"
-                            icon={<Eye className="w-4 h-4" />}
-                            onClick={() => goToDetail(quote.id)}
-                            title="View"
-                            className="p-1.5"
-                          />
-                          <Button
-                            variant="ghost"
-                            size="xs"
-                            icon={<Edit2 className="w-4 h-4" />}
-                            onClick={() => goToEdit(quote.id)}
-                            title="Edit"
-                            className="p-1.5"
-                          />
-
-                          {deleteConfirmId === quote.id ? (
-                            <div className="flex items-center gap-1">
-                              <Button
-                                variant="danger"
-                                size="xs"
-                                onClick={() => handleDelete(quote.id)}
-                              >
-                                Confirm
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="xs"
-                                onClick={() => setDeleteConfirmId(null)}
-                              >
-                                Cancel
-                              </Button>
-                            </div>
-                          ) : (
-                            <Button
-                              variant="ghost"
-                              size="xs"
-                              icon={<Trash2 className="w-4 h-4" />}
-                              onClick={() => setDeleteConfirmId(quote.id)}
-                              title="Delete"
-                              className="p-1.5 hover:text-red-600 dark:hover:text-red-400"
-                            />
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Pagination */}
-            <div className="border-t border-gray-100 dark:border-zinc-800">
-              <Pagination
-                currentPage={page}
-                totalPages={totalPages}
-                totalItems={totalRecords}
-                pageSize={PAGE_SIZE}
-                onPageChange={setPage}
-              />
-            </div>
-          </>
-        )}
+        <DataTable<Quote>
+          columns={quoteColumns}
+          data={quotes}
+          isLoading={isLoading}
+          loadingMessage="Loading quotes..."
+          emptyIcon={<FileText className="w-7 h-7 text-gray-300 dark:text-zinc-600" />}
+          emptyMessage={hasActiveFilters ? 'No quotes match your filters' : 'No quotes yet'}
+          onRowClick={(quote) => goToDetail(quote.id)}
+          rowKey={(quote) => quote.id}
+          pagination={{
+            currentPage: page,
+            totalPages,
+            totalItems: totalRecords,
+            pageSize: PAGE_SIZE,
+            onPageChange: setPage,
+          }}
+        />
       </Card>
     </>
   );

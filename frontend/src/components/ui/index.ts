@@ -21,6 +21,9 @@ export type { ModalProps } from './modal';
 
 export { Table, TableHeader, TableHead, TableBody, TableRow, TableCell, TableEmpty } from './table';
 
+export { DataTable } from './data-table';
+export type { DataTableColumn, DataTableProps, DataTablePagination } from './data-table';
+
 export { Pagination } from './pagination';
 export type { PaginationProps } from './pagination';
 

@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Search, Package, AlertTriangle, ChevronDown, ChevronUp,
-  X, Loader2, AlertCircle, ArrowUpDown
+  X, AlertCircle, ArrowUpDown
 } from 'lucide-react';
 import { productsApi, formatINR } from '@/services/api';
 import { Product } from '@/types';
-import { Card, Button, Input, Select, Modal, Badge, Alert } from '@/components/ui';
+import { Card, Button, Input, Select, Modal, Badge, Alert, DataTable, DataTableColumn } from '@/components/ui';
 import { cx } from '@/utils/cx';
 
 type SortField = 'name' | 'category' | 'stock' | 'basePrice';
@@ -145,6 +145,104 @@ export const InventoryPage: React.FC = () => {
 
   const hasFilters = searchTerm || filterCategory || filterStock !== 'all';
 
+  const inventoryColumns: DataTableColumn<Product>[] = [
+    {
+      key: 'name',
+      label: 'Product Name',
+      width: '28%',
+      headerRender: () => (
+        <span className="inline-flex items-center gap-1.5 cursor-pointer" onClick={() => handleSort('name')}>
+          Product Name
+          <SortIcon field={'name'} />
+        </span>
+      ),
+      render: (product) => (
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 bg-brand-50 text-brand-600 dark:bg-brand-900/30 dark:text-brand-400">
+            <Package className="w-4 h-4" />
+          </div>
+          <div>
+            <p className="text-sm font-medium text-slate-900 dark:text-white">
+              {product.name}
+            </p>
+            {!product.isActive && (
+              <span className="text-xs text-slate-400 dark:text-zinc-500">
+                Inactive
+              </span>
+            )}
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: 'category',
+      label: 'Category',
+      width: '15%',
+      headerRender: () => (
+        <span className="inline-flex items-center gap-1.5 cursor-pointer" onClick={() => handleSort('category')}>
+          Category
+          <SortIcon field={'category'} />
+        </span>
+      ),
+      render: (product) =>
+        product.category ? (
+          <Badge variant="gray" size="sm">
+            {product.category}
+          </Badge>
+        ) : (
+          <span className="text-xs text-slate-400 dark:text-zinc-600">--</span>
+        ),
+    },
+    {
+      key: 'stock',
+      label: 'Stock',
+      width: '12%',
+      headerRender: () => (
+        <span className="inline-flex items-center gap-1.5 cursor-pointer" onClick={() => handleSort('stock')}>
+          Stock
+          <SortIcon field={'stock'} />
+        </span>
+      ),
+      render: (product) => (
+        <span className="text-sm font-semibold tabular-nums text-slate-900 dark:text-white">
+          {product.stock}
+        </span>
+      ),
+    },
+    {
+      key: 'basePrice',
+      label: 'Unit Price',
+      width: '15%',
+      headerRender: () => (
+        <span className="inline-flex items-center gap-1.5 cursor-pointer" onClick={() => handleSort('basePrice')}>
+          Unit Price
+          <SortIcon field={'basePrice'} />
+        </span>
+      ),
+      render: (product) => (
+        <span className="text-sm tabular-nums text-slate-700 dark:text-zinc-300">
+          {product.basePrice ? formatINR(product.basePrice) : '--'}
+        </span>
+      ),
+    },
+    {
+      key: 'status',
+      label: 'Status',
+      width: '15%',
+      render: (product) => stockBadge(product.stock),
+    },
+    {
+      key: 'stockValue',
+      label: 'Stock Value',
+      width: '15%',
+      render: (product) => (
+        <span className="text-sm tabular-nums text-slate-700 dark:text-zinc-300">
+          {product.basePrice ? formatINR(product.basePrice * product.stock) : '--'}
+        </span>
+      ),
+    },
+  ];
+
   const InfoRow: React.FC<{ label: string; value: React.ReactNode }> = ({ label, value }) => (
     <div className="flex items-start gap-3 py-2">
       <p className="text-xs font-medium w-32 flex-shrink-0 pt-0.5 text-slate-400 dark:text-zinc-500">{label}</p>
@@ -242,119 +340,18 @@ export const InventoryPage: React.FC = () => {
 
       {/* Table */}
       <Card glass={false} padding="none">
-        {isLoading ? (
-          <div className="flex items-center justify-center py-20">
-            <Loader2 className="w-6 h-6 text-brand-500 animate-spin" />
-          </div>
-        ) : filtered.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 gap-2">
-            <Package className="w-10 h-10 text-slate-300 dark:text-zinc-600" />
-            <p className="text-sm text-slate-500 dark:text-zinc-500">
-              {hasFilters ? 'No products match your filters' : 'No products found'}
-            </p>
-            {hasFilters && (
-              <button onClick={clearFilters} className="text-sm text-brand-500 hover:underline">
-                Clear filters
-              </button>
-            )}
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="premium-table min-w-[700px]">
-              <thead>
-                <tr className="bg-slate-50 dark:bg-zinc-800/50">
-                  {([
-                    ['name', 'Product Name'],
-                    ['category', 'Category'],
-                    ['stock', 'Stock'],
-                    ['basePrice', 'Unit Price'],
-                  ] as [SortField, string][]).map(([field, label]) => (
-                    <th
-                      key={field}
-                      onClick={() => handleSort(field)}
-                      className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider cursor-pointer select-none transition-colors text-slate-500 hover:text-slate-700 dark:text-zinc-400 dark:hover:text-zinc-200"
-                    >
-                      <span className="inline-flex items-center gap-1.5">
-                        {label}
-                        <SortIcon field={field} />
-                      </span>
-                    </th>
-                  ))}
-                  <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-zinc-400">
-                    Status
-                  </th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-zinc-400">
-                    Stock Value
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-white/[0.04]">
-                {filtered.map(product => (
-                  <tr
-                    key={product.id}
-                    onClick={() => setDetailProduct(product)}
-                    className={cx(
-                      'transition-colors cursor-pointer hover:bg-slate-50 dark:hover:bg-white/[0.04]',
-                      !product.isActive && 'opacity-50'
-                    )}
-                  >
-                    {/* Name */}
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 bg-brand-50 text-brand-600 dark:bg-brand-900/30 dark:text-brand-400">
-                          <Package className="w-4 h-4" />
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium text-slate-900 dark:text-white">
-                            {product.name}
-                          </p>
-                          {!product.isActive && (
-                            <span className="text-xs text-slate-400 dark:text-zinc-500">
-                              Inactive
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </td>
-
-                    {/* Category */}
-                    <td className="px-4 py-3">
-                      {product.category ? (
-                        <Badge variant="gray" size="sm">
-                          {product.category}
-                        </Badge>
-                      ) : (
-                        <span className="text-xs text-slate-400 dark:text-zinc-600">--</span>
-                      )}
-                    </td>
-
-                    {/* Stock */}
-                    <td className="px-4 py-3">
-                      <span className="text-sm font-semibold tabular-nums text-slate-900 dark:text-white">
-                        {product.stock}
-                      </span>
-                    </td>
-
-                    {/* Unit Price */}
-                    <td className="px-4 py-3 text-sm tabular-nums text-slate-700 dark:text-zinc-300">
-                      {product.basePrice ? formatINR(product.basePrice) : '--'}
-                    </td>
-
-                    {/* Status Badge */}
-                    <td className="px-4 py-3">
-                      {stockBadge(product.stock)}
-                    </td>
-
-                    {/* Stock Value */}
-                    <td className="px-4 py-3 text-sm tabular-nums text-slate-700 dark:text-zinc-300">
-                      {product.basePrice ? formatINR(product.basePrice * product.stock) : '--'}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+        <DataTable<Product>
+          columns={inventoryColumns}
+          data={filtered}
+          isLoading={isLoading}
+          loadingMessage="Loading products..."
+          emptyIcon={<Package className="w-10 h-10 text-slate-300 dark:text-zinc-600" />}
+          emptyMessage={hasFilters ? 'No products match your filters' : 'No products found'}
+          onRowClick={(product) => setDetailProduct(product)}
+          rowKey={(product) => product.id}
+          rowClassName={(product) => !product.isActive ? 'opacity-50' : ''}
+          minWidth={700}
+        />
 
         {/* Footer */}
         {!isLoading && filtered.length > 0 && (

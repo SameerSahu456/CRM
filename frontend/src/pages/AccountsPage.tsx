@@ -14,8 +14,7 @@ import { exportToCsv } from '@/utils/exportCsv';
 import { Account, Contact, Deal, PaginatedResponse, Partner, User } from '@/types';
 import { EnhancedAccountForm, EnhancedAccountFormData } from '@/components/common/EnhancedAccountForm';
 import { BulkImportModal } from '@/components/common/BulkImportModal';
-import { useColumnResize } from '@/hooks/useColumnResize';
-import { Card, Button, Input, Select, Modal, Badge, Alert, Pagination, Tabs } from '@/components/ui';
+import { Card, Button, Input, Select, Modal, Badge, Alert, Tabs, DataTable, DataTableColumn } from '@/components/ui';
 import { cx } from '@/utils/cx';
 
 // ---------------------------------------------------------------------------
@@ -110,9 +109,6 @@ export const AccountsPage: React.FC = () => {
   // Styling helpers
   // ---------------------------------------------------------------------------
 
-  const { colWidths, onMouseDown } = useColumnResize({
-    initialWidths: [45, 170, 110, 120, 110, 120, 100, 120, 120, 200],
-  });
 
   // ---------------------------------------------------------------------------
   // Data fetching
@@ -511,149 +507,70 @@ export const AccountsPage: React.FC = () => {
   // Render: Table
   // ---------------------------------------------------------------------------
 
-  const cellBase = 'px-4 py-3 text-sm border-slate-100 dark:border-zinc-800';
-  const hdrCell = 'px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500 bg-slate-50 dark:text-zinc-400 dark:bg-dark-100';
+  const accountColumns: DataTableColumn<Account>[] = [
+    { key: 'name', label: 'Name', width: '14%', render: (a) => <span className="font-medium">{a.name}</span> },
+    { key: 'industry', label: 'Industry', width: '10%', render: (a) => <>{a.industry || '-'}</> },
+    {
+      key: 'tag1', label: 'Tag 1', width: '9%',
+      render: (a) => {
+        const tag1 = a.tag || '';
+        if (!tag1) return <span className="text-gray-300 dark:text-zinc-600">-</span>;
+        return <Badge variant={tag1.toLowerCase().includes('digital') ? 'blue' : 'purple'} size="sm">{tag1}</Badge>;
+      },
+    },
+    {
+      key: 'tag2', label: 'Tag 2', width: '9%',
+      render: (a) => {
+        const t = (a.type || '').toLowerCase();
+        if (!t) return <span className="text-gray-300 dark:text-zinc-600">-</span>;
+        const variant = t === 'hunting' ? 'amber' : t === 'farming' ? 'emerald' : 'cyan';
+        return <Badge variant={variant} size="sm">{a.type}</Badge>;
+      },
+    },
+    {
+      key: 'accountType', label: 'Account Type', width: '11%',
+      render: (a) => {
+        const at = (a.accountType || '').toLowerCase();
+        if (!at) return <span className="text-gray-300 dark:text-zinc-600">-</span>;
+        return <Badge variant={at === 'channel partner' ? 'emerald' : 'warning'} size="sm">{a.accountType}</Badge>;
+      },
+    },
+    { key: 'phone', label: 'Phone', width: '10%', render: (a) => <span className="whitespace-nowrap">{a.phone || '-'}</span> },
+    { key: 'email', label: 'Email', width: '13%', render: (a) => <span className="truncate block max-w-[170px]">{a.email || '-'}</span> },
+    { key: 'revenue', label: 'Revenue', width: '10%', render: (a) => <span className="font-semibold whitespace-nowrap">{a.revenue ? formatINR(a.revenue) : '-'}</span> },
+    {
+      key: 'overdue', label: 'Overdue', width: '10%',
+      render: (a) => {
+        const col = collectionsMap[(a.name || '').toLowerCase()];
+        if (!col) return <span className="text-gray-300 dark:text-zinc-600">-</span>;
+        const overdue = (col.pending || 0) + (col.partial || 0);
+        if (overdue <= 0) return <span className="text-gray-300 dark:text-zinc-600">-</span>;
+        return <Badge variant="red" size="sm" className="text-[10px]">{formatINR(overdue)}</Badge>;
+      },
+    },
+  ];
 
   const renderTable = () => (
-    <Card padding="none" className="overflow-hidden">
-      {tableError && (
-        <div className="m-4">
-          <Alert variant="error" icon={<AlertCircle className="w-4 h-4" />}>
-            {tableError}
-          </Alert>
-        </div>
-      )}
-
-      {isLoading ? (
-        <div className="flex flex-col items-center justify-center py-20">
-          <Loader2 className="w-8 h-8 text-brand-600 animate-spin" />
-          <p className="mt-3 text-sm text-slate-500 dark:text-zinc-400">
-            Loading accounts...
-          </p>
-        </div>
-      ) : (
-        <>
-          <div className="overflow-x-auto">
-            <table className="premium-table">
-              <thead>
-                <tr className="border-b border-slate-200 dark:border-zinc-700">
-                  {['#', 'Name', 'Industry', 'Tag 1', 'Tag 2', 'Account Type', 'Phone', 'Email', 'Revenue', 'Overdue'].map((label, i) => (
-                    <th
-                      key={label}
-                      className={cx(hdrCell, 'resizable-th', i === 0 && 'text-center')}
-                      style={{ width: colWidths[i] }}
-                    >
-                      {label}
-                      <div className="col-resize-handle" onMouseDown={e => onMouseDown(i, e)} />
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {accounts.length === 0 ? (
-                  <tr>
-                    <td colSpan={10} className="py-16 text-center">
-                      <Building2 className="w-8 h-8 mx-auto text-slate-300 dark:text-zinc-700" />
-                      <p className="mt-2 text-sm text-slate-400 dark:text-zinc-500">
-                        {hasActiveFilters ? 'No accounts match filters' : 'No accounts yet'}
-                      </p>
-                    </td>
-                  </tr>
-                ) : accounts.map((account, idx) => (
-                    <tr
-                      key={account.id}
-                      onClick={() => openDetailModal(account)}
-                      className="border-b cursor-pointer transition-colors border-slate-100 hover:bg-slate-50 dark:border-zinc-800 dark:hover:bg-zinc-800/50"
-                    >
-                      <td className={cx(cellBase, 'text-center text-slate-400 dark:text-zinc-500')}>
-                        {(page - 1) * PAGE_SIZE + idx + 1}
-                      </td>
-                      <td className={cx(cellBase, 'text-slate-700 dark:text-zinc-300')}>
-                        <span className="font-medium">{account.name}</span>
-                      </td>
-                      <td className={cx(cellBase, 'text-slate-700 dark:text-zinc-300')}>
-                        {account.industry || '-'}
-                      </td>
-                      {/* Tag 1 */}
-                      <td className={cellBase}>
-                        {(() => {
-                          const tag1 = account.tag || '';
-                          if (!tag1) return <span className="text-slate-300 dark:text-zinc-600">-</span>;
-                          const isDigital = tag1.toLowerCase().includes('digital');
-                          return (
-                            <Badge variant={isDigital ? 'blue' : 'purple'} size="sm">
-                              {tag1}
-                            </Badge>
-                          );
-                        })()}
-                      </td>
-                      {/* Tag 2 (Type: Hunting/Farming/Cold) */}
-                      <td className={cellBase}>
-                        {(() => {
-                          const t = (account.type || '').toLowerCase();
-                          if (!t) return <span className="text-slate-300 dark:text-zinc-600">-</span>;
-                          const variant = t === 'hunting' ? 'amber' : t === 'farming' ? 'emerald' : 'cyan';
-                          return (
-                            <Badge variant={variant} size="sm">
-                              {account.type}
-                            </Badge>
-                          );
-                        })()}
-                      </td>
-                      {/* Account Type (Channel Partner / End Customer) */}
-                      <td className={cellBase}>
-                        {(() => {
-                          const at = (account.accountType || '').toLowerCase();
-                          if (!at) return <span className="text-slate-300 dark:text-zinc-600">-</span>;
-                          const isChannel = at === 'channel partner';
-                          return (
-                            <Badge variant={isChannel ? 'emerald' : 'warning'} size="sm">
-                              {account.accountType}
-                            </Badge>
-                          );
-                        })()}
-                      </td>
-                      <td className={cx(cellBase, 'text-slate-700 dark:text-zinc-300')}>
-                        <span className="whitespace-nowrap">{account.phone || '-'}</span>
-                      </td>
-                      <td className={cx(cellBase, 'text-slate-700 dark:text-zinc-300')}>
-                        <span className="truncate block max-w-[170px]">{account.email || '-'}</span>
-                      </td>
-                      <td className={cx(cellBase, 'text-slate-700 dark:text-zinc-300')}>
-                        <span className="font-semibold whitespace-nowrap">{account.revenue ? formatINR(account.revenue) : '-'}</span>
-                      </td>
-                      <td className={cellBase}>
-                        {(() => {
-                          const col = collectionsMap[(account.name || '').toLowerCase()];
-                          if (!col) return <span className="text-slate-300 dark:text-zinc-600">-</span>;
-                          const overdue = (col.pending || 0) + (col.partial || 0);
-                          if (overdue <= 0) return <span className="text-slate-300 dark:text-zinc-600">-</span>;
-                          return (
-                            <Badge variant="red" size="sm" className="text-[10px]">
-                              {formatINR(overdue)}
-                            </Badge>
-                          );
-                        })()}
-                      </td>
-                    </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Pagination */}
-          <div className="border-t border-slate-100 dark:border-zinc-800">
-            <Pagination
-              currentPage={page}
-              totalPages={totalPages}
-              totalItems={totalRecords}
-              pageSize={PAGE_SIZE}
-              onPageChange={setPage}
-            />
-          </div>
-        </>
-      )}
-    </Card>
+    <DataTable<Account>
+      columns={accountColumns}
+      data={accounts}
+      isLoading={isLoading}
+      loadingMessage="Loading accounts..."
+      error={tableError}
+      emptyIcon={<Building2 className="w-8 h-8" />}
+      emptyMessage={hasActiveFilters ? 'No accounts match filters' : 'No accounts yet'}
+      onRowClick={(account) => openDetailModal(account)}
+      showIndex
+      page={page}
+      pageSize={PAGE_SIZE}
+      pagination={{
+        currentPage: page,
+        totalPages,
+        totalItems: totalRecords,
+        pageSize: PAGE_SIZE,
+        onPageChange: setPage,
+      }}
+    />
   );
 
   // ---------------------------------------------------------------------------

@@ -8,8 +8,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useDropdowns } from '@/contexts/DropdownsContext';
 import { emailsApi, emailTemplatesApi } from '@/services/api';
 import { Email, EmailTemplate, PaginatedResponse } from '@/types';
-import { useColumnResize } from '@/hooks/useColumnResize';
-import { Card, Button, Input, Select, Modal, Badge, Alert, Pagination, Textarea, Tabs } from '@/components/ui';
+import { Card, Button, Input, Select, Modal, Badge, Alert, Textarea, Tabs, DataTable } from '@/components/ui';
+import type { DataTableColumn } from '@/components/ui';
 import type { Tab } from '@/components/ui';
 import { cx } from '@/utils/cx';
 
@@ -156,14 +156,6 @@ export const EmailsPage: React.FC = () => {
 
   // Sending
   const [sendingId, setSendingId] = useState<string | null>(null);
-
-  // Styling helpers
-  const { colWidths: emailColWidths, onMouseDown: onEmailMouseDown } = useColumnResize({
-    initialWidths: [250, 220, 110, 140, 90],
-  });
-  const { colWidths: tplColWidths, onMouseDown: onTplMouseDown } = useColumnResize({
-    initialWidths: [200, 260, 140, 90],
-  });
 
   // ---------------------------------------------------------------------------
   // Data fetching
@@ -413,6 +405,216 @@ export const EmailsPage: React.FC = () => {
   };
 
   // ---------------------------------------------------------------------------
+  // Column definitions
+  // ---------------------------------------------------------------------------
+
+  const emailColumns: DataTableColumn<Email>[] = [
+    {
+      key: 'subject',
+      label: 'Subject',
+      width: '30%',
+      render: (email) => (
+        <span className="font-medium text-gray-900 dark:text-white">
+          {truncateText(email.subject, 50)}
+        </span>
+      ),
+    },
+    {
+      key: 'toAddress',
+      label: 'To',
+      width: '25%',
+      render: (email) => (
+        <span className="text-gray-700 dark:text-zinc-300">
+          {email.toAddress || '-'}
+        </span>
+      ),
+    },
+    {
+      key: 'status',
+      label: 'Status',
+      width: '13%',
+      render: (email) => (
+        <Badge variant={statusVariant(email.status)}>
+          {email.status.charAt(0).toUpperCase() + email.status.slice(1)}
+        </Badge>
+      ),
+    },
+    {
+      key: 'sentAt',
+      label: 'Sent At',
+      width: '18%',
+      render: (email) => (
+        <span className="whitespace-nowrap text-gray-700 dark:text-zinc-300">
+          {email.sentAt ? formatDate(email.sentAt) : email.scheduledAt ? formatDate(email.scheduledAt) : '-'}
+        </span>
+      ),
+    },
+    {
+      key: 'actions',
+      label: 'Actions',
+      width: '14%',
+      render: (email) => (
+        <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+          {email.status === 'draft' && (
+            <button
+              onClick={(e) => { e.stopPropagation(); handleSendEmail(email.id); }}
+              disabled={sendingId === email.id}
+              title="Send"
+              className={cx(
+                'p-1.5 rounded-lg transition-colors disabled:opacity-50',
+                'text-success-600 hover:bg-success-50',
+                'dark:text-emerald-400 dark:hover:bg-emerald-900/20'
+              )}
+            >
+              {sendingId === email.id ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Send className="w-4 h-4" />
+              )}
+            </button>
+          )}
+          <button
+            onClick={(e) => { e.stopPropagation(); openEditEmail(email); }}
+            title="Edit"
+            className={cx(
+              'p-1.5 rounded-lg transition-colors',
+              'text-gray-400 hover:text-brand-600 hover:bg-brand-50',
+              'dark:text-zinc-400 dark:hover:text-brand-400 dark:hover:bg-brand-900/20'
+            )}
+          >
+            <Edit2 className="w-4 h-4" />
+          </button>
+          {deleteEmailId === email.id ? (
+            <div className="flex items-center gap-1">
+              <Button
+                size="xs"
+                variant="danger"
+                onClick={(e) => { e.stopPropagation(); handleDeleteEmail(email.id); }}
+              >
+                Confirm
+              </Button>
+              <Button
+                size="xs"
+                variant="ghost"
+                onClick={(e) => { e.stopPropagation(); setDeleteEmailId(null); }}
+              >
+                Cancel
+              </Button>
+            </div>
+          ) : (
+            <button
+              onClick={(e) => { e.stopPropagation(); setDeleteEmailId(email.id); }}
+              title="Delete"
+              className={cx(
+                'p-1.5 rounded-lg transition-colors',
+                'text-gray-400 hover:text-red-600 hover:bg-red-50',
+                'dark:text-zinc-400 dark:hover:text-red-400 dark:hover:bg-red-900/20'
+              )}
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          )}
+        </div>
+      ),
+    },
+  ];
+
+  const templateColumns: DataTableColumn<EmailTemplate>[] = [
+    {
+      key: 'name',
+      label: 'Name',
+      width: '28%',
+      render: (tpl) => (
+        <span className="font-medium text-gray-900 dark:text-white">{tpl.name}</span>
+      ),
+    },
+    {
+      key: 'subject',
+      label: 'Subject',
+      width: '37%',
+      render: (tpl) => (
+        <span className="text-gray-700 dark:text-zinc-300">
+          {truncateText(tpl.subject || '', 50) || '-'}
+        </span>
+      ),
+    },
+    {
+      key: 'category',
+      label: 'Category',
+      width: '20%',
+      render: (tpl) => (
+        tpl.category ? (
+          <Badge variant="brand">
+            <Tag className="w-3 h-3" />
+            {tpl.category}
+          </Badge>
+        ) : <span>-</span>
+      ),
+    },
+    {
+      key: 'actions',
+      label: 'Actions',
+      width: '15%',
+      render: (tpl) => (
+        <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
+          <button
+            onClick={() => setPreviewTemplate(tpl)}
+            title="Preview"
+            className={cx(
+              'p-1.5 rounded-lg transition-colors',
+              'text-gray-400 hover:text-blue-600 hover:bg-blue-50',
+              'dark:text-zinc-400 dark:hover:text-blue-400 dark:hover:bg-blue-900/20'
+            )}
+          >
+            <Eye className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => openEditTemplate(tpl)}
+            title="Edit"
+            className={cx(
+              'p-1.5 rounded-lg transition-colors',
+              'text-gray-400 hover:text-brand-600 hover:bg-brand-50',
+              'dark:text-zinc-400 dark:hover:text-brand-400 dark:hover:bg-brand-900/20'
+            )}
+          >
+            <Edit2 className="w-4 h-4" />
+          </button>
+          {deleteTemplateId === tpl.id ? (
+            <div className="flex items-center gap-1">
+              <Button
+                size="xs"
+                variant="danger"
+                onClick={() => handleDeleteTemplate(tpl.id)}
+              >
+                Confirm
+              </Button>
+              <Button
+                size="xs"
+                variant="ghost"
+                onClick={() => setDeleteTemplateId(null)}
+              >
+                Cancel
+              </Button>
+            </div>
+          ) : (
+            <button
+              onClick={() => setDeleteTemplateId(tpl.id)}
+              title="Delete"
+              className={cx(
+                'p-1.5 rounded-lg transition-colors',
+                'text-gray-400 hover:text-red-600 hover:bg-red-50',
+                'dark:text-zinc-400 dark:hover:text-red-400 dark:hover:bg-red-900/20'
+              )}
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          )}
+        </div>
+      ),
+    },
+  ];
+
+  // ---------------------------------------------------------------------------
   // Render
   // ---------------------------------------------------------------------------
 
@@ -473,144 +675,23 @@ export const EmailsPage: React.FC = () => {
 
           {/* Emails table */}
           <Card padding="none">
-            {isEmailLoading ? (
-              <div className="flex flex-col items-center justify-center py-20">
-                <Loader2 className="w-8 h-8 text-brand-600 animate-spin" />
-                <p className="mt-3 text-sm text-gray-500 dark:text-zinc-400">Loading emails...</p>
-              </div>
-            ) : emails.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-20">
-                <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4 bg-gray-100 dark:bg-zinc-800">
-                  <Mail className="w-7 h-7 text-gray-300 dark:text-zinc-600" />
-                </div>
-                <p className="text-sm font-medium text-gray-500 dark:text-zinc-400">
-                  No emails found
-                </p>
-                <p className="text-xs mt-1 text-gray-400 dark:text-zinc-600">
-                  Click "Compose Email" to create one
-                </p>
-              </div>
-            ) : (
-              <>
-                <div className="overflow-x-auto">
-                  <table className="premium-table">
-                    <thead>
-                      <tr className="border-b border-gray-100 dark:border-zinc-800">
-                        {['Subject', 'To', 'Status', 'Sent At', 'Actions'].map((h, i) => (
-                          <th
-                            key={h}
-                            className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-zinc-500 resizable-th"
-                            style={{ width: emailColWidths[i] }}
-                          >
-                            {h}
-                            <div className="col-resize-handle" onMouseDown={e => onEmailMouseDown(i, e)} />
-                          </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {emails.map(email => (
-                        <tr
-                          key={email.id}
-                          onClick={() => openEditEmail(email)}
-                          className="border-b transition-colors cursor-pointer border-gray-50 hover:bg-gray-50 dark:border-zinc-800/50 dark:hover:bg-gray-800/50"
-                        >
-                          <td className="px-4 py-3 text-gray-900 dark:text-white">
-                            <span className="font-medium">{truncateText(email.subject, 50)}</span>
-                          </td>
-                          <td className="px-4 py-3 text-gray-700 dark:text-zinc-300">
-                            {email.toAddress || '-'}
-                          </td>
-                          <td className="px-4 py-3">
-                            <Badge variant={statusVariant(email.status)}>
-                              {email.status.charAt(0).toUpperCase() + email.status.slice(1)}
-                            </Badge>
-                          </td>
-                          <td className="px-4 py-3 whitespace-nowrap text-gray-700 dark:text-zinc-300">
-                            {email.sentAt ? formatDate(email.sentAt) : email.scheduledAt ? formatDate(email.scheduledAt) : '-'}
-                          </td>
-                          <td className="px-4 py-3">
-                            <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
-                              {/* Send button for drafts */}
-                              {email.status === 'draft' && (
-                                <button
-                                  onClick={(e) => { e.stopPropagation(); handleSendEmail(email.id); }}
-                                  disabled={sendingId === email.id}
-                                  title="Send"
-                                  className={cx(
-                                    'p-1.5 rounded-lg transition-colors disabled:opacity-50',
-                                    'text-success-600 hover:bg-success-50',
-                                    'dark:text-emerald-400 dark:hover:bg-emerald-900/20'
-                                  )}
-                                >
-                                  {sendingId === email.id ? (
-                                    <Loader2 className="w-4 h-4 animate-spin" />
-                                  ) : (
-                                    <Send className="w-4 h-4" />
-                                  )}
-                                </button>
-                              )}
-                              <button
-                                onClick={(e) => { e.stopPropagation(); openEditEmail(email); }}
-                                title="Edit"
-                                className={cx(
-                                  'p-1.5 rounded-lg transition-colors',
-                                  'text-gray-400 hover:text-brand-600 hover:bg-brand-50',
-                                  'dark:text-zinc-400 dark:hover:text-brand-400 dark:hover:bg-brand-900/20'
-                                )}
-                              >
-                                <Edit2 className="w-4 h-4" />
-                              </button>
-                              {deleteEmailId === email.id ? (
-                                <div className="flex items-center gap-1">
-                                  <Button
-                                    size="xs"
-                                    variant="danger"
-                                    onClick={(e) => { e.stopPropagation(); handleDeleteEmail(email.id); }}
-                                  >
-                                    Confirm
-                                  </Button>
-                                  <Button
-                                    size="xs"
-                                    variant="ghost"
-                                    onClick={(e) => { e.stopPropagation(); setDeleteEmailId(null); }}
-                                  >
-                                    Cancel
-                                  </Button>
-                                </div>
-                              ) : (
-                                <button
-                                  onClick={(e) => { e.stopPropagation(); setDeleteEmailId(email.id); }}
-                                  title="Delete"
-                                  className={cx(
-                                    'p-1.5 rounded-lg transition-colors',
-                                    'text-gray-400 hover:text-red-600 hover:bg-red-50',
-                                    'dark:text-zinc-400 dark:hover:text-red-400 dark:hover:bg-red-900/20'
-                                  )}
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                </button>
-                              )}
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-
-                {/* Pagination */}
-                <div className="border-t border-gray-100 dark:border-zinc-800">
-                  <Pagination
-                    currentPage={emailPage}
-                    totalPages={emailTotalPages}
-                    totalItems={emailTotalRecords}
-                    pageSize={PAGE_SIZE}
-                    onPageChange={setEmailPage}
-                  />
-                </div>
-              </>
-            )}
+            <DataTable<Email>
+              columns={emailColumns}
+              data={emails}
+              isLoading={isEmailLoading}
+              loadingMessage="Loading emails..."
+              emptyIcon={<Mail className="w-7 h-7 text-gray-300 dark:text-zinc-600" />}
+              emptyMessage='No emails found. Click "Compose Email" to create one.'
+              onRowClick={(email) => openEditEmail(email)}
+              rowKey={(email) => email.id}
+              pagination={{
+                currentPage: emailPage,
+                totalPages: emailTotalPages,
+                totalItems: emailTotalRecords,
+                pageSize: PAGE_SIZE,
+                onPageChange: setEmailPage,
+              }}
+            />
           </Card>
         </>
       )}
@@ -618,123 +699,16 @@ export const EmailsPage: React.FC = () => {
       {/* ====== TEMPLATES TAB ====== */}
       {activeTab === 'templates' && (
         <Card padding="none">
-          {isTemplateLoading ? (
-            <div className="flex flex-col items-center justify-center py-20">
-              <Loader2 className="w-8 h-8 text-brand-600 animate-spin" />
-              <p className="mt-3 text-sm text-gray-500 dark:text-zinc-400">Loading templates...</p>
-            </div>
-          ) : templates.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-20">
-              <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4 bg-gray-100 dark:bg-zinc-800">
-                <LayoutTemplate className="w-7 h-7 text-gray-300 dark:text-zinc-600" />
-              </div>
-              <p className="text-sm font-medium text-gray-500 dark:text-zinc-400">
-                No templates yet
-              </p>
-              <p className="text-xs mt-1 text-gray-400 dark:text-zinc-600">
-                Click "New Template" to create one
-              </p>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="premium-table">
-                <thead>
-                  <tr className="border-b border-gray-100 dark:border-zinc-800">
-                    {['Name', 'Subject', 'Category', 'Actions'].map((h, i) => (
-                      <th
-                        key={h}
-                        className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-zinc-500 resizable-th"
-                        style={{ width: tplColWidths[i] }}
-                      >
-                        {h}
-                        <div className="col-resize-handle" onMouseDown={e => onTplMouseDown(i, e)} />
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {templates.map(tpl => (
-                    <tr
-                      key={tpl.id}
-                      className="border-b transition-colors cursor-pointer border-gray-50 hover:bg-gray-50/80 dark:border-zinc-800/50 dark:hover:bg-zinc-800/30"
-                      onClick={() => setPreviewTemplate(tpl)}
-                    >
-                      <td className="px-4 py-3 text-gray-900 dark:text-white">
-                        <span className="font-medium">{tpl.name}</span>
-                      </td>
-                      <td className="px-4 py-3 text-gray-700 dark:text-zinc-300">
-                        {truncateText(tpl.subject || '', 50) || '-'}
-                      </td>
-                      <td className="px-4 py-3">
-                        {tpl.category ? (
-                          <Badge variant="brand">
-                            <Tag className="w-3 h-3" />
-                            {tpl.category}
-                          </Badge>
-                        ) : '-'}
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
-                          <button
-                            onClick={() => setPreviewTemplate(tpl)}
-                            title="Preview"
-                            className={cx(
-                              'p-1.5 rounded-lg transition-colors',
-                              'text-gray-400 hover:text-blue-600 hover:bg-blue-50',
-                              'dark:text-zinc-400 dark:hover:text-blue-400 dark:hover:bg-blue-900/20'
-                            )}
-                          >
-                            <Eye className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => openEditTemplate(tpl)}
-                            title="Edit"
-                            className={cx(
-                              'p-1.5 rounded-lg transition-colors',
-                              'text-gray-400 hover:text-brand-600 hover:bg-brand-50',
-                              'dark:text-zinc-400 dark:hover:text-brand-400 dark:hover:bg-brand-900/20'
-                            )}
-                          >
-                            <Edit2 className="w-4 h-4" />
-                          </button>
-                          {deleteTemplateId === tpl.id ? (
-                            <div className="flex items-center gap-1">
-                              <Button
-                                size="xs"
-                                variant="danger"
-                                onClick={() => handleDeleteTemplate(tpl.id)}
-                              >
-                                Confirm
-                              </Button>
-                              <Button
-                                size="xs"
-                                variant="ghost"
-                                onClick={() => setDeleteTemplateId(null)}
-                              >
-                                Cancel
-                              </Button>
-                            </div>
-                          ) : (
-                            <button
-                              onClick={() => setDeleteTemplateId(tpl.id)}
-                              title="Delete"
-                              className={cx(
-                                'p-1.5 rounded-lg transition-colors',
-                                'text-gray-400 hover:text-red-600 hover:bg-red-50',
-                                'dark:text-zinc-400 dark:hover:text-red-400 dark:hover:bg-red-900/20'
-                              )}
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+          <DataTable<EmailTemplate>
+            columns={templateColumns}
+            data={templates}
+            isLoading={isTemplateLoading}
+            loadingMessage="Loading templates..."
+            emptyIcon={<LayoutTemplate className="w-7 h-7 text-gray-300 dark:text-zinc-600" />}
+            emptyMessage='No templates yet. Click "New Template" to create one.'
+            onRowClick={(tpl) => setPreviewTemplate(tpl)}
+            rowKey={(tpl) => tpl.id}
+          />
         </Card>
       )}
 
