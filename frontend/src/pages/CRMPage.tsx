@@ -1535,10 +1535,7 @@ export const CRMPage: React.FC = () => {
             <InfoRow label="Email" value={lead.email} icon={<Mail className="w-3.5 h-3.5" />} />
             <InfoRow label="Phone" value={lead.phone} icon={<Phone className="w-3.5 h-3.5" />} />
             <InfoRow label="Source" value={lead.source} icon={<BarChart3 className="w-3.5 h-3.5" />} capitalize />
-            <InfoRow label="Estimated Value" value={lead.estimatedValue ? formatINR(lead.estimatedValue) : undefined} icon={<IndianRupee className="w-3.5 h-3.5" />} />
             <InfoRow label="Product Interest" value={lead.productInterest} icon={<Target className="w-3.5 h-3.5" />} />
-            <InfoRow label="Expected Close" value={lead.expectedCloseDate ? formatDate(lead.expectedCloseDate) : undefined} icon={<Calendar className="w-3.5 h-3.5" />} />
-            <InfoRow label="Next Follow-up" value={lead.nextFollowUp ? formatDate(lead.nextFollowUp) : undefined} icon={<Clock className="w-3.5 h-3.5" />} />
           </div>
 
           {/* Requirements */}
@@ -1823,11 +1820,7 @@ export const CRMPage: React.FC = () => {
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <Input label="Email" name="email" type="email" placeholder="contact@company.com" value={leadFormData.email} onChange={handleLeadFormChange} icon={<Mail className="w-4 h-4" />} />
-                <Input label="Mobile" name="mobile" placeholder="+91 XXXXX XXXXX" value={leadFormData.mobile} onChange={handleLeadFormChange} icon={<Phone className="w-4 h-4" />} />
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <Input label="Phone" name="phone" placeholder="+91 XXXXX XXXXX" value={leadFormData.phone} onChange={handleLeadFormChange} icon={<Phone className="w-4 h-4" />} />
-                <Input label="Mobile Alternate" name="mobileAlternate" placeholder="Alternate mobile" value={leadFormData.mobileAlternate} onChange={handleLeadFormChange} />
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <Input label="Phone Alternate" name="phoneAlternate" placeholder="Alternate phone" value={leadFormData.phoneAlternate} onChange={handleLeadFormChange} />
