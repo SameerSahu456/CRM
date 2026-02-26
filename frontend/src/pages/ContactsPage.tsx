@@ -324,7 +324,7 @@ export const ContactsPage: React.FC = () => {
           />
         </div>
 
-        {/* Filter: Account */}
+        {/* Filter: Account — temporarily hidden
         <div className="w-full lg:w-48">
           <Select
             value={filterAccountId}
@@ -336,6 +336,7 @@ export const ContactsPage: React.FC = () => {
             ))}
           </Select>
         </div>
+        */}
 
         {/* Clear Filters */}
         {hasActiveFilters && (
