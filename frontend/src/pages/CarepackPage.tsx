@@ -308,7 +308,7 @@ export const CarepackPage: React.FC = () => {
     setFormError('');
 
     if (!formData.customerName.trim()) {
-      setFormError('Customer name is required');
+      setFormError('Account name is required');
       return;
     }
     if (!formData.serialNumber.trim()) {
@@ -476,7 +476,7 @@ export const CarepackPage: React.FC = () => {
           <div className="flex-1 min-w-0">
             <Input
               type="text"
-              placeholder="Search by customer name or serial number..."
+              placeholder="Search by account name or serial number..."
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
               icon={<Search className="w-4 h-4" />}
@@ -553,7 +553,7 @@ export const CarepackPage: React.FC = () => {
               <table className="premium-table">
                 <thead>
                   <tr className="border-b border-gray-100 dark:border-zinc-800">
-                    {['Partner', 'Customer', 'Product Type', 'Serial #', 'SKU', 'Start Date', 'End Date', 'Status', 'Days Left', 'Actions'].map((h, i) => (
+                    {['Account', 'Account Name', 'Product Type', 'Serial #', 'SKU', 'Start Date', 'End Date', 'Status', 'Days Left', 'Actions'].map((h, i) => (
                       <th
                         key={h}
                         className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-zinc-500 resizable-th"
@@ -684,7 +684,7 @@ export const CarepackPage: React.FC = () => {
           <table className="premium-table">
             <thead>
               <tr className="border-b border-gray-100 dark:border-zinc-800">
-                {['Partner', 'Customer', 'Product Type', 'Serial #', 'SKU', 'End Date', 'Days Left', 'Actions'].map((h, i) => (
+                {['Account', 'Account Name', 'Product Type', 'Serial #', 'SKU', 'End Date', 'Days Left', 'Actions'].map((h, i) => (
                   <th
                     key={h}
                     className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-zinc-500 resizable-th"
@@ -949,8 +949,8 @@ export const CarepackPage: React.FC = () => {
 
               {/* Info Grid */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <CarepackInfoRow label="Partner" value={detailCarepack.partnerName} icon={<UserIcon className="w-3.5 h-3.5" />} />
-                <CarepackInfoRow label="Customer" value={detailCarepack.customerName} icon={<UserIcon className="w-3.5 h-3.5" />} />
+                <CarepackInfoRow label="Account" value={detailCarepack.partnerName} icon={<UserIcon className="w-3.5 h-3.5" />} />
+                <CarepackInfoRow label="Account Name" value={detailCarepack.customerName} icon={<UserIcon className="w-3.5 h-3.5" />} />
                 <CarepackInfoRow label="Product Type" value={detailCarepack.productType} icon={<Package className="w-3.5 h-3.5" />} />
                 <CarepackInfoRow label="Serial Number" value={detailCarepack.serialNumber} icon={<Hash className="w-3.5 h-3.5" />} />
                 <CarepackInfoRow label="Carepack SKU" value={detailCarepack.carepackSku} icon={<FileText className="w-3.5 h-3.5" />} />
@@ -1023,22 +1023,22 @@ export const CarepackPage: React.FC = () => {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="sm:col-span-2">
                 <Select
-                  label="Partner"
+                  label="Account"
                   id="partnerId"
                   name="partnerId"
                   value={formData.partnerId}
                   onChange={handleFormChange}
                 >
-                  <option value="">Select Partner</option>
+                  <option value="">Select Account</option>
                   {partners.map(p => <option key={p.id} value={p.id}>{p.companyName}</option>)}
                 </Select>
               </div>
               <Input
-                label="Customer Name *"
+                label="Account Name *"
                 id="customerName"
                 name="customerName"
                 type="text"
-                placeholder="Enter customer name"
+                placeholder="Enter account name"
                 value={formData.customerName}
                 onChange={handleFormChange}
                 icon={<UserIcon className="w-4 h-4" />}

@@ -37,8 +37,8 @@ export const WIDGET_REGISTRY: Record<string, WidgetMetadata> = {
   },
   'partners': {
     id: 'partners',
-    label: 'Partners',
-    description: 'Partner statistics and sales',
+    label: 'Accounts',
+    description: 'Account statistics and sales',
     category: 'postsales',
     icon: <Building2 className="w-4 h-4" />,
     requiredView: 'postsales',
@@ -97,8 +97,8 @@ export const WIDGET_REGISTRY: Record<string, WidgetMetadata> = {
   },
   'top-partners': {
     id: 'top-partners',
-    label: 'Top Partners',
-    description: 'Revenue rankings by partner',
+    label: 'Top Accounts',
+    description: 'Revenue rankings by account',
     category: 'postsales',
     icon: <Award className="w-4 h-4" />,
     requiredView: 'postsales',
@@ -146,7 +146,7 @@ export const WIDGET_REGISTRY: Record<string, WidgetMetadata> = {
   'assignee-summary': {
     id: 'assignee-summary',
     label: 'Assignee Summary',
-    description: 'Per-user assigned partners, leads, deals & sales',
+    description: 'Per-user assigned accounts, leads, deals & sales',
     category: 'analytics',
     icon: <UserCheck className="w-4 h-4" />,
     defaultVisible: true,

@@ -174,22 +174,22 @@ export const ReportsPage: React.FC = () => {
               <Users className="w-5 h-5 text-blue-600 dark:text-blue-400" />
             </div>
             <div>
-              <h3 className="text-sm font-semibold text-slate-900 dark:text-white">Sales by Partner</h3>
-              <p className="text-xs text-slate-400 dark:text-zinc-500">Top 10 partners by revenue</p>
+              <h3 className="text-sm font-semibold text-slate-900 dark:text-white">Sales by Account</h3>
+              <p className="text-xs text-slate-400 dark:text-zinc-500">Top 10 accounts by revenue</p>
             </div>
           </div>
 
           {partnerData.length === 0 ? (
             <div className="h-48 flex items-center justify-center rounded-xl bg-slate-50 dark:bg-zinc-900/50">
-              <p className="text-sm text-slate-400 dark:text-zinc-500">No partner data</p>
+              <p className="text-sm text-slate-400 dark:text-zinc-500">No account data</p>
             </div>
           ) : (
             <div className="overflow-y-auto max-h-[320px]">
-              <table className="w-full text-sm">
+              <table className="premium-table">
                 <thead>
                   <tr className="border-b border-slate-100 dark:border-zinc-800">
                     <th className="pb-2 text-left text-xs font-semibold text-slate-400 dark:text-zinc-500">#</th>
-                    <th className="pb-2 text-left text-xs font-semibold text-slate-400 dark:text-zinc-500">Partner</th>
+                    <th className="pb-2 text-left text-xs font-semibold text-slate-400 dark:text-zinc-500">Account</th>
                     <th className="pb-2 text-right text-xs font-semibold text-slate-400 dark:text-zinc-500">Amount</th>
                     <th className="pb-2 text-right text-xs font-semibold text-slate-400 dark:text-zinc-500">Count</th>
                   </tr>

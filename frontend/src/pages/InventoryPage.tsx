@@ -260,7 +260,7 @@ export const InventoryPage: React.FC = () => {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[700px]">
+            <table className="premium-table min-w-[700px]">
               <thead>
                 <tr className="bg-slate-50 dark:bg-zinc-800/50">
                   {([

@@ -185,7 +185,7 @@ export const BulkImportModal: React.FC<Props> = ({
             </div>
             {result.errors.length > 0 && (
               <div className="max-h-40 overflow-y-auto rounded-lg border border-gray-200 dark:border-zinc-800">
-                <table className="w-full text-xs">
+                <table className="premium-table text-xs">
                   <thead className="bg-white dark:bg-zinc-900">
                     <tr>
                       <th className="px-2 py-1.5 text-left font-semibold text-gray-500 dark:text-zinc-400">Row</th>

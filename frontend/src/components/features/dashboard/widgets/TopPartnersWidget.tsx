@@ -17,14 +17,14 @@ export const TopPartnersWidget: React.FC<WidgetProps> = ({ navigate, onDetailCli
       icon={<Award className="w-4 h-4" />}
       iconBg="bg-rose-50 dark:bg-rose-900/30"
       iconColor="text-rose-600 dark:text-rose-400"
-      title="Top Partners"
+      title="Top Accounts"
       titleColor="text-rose-700 dark:text-rose-400"
       subtitle="Revenue Rankings"
       onClick={() => onDetailClick?.()}
     >
       {sortedPartners.length === 0 ? (
         <div className="h-32 flex items-center justify-center rounded-xl bg-slate-50 dark:bg-zinc-900/50">
-          <p className="text-xs text-slate-400 dark:text-zinc-500">No partner data</p>
+          <p className="text-xs text-slate-400 dark:text-zinc-500">No account data</p>
         </div>
       ) : (
         <div className="space-y-2 max-h-[280px] overflow-y-auto">

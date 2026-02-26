@@ -257,8 +257,8 @@ export const SalesEntryPage: React.FC = () => {
     e.preventDefault();
     setFormError('');
 
-    if (!formData.partnerId || !formData.productId || !formData.saleDate) {
-      setFormError('Partner, Product, and Date are required');
+    if (!formData.productId || !formData.saleDate) {
+      setFormError('Product and Date are required');
       return;
     }
     if (formData.amount <= 0) {
@@ -338,7 +338,7 @@ export const SalesEntryPage: React.FC = () => {
           <div className="relative flex-1 min-w-0">
             <Input
               type="text"
-              placeholder="Search customer..."
+              placeholder="Search account..."
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
               icon={<Search className="w-4 h-4" />}
@@ -390,7 +390,7 @@ export const SalesEntryPage: React.FC = () => {
               { header: 'Date', accessor: (r: SalesEntry) => r.saleDate ? r.saleDate.split('T')[0] : '' },
               { header: 'Account', accessor: (r: SalesEntry) => r.customerName },
               { header: 'Product', accessor: (r: SalesEntry) => r.productNames && r.productNames.length > 0 ? r.productNames.map((n, i) => `${i + 1}. ${n}`).join(', ') : r.productName },
-              { header: 'Customer', accessor: (r: SalesEntry) => r.customerName },
+              { header: 'Account Name', accessor: (r: SalesEntry) => r.customerName },
               { header: 'Quantity', accessor: (r: SalesEntry) => r.quantity },
               { header: 'Amount', accessor: (r: SalesEntry) => r.amount },
               { header: 'PO Number', accessor: (r: SalesEntry) => r.poNumber },
@@ -457,7 +457,7 @@ export const SalesEntryPage: React.FC = () => {
             <table className="premium-table">
               <thead>
                 <tr className="border-b border-slate-100 dark:border-zinc-800">
-                  {['#', 'Date', 'Account', 'Product', 'Customer', 'Qty', 'Amount', 'PO #', 'Invoice #', 'Status'].map((h, i) => (
+                  {['#', 'Date', 'Account', 'Product', 'Account Name', 'Qty', 'Amount', 'PO #', 'Invoice #', 'Status'].map((h, i) => (
                     <th
                       key={h}
                       className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider resizable-th text-slate-400 dark:text-zinc-500"
@@ -609,7 +609,7 @@ export const SalesEntryPage: React.FC = () => {
                   : detailEntry.productName || '-'}</p>
               </div>
               <div>
-                <p className="text-xs mb-0.5 text-slate-400 dark:text-zinc-500">Customer</p>
+                <p className="text-xs mb-0.5 text-slate-400 dark:text-zinc-500">Account Name</p>
                 <p className="font-medium text-slate-900 dark:text-white">{detailEntry.customerName || '-'}</p>
               </div>
               <div>
@@ -692,41 +692,27 @@ export const SalesEntryPage: React.FC = () => {
               </Alert>
             )}
 
-            {/* Partner + Product */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <Select
-                label="Partner *"
-                name="partnerId"
-                value={formData.partnerId}
-                onChange={handleFormChange}
-                required
-              >
-                <option value="">Select partner...</option>
-                {partners.map(p => (
-                  <option key={p.id} value={p.id}>{p.companyName}</option>
-                ))}
-              </Select>
-              <Select
-                label="Product *"
-                name="productId"
-                value={formData.productId}
-                onChange={handleFormChange}
-                required
-              >
-                <option value="">Select product...</option>
-                {products.map(p => (
-                  <option key={p.id} value={p.id}>{p.name}</option>
-                ))}
-              </Select>
-            </div>
+            {/* Product */}
+            <Select
+              label="Product *"
+              name="productId"
+              value={formData.productId}
+              onChange={handleFormChange}
+              required
+            >
+              <option value="">Select product...</option>
+              {products.map(p => (
+                <option key={p.id} value={p.id}>{p.name}</option>
+              ))}
+            </Select>
 
             {/* Customer + Date */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Input
-                label="Customer Name"
+                label="Account Name"
                 name="customerName"
                 type="text"
-                placeholder="Customer name"
+                placeholder="Account name"
                 value={formData.customerName}
                 onChange={handleFormChange}
               />

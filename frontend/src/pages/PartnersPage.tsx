@@ -216,7 +216,7 @@ export const PartnersPage: React.FC = () => {
       setTotalPages(response.pagination.totalPages);
       setTotalRecords(response.pagination.total);
     } catch (err: any) {
-      setTableError(err.message || 'Failed to load partners');
+      setTableError(err.message || 'Failed to load accounts');
       setPartners([]);
     } finally {
       setIsLoading(false);
@@ -260,7 +260,7 @@ export const PartnersPage: React.FC = () => {
       const data = await partnersApi.myPartners();
       setMyPartners(Array.isArray(data) ? data : []);
     } catch (err: any) {
-      setMyPartnersError(err.message || 'Failed to load your partners');
+      setMyPartnersError(err.message || 'Failed to load your accounts');
       setMyPartners([]);
     } finally {
       setMyPartnersLoading(false);
@@ -274,7 +274,7 @@ export const PartnersPage: React.FC = () => {
       const data = await partnersApi.pending();
       setPendingPartners(Array.isArray(data) ? data : []);
     } catch (err: any) {
-      setPendingError(err.message || 'Failed to load pending partners');
+      setPendingError(err.message || 'Failed to load pending accounts');
       setPendingPartners([]);
     } finally {
       setPendingLoading(false);
@@ -405,7 +405,7 @@ export const PartnersPage: React.FC = () => {
       if (activeTab === 'my') fetchMyPartners();
       fetchSummaryCounts();
     } catch (err: any) {
-      setFormError(err.message || 'Failed to save partner');
+      setFormError(err.message || 'Failed to save account');
     } finally {
       setIsSubmitting(false);
     }
@@ -419,7 +419,7 @@ export const PartnersPage: React.FC = () => {
       if (activeTab === 'my') fetchMyPartners();
       fetchSummaryCounts();
     } catch (err: any) {
-      setTableError(err.message || 'Failed to delete partner');
+      setTableError(err.message || 'Failed to delete account');
     }
   };
 
@@ -430,7 +430,7 @@ export const PartnersPage: React.FC = () => {
       fetchPendingPartners();
       fetchSummaryCounts();
     } catch (err: any) {
-      setPendingError(err.message || 'Failed to approve partner');
+      setPendingError(err.message || 'Failed to approve account');
     } finally {
       setApproveSubmitting(null);
     }
@@ -449,7 +449,7 @@ export const PartnersPage: React.FC = () => {
       fetchPendingPartners();
       fetchSummaryCounts();
     } catch (err: any) {
-      setPendingError(err.message || 'Failed to reject partner');
+      setPendingError(err.message || 'Failed to reject account');
     } finally {
       setApproveSubmitting(null);
     }
@@ -483,7 +483,7 @@ export const PartnersPage: React.FC = () => {
       if (activeTab === 'all') fetchPartners();
       if (activeTab === 'pending') fetchPendingPartners();
     } catch (err: any) {
-      setTableError(err.message || 'Failed to approve partner');
+      setTableError(err.message || 'Failed to approve account');
     } finally {
       setApproveSubmitting(null);
     }
@@ -502,7 +502,7 @@ export const PartnersPage: React.FC = () => {
       if (activeTab === 'all') fetchPartners();
       if (activeTab === 'pending') fetchPendingPartners();
     } catch (err: any) {
-      setTableError(err.message || 'Failed to reject partner');
+      setTableError(err.message || 'Failed to reject account');
     } finally {
       setApproveSubmitting(null);
     }
@@ -796,7 +796,7 @@ export const PartnersPage: React.FC = () => {
               { header: 'City', accessor: (r: Partner) => r.city },
               { header: 'State', accessor: (r: Partner) => r.state },
               { header: 'Pincode', accessor: (r: Partner) => r.pincode },
-              { header: 'Partner Type', accessor: (r: Partner) => r.partnerType },
+              { header: 'Account Type', accessor: (r: Partner) => r.partnerType },
               { header: 'Tier', accessor: (r: Partner) => r.tier },
               { header: 'Status', accessor: (r: Partner) => r.status },
               { header: 'GST Number', accessor: (r: Partner) => r.gstNumber },
@@ -828,7 +828,7 @@ export const PartnersPage: React.FC = () => {
             shine
             onClick={openCreateModal}
           >
-            New Partner
+            New Account
           </Button>
         </div>
       </Card>
@@ -838,11 +838,11 @@ export const PartnersPage: React.FC = () => {
         {tableError && renderErrorBanner(tableError)}
 
         {isLoading ? (
-          renderLoadingState('Loading partners...')
+          renderLoadingState('Loading accounts...')
         ) : partners.length === 0 ? (
           renderEmptyState(
-            hasActiveFilters ? 'No partners match filters' : 'No partners yet',
-            hasActiveFilters ? 'Try adjusting your search or filters' : 'Click "New Partner" to add your first partner'
+            hasActiveFilters ? 'No accounts match filters' : 'No accounts yet',
+            hasActiveFilters ? 'Try adjusting your search or filters' : 'Click "New Account" to add your first account'
           )
         ) : (
           <div className="overflow-x-auto">
@@ -876,11 +876,11 @@ export const PartnersPage: React.FC = () => {
       {myPartnersError && renderErrorBanner(myPartnersError)}
 
       {myPartnersLoading ? (
-        renderLoadingState('Loading your partners...')
+        renderLoadingState('Loading your accounts...')
       ) : myPartners.length === 0 ? (
         renderEmptyState(
-          'No partners assigned to you',
-          'Partners will appear here once they are assigned to you'
+          'No accounts assigned to you',
+          'Accounts will appear here once they are assigned to you'
         )
       ) : (
         <div className="overflow-x-auto">
@@ -904,11 +904,11 @@ export const PartnersPage: React.FC = () => {
       {pendingError && renderErrorBanner(pendingError)}
 
       {pendingLoading ? (
-        renderLoadingState('Loading pending partners...')
+        renderLoadingState('Loading pending accounts...')
       ) : pendingPartners.length === 0 ? (
         renderEmptyState(
           'No pending approvals',
-          'All partner registrations have been reviewed'
+          'All account registrations have been reviewed'
         )
       ) : (
         <div className="overflow-x-auto">
@@ -1052,7 +1052,7 @@ export const PartnersPage: React.FC = () => {
           <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-3 bg-brand-50 dark:bg-brand-900/20">
             <Building2 className="w-5 h-5 text-brand-600 dark:text-brand-400" />
           </div>
-          <p className="text-xs text-slate-500 dark:text-zinc-400">Total Partners</p>
+          <p className="text-xs text-slate-500 dark:text-zinc-400">Total Accounts</p>
           <p className="text-xl font-bold mt-0.5 text-slate-900 dark:text-white">
             {totalCount}
           </p>
@@ -1132,7 +1132,7 @@ export const PartnersPage: React.FC = () => {
           <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-3 bg-purple-50 dark:bg-purple-900/20">
             <Shield className="w-5 h-5 text-purple-600 dark:text-purple-400" />
           </div>
-          <p className="text-xs text-slate-500 dark:text-zinc-400">Elite Partners</p>
+          <p className="text-xs text-slate-500 dark:text-zinc-400">Elite Accounts</p>
           <p className="text-xl font-bold mt-0.5 text-slate-900 dark:text-white">
             {eliteCount}
           </p>
@@ -1142,8 +1142,8 @@ export const PartnersPage: React.FC = () => {
       {/* Tab Navigation */}
       <Card padding="none" className="p-1 inline-flex rounded-xl">
         {[
-          { key: 'all' as TabKey, label: 'All Partners', icon: Building2 },
-          { key: 'my' as TabKey, label: 'My Partners', icon: UserIcon },
+          { key: 'all' as TabKey, label: 'All Accounts', icon: Building2 },
+          { key: 'my' as TabKey, label: 'My Accounts', icon: UserIcon },
           ...(canApprove ? [{ key: 'pending' as TabKey, label: 'Pending Approval', icon: Clock }] : []),
         ].map(tab => {
           const Icon = tab.icon;
@@ -1185,7 +1185,7 @@ export const PartnersPage: React.FC = () => {
       <Modal
         open={showModal}
         onClose={closeModal}
-        title={editingId ? 'Edit Partner' : 'New Partner'}
+        title={editingId ? 'Edit Account' : 'New Account'}
         icon={<Building2 className="w-5 h-5" />}
         size="xl"
         footer={
@@ -1207,7 +1207,7 @@ export const PartnersPage: React.FC = () => {
                 form?.requestSubmit();
               }}
             >
-              {isSubmitting ? 'Saving...' : editingId ? 'Update Partner' : 'Create Partner'}
+              {isSubmitting ? 'Saving...' : editingId ? 'Update Account' : 'Create Account'}
             </Button>
           </>
         }
@@ -1241,7 +1241,7 @@ export const PartnersPage: React.FC = () => {
               </div>
 
               <Select
-                label="Partner Type"
+                label="Account Type"
                 name="partnerType"
                 value={formData.partnerType}
                 onChange={handleFormChange}
@@ -1410,7 +1410,7 @@ export const PartnersPage: React.FC = () => {
             label="Notes"
             name="notes"
             rows={3}
-            placeholder="Any additional notes about this partner..."
+            placeholder="Any additional notes about this account..."
             value={formData.notes}
             onChange={handleFormChange}
             className="resize-none"
@@ -1440,7 +1440,7 @@ export const PartnersPage: React.FC = () => {
               'bg-white border-slate-200 dark:bg-dark-50 dark:border-zinc-800'
             )}>
               <h2 className="text-lg font-semibold font-display text-slate-900 dark:text-white">
-                Partner Details
+                Account Details
               </h2>
               <div className="flex items-center gap-2">
                 {selectedPartner && (
@@ -1638,7 +1638,7 @@ export const PartnersPage: React.FC = () => {
                       </div>
                       <div>
                         <p className="text-sm font-medium text-slate-700 dark:text-zinc-300">
-                          Partner registered
+                          Account registered
                         </p>
                         <p className="text-xs text-slate-400 dark:text-zinc-500">
                           {formatDate(selectedPartner.createdAt)}
@@ -1712,7 +1712,7 @@ export const PartnersPage: React.FC = () => {
                       Approval Required
                     </h4>
                     <p className="text-sm text-slate-600 dark:text-zinc-400">
-                      This partner is awaiting approval. Review the details above and approve or reject.
+                      This account is awaiting approval. Review the details above and approve or reject.
                     </p>
 
                     {rejectingId === selectedPartner.id ? (
@@ -1805,7 +1805,7 @@ export const PartnersPage: React.FC = () => {
       >
         <div className="space-y-4">
           <p className="text-sm text-slate-500 dark:text-zinc-400">
-            Set monthly revenue targets per partner tier.
+            Set monthly revenue targets per account tier.
           </p>
 
           {/* Elite Tier Target */}
@@ -1862,7 +1862,7 @@ export const PartnersPage: React.FC = () => {
         isOpen={showBulkImport}
         onClose={() => setShowBulkImport(false)}
         entity="partners"
-        entityLabel="Partners"
+        entityLabel="Accounts"
         onSuccess={() => fetchPartners()}
       />
     </div>

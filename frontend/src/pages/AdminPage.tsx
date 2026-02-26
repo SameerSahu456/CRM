@@ -315,7 +315,7 @@ const MasterDataTab: React.FC<MasterDataTabProps> = ({
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="premium-table">
               <thead>
                 <tr className="border-b border-gray-100 dark:border-zinc-800">
                   {['Name', 'Status', 'Actions'].map(h => (
@@ -650,7 +650,7 @@ const CategoriesTab: React.FC = () => {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="premium-table">
               <thead>
                 <tr className="border-b border-gray-100 dark:border-zinc-800">
                   {['Name', 'Product Managers', 'Status', 'Actions'].map(h => (
@@ -1134,7 +1134,7 @@ export const AdminPage: React.FC = () => {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="premium-table">
               <thead>
                 <tr className="border-b border-gray-100 dark:border-zinc-800">
                   {['Name', 'Email', 'Role', 'Department', 'Manager', 'Tag', 'Status', 'Last Login', 'Actions'].map(h => (

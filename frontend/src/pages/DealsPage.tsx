@@ -294,8 +294,8 @@ export const DealsPage: React.FC = () => {
   // ---------------------------------------------------------------------------
 
   const dealInitialWidths = canSeeAssignee
-    ? [45, 70, 170, 120, 150, 130, 130, 220, 130, 160, 160, 110, 120, 100, 120, 120]
-    : [45, 70, 170, 120, 150, 130, 130, 220, 130, 160, 160, 110, 120, 100, 120];
+    ? [56, 84, 170, 120, 150, 130, 130, 220, 130, 160, 160, 110, 120, 100, 120, 120]
+    : [56, 84, 170, 120, 150, 130, 130, 220, 130, 160, 160, 110, 120, 100, 120];
   const { colWidths: dealColWidths, onMouseDown: onDealMouseDown } = useColumnResize({
     initialWidths: dealInitialWidths,
   });
@@ -1201,13 +1201,6 @@ export const DealsPage: React.FC = () => {
           </div>
         )}
 
-        {/* Record count */}
-        {totalRecords > 0 && (
-          <div className="px-4 py-2 text-xs text-gray-400 border-b border-gray-100 dark:text-zinc-500 dark:border-zinc-800">
-            {totalRecords} deal{totalRecords !== 1 ? 's' : ''} total
-          </div>
-        )}
-
         {isLoading ? (
           <div className="flex flex-col items-center justify-center py-20">
             <Loader2 className="w-8 h-8 text-brand-600 animate-spin" />
@@ -1219,12 +1212,23 @@ export const DealsPage: React.FC = () => {
           <>
             <div className="overflow-x-auto">
               <table className="premium-table" style={{ minWidth: dealColWidths.reduce((a, b) => a + b, 0) }}>
+                <colgroup>
+                  {dealColWidths.map((w, i) => (
+                    <col key={i} style={{ width: w }} />
+                  ))}
+                </colgroup>
                 <thead>
                   <tr className="border-b border-gray-200 dark:border-zinc-700">
                     {(['#', 'Summarise', 'Company', 'Overdue', 'Contact Name', 'Contact No', 'Designation', 'Email', 'Location', 'Requirement', 'Quoted Requirement', 'Value', 'Stage', 'Order Type', ...(canSeeAssignee ? ['Assignee'] : []), 'Follow-up Date'] as string[]).map((label, i, arr) => (
                       <th
                         key={label}
-                        className={`${hdrCell} resizable-th ${i === 0 || i === 1 ? 'text-center' : ''}`}
+                        className={cx(
+                          hdrCell,
+                          'resizable-th',
+                          i === 0 && 'index-col',
+                          i === 1 && 'summary-col',
+                          i === 0 || i === 1 ? '!px-2 text-center' : ''
+                        )}
                         style={{ width: dealColWidths[i] }}
                       >
                         {label}
@@ -1250,11 +1254,11 @@ export const DealsPage: React.FC = () => {
                       className="border-b cursor-pointer transition-colors border-gray-100 hover:bg-gray-50 dark:border-zinc-800 dark:hover:bg-zinc-800/50"
                     >
                       {/* # */}
-                      <td className={cx(cellBase, 'text-center text-gray-400 dark:text-zinc-500')}>
+                      <td className={cx(cellBase, 'index-col !px-2 text-center text-gray-400 dark:text-zinc-500')}>
                         {(page - 1) * PAGE_SIZE + idx + 1}
                       </td>
                       {/* Summarise */}
-                      <td className={cx(cellBase, 'text-center')}>
+                      <td className={cx(cellBase, 'summary-col !px-2 text-center')}>
                         <button
                           onClick={(e) => { e.stopPropagation(); setSummariseDeal(deal); setShowSummariseModal(true); }}
                           title="Summarise"

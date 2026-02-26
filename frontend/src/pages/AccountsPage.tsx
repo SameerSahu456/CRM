@@ -888,7 +888,7 @@ export const AccountsPage: React.FC = () => {
 
                   {/* Orders table */}
                   <div className="rounded-lg border overflow-hidden border-slate-200 dark:border-zinc-800">
-                    <table className="w-full text-xs">
+                    <table className="premium-table text-xs">
                       <thead>
                         <tr className="bg-slate-50 dark:bg-zinc-900/50">
                           <th className="text-left px-2.5 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-slate-400 dark:text-zinc-500">Date</th>

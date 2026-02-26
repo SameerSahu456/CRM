@@ -24,7 +24,7 @@ export const PartnersWidget: React.FC<WidgetProps> = ({ navigate, onDetailClick 
       icon={<Building2 className="w-4 h-4" />}
       iconBg="bg-blue-50 dark:bg-blue-900/30"
       iconColor="text-blue-600 dark:text-blue-400"
-      title="Partners"
+      title="Accounts"
       titleColor="text-blue-700 dark:text-blue-400"
       subtitle={currentMonth}
       onClick={() => onDetailClick?.()}
@@ -48,15 +48,15 @@ export const PartnersWidget: React.FC<WidgetProps> = ({ navigate, onDetailClick 
       {/* Partner table */}
       {sortedPartners.length === 0 ? (
         <div className="h-24 flex items-center justify-center rounded-xl bg-slate-50 dark:bg-zinc-900/50">
-          <p className="text-xs text-slate-400 dark:text-zinc-500">No partner data</p>
+          <p className="text-xs text-slate-400 dark:text-zinc-500">No account data</p>
         </div>
       ) : (
         <>
           <div className="max-h-[160px] overflow-y-auto">
-            <table className="w-full">
+            <table className="premium-table">
               <thead>
                 <tr className={`border-b ${rowBorder}`}>
-                  <th className={`${thClass} text-left pb-2`}>Partner</th>
+                  <th className={`${thClass} text-left pb-2`}>Account</th>
                   <th className={`${thClass} text-right pb-2`}>Sales</th>
                 </tr>
               </thead>

@@ -67,7 +67,7 @@ export const PipelineWidget: React.FC<WidgetProps> = ({ navigate, onDetailClick 
         </div>
       ) : (
         <div className="max-h-[200px] overflow-y-auto">
-          <table className="w-full">
+          <table className="premium-table">
             <thead>
               <tr className={`border-b ${rowBorder}`}>
                 <th className={`${thClass} text-left pb-2`}>Stage</th>

@@ -429,7 +429,7 @@ export const CRMPage: React.FC = () => {
   // ---------------------------------------------------------------------------
 
   const { colWidths: crmColWidths, onMouseDown: onCrmMouseDown } = useColumnResize({
-    initialWidths: [45, 70, 180, 150, 130, 130, 220, 130, 110, 160, 160, 110, 120, 100, 120, 120],
+    initialWidths: [56, 84, 180, 150, 130, 130, 220, 130, 110, 160, 160, 110, 120, 100, 120, 120],
   });
 
   // ---------------------------------------------------------------------------
@@ -1011,7 +1011,7 @@ export const CRMPage: React.FC = () => {
     setConvertError('');
 
     if (!convertForm.partnerId) {
-      setConvertError('Please select a partner');
+      setConvertError('Please select an account');
       return;
     }
     if (!convertForm.productId) {
@@ -1220,13 +1220,6 @@ export const CRMPage: React.FC = () => {
         </div>
       )}
 
-      {/* Record count bar */}
-      {totalRecords > 0 && (
-        <div className="px-4 py-2 text-xs border-b text-gray-400 border-gray-100 dark:text-zinc-500 dark:border-zinc-800">
-          {totalRecords} lead{totalRecords !== 1 ? 's' : ''} found
-        </div>
-      )}
-
       {isLoading ? (
         <div className="flex flex-col items-center justify-center py-20">
           <Loader2 className="w-8 h-8 text-brand-600 animate-spin" />
@@ -1238,12 +1231,23 @@ export const CRMPage: React.FC = () => {
         <>
           <div className="overflow-x-auto">
             <table className="premium-table" style={{ minWidth: crmColWidths.reduce((a, b) => a + b, 0) }}>
+              <colgroup>
+                {crmColWidths.map((w, i) => (
+                  <col key={i} style={{ width: w }} />
+                ))}
+              </colgroup>
               <thead>
                 <tr className="border-b border-gray-200 dark:border-zinc-700">
                   {['#', 'Summarise', 'Company', 'Contact Name', 'Contact No', 'Designation', 'Email', 'Location', 'Source', 'Requirement', 'Quoted Requirement', 'Value', 'Stage', 'Type', 'Assignee', 'Follow-up Date'].map((label, i) => (
                     <th
                       key={label}
-                      className={cx(hdrCell, 'resizable-th', (i === 0 || i === 1) && 'text-center')}
+                      className={cx(
+                        hdrCell,
+                        'resizable-th',
+                        i === 0 && 'index-col',
+                        i === 1 && 'summary-col',
+                        (i === 0 || i === 1) && '!px-2 text-center'
+                      )}
                       style={{ width: crmColWidths[i] }}
                     >
                       {label}
@@ -1268,10 +1272,10 @@ export const CRMPage: React.FC = () => {
                     onClick={() => openDetailModal(lead)}
                     className="border-b cursor-pointer transition-colors border-gray-100 hover:bg-gray-50 dark:border-zinc-800 dark:hover:bg-zinc-800/50"
                   >
-                    <td className={cx(cellBase, 'text-center text-gray-400 dark:text-zinc-500')}>
+                    <td className={cx(cellBase, 'index-col !px-2 text-center text-gray-400 dark:text-zinc-500')}>
                       {(page - 1) * PAGE_SIZE + idx + 1}
                     </td>
-                    <td className={cx(cellBase, 'text-center')}>
+                    <td className={cx(cellBase, 'summary-col !px-2 text-center')}>
                       <button
                         onClick={(e) => { e.stopPropagation(); setSummariseLead(lead); setShowSummariseModal(true); }}
                         title="Summarise"
@@ -1993,8 +1997,8 @@ export const CRMPage: React.FC = () => {
                     <Users className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-zinc-500 pointer-events-none" />
                   </div>
                 </div>
-                <Select label="Partner" name="partnerId" value={leadFormData.partnerId} onChange={handleLeadFormChange}>
-                  <option value="">Select Partner (Optional)</option>
+                <Select label="Account" name="partnerId" value={leadFormData.partnerId} onChange={handleLeadFormChange}>
+                  <option value="">Select Account (Optional)</option>
                   {partners.map(p => (
                     <option key={p.id} value={p.id}>{p.companyName}</option>
                   ))}
@@ -2060,8 +2064,8 @@ export const CRMPage: React.FC = () => {
             </Alert>
           )}
 
-          <Select label="Partner *" name="partnerId" value={convertForm.partnerId} onChange={handleConvertFormChange} required>
-            <option value="">Select Partner</option>
+          <Select label="Account *" name="partnerId" value={convertForm.partnerId} onChange={handleConvertFormChange} required>
+            <option value="">Select Account</option>
             {partners.map(p => (
               <option key={p.id} value={p.id}>{p.companyName}</option>
             ))}
@@ -2098,9 +2102,9 @@ export const CRMPage: React.FC = () => {
           />
 
           <Input
-            label="Customer Name"
+            label="Account Name"
             name="customerName"
-            placeholder="Customer name"
+            placeholder="Account name"
             value={convertForm.customerName}
             onChange={handleConvertFormChange}
             icon={<UserIcon className="w-4 h-4" />}

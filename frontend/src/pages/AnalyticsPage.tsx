@@ -452,7 +452,7 @@ export const AnalyticsPage: React.FC = () => {
           {[
             { icon: <IndianRupee className="w-4 h-4" />, label: 'Total Sales', value: formatINR(totalRevenue), iconColor: 'text-brand-600 dark:text-brand-400' },
             { icon: <ShoppingCart className="w-4 h-4" />, label: 'Deal Count', value: String(totalDeals), iconColor: 'text-purple-600 dark:text-purple-400' },
-            { icon: <Users className="w-4 h-4" />, label: 'Partners', value: String(stats?.totalPartners ?? 0), iconColor: 'text-blue-600 dark:text-blue-400' },
+            { icon: <Users className="w-4 h-4" />, label: 'Accounts', value: String(stats?.totalPartners ?? 0), iconColor: 'text-blue-600 dark:text-blue-400' },
             { icon: <Clock className="w-4 h-4" />, label: 'Pending Payments', value: String(stats?.pendingPayments ?? 0), iconColor: 'text-amber-600 dark:text-amber-400' },
           ].map(m => (
             <div key={m.label} className="p-4 rounded-xl bg-slate-50 dark:bg-zinc-900/50">

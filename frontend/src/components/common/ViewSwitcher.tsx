@@ -12,7 +12,7 @@ export const ViewSwitcher: React.FC = () => {
   const views = [
     { value: 'both' as const, label: 'All Views', icon: LayoutGrid, description: 'Pre-Sales + Post-Sales' },
     { value: 'presales' as const, label: 'Pre-Sales', icon: Briefcase, description: 'Leads, Accounts, Contacts, Deals' },
-    { value: 'postsales' as const, label: 'Post-Sales', icon: Handshake, description: 'Sales Entry, Partners' },
+    { value: 'postsales' as const, label: 'Post-Sales', icon: Handshake, description: 'Sales Entry, Accounts' },
   ];
 
   const currentViewData = views.find(v => v.value === currentView) || views[0];

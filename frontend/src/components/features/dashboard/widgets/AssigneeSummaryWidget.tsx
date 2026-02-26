@@ -54,7 +54,7 @@ export const AssigneeSummaryWidget: React.FC<WidgetProps> = ({ onDetailClick }) 
             <p className="text-lg font-bold text-violet-600 dark:text-violet-400">
               {totalPartners}
             </p>
-            <p className="text-[10px] uppercase tracking-wider text-slate-400 dark:text-zinc-500">Partners</p>
+            <p className="text-[10px] uppercase tracking-wider text-slate-400 dark:text-zinc-500">Accounts</p>
           </div>
           <div>
             <p className="text-lg font-bold text-emerald-600 dark:text-emerald-400">
@@ -72,11 +72,11 @@ export const AssigneeSummaryWidget: React.FC<WidgetProps> = ({ onDetailClick }) 
         </div>
       ) : (
         <div className="max-h-[220px] overflow-y-auto">
-          <table className="w-full">
+          <table className="premium-table">
             <thead>
               <tr className={`border-b ${rowBorder}`}>
                 <th className={`${thClass} text-left pb-2`}>Name</th>
-                <th className={`${thClass} text-right pb-2`}>Partners</th>
+                <th className={`${thClass} text-right pb-2`}>Accounts</th>
                 <th className={`${thClass} text-right pb-2`}>Leads</th>
                 <th className={`${thClass} text-right pb-2`}>Deals</th>
                 <th className={`${thClass} text-right pb-2`}>Sales</th>

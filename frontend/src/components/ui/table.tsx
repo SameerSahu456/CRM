@@ -8,7 +8,7 @@ export interface TableProps extends React.HTMLAttributes<HTMLDivElement> {
 
 export const Table: React.FC<TableProps> = ({ children, className, ...props }) => (
   <div className={cx('overflow-x-auto rounded-xl', className)} {...props}>
-    <table className="w-full text-sm">
+    <table className="premium-table">
       {children}
     </table>
   </div>

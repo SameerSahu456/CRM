@@ -169,7 +169,7 @@ export const WidgetDetailModal: React.FC<WidgetDetailModalProps> = ({ widgetId, 
         </div>
 
         {/* Full table */}
-        <table className="w-full">
+        <table className="premium-table">
           <thead>
             <tr className={`border-b ${rowBorder}`}>
               <th className={`${thClass} text-left pb-3`}>Stage</th>
@@ -293,7 +293,7 @@ export const WidgetDetailModal: React.FC<WidgetDetailModalProps> = ({ widgetId, 
           </div>
         </div>
 
-        <table className="w-full">
+        <table className="premium-table">
           <thead>
             <tr className={`border-b ${rowBorder}`}>
               <th className={`${thClass} text-left pb-3`}>Stage</th>
@@ -434,7 +434,7 @@ export const WidgetDetailModal: React.FC<WidgetDetailModalProps> = ({ widgetId, 
           </div>
         </div>
 
-        <table className="w-full">
+        <table className="premium-table">
           <thead>
             <tr className={`border-b ${rowBorder}`}>
               <th className={`${thClass} text-left pb-3`}>#</th>
@@ -508,7 +508,7 @@ export const WidgetDetailModal: React.FC<WidgetDetailModalProps> = ({ widgetId, 
           </ResponsiveContainer>
         )}
 
-        <table className="w-full">
+        <table className="premium-table">
           <thead>
             <tr className={`border-b ${rowBorder}`}>
               <th className={`${thClass} text-left pb-3`}>Month</th>
@@ -567,11 +567,11 @@ export const WidgetDetailModal: React.FC<WidgetDetailModalProps> = ({ widgetId, 
           </div>
         </div>
 
-        <table className="w-full">
+        <table className="premium-table">
           <thead>
             <tr className={`border-b ${rowBorder}`}>
               <th className={`${thClass} text-left pb-3`}>#</th>
-              <th className={`${thClass} text-left pb-3`}>Partner</th>
+              <th className={`${thClass} text-left pb-3`}>Account</th>
               <th className={`${thClass} text-right pb-3`}>Sales</th>
               <th className={`${thClass} text-right pb-3`}>Deals</th>
               <th className={`${thClass} text-right pb-3`}>%</th>
@@ -607,10 +607,10 @@ export const WidgetDetailModal: React.FC<WidgetDetailModalProps> = ({ widgetId, 
             <p className="text-sm text-slate-400 dark:text-zinc-500">No recent sales</p>
           </div>
         ) : (
-          <table className="w-full">
+          <table className="premium-table">
             <thead>
               <tr className={`border-b ${rowBorder}`}>
-                <th className={`${thClass} text-left pb-3`}>Customer / Partner</th>
+                <th className={`${thClass} text-left pb-3`}>Account</th>
                 <th className={`${thClass} text-right pb-3`}>Amount</th>
                 <th className={`${thClass} text-left pb-3`}>Date</th>
                 <th className={`${thClass} text-left pb-3`}>Salesperson</th>
@@ -722,7 +722,7 @@ export const WidgetDetailModal: React.FC<WidgetDetailModalProps> = ({ widgetId, 
           </div>
         </div>
 
-        <table className="w-full">
+        <table className="premium-table">
           <thead>
             <tr className={`border-b ${rowBorder}`}>
               <th className={`${thClass} text-left pb-3`}>#</th>
@@ -767,7 +767,7 @@ export const WidgetDetailModal: React.FC<WidgetDetailModalProps> = ({ widgetId, 
     return (
       <div className="space-y-6">
         <div className="p-4 rounded-xl text-center bg-slate-50 dark:bg-zinc-900/50">
-          <p className="text-[11px] uppercase tracking-wider text-slate-400 dark:text-zinc-500">Total Partner Revenue</p>
+          <p className="text-[11px] uppercase tracking-wider text-slate-400 dark:text-zinc-500">Total Account Revenue</p>
           <p className="text-3xl font-bold mt-1 text-slate-900 dark:text-white">{formatINR(totalRevenue)}</p>
         </div>
 
@@ -908,7 +908,7 @@ export const WidgetDetailModal: React.FC<WidgetDetailModalProps> = ({ widgetId, 
             <div className="p-4 rounded-xl border bg-blue-50/50 border-blue-100 dark:bg-[rgba(10,16,32,0.5)] dark:border-white/[0.06]">
               <div className="flex items-center gap-2 mb-2">
                 <Users className="w-4 h-4 text-blue-500 dark:text-blue-400" />
-                <span className="text-[11px] uppercase tracking-wider font-medium text-slate-400 dark:text-zinc-500">Partners</span>
+                <span className="text-[11px] uppercase tracking-wider font-medium text-slate-400 dark:text-zinc-500">Accounts</span>
               </div>
               <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">{d.summary.partners}</p>
             </div>
@@ -1109,7 +1109,7 @@ export const WidgetDetailModal: React.FC<WidgetDetailModalProps> = ({ widgetId, 
                     {/* Metric badges */}
                     <div className="flex items-center gap-2 flex-shrink-0">
                       <div className="flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium bg-slate-100 text-slate-500 dark:bg-zinc-800 dark:text-zinc-400">
-                        <span className="text-blue-600 dark:text-blue-400">{r.partners}</span> P
+                        <span className="text-blue-600 dark:text-blue-400">{r.partners}</span> A
                       </div>
                       <div className="flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium bg-slate-100 text-slate-500 dark:bg-zinc-800 dark:text-zinc-400">
                         <span className="text-emerald-600 dark:text-emerald-400">{r.leads}</span> L

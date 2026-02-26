@@ -256,7 +256,7 @@ const LoginPage: React.FC = () => {
             </div>
             <h2 className="text-white text-2xl font-semibold leading-snug">
               Manage your sales,<br />
-              partners & growth.
+              accounts & growth.
             </h2>
           </div>
         </div>

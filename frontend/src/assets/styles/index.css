@@ -75,23 +75,12 @@ aside.sidebar-premium > nav {
   }
 }
 
-/* Mobile table: hide less important columns */
+/* Mobile table: keep all columns visible via horizontal scroll */
 @media (max-width: 768px) {
-  table th:nth-child(n+5),
-  table td:nth-child(n+5) {
-    display: none;
-  }
-
-  table th, table td {
+  .premium-table th,
+  .premium-table td {
     padding-left: 12px !important;
     padding-right: 12px !important;
-  }
-}
-
-@media (max-width: 480px) {
-  table th:nth-child(n+4),
-  table td:nth-child(n+4) {
-    display: none;
   }
 }
 
@@ -189,11 +178,11 @@ table tbody tr:hover {
 }
 
 /* Table header subtle border effect */
-table thead tr {
+table:not(.premium-table) thead tr {
   position: relative;
 }
 
-table thead tr::after {
+table:not(.premium-table) thead tr::after {
   content: '';
   position: absolute;
   bottom: 0;
@@ -203,7 +192,7 @@ table thead tr::after {
   background: linear-gradient(90deg, transparent, rgba(79, 70, 229, 0.15), rgba(99, 102, 241, 0.08), transparent);
 }
 
-html.dark table thead tr::after {
+html.dark table:not(.premium-table) thead tr::after {
   background: linear-gradient(90deg, transparent, rgba(99, 102, 241, 0.12), rgba(16, 185, 129, 0.08), transparent);
 }
 
@@ -290,7 +279,7 @@ html.dark .premium-card {
   animation: widgetEnter 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
-/* ========== PREMIUM TABLE STYLES ========== */
+/* ========== PREMIUM TABLE STYLES (Enhanced) ========== */
 
 .premium-table {
   min-width: 100%;
@@ -298,14 +287,18 @@ html.dark .premium-card {
   border-collapse: separate;
   border-spacing: 0;
   table-layout: fixed;
+  position: relative;
 }
 
-/* On small screens, switch to auto layout so columns use their explicit widths
-   as minimums and the table scrolls horizontally via overflow-x-auto wrapper */
 @media (max-width: 768px) {
   .premium-table {
     table-layout: auto;
   }
+}
+
+/* --- Header --- */
+.premium-table thead tr {
+  position: relative;
 }
 
 .premium-table thead th {
@@ -314,42 +307,175 @@ html.dark .premium-card {
   z-index: 1;
   font-size: 0.6875rem;
   font-weight: 600;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
-  padding: 0.625rem 0.75rem;
+  padding: 0.75rem 0.75rem;
   white-space: nowrap;
-  border-bottom-width: 2px;
+  border-bottom: 2px solid transparent;
   user-select: none;
+  color: #667085 !important;
+  background: linear-gradient(180deg, rgba(248, 250, 252, 0.9) 0%, rgba(241, 245, 249, 0.82) 100%) !important;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom-color: rgba(79, 70, 229, 0.08);
+  transition: color 0.15s ease;
 }
 
+:is(.dark) .premium-table thead th {
+  color: #8b9bb0 !important;
+  background: linear-gradient(180deg, rgba(8, 14, 30, 0.96) 0%, rgba(5, 10, 22, 0.98) 100%) !important;
+  border-bottom-color: rgba(99, 102, 241, 0.12);
+}
+
+/* Header gradient separator line */
+.premium-table thead tr::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent 0%, rgba(99, 102, 241, 0.2) 15%, rgba(79, 70, 229, 0.3) 50%, rgba(99, 102, 241, 0.2) 85%, transparent 100%);
+  opacity: 0.7;
+}
+
+:is(.dark) .premium-table thead tr::after {
+  background: linear-gradient(90deg, transparent 0%, rgba(99, 102, 241, 0.15) 15%, rgba(16, 185, 129, 0.12) 50%, rgba(139, 92, 246, 0.1) 85%, transparent 100%);
+  opacity: 0.8;
+}
+
+/* --- Row number (first column) --- */
+.premium-table thead th:first-child {
+  text-align: center;
+}
+
+.premium-table tbody td:first-child {
+  color: #98a2b3 !important;
+  font-size: 0.6875rem !important;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+}
+
+/* Fixed utility columns so row numbers/icons never appear shifted */
+.premium-table th.index-col,
+.premium-table td.index-col {
+  width: 56px;
+  min-width: 56px;
+  max-width: 56px;
+  text-align: center;
+}
+
+.premium-table th.summary-col,
+.premium-table td.summary-col {
+  width: 84px;
+  min-width: 84px;
+  max-width: 84px;
+  text-align: center;
+}
+
+:is(.dark) .premium-table tbody td:first-child {
+  color: #455468 !important;
+}
+
+/* --- Body rows --- */
 .premium-table tbody tr {
-  transition: background-color 0.15s ease;
+  transition: background-color 0.2s ease, box-shadow 0.2s ease;
+  position: relative;
 }
 
+/* Left accent bar (hidden by default) */
+/* .premium-table tbody tr::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: transparent;
+  border-radius: 0 3px 3px 0;
+  transition: background 0.2s ease, box-shadow 0.2s ease;
+  z-index: 1;
+} */
+
+/* --- Cell typography --- */
 .premium-table tbody td {
-  padding: 0.625rem 0.75rem;
+  padding: 0.6875rem 0.75rem;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  border-bottom-width: 1px;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.04);
+  color: #344054;
+  transition: color 0.15s ease;
 }
 
-/* Alternating row stripes */
+:is(.dark) .premium-table tbody td {
+  border-bottom-color: rgba(255, 255, 255, 0.04);
+  color: #b0bec9;
+}
+
+/* --- Alternating row stripes --- */
 .premium-table tbody tr:nth-child(even) {
-  background-color: rgba(79, 70, 229, 0.015);
+  background-color: rgba(248, 250, 252, 0.5);
 }
 
 :is(.dark) .premium-table tbody tr:nth-child(even) {
-  background-color: rgba(255, 255, 255, 0.02);
+  background-color: rgba(255, 255, 255, 0.015);
 }
 
-/* Premium table row hover — blue */
+.premium-table tbody tr:nth-child(odd) {
+  background-color: transparent;
+}
+
+/* --- Row hover — accent bar + glow --- */
 .premium-table tbody tr:hover {
-  background-color: rgba(37, 99, 235, 0.05) !important;
+  background-color: rgba(79, 70, 229, 0.04) !important;
+  box-shadow: inset 0 0 0 0.5px rgba(79, 70, 229, 0.06);
+}
+
+.premium-table tbody tr:hover::before {
+  background: linear-gradient(180deg, #6366f1, #4f46e5);
+  box-shadow: 2px 0 8px rgba(99, 102, 241, 0.15);
 }
 
 :is(.dark) .premium-table tbody tr:hover {
-  background-color: rgba(37, 99, 235, 0.08) !important;
+  background-color: rgba(99, 102, 241, 0.06) !important;
+  box-shadow: inset 0 0 0 0.5px rgba(99, 102, 241, 0.08);
+}
+
+:is(.dark) .premium-table tbody tr:hover::before {
+  background: linear-gradient(180deg, #818cf8, #6366f1);
+  box-shadow: 2px 0 12px rgba(99, 102, 241, 0.2);
+}
+
+/* --- Active/clicked row --- */
+.premium-table tbody tr:active {
+  background-color: rgba(79, 70, 229, 0.08) !important;
+  transition-duration: 0.05s;
+}
+
+:is(.dark) .premium-table tbody tr:active {
+  background-color: rgba(99, 102, 241, 0.1) !important;
+}
+
+/* --- Last row cleanup --- */
+.premium-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+/* --- Table edge depth shadow --- */
+.overflow-x-auto:has(.premium-table) {
+  box-shadow:
+    inset 0 2px 4px -2px rgba(0, 0, 0, 0.04),
+    inset 0 -1px 3px -2px rgba(0, 0, 0, 0.03);
+}
+
+:is(.dark) .overflow-x-auto:has(.premium-table) {
+  box-shadow:
+    inset 0 2px 4px -2px rgba(0, 0, 0, 0.15),
+    inset 0 -1px 3px -2px rgba(0, 0, 0, 0.1);
 }
 
 /* ========== COLUMN RESIZE HANDLE ========== */

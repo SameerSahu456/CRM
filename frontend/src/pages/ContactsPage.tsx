@@ -125,7 +125,7 @@ export const ContactsPage: React.FC = () => {
   // ---------------------------------------------------------------------------
 
   const { colWidths, onMouseDown } = useColumnResize({
-    initialWidths: [45, 200, 240, 150, 170, 200],
+    initialWidths: [56, 200, 240, 150, 170, 200],
   });
 
   // ---------------------------------------------------------------------------
@@ -422,13 +422,6 @@ export const ContactsPage: React.FC = () => {
         </div>
       )}
 
-      {/* Record count */}
-      {totalRecords > 0 && (
-        <div className="px-4 py-2 text-xs text-gray-400 dark:text-zinc-500">
-          {totalRecords} contact{totalRecords !== 1 ? 's' : ''} found
-        </div>
-      )}
-
       {isLoading ? (
         <div className="flex flex-col items-center justify-center py-20">
           <Loader2 className="w-8 h-8 text-brand-600 animate-spin" />
@@ -445,7 +438,7 @@ export const ContactsPage: React.FC = () => {
                   {['#', 'Name', 'Email', 'Phone', 'Designation', 'Account'].map((label, i) => (
                     <th
                       key={label}
-                      className={cx(hdrCell, 'resizable-th', i === 0 && 'text-center')}
+                      className={cx(hdrCell, 'resizable-th', i === 0 && 'index-col text-center')}
                       style={{ width: colWidths[i] }}
                     >
                       {label}
@@ -470,7 +463,7 @@ export const ContactsPage: React.FC = () => {
                     onClick={() => openDetailModal(contact)}
                     className="border-b cursor-pointer transition-colors border-gray-100 hover:bg-gray-50 dark:border-zinc-800 dark:hover:bg-zinc-800/50"
                   >
-                    <td className={cx(cellBase, 'text-center text-gray-400 dark:text-zinc-500')}>
+                    <td className={cx(cellBase, 'index-col text-center text-gray-400 dark:text-zinc-500')}>
                       {(page - 1) * PAGE_SIZE + idx + 1}
                     </td>
                     <td className={cellBase}>

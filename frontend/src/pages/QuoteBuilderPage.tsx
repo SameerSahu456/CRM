@@ -384,7 +384,7 @@ export const QuoteBuilderPage: React.FC = () => {
     setFormError('');
 
     if (!formData.customerName.trim()) {
-      setFormError('Customer name is required');
+      setFormError('Account name is required');
       return;
     }
     if (formData.lineItems.length === 0 || formData.lineItems.every(li => !li.productId && !li.description)) {
@@ -520,7 +520,7 @@ export const QuoteBuilderPage: React.FC = () => {
             Quote Builder
           </h1>
           <p className="text-sm mt-0.5 text-gray-500 dark:text-zinc-400">
-            Create, manage, and send quotations to customers
+            Create, manage, and send quotations to accounts
           </p>
         </div>
       </div>
@@ -531,7 +531,7 @@ export const QuoteBuilderPage: React.FC = () => {
           {/* Search */}
           <div className="flex-1 min-w-0">
             <Input
-              placeholder="Search by customer name or quote number..."
+              placeholder="Search by account name or quote number..."
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
               icon={<Search className="w-4 h-4" />}
@@ -608,10 +608,10 @@ export const QuoteBuilderPage: React.FC = () => {
         ) : (
           <>
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+              <table className="premium-table">
                 <thead>
                   <tr className="border-b border-gray-100 dark:border-zinc-800">
-                    {['Quote #', 'Customer', 'Partner', 'Date', 'Amount', 'Status', 'Actions'].map((h, i) => (
+                    {['Quote #', 'Account', 'Linked Account', 'Date', 'Amount', 'Status', 'Actions'].map((h, i) => (
                       <th
                         key={h}
                         className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400 resizable-th"
@@ -790,13 +790,13 @@ export const QuoteBuilderPage: React.FC = () => {
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             {/* Partner */}
             <Select
-              label="Partner"
+              label="Linked Account"
               id="partnerId"
               name="partnerId"
               value={formData.partnerId}
               onChange={handleFormFieldChange}
             >
-              <option value="">Select Partner (Optional)</option>
+              <option value="">Select Account (Optional)</option>
               {partners.map(p => (
                 <option key={p.id} value={p.id}>{p.companyName}</option>
               ))}
@@ -804,11 +804,11 @@ export const QuoteBuilderPage: React.FC = () => {
 
             {/* Customer Name */}
             <Input
-              label="Customer Name *"
+              label="Account Name *"
               id="customerName"
               name="customerName"
               type="text"
-              placeholder="Enter customer name"
+              placeholder="Enter account name"
               value={formData.customerName}
               onChange={handleFormFieldChange}
               icon={<UserIcon className="w-4 h-4" />}
@@ -847,7 +847,7 @@ export const QuoteBuilderPage: React.FC = () => {
 
           {/* Line items table */}
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="premium-table">
               <thead>
                 <tr className="border-b border-gray-100 dark:border-zinc-800">
                   {['#', 'Product', 'Description', 'Qty', 'Unit Price', 'Line Total', ''].map(h => (
@@ -1399,7 +1399,7 @@ export const QuoteBuilderPage: React.FC = () => {
               </div>
 
               <div className="overflow-x-auto">
-                <table className="w-full text-sm">
+                <table className="premium-table">
                   <thead>
                     <tr className="border-b border-gray-100 dark:border-zinc-800">
                       {['#', 'Product / Description', 'Qty', 'Unit Price', 'Total'].map(h => (

@@ -465,7 +465,7 @@ export const ProductManagersTab: React.FC = () => {
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full">
+              <table className="premium-table">
                 <thead className="bg-gray-50 dark:bg-dark-200">
                   <tr>
                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400" style={{ width: '25%' }}>Category</th>

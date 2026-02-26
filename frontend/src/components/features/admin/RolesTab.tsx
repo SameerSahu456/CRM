@@ -344,7 +344,7 @@ export const RolesTab: React.FC = () => {
           {expandedRole === role.id && (
             <div className="border-t px-4 py-4 border-gray-200 dark:border-zinc-800">
               <div className="overflow-x-auto">
-                <table className="w-full">
+                <table className="premium-table">
                   <thead>
                     <tr>
                       <th className="text-left text-xs font-semibold uppercase tracking-wider px-2 py-2 text-gray-500 dark:text-zinc-400">

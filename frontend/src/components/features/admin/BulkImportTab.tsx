@@ -10,7 +10,7 @@ const ENTITIES = [
   { value: 'leads', label: 'Leads' },
   { value: 'contacts', label: 'Contacts' },
   { value: 'deals', label: 'Deals' },
-  { value: 'partners', label: 'Partners' },
+  { value: 'partners', label: 'Accounts' },
   { value: 'sales_entries', label: 'Sales Entries' },
   { value: 'products', label: 'Products' },
 ];
@@ -180,7 +180,7 @@ export const BulkImportTab: React.FC = () => {
                 Error Details
               </div>
               <div className="max-h-60 overflow-y-auto rounded-lg border border-gray-200 dark:border-zinc-800">
-                <table className="w-full text-xs">
+                <table className="premium-table text-xs">
                   <thead className="bg-gray-50 dark:bg-dark-200">
                     <tr>
                       <th className="px-3 py-2 text-left font-semibold text-gray-500 dark:text-zinc-400">Row</th>
