@@ -525,7 +525,6 @@ export const PartnersPage: React.FC = () => {
     {
       key: 'companyName',
       label: 'Company Name',
-      width: '22%',
       render: (partner) => (
         <div className="flex items-center gap-2.5">
           <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 bg-brand-50 dark:bg-brand-900/20">
@@ -545,13 +544,11 @@ export const PartnersPage: React.FC = () => {
     {
       key: 'contactPerson',
       label: 'Contact Person',
-      width: '16%',
       render: (partner) => partner.contactPerson || '-',
     },
     {
       key: 'city',
       label: 'City',
-      width: '14%',
       render: (partner) => (
         <div className="flex items-center gap-1.5">
           {partner.city && <MapPin className="w-3 h-3 flex-shrink-0 text-slate-400 dark:text-zinc-500" />}
@@ -562,13 +559,11 @@ export const PartnersPage: React.FC = () => {
     {
       key: 'type',
       label: 'Type',
-      width: '14%',
       render: (partner) => capitalize(partner.partnerType || ''),
     },
     {
       key: 'tier',
       label: 'Tier',
-      width: '10%',
       render: (partner) => (
         <Badge variant={tierBadgeVariant(partner.tier)}>
           {capitalize(partner.tier)}
@@ -578,7 +573,6 @@ export const PartnersPage: React.FC = () => {
     {
       key: 'status',
       label: 'Status',
-      width: '10%',
       render: (partner) => (
         <Badge variant={statusBadgeVariant(partner.status)}>
           {capitalize(partner.status)}
@@ -590,7 +584,6 @@ export const PartnersPage: React.FC = () => {
   const actionsColumn: DataTableColumn<Partner> = {
     key: 'actions',
     label: 'Actions',
-    width: '14%',
     render: (partner) => (
       <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
         <button
@@ -638,7 +631,6 @@ export const PartnersPage: React.FC = () => {
     {
       key: 'companyName',
       label: 'Company Name',
-      width: '22%',
       render: (partner) => (
         <div className="flex items-center gap-2.5 cursor-pointer" onClick={() => openDetail(partner)}>
           <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 bg-amber-50 dark:bg-amber-900/20">
@@ -651,25 +643,21 @@ export const PartnersPage: React.FC = () => {
     {
       key: 'contactPerson',
       label: 'Contact Person',
-      width: '14%',
       render: (partner) => partner.contactPerson || '-',
     },
     {
       key: 'city',
       label: 'City',
-      width: '12%',
       render: (partner) => partner.city || '-',
     },
     {
       key: 'type',
       label: 'Type',
-      width: '12%',
       render: (partner) => capitalize(partner.partnerType || ''),
     },
     {
       key: 'tier',
       label: 'Tier',
-      width: '10%',
       render: (partner) => (
         <Badge variant={tierBadgeVariant(partner.tier)}>
           {capitalize(partner.tier)}
@@ -679,14 +667,12 @@ export const PartnersPage: React.FC = () => {
     {
       key: 'registered',
       label: 'Registered',
-      width: '12%',
       className: 'whitespace-nowrap',
       render: (partner) => formatDate(partner.createdAt),
     },
     {
       key: 'actions',
       label: 'Actions',
-      width: '18%',
       render: (partner) => (
         rejectingId === partner.id ? (
           <div className="flex items-center gap-2 min-w-[280px]">

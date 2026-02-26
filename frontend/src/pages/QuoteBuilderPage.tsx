@@ -509,7 +509,6 @@ export const QuoteBuilderPage: React.FC = () => {
     {
       key: 'quoteNumber',
       label: 'Quote #',
-      width: '14%',
       render: (quote) => (
         <div className="flex items-center gap-2">
           <Hash className="w-3.5 h-3.5 flex-shrink-0 text-gray-400 dark:text-zinc-500" />
@@ -520,7 +519,6 @@ export const QuoteBuilderPage: React.FC = () => {
     {
       key: 'customerName',
       label: 'Account',
-      width: '20%',
       render: (quote) => (
         <div className="flex items-center gap-2">
           <UserIcon className="w-3.5 h-3.5 flex-shrink-0 text-gray-400 dark:text-zinc-500" />
@@ -531,13 +529,11 @@ export const QuoteBuilderPage: React.FC = () => {
     {
       key: 'partnerName',
       label: 'Linked Account',
-      width: '17%',
       render: (quote) => <>{quote.partnerName || '-'}</>,
     },
     {
       key: 'createdAt',
       label: 'Date',
-      width: '14%',
       render: (quote) => (
         <div className="flex items-center gap-1.5 whitespace-nowrap">
           <Calendar className="w-3.5 h-3.5 text-gray-400 dark:text-zinc-500" />
@@ -548,7 +544,6 @@ export const QuoteBuilderPage: React.FC = () => {
     {
       key: 'totalAmount',
       label: 'Amount',
-      width: '14%',
       render: (quote) => (
         <span className="whitespace-nowrap font-semibold text-gray-900 dark:text-white">
           {formatINR(quote.totalAmount)}
@@ -558,7 +553,6 @@ export const QuoteBuilderPage: React.FC = () => {
     {
       key: 'status',
       label: 'Status',
-      width: '11%',
       render: (quote) => (
         <Badge variant={STATUS_BADGE_VARIANT[quote.status]}>
           {quote.status.charAt(0).toUpperCase() + quote.status.slice(1)}
@@ -568,7 +562,6 @@ export const QuoteBuilderPage: React.FC = () => {
     {
       key: 'actions',
       label: 'Actions',
-      width: '10%',
       render: (quote) => (
         <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
           <Button

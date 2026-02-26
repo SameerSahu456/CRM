@@ -510,10 +510,10 @@ export const AccountsPage: React.FC = () => {
   // ---------------------------------------------------------------------------
 
   const accountColumns: DataTableColumn<Account>[] = [
-    { key: 'name', label: 'Name', width: '14%', render: (a) => <span className="font-medium">{a.name}</span> },
-    { key: 'industry', label: 'Industry', width: '10%', render: (a) => <>{a.industry || '-'}</> },
+    { key: 'name', label: 'Name', render: (a) => <span className="font-medium">{a.name}</span> },
+    { key: 'industry', label: 'Industry', render: (a) => <>{a.industry || '-'}</> },
     {
-      key: 'tag1', label: 'Tag 1', width: '9%',
+      key: 'tag1', label: 'Tag 1',
       render: (a) => {
         const tag1 = a.tag || '';
         if (!tag1) return <span className="text-gray-300 dark:text-zinc-600">-</span>;
@@ -521,7 +521,7 @@ export const AccountsPage: React.FC = () => {
       },
     },
     {
-      key: 'tag2', label: 'Tag 2', width: '9%',
+      key: 'tag2', label: 'Tag 2',
       render: (a) => {
         const t = (a.type || '').toLowerCase();
         if (!t) return <span className="text-gray-300 dark:text-zinc-600">-</span>;
@@ -530,18 +530,18 @@ export const AccountsPage: React.FC = () => {
       },
     },
     {
-      key: 'accountType', label: 'Account Type', width: '11%',
+      key: 'accountType', label: 'Account Type',
       render: (a) => {
         const at = (a.accountType || '').toLowerCase();
         if (!at) return <span className="text-gray-300 dark:text-zinc-600">-</span>;
         return <Badge variant={at === 'channel partner' ? 'emerald' : 'warning'} size="sm">{a.accountType}</Badge>;
       },
     },
-    { key: 'phone', label: 'Phone', width: '10%', render: (a) => <span className="whitespace-nowrap">{a.phone || '-'}</span> },
-    { key: 'email', label: 'Email', width: '13%', render: (a) => <span className="truncate block max-w-[170px]">{a.email || '-'}</span> },
-    { key: 'revenue', label: 'Revenue', width: '10%', render: (a) => <span className="font-semibold whitespace-nowrap">{a.revenue ? formatINR(a.revenue) : '-'}</span> },
+    { key: 'phone', label: 'Phone', render: (a) => <>{a.phone || '-'}</> },
+    { key: 'email', label: 'Email', render: (a) => <>{a.email || '-'}</> },
+    { key: 'revenue', label: 'Revenue', render: (a) => <span className="font-semibold">{a.revenue ? formatINR(a.revenue) : '-'}</span> },
     {
-      key: 'overdue', label: 'Overdue', width: '10%',
+      key: 'overdue', label: 'Overdue',
       render: (a) => {
         const col = collectionsMap[(a.name || '').toLowerCase()];
         if (!col) return <span className="text-gray-300 dark:text-zinc-600">-</span>;

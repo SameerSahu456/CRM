@@ -412,7 +412,6 @@ export const EmailsPage: React.FC = () => {
     {
       key: 'subject',
       label: 'Subject',
-      width: '30%',
       render: (email) => (
         <span className="font-medium text-gray-900 dark:text-white">
           {truncateText(email.subject, 50)}
@@ -422,7 +421,6 @@ export const EmailsPage: React.FC = () => {
     {
       key: 'toAddress',
       label: 'To',
-      width: '25%',
       render: (email) => (
         <span className="text-gray-700 dark:text-zinc-300">
           {email.toAddress || '-'}
@@ -432,7 +430,6 @@ export const EmailsPage: React.FC = () => {
     {
       key: 'status',
       label: 'Status',
-      width: '13%',
       render: (email) => (
         <Badge variant={statusVariant(email.status)}>
           {email.status.charAt(0).toUpperCase() + email.status.slice(1)}
@@ -442,7 +439,6 @@ export const EmailsPage: React.FC = () => {
     {
       key: 'sentAt',
       label: 'Sent At',
-      width: '18%',
       render: (email) => (
         <span className="whitespace-nowrap text-gray-700 dark:text-zinc-300">
           {email.sentAt ? formatDate(email.sentAt) : email.scheduledAt ? formatDate(email.scheduledAt) : '-'}
@@ -452,7 +448,6 @@ export const EmailsPage: React.FC = () => {
     {
       key: 'actions',
       label: 'Actions',
-      width: '14%',
       render: (email) => (
         <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
           {email.status === 'draft' && (
@@ -523,7 +518,6 @@ export const EmailsPage: React.FC = () => {
     {
       key: 'name',
       label: 'Name',
-      width: '28%',
       render: (tpl) => (
         <span className="font-medium text-gray-900 dark:text-white">{tpl.name}</span>
       ),
@@ -531,7 +525,6 @@ export const EmailsPage: React.FC = () => {
     {
       key: 'subject',
       label: 'Subject',
-      width: '37%',
       render: (tpl) => (
         <span className="text-gray-700 dark:text-zinc-300">
           {truncateText(tpl.subject || '', 50) || '-'}
@@ -541,7 +534,6 @@ export const EmailsPage: React.FC = () => {
     {
       key: 'category',
       label: 'Category',
-      width: '20%',
       render: (tpl) => (
         tpl.category ? (
           <Badge variant="brand">
@@ -554,7 +546,6 @@ export const EmailsPage: React.FC = () => {
     {
       key: 'actions',
       label: 'Actions',
-      width: '15%',
       render: (tpl) => (
         <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
           <button

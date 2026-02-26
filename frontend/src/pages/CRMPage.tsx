@@ -1204,7 +1204,7 @@ export const CRMPage: React.FC = () => {
     {
       key: 'summarise',
       label: 'Summarise',
-      width: '84px',
+      shrink: true,
       align: 'center',
       render: (lead) => (
         <button
@@ -1219,73 +1219,61 @@ export const CRMPage: React.FC = () => {
     {
       key: 'companyName',
       label: 'Company',
-      width: '180px',
       render: (lead) => <span className="font-medium">{lead.companyName}</span>,
     },
     {
       key: 'contactPerson',
       label: 'Contact Name',
-      width: '150px',
       render: (lead) => <>{lead.contactPerson || '-'}</>,
     },
     {
       key: 'phone',
       label: 'Contact No',
-      width: '130px',
       render: (lead) => <>{lead.phone || '-'}</>,
     },
     {
       key: 'designation',
       label: 'Designation',
-      width: '130px',
       render: (lead) => <>{(lead as any).designation || '-'}</>,
     },
     {
       key: 'email',
       label: 'Email',
-      width: '220px',
-      render: (lead) => <span className="truncate block max-w-[150px]">{lead.email || '-'}</span>,
+      render: (lead) => <>{lead.email || '-'}</>,
     },
     {
       key: 'location',
       label: 'Location',
-      width: '130px',
       render: (lead) => <>{(lead as any).location || '-'}</>,
     },
     {
       key: 'source',
       label: 'Source',
-      width: '110px',
       render: (lead) => <span className="capitalize">{lead.source || '-'}</span>,
     },
     {
       key: 'requirement',
       label: 'Requirement',
-      width: '160px',
-      render: (lead) => <span className="truncate block max-w-[150px]">{lead.requirement || '-'}</span>,
+      render: (lead) => <>{lead.requirement || '-'}</>,
     },
     {
       key: 'quotedRequirement',
       label: 'Quoted Requirement',
-      width: '160px',
-      render: (lead) => <span className="truncate block max-w-[150px]">{lead.quotedRequirement || '-'}</span>,
+      render: (lead) => <>{lead.quotedRequirement || '-'}</>,
     },
     {
       key: 'estimatedValue',
       label: 'Value',
-      width: '110px',
       render: (lead) => <>{lead.estimatedValue ? formatINR(lead.estimatedValue) : '-'}</>,
     },
     {
       key: 'stage',
       label: 'Stage',
-      width: '120px',
       render: (lead) => <Badge variant={STAGE_BADGE_VARIANT[lead.stage] || 'gray'}>{lead.stage}</Badge>,
     },
     {
       key: 'tag',
       label: 'Type',
-      width: '100px',
       render: (lead) => (
         <>
           {(lead as any).tag ? (
@@ -1299,13 +1287,11 @@ export const CRMPage: React.FC = () => {
     {
       key: 'assignee',
       label: 'Assignee',
-      width: '120px',
       render: (lead) => <>{(lead as any).assignedToName || '-'}</>,
     },
     {
       key: 'nextFollowUp',
       label: 'Follow-up Date',
-      width: '120px',
       render: (lead) => <>{lead.nextFollowUp ? formatDate(lead.nextFollowUp) : '-'}</>,
     },
   ];
@@ -1324,7 +1310,6 @@ export const CRMPage: React.FC = () => {
       showIndex
       page={page}
       pageSize={PAGE_SIZE}
-      minWidth={2200}
       pagination={totalRecords > 0 ? {
         currentPage: page,
         totalPages,
@@ -1536,6 +1521,7 @@ export const CRMPage: React.FC = () => {
             <InfoRow label="Phone" value={lead.phone} icon={<Phone className="w-3.5 h-3.5" />} />
             <InfoRow label="Source" value={lead.source} icon={<BarChart3 className="w-3.5 h-3.5" />} capitalize />
             <InfoRow label="Product Interest" value={lead.productInterest} icon={<Target className="w-3.5 h-3.5" />} />
+            <InfoRow label="Type" value={(lead as any).tag} icon={<Tags className="w-3.5 h-3.5" />} />
           </div>
 
           {/* Requirements */}

@@ -149,7 +149,6 @@ export const InventoryPage: React.FC = () => {
     {
       key: 'name',
       label: 'Product Name',
-      width: '28%',
       headerRender: () => (
         <span className="inline-flex items-center gap-1.5 cursor-pointer" onClick={() => handleSort('name')}>
           Product Name
@@ -177,7 +176,6 @@ export const InventoryPage: React.FC = () => {
     {
       key: 'category',
       label: 'Category',
-      width: '15%',
       headerRender: () => (
         <span className="inline-flex items-center gap-1.5 cursor-pointer" onClick={() => handleSort('category')}>
           Category
@@ -196,7 +194,6 @@ export const InventoryPage: React.FC = () => {
     {
       key: 'stock',
       label: 'Stock',
-      width: '12%',
       headerRender: () => (
         <span className="inline-flex items-center gap-1.5 cursor-pointer" onClick={() => handleSort('stock')}>
           Stock
@@ -212,7 +209,6 @@ export const InventoryPage: React.FC = () => {
     {
       key: 'basePrice',
       label: 'Unit Price',
-      width: '15%',
       headerRender: () => (
         <span className="inline-flex items-center gap-1.5 cursor-pointer" onClick={() => handleSort('basePrice')}>
           Unit Price
@@ -228,13 +224,11 @@ export const InventoryPage: React.FC = () => {
     {
       key: 'status',
       label: 'Status',
-      width: '15%',
       render: (product) => stockBadge(product.stock),
     },
     {
       key: 'stockValue',
       label: 'Stock Value',
-      width: '15%',
       render: (product) => (
         <span className="text-sm tabular-nums text-slate-700 dark:text-zinc-300">
           {product.basePrice ? formatINR(product.basePrice * product.stock) : '--'}
@@ -350,7 +344,6 @@ export const InventoryPage: React.FC = () => {
           onRowClick={(product) => setDetailProduct(product)}
           rowKey={(product) => product.id}
           rowClassName={(product) => !product.isActive ? 'opacity-50' : ''}
-          minWidth={700}
         />
 
         {/* Footer */}

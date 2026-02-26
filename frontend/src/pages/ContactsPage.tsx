@@ -408,31 +408,26 @@ export const ContactsPage: React.FC = () => {
     {
       key: 'name',
       label: 'Name',
-      width: '19%',
       render: (c) => <span className="font-medium">{c.firstName} {c.lastName || ''}</span>,
     },
     {
       key: 'email',
       label: 'Email',
-      width: '24%',
-      render: (c) => <span className="truncate block max-w-[190px]">{c.email || '-'}</span>,
+      render: (c) => <>{c.email || '-'}</>,
     },
     {
       key: 'phone',
       label: 'Phone',
-      width: '17%',
-      render: (c) => <span className="whitespace-nowrap">{c.phone || '-'}</span>,
+      render: (c) => <>{c.phone || '-'}</>,
     },
     {
       key: 'designation',
       label: 'Designation',
-      width: '16%',
       render: (c) => <>{c.designation || c.jobTitle || '-'}</>,
     },
     {
       key: 'account',
       label: 'Account',
-      width: '19%',
       render: (c) =>
         c.accountName ? (
           <button

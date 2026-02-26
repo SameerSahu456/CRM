@@ -323,7 +323,6 @@ export const SalesEntryPage: React.FC = () => {
     {
       key: 'saleDate',
       label: 'Date',
-      width: '10%',
       render: (entry) => (
         <span className="whitespace-nowrap">{formatDate(entry.saleDate)}</span>
       ),
@@ -331,7 +330,6 @@ export const SalesEntryPage: React.FC = () => {
     {
       key: 'account',
       label: 'Account',
-      width: '13%',
       render: (entry) => (
         <span className="font-medium text-slate-900 dark:text-white">
           {entry.customerName || '-'}
@@ -341,7 +339,6 @@ export const SalesEntryPage: React.FC = () => {
     {
       key: 'product',
       label: 'Product',
-      width: '15%',
       render: (entry) =>
         entry.productNames && entry.productNames.length > 0
           ? entry.productNames.length === 1
@@ -352,20 +349,17 @@ export const SalesEntryPage: React.FC = () => {
     {
       key: 'customerName',
       label: 'Account Name',
-      width: '13%',
       render: (entry) => entry.customerName || '-',
     },
     {
       key: 'quantity',
       label: 'Qty',
-      width: '6%',
       align: 'center',
       render: (entry) => entry.quantity,
     },
     {
       key: 'amount',
       label: 'Amount',
-      width: '12%',
       render: (entry) => (
         <span className="font-semibold whitespace-nowrap text-slate-900 dark:text-white">
           {formatINR(entry.amount)}
@@ -375,19 +369,16 @@ export const SalesEntryPage: React.FC = () => {
     {
       key: 'poNumber',
       label: 'PO #',
-      width: '10%',
       render: (entry) => entry.poNumber || '-',
     },
     {
       key: 'invoiceNo',
       label: 'Invoice #',
-      width: '10%',
       render: (entry) => entry.invoiceNo || '-',
     },
     {
       key: 'paymentStatus',
       label: 'Status',
-      width: '11%',
       render: (entry) => (
         <Badge variant={paymentBadgeVariant(entry.paymentStatus)} size="sm">
           {entry.paymentStatus.charAt(0).toUpperCase() + entry.paymentStatus.slice(1)}
