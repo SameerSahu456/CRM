@@ -325,13 +325,15 @@ export const AccountsPage: React.FC = () => {
     setShowDetailModal(true);
     setIsDetailLoading(true);
     try {
-      const [contacts, deals, collectionsRes] = await Promise.all([
+      const [contactsRes, dealsRes, collectionsRes] = await Promise.all([
         accountsApi.getContacts(account.id),
         accountsApi.getDeals(account.id),
         salesApi.list({ search: account.name, limit: '100' }),
       ]);
-      setDetailContacts(Array.isArray(contacts) ? contacts : []);
-      setDetailDeals(Array.isArray(deals) ? deals : []);
+      const contactsData = contactsRes?.data ?? contactsRes;
+      setDetailContacts(Array.isArray(contactsData) ? contactsData : []);
+      const dealsData = dealsRes?.data ?? dealsRes;
+      setDetailDeals(Array.isArray(dealsData) ? dealsData : []);
       const entries = collectionsRes?.data ?? collectionsRes;
       setDetailCollections(Array.isArray(entries) ? entries : []);
     } catch {
