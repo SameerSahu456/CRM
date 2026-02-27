@@ -13,6 +13,8 @@ import {
 import { dealsApi, salesApi, formatINR, DEAL_LIST_FIELDS, DEAL_KANBAN_FIELDS } from '@/services/api';
 import { exportToCsv } from '@/utils/exportCsv';
 import { BulkImportModal } from '@/components/common/BulkImportModal';
+import { KanbanBoard, type KanbanColumnConfig, wasRecentlyDragging } from '@/components/common/KanbanBoard';
+import { useKanban } from '@/hooks/useKanban';
 import { Deal, DealStage, PaginatedResponse } from '@/types';
 import { Card, Button, Input, Select, Modal, Badge, DataTable, DataTableColumn } from '@/components/ui';
 import { cx } from '@/utils/cx';
@@ -22,6 +24,7 @@ import { cx } from '@/utils/cx';
 // ---------------------------------------------------------------------------
 
 const PAGE_SIZE = 10;
+const DEAL_STAGES: DealStage[] = ['New', 'Proposal', 'Cold', 'Negotiation', 'Closed Won', 'Closed Lost'];
 
 const STAGE_BADGE_VARIANT: Record<DealStage, 'cyan' | 'amber' | 'blue' | 'purple' | 'red' | 'emerald'> = {
   New: 'cyan',
@@ -43,6 +46,20 @@ const STAGE_COLORS: Record<DealStage, {
   'Closed Lost':  { bg: 'bg-red-50', text: 'text-red-700', darkBg: 'bg-red-900/30', darkText: 'text-red-400', iconBg: 'bg-red-100', darkIconBg: 'bg-red-900/20', border: 'border-red-200', darkBorder: 'border-red-800' },
   'Closed Won':   { bg: 'bg-emerald-50', text: 'text-emerald-700', darkBg: 'bg-emerald-900/30', darkText: 'text-emerald-400', iconBg: 'bg-emerald-100', darkIconBg: 'bg-emerald-900/20', border: 'border-emerald-200', darkBorder: 'border-emerald-800' },
 };
+
+const KANBAN_COLUMNS: KanbanColumnConfig[] = DEAL_STAGES.map(stage => {
+  const c = STAGE_COLORS[stage];
+  return {
+    id: stage,
+    label: stage,
+    dotColor: c.text.replace('text-', 'bg-'),
+    icon: stage === 'Closed Won'
+      ? <CheckCircle className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+      : stage === 'Closed Lost'
+        ? <XCircle className="w-4 h-4 text-red-600 dark:text-red-400" />
+        : undefined,
+  };
+});
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -68,18 +85,11 @@ function formatDate(dateStr?: string): string {
 export const DealsPage: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const canSeeAssignee = true; // Always show — backend controls data visibility via manager hierarchy
-
-  // Stage definitions (hardcoded to guarantee all stages always render)
-  const DEAL_STAGES: DealStage[] = ['New', 'Proposal', 'Cold', 'Negotiation', 'Closed Won', 'Closed Lost'];
+  const canSeeAssignee = true;
 
   // Data state
   const [showBulkImport, setShowBulkImport] = useState(false);
   const [deals, setDeals] = useState<Deal[]>([]);
-  const [pipelineDeals, setPipelineDeals] = useState<Deal[]>([]);
-
-  // Summary counts
-  const [dealSummary, setDealSummary] = useState<{ total: number; new: number; proposal: number; cold: number; negotiation: number; closedLost: number; closedWon: number }>({ total: 0, new: 0, proposal: 0, cold: 0, negotiation: 0, closedLost: 0, closedWon: 0 });
 
   // View mode
   const [viewMode, setViewMode] = useState<'table' | 'pipeline'>('pipeline');
@@ -96,23 +106,89 @@ export const DealsPage: React.FC = () => {
   // UI state
   const [isLoading, setIsLoading] = useState(true);
   const tableLoadedRef = useRef(false);
-  const [isPipelineLoading, setIsPipelineLoading] = useState(true);
-  const pipelineLoadedRef = useRef(false);
   const [tableError, setTableError] = useState('');
 
-  // Drag-and-drop state
-  const [draggedDealId, setDraggedDealId] = useState<string | null>(null);
-  const [dragOverStage, setDragOverStage] = useState<string | null>(null);
-
-  // Overdue amount map: dealId -> overdue amount (only for non-paid sales entries)
+  // Overdue amount map
   const [dealOverdueMap, setDealOverdueMap] = useState<Record<string, number>>({});
 
-  // Summarise (per-deal) modal
+  // Summarise modal
   const [showSummariseModal, setShowSummariseModal] = useState(false);
   const [summariseDeal, setSummariseDeal] = useState<Deal | null>(null);
 
+  // Kanban search ref
+  const kanbanSearchRef = useRef(searchTerm);
+  useEffect(() => { kanbanSearchRef.current = searchTerm; }, [searchTerm]);
+
   // ---------------------------------------------------------------------------
-  // Data fetching
+  // Kanban hook
+  // ---------------------------------------------------------------------------
+
+  const kanban = useKanban<Deal>({
+    stages: DEAL_STAGES as string[],
+    fetchPage: useCallback(async (stage: string, page: number, limit: number) => {
+      const params: Record<string, string> = {
+        stage,
+        page: String(page),
+        limit: String(limit),
+        fields: DEAL_KANBAN_FIELDS,
+      };
+      if (kanbanSearchRef.current) params.search = kanbanSearchRef.current;
+
+      const res = await dealsApi.kanban(params);
+      const data = res?.data ?? res;
+      return {
+        data: data.data || [],
+        pagination: data.pagination || { page, limit, total: 0, hasNext: false },
+      };
+    }, []),
+    fetchCounts: useCallback(async () => {
+      const res = await dealsApi.stageCounts();
+      return res?.data ?? res ?? {};
+    }, []),
+    onStageChange: useCallback(async (itemId: string, newStage: string) => {
+      if (newStage === 'Closed Won') {
+        navigate('/deals/view/' + itemId + '?action=closed-won');
+        return;
+      }
+      await dealsApi.updateStage(itemId, newStage);
+    }, [navigate]),
+    onReorder: useCallback(async (stage: string, orderedIds: string[]) => {
+      await dealsApi.reorder(stage, orderedIds);
+    }, []),
+  });
+
+  // Initialize kanban on mount
+  const kanbanInitRef = useRef(false);
+  useEffect(() => {
+    if (viewMode === 'pipeline' && !kanbanInitRef.current) {
+      kanbanInitRef.current = true;
+      kanban.initializeBoard();
+    }
+  }, [viewMode]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Refresh kanban when search changes
+  const prevSearchRef = useRef('');
+  useEffect(() => {
+    if (viewMode !== 'pipeline') return;
+    if (prevSearchRef.current !== searchTerm) {
+      prevSearchRef.current = searchTerm;
+      const timer = setTimeout(() => {
+        kanban.resetAndReload();
+      }, 300);
+      return () => clearTimeout(timer);
+    }
+  }, [searchTerm, viewMode]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Refresh data when returning to /deals
+  useEffect(() => {
+    if (location.pathname === '/deals') {
+      if (viewMode === 'table') fetchDeals();
+      else kanban.resetAndReload();
+    }
+  }, [location.pathname]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ---------------------------------------------------------------------------
+  // Table data fetching
   // ---------------------------------------------------------------------------
 
   const fetchDeals = useCallback(async () => {
@@ -140,37 +216,11 @@ export const DealsPage: React.FC = () => {
     }
   }, [page, filterStage, searchTerm]);
 
-  const fetchPipelineDeals = useCallback(async () => {
-    if (!pipelineLoadedRef.current) setIsPipelineLoading(true);
-    try {
-      const data = await dealsApi.pipeline({ fields: DEAL_KANBAN_FIELDS });
-      const allDeals: Deal[] = Array.isArray(data) ? data : (data?.data ?? []);
-      setPipelineDeals(allDeals);
-      pipelineLoadedRef.current = true;
-    } catch {
-      setPipelineDeals([]);
-    } finally {
-      setIsPipelineLoading(false);
-    }
-  }, []);
-
-  // Fetch based on view mode — always fetch pipeline for summary cards
   useEffect(() => {
-    fetchPipelineDeals();
-    if (viewMode === 'table') {
-      fetchDeals();
-    }
-  }, [viewMode, fetchDeals, fetchPipelineDeals]);
+    if (viewMode === 'table') fetchDeals();
+  }, [viewMode, fetchDeals]);
 
-  // Refresh data when returning to /deals from a sub-route
-  useEffect(() => {
-    if (location.pathname === '/deals') {
-      fetchDeals();
-      fetchPipelineDeals();
-    }
-  }, [location.pathname]);
-
-  // Fetch overdue amounts for deals shown in the table
+  // Fetch overdue amounts
   useEffect(() => {
     if (deals.length === 0) { setDealOverdueMap({}); return; }
     (async () => {
@@ -190,58 +240,10 @@ export const DealsPage: React.FC = () => {
     })();
   }, [deals]);
 
-  // Compute deal summary counts from pipelineDeals
-  useEffect(() => {
-    const newDeals = pipelineDeals.filter(d => d.stage === 'New').length;
-    const proposal = pipelineDeals.filter(d => d.stage === 'Proposal').length;
-    const cold = pipelineDeals.filter(d => d.stage === 'Cold').length;
-    const negotiation = pipelineDeals.filter(d => d.stage === 'Negotiation').length;
-    const closedLost = pipelineDeals.filter(d => d.stage === 'Closed Lost').length;
-    const closedWon = pipelineDeals.filter(d => d.stage === 'Closed Won').length;
-    setDealSummary({ total: pipelineDeals.length, new: newDeals, proposal, cold, negotiation, closedLost, closedWon });
-  }, [pipelineDeals]);
-
   // Reset to page 1 when filters change
   useEffect(() => {
     setPage(1);
   }, [filterStage, searchTerm]);
-
-  // ---------------------------------------------------------------------------
-  // Stage move handler (pipeline drag-and-drop)
-  // ---------------------------------------------------------------------------
-
-  const handleMoveStage = async (deal: Deal, newStage: DealStage) => {
-    if (deal.stage === newStage) return;
-
-    // Intercept Closed Won -> navigate to view page with action param
-    if (newStage === 'Closed Won') {
-      navigate('/deals/view/' + deal.id + '?action=closed-won');
-      return;
-    }
-
-    // Optimistic update — move card instantly in both views
-    const oldStage = deal.stage;
-    setPipelineDeals(prev =>
-      prev.map(d => d.id === deal.id ? { ...d, stage: newStage } : d)
-    );
-    setDeals(prev =>
-      prev.map(d => d.id === deal.id ? { ...d, stage: newStage } : d)
-    );
-
-    try {
-      await dealsApi.update(deal.id, { stage: newStage });
-      // Re-sync from server to ensure consistency
-      fetchPipelineDeals();
-    } catch {
-      // Revert on failure
-      setPipelineDeals(prev =>
-        prev.map(d => d.id === deal.id ? { ...d, stage: oldStage } : d)
-      );
-      setDeals(prev =>
-        prev.map(d => d.id === deal.id ? { ...d, stage: oldStage } : d)
-      );
-    }
-  };
 
   // ---------------------------------------------------------------------------
   // Misc helpers
@@ -253,6 +255,17 @@ export const DealsPage: React.FC = () => {
   };
 
   const hasActiveFilters = filterStage || searchTerm;
+
+  // Compute deal summary counts from kanban counts
+  const dealSummary = {
+    total: Object.values(kanban.counts).reduce((a, b) => a + b, 0),
+    new: kanban.counts['New'] || 0,
+    proposal: kanban.counts['Proposal'] || 0,
+    cold: kanban.counts['Cold'] || 0,
+    negotiation: kanban.counts['Negotiation'] || 0,
+    closedLost: kanban.counts['Closed Lost'] || 0,
+    closedWon: kanban.counts['Closed Won'] || 0,
+  };
 
   // ---------------------------------------------------------------------------
   // Render: Toolbar
@@ -314,7 +327,6 @@ export const DealsPage: React.FC = () => {
             </Select>
           </div>
         )}
-
 
         {/* Clear Filters */}
         {hasActiveFilters && (
@@ -466,7 +478,6 @@ export const DealsPage: React.FC = () => {
         label: 'Order Type',
         render: (deal) => <>{deal.typeOfOrder || '-'}</>,
       },
-      // Conditionally include Assignee column
       ...(canSeeAssignee ? [{
         key: 'assignee',
         label: 'Assignee',
@@ -505,192 +516,99 @@ export const DealsPage: React.FC = () => {
   };
 
   // ---------------------------------------------------------------------------
-  // Render: Pipeline / Kanban View
+  // Render: Pipeline / Kanban Card
   // ---------------------------------------------------------------------------
 
-  const renderPipelineCard = (deal: Deal) => {
-    return (
-      <div
-        key={deal.id}
-        draggable
-        onDragStart={e => { e.dataTransfer.setData('text/plain', deal.id); setDraggedDealId(deal.id); }}
-        onDragEnd={() => { setDraggedDealId(null); setDragOverStage(null); }}
-        onClick={() => navigate('/deals/view/' + deal.id)}
-        className={cx(
-          'p-3 rounded-xl border cursor-grab active:cursor-grabbing transition-all hover:shadow-md',
-          draggedDealId === deal.id && 'opacity-40 scale-95',
-          'bg-white border-gray-200 hover:border-gray-300 dark:bg-dark-100 dark:border-zinc-700 dark:hover:border-zinc-600'
-        )}
-      >
-        {/* Product Detail (Title) & Edit */}
-        <div className="flex items-start justify-between gap-2 mb-1.5">
-          <h4 className="text-sm font-semibold truncate flex items-center gap-1 text-gray-900 dark:text-white">
-            {deal.title || 'Untitled Deal'}
-            {deal.paymentFlag && <span title="Payment pending"><Flag className="w-3.5 h-3.5 text-red-500 fill-red-500 flex-shrink-0" /></span>}
-          </h4>
+  const renderKanbanCard = (deal: Deal) => (
+    <div
+      onClick={() => {
+        if (!wasRecentlyDragging()) navigate('/deals/view/' + deal.id);
+      }}
+      className="p-3 rounded-xl border cursor-grab active:cursor-grabbing transition-all hover:shadow-md bg-white border-gray-200 hover:border-gray-300 dark:bg-dark-100 dark:border-zinc-700 dark:hover:border-zinc-600"
+    >
+      {/* Title & Edit */}
+      <div className="flex items-start justify-between gap-2 mb-1.5">
+        <h4 className="text-sm font-semibold truncate flex items-center gap-1 text-gray-900 dark:text-white">
+          {deal.title || 'Untitled Deal'}
+          {deal.paymentFlag && <span title="Payment pending"><Flag className="w-3.5 h-3.5 text-red-500 fill-red-500 flex-shrink-0" /></span>}
+        </h4>
+        <button
+          onClick={(e) => { e.stopPropagation(); navigate('/deals/edit/' + deal.id); }}
+          className="p-1 rounded-lg flex-shrink-0 transition-colors text-gray-400 hover:text-brand-600 hover:bg-brand-50 dark:text-zinc-500 dark:hover:text-brand-400 dark:hover:bg-brand-900/20"
+        >
+          <Edit2 className="w-3 h-3" />
+        </button>
+      </div>
+
+      {/* Company Name */}
+      {deal.accountName && (
+        <p className="text-[11px] flex items-center gap-1 mb-1 text-gray-500 dark:text-zinc-400">
+          <Briefcase className="w-3 h-3 flex-shrink-0" />
+          <span className="truncate">{deal.accountName}</span>
+        </p>
+      )}
+
+      {/* Contact */}
+      {deal.contactName && (
+        <p className="text-[11px] flex items-center gap-1 mb-1 text-gray-500 dark:text-zinc-400">
+          <UserIcon className="w-3 h-3 flex-shrink-0" />
+          <span className="truncate">{deal.contactName}</span>
+        </p>
+      )}
+
+      {/* Value (hidden for New stage) */}
+      {deal.value && deal.stage !== 'New' ? (
+        <p className="text-xs font-semibold mb-1 text-emerald-600 dark:text-emerald-400">
+          {formatINR(deal.value)}
+        </p>
+      ) : null}
+
+      {/* Order Type */}
+      {deal.typeOfOrder && (
+        <Badge
+          size="sm"
+          variant={deal.typeOfOrder === 'New' ? 'blue' : deal.typeOfOrder === 'Rental' ? 'purple' : 'amber'}
+          className="mb-1"
+        >
+          <Tag className="w-3 h-3 flex-shrink-0" />
+          {deal.typeOfOrder}
+        </Badge>
+      )}
+
+      {/* Assignee */}
+      {deal.ownerName && (
+        <p className="text-[11px] flex items-center gap-1 text-gray-400 dark:text-zinc-500">
+          <UserIcon className="w-3 h-3 flex-shrink-0" />
+          <span className="truncate">{deal.ownerName}</span>
+        </p>
+      )}
+
+      {/* Reinitiate Sales Order for Closed Won */}
+      {deal.stage === 'Closed Won' && (
+        <div className="pt-2 mt-2 border-t border-dashed border-gray-200 dark:border-zinc-700">
           <button
-            onClick={(e) => { e.stopPropagation(); navigate('/deals/edit/' + deal.id); }}
-            className="p-1 rounded-lg flex-shrink-0 transition-colors text-gray-400 hover:text-brand-600 hover:bg-brand-50 dark:text-zinc-500 dark:hover:text-brand-400 dark:hover:bg-brand-900/20"
+            onClick={(e) => { e.stopPropagation(); navigate('/deals/view/' + deal.id + '?action=closed-won'); }}
+            className="w-full flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-lg text-[11px] font-medium transition-all bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-900/30 dark:text-emerald-400 dark:hover:bg-emerald-900/50"
           >
-            <Edit2 className="w-3 h-3" />
+            <FileText className="w-3 h-3" />
+            Reinitiate Sales Order
           </button>
         </div>
+      )}
+    </div>
+  );
 
-        {/* Company Name */}
-        {deal.accountName && (
-          <p className="text-[11px] flex items-center gap-1 mb-1 text-gray-500 dark:text-zinc-400">
-            <Briefcase className="w-3 h-3 flex-shrink-0" />
-            <span className="truncate">{deal.accountName}</span>
-          </p>
-        )}
-
-        {/* Company SPOC */}
-        {deal.contactName && (
-          <p className="text-[11px] flex items-center gap-1 mb-1 text-gray-500 dark:text-zinc-400">
-            <UserIcon className="w-3 h-3 flex-shrink-0" />
-            <span className="truncate">{deal.contactName}</span>
-          </p>
-        )}
-
-        {/* Pricing (hidden for New stage) */}
-        {deal.value && deal.stage !== 'New' ? (
-          <p className="text-xs font-semibold mb-1 text-emerald-600 dark:text-emerald-400">
-            {formatINR(deal.value)}
-          </p>
-        ) : null}
-
-        {/* Order Type */}
-        {deal.typeOfOrder && (
-          <Badge
-            size="sm"
-            variant={deal.typeOfOrder === 'New' ? 'blue' : deal.typeOfOrder === 'Rental' ? 'purple' : 'amber'}
-            className="mb-1"
-          >
-            <Tag className="w-3 h-3 flex-shrink-0" />
-            {deal.typeOfOrder}
-          </Badge>
-        )}
-
-        {/* Assignee */}
-        {deal.ownerName && (
-          <p className="text-[11px] flex items-center gap-1 text-gray-400 dark:text-zinc-500">
-            <UserIcon className="w-3 h-3 flex-shrink-0" />
-            <span className="truncate">{deal.ownerName}</span>
-          </p>
-        )}
-
-        {/* Reinitiate Sales Order for Closed Won */}
-        {deal.stage === 'Closed Won' && (
-          <div className="pt-2 mt-2 border-t border-dashed border-gray-200 dark:border-zinc-700">
-            <button
-              onClick={(e) => { e.stopPropagation(); navigate('/deals/view/' + deal.id + '?action=closed-won'); }}
-              className="w-full flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-lg text-[11px] font-medium transition-all bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-900/30 dark:text-emerald-400 dark:hover:bg-emerald-900/50"
-            >
-              <FileText className="w-3 h-3" />
-              Reinitiate Sales Order
-            </button>
-          </div>
-        )}
-      </div>
-    );
-  };
-
-  const renderPipelineView = () => {
-    if (isPipelineLoading) {
-      return (
-        <div className="flex flex-col items-center justify-center py-20">
-          <Loader2 className="w-8 h-8 text-brand-600 animate-spin" />
-          <p className="mt-3 text-sm text-gray-500 dark:text-zinc-400">
-            Loading kanban board...
-          </p>
-        </div>
-      );
-    }
-
-    // Group pipeline deals by stage
-    const groupedDeals: Record<string, Deal[]> = {};
-    DEAL_STAGES.forEach(s => { groupedDeals[s] = []; });
-    pipelineDeals.forEach(deal => {
-      if (groupedDeals[deal.stage]) {
-        groupedDeals[deal.stage].push(deal);
-      }
-    });
-
-    // Apply search filter to pipeline
-    const filterDeal = (deal: Deal): boolean => {
-      if (searchTerm) {
-        const q = searchTerm.toLowerCase();
-        if (!(deal.accountName || '').toLowerCase().includes(q)) return false;
-      }
-      return true;
-    };
-
-    return (
-      <div className="overflow-x-auto">
-        {/* All 6 stages as kanban columns */}
-        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4 min-w-[1100px]">
-          {DEAL_STAGES.map(stage => {
-            const stageDeals = (groupedDeals[stage] || []).filter(filterDeal);
-            const c = STAGE_COLORS[stage] || STAGE_COLORS['New'];
-            const isOver = dragOverStage === stage;
-            const isTerminal = stage === 'Closed Won' || stage === 'Closed Lost';
-            return (
-              <Card
-                key={stage}
-                padding="none"
-                className={cx(
-                  'p-3 min-h-[200px] transition-all',
-                  isOver && 'ring-2 ring-brand-500 ring-inset',
-                  isTerminal && (stage === 'Closed Won'
-                    ? 'border-emerald-200 dark:border-emerald-900/50'
-                    : 'border-red-200 dark:border-red-900/50')
-                )}
-                onDragOver={e => { e.preventDefault(); setDragOverStage(stage); }}
-                onDragLeave={() => setDragOverStage(null)}
-                onDrop={e => {
-                  e.preventDefault();
-                  setDragOverStage(null);
-                  setDraggedDealId(null);
-                  const dealId = e.dataTransfer.getData('text/plain');
-                  if (!dealId) return;
-                  const deal = pipelineDeals.find(d => d.id === dealId);
-                  if (deal && deal.stage !== stage) {
-                    handleMoveStage(deal, stage as DealStage);
-                  }
-                }}
-              >
-                {/* Column header */}
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-2">
-                    {isTerminal ? (
-                      stage === 'Closed Won'
-                        ? <CheckCircle className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                        : <XCircle className="w-4 h-4 text-red-600 dark:text-red-400" />
-                    ) : (
-                      <div className={cx('w-2 h-2 rounded-full', c.text.replace('text-', 'bg-'), `dark:${c.darkText.replace('text-', 'bg-')}`)} />
-                    )}
-                    <h3 className="text-sm font-semibold text-gray-900 dark:text-white">{stage}</h3>
-                  </div>
-                  <Badge variant="gray" size="sm">{stageDeals.length}</Badge>
-                </div>
-
-                {/* Cards */}
-                <div className="space-y-2">
-                  {stageDeals.length === 0 ? (
-                    <p className="text-xs text-center py-6 text-gray-300 dark:text-zinc-600">
-                      {isOver ? 'Drop here' : 'No deals'}
-                    </p>
-                  ) : (
-                    stageDeals.map(deal => renderPipelineCard(deal))
-                  )}
-                </div>
-              </Card>
-            );
-          })}
-        </div>
-      </div>
-    );
-  };
+  const renderPipelineView = () => (
+    <KanbanBoard<Deal>
+      columns={KANBAN_COLUMNS}
+      columnStates={kanban.columnStates}
+      counts={kanban.counts}
+      renderCard={renderKanbanCard}
+      onLoadMore={kanban.loadMore}
+      onMoveAcross={(itemId, fromCol, toCol, targetIndex) => kanban.moveAcross(itemId, fromCol, toCol, targetIndex)}
+      onReorder={kanban.reorderColumn}
+    />
+  );
 
   // ---------------------------------------------------------------------------
   // Main render

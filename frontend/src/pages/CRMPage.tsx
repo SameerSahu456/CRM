@@ -13,6 +13,8 @@ import { leadsApi, formatINR, LEAD_LIST_FIELDS, LEAD_KANBAN_FIELDS } from '@/ser
 import { exportToCsv } from '@/utils/exportCsv';
 import { Lead, LeadStage, PaginatedResponse } from '@/types';
 import { BulkImportModal } from '@/components/common/BulkImportModal';
+import { KanbanBoard, type KanbanColumnConfig, wasRecentlyDragging } from '@/components/common/KanbanBoard';
+import { useKanban } from '@/hooks/useKanban';
 import { Card, Button, Select, Modal, Badge, DataTable, DataTableColumn } from '@/components/ui';
 import { inputStyles } from '@/components/ui';
 import { cx } from '@/utils/cx';
@@ -22,6 +24,8 @@ import { cx } from '@/utils/cx';
 // ---------------------------------------------------------------------------
 
 const PAGE_SIZE = 10;
+
+const LEAD_STAGES: LeadStage[] = ['New', 'Proposal', 'Cold', 'Negotiation', 'Closed Won', 'Closed Lost'];
 
 const STAGE_BADGE_VARIANT: Record<LeadStage, 'cyan' | 'purple' | 'blue' | 'amber' | 'red' | 'emerald'> = {
   New: 'cyan',
@@ -46,6 +50,17 @@ const PRIORITY_BADGE_VARIANT: Record<string, 'red' | 'amber' | 'green'> = {
   Medium: 'amber',
   Low: 'green',
 };
+
+const KANBAN_COLUMNS: KanbanColumnConfig[] = LEAD_STAGES.map(stage => ({
+  id: stage,
+  label: stage,
+  dotColor: STAGE_DOT_COLORS[stage],
+  icon: stage === 'Closed Won'
+    ? <CheckCircle className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+    : stage === 'Closed Lost'
+      ? <XCircle className="w-4 h-4 text-red-600 dark:text-red-400" />
+      : undefined,
+}));
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -73,9 +88,6 @@ export const CRMPage: React.FC = () => {
   const routerNavigate = useNavigate();
   const location = useLocation();
 
-  // Stage definitions (hardcoded to guarantee all stages always render)
-  const LEAD_STAGES: LeadStage[] = ['New', 'Proposal', 'Cold', 'Negotiation', 'Closed Won', 'Closed Lost'];
-  // Other dropdown data from DB
   const PRIORITIES = getValues('priorities');
   const SOURCES = getOptions('lead-sources');
 
@@ -97,29 +109,102 @@ export const CRMPage: React.FC = () => {
   const [filterPriority, setFilterPriority] = useState('');
   const [filterSource, setFilterSource] = useState('');
 
-  // Pipeline data (all leads grouped by stage)
-  const [pipelineLeads, setPipelineLeads] = useState<Record<string, Lead[]>>({});
-  const [isPipelineLoading, setIsPipelineLoading] = useState(true);
-  const pipelineLoadedRef = useRef(false);
-
-  // Drag-and-drop state
-  const [draggedLeadId, setDraggedLeadId] = useState<string | null>(null);
-  const [dragOverStage, setDragOverStage] = useState<string | null>(null);
-
   // UI state
   const [isLoading, setIsLoading] = useState(true);
   const tableLoadedRef = useRef(false);
   const [tableError, setTableError] = useState('');
 
-  // Lead summary counts
-  const [leadSummary, setLeadSummary] = useState({ total: 0, new: 0, proposal: 0, cold: 0, negotiation: 0, closedLost: 0, closedWon: 0 });
-
   // Summarise modal
   const [showSummariseModal, setShowSummariseModal] = useState(false);
   const [summariseLead, setSummariseLead] = useState<Lead | null>(null);
 
+  // Kanban search (debounced ref for API calls)
+  const kanbanSearchRef = useRef(searchTerm);
+  const kanbanFilterPriorityRef = useRef(filterPriority);
+  const kanbanFilterSourceRef = useRef(filterSource);
+
+  // Keep refs in sync
+  useEffect(() => {
+    kanbanSearchRef.current = searchTerm;
+    kanbanFilterPriorityRef.current = filterPriority;
+    kanbanFilterSourceRef.current = filterSource;
+  }, [searchTerm, filterPriority, filterSource]);
+
   // ---------------------------------------------------------------------------
-  // Data fetching
+  // Kanban hook
+  // ---------------------------------------------------------------------------
+
+  const kanban = useKanban<Lead>({
+    stages: LEAD_STAGES as string[],
+    fetchPage: useCallback(async (stage: string, page: number, limit: number) => {
+      const params: Record<string, string> = {
+        status: stage,
+        page: String(page),
+        limit: String(limit),
+        fields: LEAD_KANBAN_FIELDS,
+      };
+      if (kanbanSearchRef.current) params.search = kanbanSearchRef.current;
+      if (kanbanFilterPriorityRef.current) params.priority = kanbanFilterPriorityRef.current;
+      if (kanbanFilterSourceRef.current) params.source = kanbanFilterSourceRef.current;
+
+      const res = await leadsApi.kanban(params);
+      const data = res?.data ?? res;
+      return {
+        data: data.data || [],
+        pagination: data.pagination || { page, limit, total: 0, hasNext: false },
+      };
+    }, []),
+    fetchCounts: useCallback(async () => {
+      const res = await leadsApi.statusCounts();
+      return res?.data ?? res ?? {};
+    }, []),
+    onStageChange: useCallback(async (itemId: string, newStage: string) => {
+      // Intercept Closed Won
+      if (newStage === 'Closed Won') {
+        routerNavigate('/leads/view/' + itemId + '?action=closed-won');
+        return;
+      }
+      await leadsApi.updateStatus(itemId, newStage);
+    }, [routerNavigate]),
+    onReorder: useCallback(async (stage: string, orderedIds: string[]) => {
+      await leadsApi.reorder(stage, orderedIds);
+    }, []),
+  });
+
+  // Initialize kanban on mount
+  const kanbanInitRef = useRef(false);
+  useEffect(() => {
+    if (viewMode === 'pipeline' && !kanbanInitRef.current) {
+      kanbanInitRef.current = true;
+      kanban.initializeBoard();
+    }
+  }, [viewMode]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Refresh kanban when filters change
+  const prevFiltersRef = useRef({ search: '', priority: '', source: '' });
+  useEffect(() => {
+    if (viewMode !== 'pipeline') return;
+    const prev = prevFiltersRef.current;
+    if (prev.search !== searchTerm || prev.priority !== filterPriority || prev.source !== filterSource) {
+      prevFiltersRef.current = { search: searchTerm, priority: filterPriority, source: filterSource };
+      // Debounce reset
+      const timer = setTimeout(() => {
+        kanban.resetAndReload();
+      }, 300);
+      return () => clearTimeout(timer);
+    }
+  }, [searchTerm, filterPriority, filterSource, viewMode]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Refresh data when navigating back to /leads
+  useEffect(() => {
+    if (location.pathname === '/leads') {
+      if (viewMode === 'table') fetchLeads();
+      else kanban.resetAndReload();
+    }
+  }, [location.pathname]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ---------------------------------------------------------------------------
+  // Table data fetching
   // ---------------------------------------------------------------------------
 
   const fetchLeads = useCallback(async () => {
@@ -149,51 +234,9 @@ export const CRMPage: React.FC = () => {
     }
   }, [page, filterStage, filterPriority, filterSource, searchTerm]);
 
-  const fetchPipelineLeads = useCallback(async () => {
-    if (!pipelineLoadedRef.current) setIsPipelineLoading(true);
-    try {
-      const response: PaginatedResponse<Lead> = await leadsApi.list({ limit: '100', fields: LEAD_KANBAN_FIELDS });
-      const grouped: Record<string, Lead[]> = {};
-      response.data.forEach(lead => {
-        if (!grouped[lead.stage]) grouped[lead.stage] = [];
-        grouped[lead.stage].push(lead);
-      });
-      setPipelineLeads(grouped);
-      pipelineLoadedRef.current = true;
-    } catch {
-      setPipelineLeads({});
-    } finally {
-      setIsPipelineLoading(false);
-    }
-  }, []);
-
-  // Fetch based on view mode (always fetch pipeline leads for summary cards)
   useEffect(() => {
-    fetchPipelineLeads();
-    if (viewMode === 'table') {
-      fetchLeads();
-    }
-  }, [viewMode, fetchLeads, fetchPipelineLeads]);
-
-  // Refresh data when navigating back to /leads
-  useEffect(() => {
-    if (location.pathname === '/leads') {
-      fetchLeads();
-      fetchPipelineLeads();
-    }
-  }, [location.pathname]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Compute lead summary from pipeline data
-  useEffect(() => {
-    const newLeads = (pipelineLeads['New'] || []).length;
-    const proposal = (pipelineLeads['Proposal'] || []).length;
-    const cold = (pipelineLeads['Cold'] || []).length;
-    const negotiation = (pipelineLeads['Negotiation'] || []).length;
-    const closedLost = (pipelineLeads['Closed Lost'] || []).length;
-    const closedWon = (pipelineLeads['Closed Won'] || []).length;
-    const total = newLeads + proposal + cold + negotiation + closedLost + closedWon;
-    setLeadSummary({ total, new: newLeads, proposal, cold, negotiation, closedLost, closedWon });
-  }, [pipelineLeads]);
+    if (viewMode === 'table') fetchLeads();
+  }, [viewMode, fetchLeads]);
 
   // Reset to page 1 when filters change
   useEffect(() => {
@@ -201,48 +244,7 @@ export const CRMPage: React.FC = () => {
   }, [filterStage, filterPriority, filterSource, searchTerm]);
 
   // ---------------------------------------------------------------------------
-  // Pipeline card stage change
-  // ---------------------------------------------------------------------------
-
-  const handlePipelineMoveStage = async (lead: Lead, newStage: LeadStage) => {
-    if (lead.stage === newStage) return;
-    // Intercept Closed Won to navigate to view page with action param
-    if (newStage === 'Closed Won' && lead.stage !== 'Closed Won') {
-      routerNavigate('/leads/view/' + lead.id + '?action=closed-won');
-      return;
-    }
-
-    // Optimistic update
-    const oldStage = lead.stage;
-    setPipelineLeads(prev => {
-      const updated = { ...prev };
-      updated[oldStage] = (updated[oldStage] || []).filter(l => l.id !== lead.id);
-      updated[newStage] = [...(updated[newStage] || []), { ...lead, stage: newStage }];
-      return updated;
-    });
-    setLeads(prev =>
-      prev.map(l => l.id === lead.id ? { ...l, stage: newStage } : l)
-    );
-
-    try {
-      await leadsApi.update(lead.id, { stage: newStage });
-      fetchPipelineLeads();
-    } catch {
-      // Revert on failure
-      setPipelineLeads(prev => {
-        const reverted = { ...prev };
-        reverted[newStage] = (reverted[newStage] || []).filter(l => l.id !== lead.id);
-        reverted[oldStage] = [...(reverted[oldStage] || []), lead];
-        return reverted;
-      });
-      setLeads(prev =>
-        prev.map(l => l.id === lead.id ? { ...l, stage: oldStage } : l)
-      );
-    }
-  };
-
-  // ---------------------------------------------------------------------------
-  // Refresh helper
+  // Misc helpers
   // ---------------------------------------------------------------------------
 
   const clearFilters = () => {
@@ -253,6 +255,17 @@ export const CRMPage: React.FC = () => {
   };
 
   const hasActiveFilters = filterStage || filterPriority || filterSource || searchTerm;
+
+  // Compute summary counts from kanban counts
+  const leadSummary = {
+    total: Object.values(kanban.counts).reduce((a, b) => a + b, 0),
+    new: kanban.counts['New'] || 0,
+    proposal: kanban.counts['Proposal'] || 0,
+    cold: kanban.counts['Cold'] || 0,
+    negotiation: kanban.counts['Negotiation'] || 0,
+    closedLost: kanban.counts['Closed Lost'] || 0,
+    closedWon: kanban.counts['Closed Won'] || 0,
+  };
 
   // ---------------------------------------------------------------------------
   // Render: Toolbar
@@ -510,139 +523,53 @@ export const CRMPage: React.FC = () => {
   // Render: Pipeline / Kanban View
   // ---------------------------------------------------------------------------
 
-  const renderPipelineCard = (lead: Lead) => {
-    return (
-      <div
-        key={lead.id}
-        draggable
-        onDragStart={e => { e.dataTransfer.setData('text/plain', lead.id); setDraggedLeadId(lead.id); }}
-        onDragEnd={() => { setDraggedLeadId(null); setDragOverStage(null); }}
-        onClick={() => routerNavigate('/leads/view/' + lead.id)}
-        className={cx(
-          'p-3 rounded-xl border cursor-grab active:cursor-grabbing transition-all hover:shadow-md',
-          draggedLeadId === lead.id && 'opacity-40 scale-95',
-          'bg-white border-gray-200 hover:border-gray-300 dark:bg-dark-100 dark:border-zinc-700 dark:hover:border-zinc-600'
-        )}
-      >
-        <div className="flex items-start justify-between gap-2 mb-2">
-          <h4 className="text-sm font-semibold truncate text-gray-900 dark:text-white">
-            {lead.companyName}
-          </h4>
-          <Badge variant={PRIORITY_BADGE_VARIANT[lead.priority] || 'green'} size="sm">{lead.priority}</Badge>
-        </div>
-
-        {lead.contactPerson && (
-          <p className="text-xs mb-1.5 flex items-center gap-1 text-gray-500 dark:text-zinc-400">
-            <UserIcon className="w-3 h-3" />
-            {lead.contactPerson}
-          </p>
-        )}
-
-        {lead.estimatedValue && lead.stage !== 'New' ? (
-          <p className="text-xs font-semibold mb-1.5 text-emerald-600 dark:text-emerald-400">
-            {formatINR(lead.estimatedValue)}
-          </p>
-        ) : null}
-
-        {lead.nextFollowUp && (
-          <p className="text-[11px] flex items-center gap-1 text-gray-400 dark:text-zinc-500">
-            <Clock className="w-3 h-3" />
-            {formatDate(lead.nextFollowUp)}
-          </p>
-        )}
+  const renderKanbanCard = (lead: Lead) => (
+    <div
+      onClick={() => {
+        if (!wasRecentlyDragging()) routerNavigate('/leads/view/' + lead.id);
+      }}
+      className="p-3 rounded-xl border cursor-grab active:cursor-grabbing transition-all hover:shadow-md bg-white border-gray-200 hover:border-gray-300 dark:bg-dark-100 dark:border-zinc-700 dark:hover:border-zinc-600"
+    >
+      <div className="flex items-start justify-between gap-2 mb-2">
+        <h4 className="text-sm font-semibold truncate text-gray-900 dark:text-white">
+          {lead.companyName}
+        </h4>
+        <Badge variant={PRIORITY_BADGE_VARIANT[lead.priority] || 'green'} size="sm">{lead.priority}</Badge>
       </div>
-    );
-  };
 
-  const renderPipelineView = () => {
-    if (isPipelineLoading) {
-      return (
-        <div className="flex flex-col items-center justify-center py-20">
-          <Loader2 className="w-8 h-8 text-brand-600 animate-spin" />
-          <p className="mt-3 text-sm text-gray-500 dark:text-zinc-400">
-            Loading kanban board...
-          </p>
-        </div>
-      );
-    }
+      {lead.contactPerson && (
+        <p className="text-xs mb-1.5 flex items-center gap-1 text-gray-500 dark:text-zinc-400">
+          <UserIcon className="w-3 h-3" />
+          {lead.contactPerson}
+        </p>
+      )}
 
-    // Filter pipeline leads by search/filters
-    const filterLead = (lead: Lead): boolean => {
-      if (searchTerm && !lead.companyName.toLowerCase().includes(searchTerm.toLowerCase())) return false;
-      if (filterPriority && lead.priority !== filterPriority) return false;
-      if (filterSource && lead.source !== filterSource) return false;
-      return true;
-    };
+      {lead.estimatedValue && lead.stage !== 'New' ? (
+        <p className="text-xs font-semibold mb-1.5 text-emerald-600 dark:text-emerald-400">
+          {formatINR(lead.estimatedValue)}
+        </p>
+      ) : null}
 
-    return (
-      <div className="space-y-4">
-        {/* All stages as Kanban columns */}
-        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
-          {LEAD_STAGES.map(stage => {
-            const stageLeads = (pipelineLeads[stage] || []).filter(filterLead);
-            const isOver = dragOverStage === stage;
-            const isWon = stage === 'Closed Won';
-            const isLost = stage === 'Closed Lost';
-            const isTerminal = isWon || isLost;
-            return (
-              <Card
-                key={stage}
-                padding="none"
-                className={cx('p-3 min-h-[200px] transition-all', isOver && 'ring-2 ring-brand-500 ring-inset')}
-                onDragOver={e => { e.preventDefault(); setDragOverStage(stage); }}
-                onDragLeave={() => setDragOverStage(null)}
-                onDrop={e => {
-                  e.preventDefault();
-                  setDragOverStage(null);
-                  setDraggedLeadId(null);
-                  const leadId = e.dataTransfer.getData('text/plain');
-                  if (!leadId) return;
-                  const allLeads = Object.values(pipelineLeads).flat();
-                  const lead = allLeads.find(l => l.id === leadId);
-                  if (lead && lead.stage !== stage) {
-                    handlePipelineMoveStage(lead, stage as LeadStage);
-                  }
-                }}
-              >
-                {/* Column header */}
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-2">
-                    {isTerminal ? (
-                      isWon
-                        ? <CheckCircle className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                        : <XCircle className="w-4 h-4 text-red-600 dark:text-red-400" />
-                    ) : (
-                      <div className={cx('w-2 h-2 rounded-full', STAGE_DOT_COLORS[stage])} />
-                    )}
-                    <h3 className="text-sm font-semibold text-gray-900 dark:text-white">{stage}</h3>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {isWon && stageLeads.length > 0 && (
-                      <span className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
-                        {formatINR(stageLeads.reduce((sum, l) => sum + (l.estimatedValue || 0), 0))}
-                      </span>
-                    )}
-                    <Badge variant="gray" size="sm">{stageLeads.length}</Badge>
-                  </div>
-                </div>
+      {lead.nextFollowUp && (
+        <p className="text-[11px] flex items-center gap-1 text-gray-400 dark:text-zinc-500">
+          <Clock className="w-3 h-3" />
+          {formatDate(lead.nextFollowUp)}
+        </p>
+      )}
+    </div>
+  );
 
-                {/* Cards */}
-                <div className="space-y-2">
-                  {stageLeads.length === 0 ? (
-                    <p className="text-xs text-center py-6 text-gray-300 dark:text-zinc-600">
-                      {isOver ? 'Drop here' : 'No leads'}
-                    </p>
-                  ) : (
-                    stageLeads.map(lead => renderPipelineCard(lead))
-                  )}
-                </div>
-              </Card>
-            );
-          })}
-        </div>
-      </div>
-    );
-  };
+  const renderPipelineView = () => (
+    <KanbanBoard<Lead>
+      columns={KANBAN_COLUMNS}
+      columnStates={kanban.columnStates}
+      counts={kanban.counts}
+      renderCard={renderKanbanCard}
+      onLoadMore={kanban.loadMore}
+      onMoveAcross={(itemId, fromCol, toCol, targetIndex) => kanban.moveAcross(itemId, fromCol, toCol, targetIndex)}
+      onReorder={kanban.reorderColumn}
+    />
+  );
 
   // ---------------------------------------------------------------------------
   // Main render

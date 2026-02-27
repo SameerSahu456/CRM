@@ -145,6 +145,21 @@ export const leadsApi = {
     return fetchApi<any>(`/leads/${qs}`);
   },
   stats: () => fetchApi<any>('/leads/stats'),
+  kanban: (params: Record<string, string>) => {
+    const qs = '?' + new URLSearchParams(params).toString();
+    return fetchApi<any>(`/leads/kanban${qs}`);
+  },
+  statusCounts: () => fetchApi<any>('/leads/status-counts'),
+  updateStatus: (id: string, status: string) =>
+    fetchApi<any>(`/leads/${id}/status`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status }),
+    }),
+  reorder: (status: string, orderedIds: string[]) =>
+    fetchApi<any>('/leads/reorder', {
+      method: 'PATCH',
+      body: JSON.stringify({ status, orderedIds }),
+    }),
   getById: (id: string) => fetchApi<any>(`/leads/${id}`),
   create: (data: any) =>
     fetchApi<any>('/leads/', { method: 'POST', body: JSON.stringify(data) }),
@@ -261,10 +276,21 @@ export const dealsApi = {
     return fetchApi<any>(`/deals/${qs}`);
   },
   stats: () => fetchApi<any>('/deals/stats'),
-  pipeline: (params?: Record<string, string>) => {
-    const qs = params ? '?' + new URLSearchParams(params).toString() : '';
-    return fetchApi<any>(`/deals/pipeline${qs}`);
+  kanban: (params: Record<string, string>) => {
+    const qs = '?' + new URLSearchParams(params).toString();
+    return fetchApi<any>(`/deals/kanban${qs}`);
   },
+  stageCounts: () => fetchApi<any>('/deals/stage-counts'),
+  updateStage: (id: string, stage: string) =>
+    fetchApi<any>(`/deals/${id}/stage`, {
+      method: 'PATCH',
+      body: JSON.stringify({ stage }),
+    }),
+  reorder: (stage: string, orderedIds: string[]) =>
+    fetchApi<any>('/deals/reorder', {
+      method: 'PATCH',
+      body: JSON.stringify({ stage, orderedIds }),
+    }),
   getById: (id: string) => fetchApi<any>(`/deals/${id}`),
   create: (data: any) =>
     fetchApi<any>('/deals/', { method: 'POST', body: JSON.stringify(data) }),

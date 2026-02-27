@@ -11,9 +11,9 @@ Following SOLID principles:
 
 from __future__ import annotations
 
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Body, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -79,6 +79,73 @@ async def list_leads(
         total=result["pagination"]["total"],
         message="Leads retrieved successfully",
     )
+
+
+@router.get("/kanban")
+async def lead_kanban(
+    status: str = Query(..., description="Lead stage (e.g. New, Proposal)"),
+    page: int = Query(1, ge=1, description="Page number"),
+    limit: int = Query(5, ge=1, le=50, description="Items per page"),
+    search: Optional[str] = Query(None, description="Search by company name"),
+    assigned_to: Optional[str] = Query(None, alias="assignedTo", description="Filter by assigned user"),
+    priority: Optional[str] = Query(None, description="Filter by priority"),
+    source: Optional[str] = Query(None, description="Filter by source"),
+    fields: Optional[str] = Query(None, description="Comma-separated camelCase field names"),
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> Dict[str, Any]:
+    """Get paginated leads for a single kanban column (status)."""
+    service = LeadService(db)
+    result = await service.get_kanban_page(
+        user=user,
+        stage=status,
+        page=page,
+        limit=limit,
+        search=search,
+        assigned_to=assigned_to,
+        priority=priority,
+        source=source,
+    )
+    if fields:
+        result["data"] = filter_fields(result["data"], fields)
+    return success_response(data=result, message="Kanban data retrieved successfully")
+
+
+@router.get("/status-counts")
+async def lead_status_counts(
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> Dict[str, Any]:
+    """Get lead counts per stage for kanban badges."""
+    service = LeadService(db)
+    counts = await service.get_stage_counts(user=user)
+    return success_response(data=counts, message="Status counts retrieved successfully")
+
+
+@router.patch("/{lead_id}/status")
+async def update_lead_status(
+    lead_id: str,
+    status: str = Body(..., embed=True),
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> Dict[str, Any]:
+    """Update lead stage (drag across columns)."""
+    service = LeadService(db)
+    lead = await service.update_stage(lead_id=lead_id, new_stage=status, user=user)
+    return success_response(data=lead, message="Lead status updated successfully")
+
+
+@router.patch("/reorder")
+async def reorder_leads(
+    status: str = Body(...),
+    ordered_ids: List[str] = Body(..., alias="orderedIds"),
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> Dict[str, Any]:
+    """Reorder leads within a kanban column."""
+    service = LeadService(db)
+    await service.reorder_leads(stage=status, ordered_ids=ordered_ids, user=user)
+    return success_response(data={"success": True}, message="Leads reordered successfully")
 
 
 @router.get("/stats")
