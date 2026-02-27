@@ -11,9 +11,9 @@ Following SOLID principles:
 
 from __future__ import annotations
 
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Body, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -78,6 +78,69 @@ async def list_deals(
     )
 
 
+@router.get("/kanban")
+async def deal_kanban(
+    stage: str = Query(..., description="Deal stage (e.g. New, Proposal)"),
+    page: int = Query(1, ge=1, description="Page number"),
+    limit: int = Query(5, ge=1, le=50, description="Items per page"),
+    search: Optional[str] = Query(None, description="Search by deal title"),
+    owner: Optional[str] = Query(None, description="Filter by owner"),
+    fields: Optional[str] = Query(None, description="Comma-separated camelCase field names"),
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> Dict[str, Any]:
+    """Get paginated deals for a single kanban column (stage)."""
+    service = DealService(db)
+    result = await service.get_kanban_page(
+        user=user,
+        stage=stage,
+        page=page,
+        limit=limit,
+        search=search,
+        owner=owner,
+    )
+    if fields:
+        result["data"] = filter_fields(result["data"], fields)
+    return success_response(data=result, message="Kanban data retrieved successfully")
+
+
+@router.get("/stage-counts")
+async def deal_stage_counts(
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> Dict[str, Any]:
+    """Get deal counts per stage for kanban badges."""
+    service = DealService(db)
+    counts = await service.get_stage_counts(user=user)
+    return success_response(data=counts, message="Stage counts retrieved successfully")
+
+
+@router.patch("/{deal_id}/stage")
+async def update_deal_stage(
+    deal_id: str,
+    stage: str = Body(..., embed=True),
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> Dict[str, Any]:
+    """Update deal stage (drag across columns)."""
+    service = DealService(db)
+    deal = await service.update_stage(deal_id=deal_id, new_stage=stage, user=user)
+    return success_response(data=deal, message="Deal stage updated successfully")
+
+
+@router.patch("/reorder")
+async def reorder_deals(
+    stage: str = Body(...),
+    ordered_ids: List[str] = Body(..., alias="orderedIds"),
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> Dict[str, Any]:
+    """Reorder deals within a kanban column."""
+    service = DealService(db)
+    await service.reorder_deals(stage=stage, ordered_ids=ordered_ids, user=user)
+    return success_response(data={"success": True}, message="Deals reordered successfully")
+
+
 @router.get("/stats")
 async def deal_stats(
     user: User = Depends(get_current_user),
@@ -98,35 +161,6 @@ async def deal_stats(
 
     return success_response(data=stats, message="Pipeline stats retrieved successfully")
 
-
-@router.get("/pipeline")
-async def deal_pipeline(
-    fields: Optional[str] = Query(None, description="Comma-separated camelCase field names to return"),
-    user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-) -> Dict[str, Any]:
-    """
-    Get pipeline data.
-
-    Returns standardized response:
-    {
-        "code": 200,
-        "data": [...],
-        "message": "Success",
-        "pagination": {...}
-    }
-    """
-    service = DealService(db)
-    result = await service.get_pipeline_data(user=user)
-
-    data = filter_fields(result["data"], fields) if fields else result["data"]
-    return paginated_response(
-        data=data,
-        page=1,
-        limit=1000,
-        total=result["pagination"]["total"],
-        message="Pipeline data retrieved successfully",
-    )
 
 
 @router.get("/{deal_id}")

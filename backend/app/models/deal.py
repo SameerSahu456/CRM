@@ -98,3 +98,6 @@ class Deal(TimestampMixin, Base):
     billing_country: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     billing_city: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     billing_zip_code: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
+
+    # Kanban ordering
+    kanban_order: Mapped[int] = mapped_column(Integer, server_default="0", nullable=False)

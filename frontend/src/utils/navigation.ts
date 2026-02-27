@@ -30,7 +30,13 @@ export function pathToNavigationItem(path: string): NavigationItem {
   const normalized = path === '/' ? '/dashboard' : path.replace(/\/$/, '');
   // Handle legacy /crm path → redirect to leads
   if (normalized === '/crm') return 'leads';
-  return PATH_TO_NAV[normalized] || 'dashboard';
+  // Exact match first
+  if (PATH_TO_NAV[normalized]) return PATH_TO_NAV[normalized];
+  // Sub-path match: /leads/create → 'leads', /deals/edit/123 → 'deals'
+  for (const [navPath, navItem] of Object.entries(PATH_TO_NAV)) {
+    if (normalized.startsWith(navPath + '/')) return navItem;
+  }
+  return 'dashboard';
 }
 
 export const pageTitles: Record<NavigationItem, string> = {

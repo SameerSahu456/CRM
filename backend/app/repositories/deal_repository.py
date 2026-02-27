@@ -1,6 +1,8 @@
 from __future__ import annotations
 
-from sqlalchemy import func, select
+from typing import Sequence
+
+from sqlalchemy import case, func, select, update as sql_update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.account import Account
@@ -191,3 +193,97 @@ class DealRepository(BaseRepository[Deal]):
         )
         result = await self.db.execute(stmt)
         return list(result.scalars().all())
+
+    # ------------------------------------------------------------------
+    # Kanban helpers
+    # ------------------------------------------------------------------
+
+    async def get_kanban_page(
+        self,
+        stage: str,
+        page: int = 1,
+        limit: int = 5,
+        filters: list | None = None,
+    ) -> dict:
+        """Return a page of deals for a single stage, ordered by kanban_order."""
+        base_filters = [Deal.stage == stage]
+        if filters:
+            base_filters.extend(filters)
+
+        # Data query – join account/contact/owner for display names
+        stmt = (
+            select(
+                Deal,
+                Account.name.label("account_name"),
+                Contact.first_name.label("contact_name"),
+                User.name.label("owner_name"),
+            )
+            .outerjoin(Account, Deal.account_id == Account.id)
+            .outerjoin(Contact, Deal.contact_id == Contact.id)
+            .outerjoin(User, Deal.owner_id == User.id)
+        )
+        for f in base_filters:
+            stmt = stmt.where(f)
+        stmt = stmt.order_by(Deal.kanban_order.asc(), Deal.created_at.desc())
+        offset = (page - 1) * limit
+        stmt = stmt.offset(offset).limit(limit)
+
+        result = await self.db.execute(stmt)
+        rows = result.all()
+        items = [
+            {
+                "deal": row[0],
+                "account_name": row[1],
+                "contact_name": row[2],
+                "owner_name": row[3],
+            }
+            for row in rows
+        ]
+
+        # Count query
+        count_stmt = select(func.count()).select_from(Deal)
+        for f in base_filters:
+            count_stmt = count_stmt.where(f)
+        total = (await self.db.execute(count_stmt)).scalar_one()
+
+        has_next = (page * limit) < total
+
+        return {
+            "data": items,
+            "pagination": {
+                "page": page,
+                "limit": limit,
+                "total": total,
+                "hasNext": has_next,
+            },
+        }
+
+    async def get_stage_counts(self, filters: list | None = None) -> dict:
+        """Return {stage: count} for all stages in one query."""
+        stmt = (
+            select(Deal.stage, func.count())
+            .select_from(Deal)
+            .group_by(Deal.stage)
+        )
+        if filters:
+            for f in filters:
+                stmt = stmt.where(f)
+
+        result = await self.db.execute(stmt)
+        rows = result.all()
+        return {row[0]: row[1] for row in rows}
+
+    async def bulk_update_order(self, stage: str, ordered_ids: Sequence[str]) -> None:
+        """Set kanban_order for a list of deal IDs (position = index)."""
+        if not ordered_ids:
+            return
+        case_stmt = case(
+            {deal_id: idx for idx, deal_id in enumerate(ordered_ids)},
+            value=Deal.id,
+        )
+        await self.db.execute(
+            sql_update(Deal)
+            .where(Deal.id.in_(ordered_ids), Deal.stage == stage)
+            .values(kanban_order=case_stmt)
+        )
+        await self.db.flush()

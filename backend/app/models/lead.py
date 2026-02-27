@@ -3,7 +3,7 @@ from typing import Optional
 from datetime import date
 from decimal import Decimal
 
-from sqlalchemy import Date, Numeric, String, Text, text
+from sqlalchemy import Date, Integer, Numeric, String, Text, text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -109,3 +109,6 @@ class Lead(TimestampMixin, Base):
 
     # Lead Image
     lead_image: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    # Kanban ordering
+    kanban_order: Mapped[int] = mapped_column(Integer, server_default="0", nullable=False)

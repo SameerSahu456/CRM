@@ -7,7 +7,7 @@ Following SOLID principles with clear separation of concerns.
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Sequence
 
 from sqlalchemy import delete, text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -122,35 +122,6 @@ class DealService:
             filters.append(Deal.owner_id.in_(scoped_ids))
 
         return await self.deal_repo.get_pipeline_stats(filters=filters or None)
-
-    async def get_pipeline_data(self, user: User) -> Dict[str, Any]:
-        """
-        Get pipeline data with access control.
-
-        Args:
-            user: Current authenticated user
-
-        Returns:
-            Pipeline data with all deals
-        """
-        filters = []
-        scoped_ids = await get_scoped_user_ids(user, self.db)
-        if scoped_ids is not None:
-            filters.append(Deal.owner_id.in_(scoped_ids))
-
-        # Get all deals for pipeline view (using large limit)
-        result = await self.deal_repo.get_with_names(page=1, limit=1000, filters=filters or None)
-
-        # Transform data
-        data = []
-        for item in result["data"]:
-            out = DealOut.model_validate(item["deal"]).model_dump(by_alias=True)
-            out["accountName"] = item["account_name"]
-            out["contactName"] = item["contact_name"]
-            out["ownerName"] = item["owner_name"]
-            data.append(out)
-
-        return {"data": data, "pagination": result["pagination"]}
 
     async def get_deal_by_id(self, deal_id: str, user: User) -> Dict[str, Any]:
         """
@@ -465,6 +436,74 @@ class DealService:
         """
         logs = await self.deal_repo.get_audit_logs(deal_id)
         return [ActivityLogOut.model_validate(log).model_dump(by_alias=True) for log in logs]
+
+    # ------------------------------------------------------------------
+    # Kanban helpers
+    # ------------------------------------------------------------------
+
+    async def get_kanban_page(
+        self,
+        user: User,
+        stage: str,
+        page: int = 1,
+        limit: int = 5,
+        search: Optional[str] = None,
+        owner: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        filters = []
+        scoped_ids = await get_scoped_user_ids(user, self.db)
+        if scoped_ids is not None:
+            filters.append(Deal.owner_id.in_(scoped_ids))
+        if owner:
+            filters.append(Deal.owner_id == owner)
+        if search:
+            filters.append(Deal.title.ilike(f"%{search}%"))
+
+        result = await self.deal_repo.get_kanban_page(
+            stage=stage, page=page, limit=limit, filters=filters or None
+        )
+
+        data = []
+        for item in result["data"]:
+            out = DealOut.model_validate(item["deal"]).model_dump(by_alias=True)
+            out["accountName"] = item["account_name"]
+            out["contactName"] = item["contact_name"]
+            out["ownerName"] = item["owner_name"]
+            data.append(out)
+
+        return {
+            "entity": "DEAL",
+            "stage": stage,
+            "data": data,
+            "pagination": result["pagination"],
+        }
+
+    async def get_stage_counts(self, user: User) -> Dict[str, int]:
+        filters = []
+        scoped_ids = await get_scoped_user_ids(user, self.db)
+        if scoped_ids is not None:
+            filters.append(Deal.owner_id.in_(scoped_ids))
+        return await self.deal_repo.get_stage_counts(filters=filters or None)
+
+    async def update_stage(self, deal_id: str, new_stage: str, user: User) -> Dict[str, Any]:
+        old = await self.deal_repo.get_by_id(deal_id)
+        if not old:
+            raise NotFoundException("Deal not found")
+        await enforce_scope(old, "owner_id", user, self.db, resource_name="deal")
+
+        old_data = model_to_dict(old)
+        deal = await self.deal_repo.update(deal_id, {"stage": new_stage})
+        changes = compute_changes(old_data, model_to_dict(deal))
+        await log_activity(self.db, user, "update", "deal", str(deal.id), deal.title, changes)
+
+        if new_stage == "Negotiation":
+            await self._notify_product_managers_stage_change(deal, "Deal")
+
+        return DealOut.model_validate(deal).model_dump(by_alias=True)
+
+    async def reorder_deals(self, stage: str, ordered_ids: Sequence[str], user: User) -> bool:
+        await self.deal_repo.bulk_update_order(stage, ordered_ids)
+        return True
 
     async def _notify_product_managers_stage_change(self, entity: Any, entity_type: str) -> None:
         """

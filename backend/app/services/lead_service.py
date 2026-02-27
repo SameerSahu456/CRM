@@ -7,7 +7,7 @@ Following SOLID principles with clear separation of concerns.
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Sequence
 
 from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -409,6 +409,78 @@ class LeadService:
         result = await self.db.execute(stmt)
         logs = list(result.scalars().all())
         return [ActivityLogOut.model_validate(log).model_dump(by_alias=True) for log in logs]
+
+    # ------------------------------------------------------------------
+    # Kanban helpers
+    # ------------------------------------------------------------------
+
+    async def get_kanban_page(
+        self,
+        user: User,
+        stage: str,
+        page: int = 1,
+        limit: int = 5,
+        search: Optional[str] = None,
+        assigned_to: Optional[str] = None,
+        priority: Optional[str] = None,
+        source: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        filters = []
+        scoped_ids = await get_scoped_user_ids(user, self.db)
+        if scoped_ids is not None:
+            filters.append(Lead.assigned_to.in_(scoped_ids))
+        if assigned_to:
+            filters.append(Lead.assigned_to == assigned_to)
+        if priority:
+            filters.append(Lead.priority == priority)
+        if source:
+            filters.append(Lead.source == source)
+        if search:
+            filters.append(Lead.company_name.ilike(f"%{search}%"))
+
+        result = await self.lead_repo.get_kanban_page(
+            stage=stage, page=page, limit=limit, filters=filters or None
+        )
+
+        data = []
+        for item in result["data"]:
+            out = LeadOut.model_validate(item["lead"]).model_dump(by_alias=True)
+            out["assignedToName"] = item["assigned_to_name"]
+            data.append(out)
+
+        return {
+            "entity": "LEAD",
+            "status": stage,
+            "data": data,
+            "pagination": result["pagination"],
+        }
+
+    async def get_stage_counts(self, user: User) -> Dict[str, int]:
+        filters = []
+        scoped_ids = await get_scoped_user_ids(user, self.db)
+        if scoped_ids is not None:
+            filters.append(Lead.assigned_to.in_(scoped_ids))
+        return await self.lead_repo.get_stage_counts(filters=filters or None)
+
+    async def update_stage(self, lead_id: str, new_stage: str, user: User) -> Dict[str, Any]:
+        old = await self.lead_repo.get_by_id(lead_id)
+        if not old:
+            raise NotFoundException("Lead not found")
+        await enforce_scope(old, "assigned_to", user, self.db, resource_name="lead")
+
+        old_data = model_to_dict(old)
+        lead = await self.lead_repo.update(lead_id, {"stage": new_stage})
+        changes = compute_changes(old_data, model_to_dict(lead))
+        await log_activity(self.db, user, "update", "lead", str(lead.id), lead.company_name, changes)
+
+        if new_stage == "Negotiation":
+            await self._notify_product_managers_stage_change(lead, "Lead")
+
+        return LeadOut.model_validate(lead).model_dump(by_alias=True)
+
+    async def reorder_leads(self, stage: str, ordered_ids: Sequence[str], user: User) -> bool:
+        await self.lead_repo.bulk_update_order(stage, ordered_ids)
+        return True
 
     async def _notify_product_managers_stage_change(self, entity: Any, entity_type: str) -> None:
         """

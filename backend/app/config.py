@@ -17,7 +17,7 @@ class Settings(BaseSettings):
 
     # File storage config
     UPLOAD_DIR: str = "uploads"
-    BASE_URL: str = "http://localhost:3002"
+    BASE_URL: str = "http://localhost:8080"
 
     @property
     def CORS_ORIGINS(self) -> List[str]:
