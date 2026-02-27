@@ -2,7 +2,7 @@ import React from 'react';
 import {
   LayoutDashboard, ShoppingCart, Target, Shield as ShieldIcon,
   Settings, LogOut, X, Building2, Contact, Handshake,
-  BarChart3, Package, CheckSquare, CalendarDays, Video, History
+  BarChart3, Package, CheckSquare, CalendarDays, Video
 } from 'lucide-react';
 import { NavigationItem } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
@@ -37,7 +37,6 @@ const navItems: NavItem[] = [
   { id: 'calendar', label: 'Calendar', icon: <CalendarDays className="w-4 h-4" />, section: 'Tools', view: 'both' },
   { id: 'meetings', label: 'Meetings', icon: <Video className="w-4 h-4" />, section: 'Tools', view: 'both' },
   { id: 'reports', label: 'Reports', icon: <BarChart3 className="w-4 h-4" />, section: 'Tools', view: 'both' },
-  { id: 'activity-log', label: 'Activity Log', icon: <History className="w-4 h-4" />, section: 'Tools', view: 'both' },
   { id: 'admin', label: 'Admin', icon: <ShieldIcon className="w-4 h-4" />, section: 'System', roles: ['admin', 'superadmin'], view: 'both' },
   { id: 'settings', label: 'Settings', icon: <Settings className="w-4 h-4" />, section: 'System', view: 'both' },
 ];
