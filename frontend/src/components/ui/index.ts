@@ -47,3 +47,6 @@ export type { DropdownItem, DropdownMenuProps } from './dropdown-menu';
 
 export { EmptyState } from './empty-state';
 export type { EmptyStateProps } from './empty-state';
+
+export { SearchableSelect } from './SearchableSelect';
+export type { SearchableSelectProps, SelectOption } from './SearchableSelect';

@@ -15,7 +15,7 @@ import { useDropdowns } from '@/contexts/DropdownsContext';
 import { dealsApi, accountsApi, contactsApi, salesApi, quotesApi, productsApi, partnersApi, formatINR } from '@/services/api';
 import { RichTextEditor } from '@/components/common/RichTextEditor';
 import { Deal, DealStage, Account, Contact, Product, Partner, Quote, ActivityLog } from '@/types';
-import { Card, Button, Input, Select, Modal, Badge, Alert, Textarea } from '@/components/ui';
+import { Card, Button, Input, Select, Modal, Badge, Alert, Textarea, inputStyles } from '@/components/ui';
 import { cx } from '@/utils/cx';
 
 // ---------------------------------------------------------------------------
@@ -1049,22 +1049,12 @@ export const DealFormPage: React.FC = () => {
 
           {/* Row: Type + Lead Source */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Select
-              label="Type"
-              name="tag"
-              value={dealFormData.tag}
-              onChange={handleDealFormChange}
-            >
+            <Select label="Type" name="tag" value={dealFormData.tag} onChange={handleDealFormChange}>
               <option value="">Select type...</option>
               <option value="Channel">Channel</option>
               <option value="End Customer">End Customer</option>
             </Select>
-            <Select
-              label="Lead Source"
-              name="leadSource"
-              value={dealFormData.leadSource}
-              onChange={handleDealFormChange}
-            >
+            <Select label="Lead Source" name="leadSource" value={dealFormData.leadSource} onChange={handleDealFormChange}>
               <option value="">Select source...</option>
               <option value="Website">Website</option>
               <option value="Referral">Referral</option>
@@ -1076,12 +1066,7 @@ export const DealFormPage: React.FC = () => {
           </div>
 
           {/* Order Type */}
-          <Select
-            label="Order Type"
-            name="typeOfOrder"
-            value={dealFormData.typeOfOrder}
-            onChange={handleDealFormChange}
-          >
+          <Select label="Order Type" name="typeOfOrder" value={dealFormData.typeOfOrder} onChange={handleDealFormChange}>
             <option value="">Select order type...</option>
             <option value="New">New</option>
             <option value="Refurb">Refurb</option>
@@ -1216,6 +1201,21 @@ export const DealFormPage: React.FC = () => {
                 icon={<Edit2 className="w-4 h-4" />}
                 title="Edit"
               />
+              {/* Send Email */}
+              <Button
+                variant="ghost"
+                size="xs"
+                onClick={() => {
+                  if (deal.email) {
+                    window.open(`mailto:${deal.email}?subject=${encodeURIComponent(deal.title || 'Regarding Deal')}`, '_blank');
+                  }
+                }}
+                icon={<Send className="w-4 h-4" />}
+                className="hover:text-brand-600 dark:hover:text-brand-400"
+                title={deal.email ? `Send Email to ${deal.email}` : 'No email available'}
+              >
+                Send Email
+              </Button>
               {/* Reinitiate Sales Order for Closed Won */}
               {deal.stage === 'Closed Won' && (
                 <Button
@@ -1601,10 +1601,10 @@ export const DealFormPage: React.FC = () => {
           </h4>
           <div className="p-3 rounded-xl border space-y-2 border-gray-100 bg-gray-50 dark:border-zinc-800 dark:bg-zinc-900/50">
             <div className="flex gap-2">
-              <Select
+              <select
                 value={activityType}
                 onChange={e => setActivityType(e.target.value)}
-                className="!text-xs !px-2 !py-1.5 !w-auto"
+                className={cx(inputStyles, 'text-xs px-2 py-1.5 w-auto')}
               >
                 <option value="note">Note</option>
                 <option value="call">Call</option>
@@ -1612,7 +1612,7 @@ export const DealFormPage: React.FC = () => {
                 <option value="meeting">Meeting</option>
                 <option value="follow_up">Follow-up</option>
                 <option value="task">Task</option>
-              </Select>
+              </select>
               <Input
                 type="text"
                 placeholder="Activity title..."

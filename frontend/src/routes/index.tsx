@@ -11,6 +11,9 @@ const LoginPage = lazyWithRetry(() => import('@/pages/LoginPage'));
 // Sub-route pages (lazy-loaded)
 const LeadFormPage = lazyWithRetry(() => import('@/pages/LeadFormPage').then(m => ({ default: m.LeadFormPage })));
 const DealFormPage = lazyWithRetry(() => import('@/pages/DealFormPage').then(m => ({ default: m.DealFormPage })));
+const AccountFormPage = lazyWithRetry(() => import('@/pages/AccountFormPage').then(m => ({ default: m.AccountFormPage })));
+const ContactFormPage = lazyWithRetry(() => import('@/pages/ContactFormPage').then(m => ({ default: m.ContactFormPage })));
+const SalesEntryFormPage = lazyWithRetry(() => import('@/pages/SalesEntryFormPage').then(m => ({ default: m.SalesEntryFormPage })));
 
 const LoginGuard = () => {
   const { isAuthenticated, isLoading } = useAuth();
@@ -56,7 +59,12 @@ export const router = createBrowserRouter([
       { index: true, element: <Navigate to="/dashboard" replace /> },
       // Page rendering is handled by RootLayout keep-alive — routes just validate URLs
       { path: 'dashboard', element: null },
-      { path: 'sales-entry', element: null },
+      { path: 'sales-entry', children: [
+        { index: true, element: null },
+        { path: 'create', element: <Suspense fallback={null}><SalesEntryFormPage /></Suspense> },
+        { path: 'edit/:id', element: <Suspense fallback={null}><SalesEntryFormPage /></Suspense> },
+        { path: 'view/:id', element: <Suspense fallback={null}><SalesEntryFormPage /></Suspense> },
+      ]},
       { path: 'leads', children: [
         { index: true, element: null },
         { path: 'create', element: <Suspense fallback={null}><LeadFormPage /></Suspense> },
@@ -64,8 +72,18 @@ export const router = createBrowserRouter([
         { path: 'view/:id', element: <Suspense fallback={null}><LeadFormPage /></Suspense> },
       ]},
       { path: 'crm', element: <Navigate to="/leads" replace /> },
-      { path: 'accounts', element: null },
-      { path: 'contacts', element: null },
+      { path: 'accounts', children: [
+        { index: true, element: null },
+        { path: 'create', element: <Suspense fallback={null}><AccountFormPage /></Suspense> },
+        { path: 'edit/:id', element: <Suspense fallback={null}><AccountFormPage /></Suspense> },
+        { path: 'view/:id', element: <Suspense fallback={null}><AccountFormPage /></Suspense> },
+      ]},
+      { path: 'contacts', children: [
+        { index: true, element: null },
+        { path: 'create', element: <Suspense fallback={null}><ContactFormPage /></Suspense> },
+        { path: 'edit/:id', element: <Suspense fallback={null}><ContactFormPage /></Suspense> },
+        { path: 'view/:id', element: <Suspense fallback={null}><ContactFormPage /></Suspense> },
+      ]},
       { path: 'deals', children: [
         { index: true, element: null },
         { path: 'create', element: <Suspense fallback={null}><DealFormPage /></Suspense> },

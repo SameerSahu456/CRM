@@ -1441,6 +1441,7 @@ export const LeadFormPage: React.FC = () => {
               size="xs"
               onClick={() => navigate('/leads/edit/' + lead.id)}
               icon={<Edit2 className="w-4 h-4" />}
+              title="Edit"
             />
             {deleteConfirmId === lead.id ? (
               <div className="flex items-center gap-1">
@@ -1454,6 +1455,7 @@ export const LeadFormPage: React.FC = () => {
                 onClick={() => setDeleteConfirmId(lead.id)}
                 icon={<Trash2 className="w-4 h-4" />}
                 className="hover:text-red-600 dark:hover:text-red-400"
+                title="Delete"
               />
             )}
           </div>
@@ -2334,14 +2336,12 @@ export const LeadFormPage: React.FC = () => {
     <div className="p-3 sm:p-4 lg:p-6 animate-fade-in-up">
       {/* Header with back button */}
       <div className="flex items-center gap-3 mb-6">
-        <Button
-          variant="ghost"
-          size="sm"
+        <button
           onClick={handleBack}
-          icon={<ArrowLeft className="w-4 h-4" />}
+          className="p-2 rounded-xl transition-all duration-200 hover:bg-gray-100 dark:hover:bg-zinc-800 cursor-pointer"
         >
-          Back to Leads
-        </Button>
+          <ArrowLeft className="w-5 h-5 text-gray-500 dark:text-zinc-400" />
+        </button>
         <h1 className="text-xl font-bold font-display text-gray-900 dark:text-white">
           {mode === 'create' ? 'New Lead' : mode === 'edit' ? 'Edit Lead' : detailLead?.companyName || 'Lead Details'}
         </h1>

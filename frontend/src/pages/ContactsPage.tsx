@@ -1,19 +1,16 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
-  Plus, Search, X, Edit2, Trash2,
-  AlertCircle, CheckCircle, Building2,
-  Phone, Mail, Briefcase, User as UserIcon,
-  Smartphone, Users,
+  Plus, Search, X,
+  Building2, Users,
   Download, Upload
 } from 'lucide-react';
-import { useAuth } from '@/contexts/AuthContext';
 import { useNavigation } from '@/contexts/NavigationContext';
-import { useDropdowns } from '@/contexts/DropdownsContext';
 import { contactsApi, accountsApi, CONTACT_LIST_FIELDS } from '@/services/api';
 import { exportToCsv } from '@/utils/exportCsv';
 import { Contact, Account, PaginatedResponse } from '@/types';
 import { BulkImportModal } from '@/components/common/BulkImportModal';
-import { Card, Button, Input, Select, Modal, Alert, Textarea, DataTable, DataTableColumn } from '@/components/ui';
+import { Card, Button, Input, Select, DataTable, DataTableColumn } from '@/components/ui';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -23,67 +20,12 @@ const PAGE_SIZE = 10;
 
 
 // ---------------------------------------------------------------------------
-// Form types
-// ---------------------------------------------------------------------------
-
-interface ContactFormData {
-  firstName: string;
-  lastName: string;
-  email: string;
-  phone: string;
-  mobile: string;
-  jobTitle: string;
-  department: string;
-  accountId: string;
-  type: string;
-  preferredContact: string;
-  notes: string;
-  status: string;
-}
-
-const EMPTY_CONTACT_FORM: ContactFormData = {
-  firstName: '',
-  lastName: '',
-  email: '',
-  phone: '',
-  mobile: '',
-  jobTitle: '',
-  department: '',
-  accountId: '',
-  type: '',
-  preferredContact: '',
-  notes: '',
-  status: 'Active',
-};
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-function formatDate(dateStr?: string): string {
-  if (!dateStr) return '-';
-  try {
-    return new Intl.DateTimeFormat('en-IN', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric',
-    }).format(new Date(dateStr));
-  } catch {
-    return dateStr;
-  }
-}
-
-// ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 
 export const ContactsPage: React.FC = () => {
-  const { user } = useAuth();
   const { setActiveTab: navigate, consumeNavParams } = useNavigation();
-  const { getValues } = useDropdowns();
-
-  // Dropdown data from DB
-  const CONTACT_TYPES = getValues('contact-types');
+  const routerNavigate = useNavigate();
 
   // Data state
   const [showBulkImport, setShowBulkImport] = useState(false);
@@ -102,18 +44,7 @@ export const ContactsPage: React.FC = () => {
 
   // UI state
   const [isLoading, setIsLoading] = useState(true);
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [tableError, setTableError] = useState('');
-
-  // Create/Edit modal
-  const [showFormModal, setShowFormModal] = useState(false);
-  const [editingContactId, setEditingContactId] = useState<string | null>(null);
-  const [formData, setFormData] = useState<ContactFormData>({ ...EMPTY_CONTACT_FORM });
-  const [formError, setFormError] = useState('');
-
-  // Detail modal
-  const [showDetailModal, setShowDetailModal] = useState(false);
-  const [detailContact, setDetailContact] = useState<Contact | null>(null);
 
   // Delete confirmation
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
@@ -186,100 +117,14 @@ export const ContactsPage: React.FC = () => {
   }, [filterType, filterAccountId, searchTerm]);
 
   // ---------------------------------------------------------------------------
-  // Form handlers
+  // Navigation handlers (replaced modals)
   // ---------------------------------------------------------------------------
 
-  const openCreateModal = () => {
-    setFormData({ ...EMPTY_CONTACT_FORM });
-    setEditingContactId(null);
-    setFormError('');
-    setShowFormModal(true);
-  };
+  const openCreateModal = () => routerNavigate('/contacts/create');
 
-  const openEditModal = async (contact: Contact) => {
-    // Fetch full record to avoid partial-field overwrites
-    let full: any = contact;
-    try {
-      const res = await contactsApi.getById(contact.id);
-      full = res?.data ?? res;
-    } catch { /* fall back to list data */ }
-    setFormData({
-      firstName: full.firstName || '',
-      lastName: full.lastName || '',
-      email: full.email || '',
-      phone: full.phone || '',
-      mobile: full.mobile || '',
-      jobTitle: full.jobTitle || '',
-      department: full.department || '',
-      accountId: full.accountId || '',
-      type: full.type || '',
-      preferredContact: full.preferredContact || '',
-      notes: full.notes || '',
-      status: (full as any).status || 'Active',
-    });
-    setEditingContactId(contact.id);
-    setFormError('');
-    setShowFormModal(true);
-  };
+  const openEditModal = (contact: Contact) => routerNavigate('/contacts/edit/' + contact.id);
 
-  const closeFormModal = () => {
-    setShowFormModal(false);
-    setEditingContactId(null);
-    setFormError('');
-  };
-
-  const handleFormChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
-  ) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value,
-    }));
-  };
-
-  const handleFormSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setFormError('');
-
-    if (!formData.firstName.trim()) {
-      setFormError('First name is required');
-      return;
-    }
-    if (!formData.accountId) {
-      setFormError('Account is required. Every contact must be linked to an account.');
-      return;
-    }
-
-    setIsSubmitting(true);
-    try {
-      if (editingContactId) {
-        await contactsApi.update(editingContactId, formData);
-      } else {
-        await contactsApi.create({ ...formData, ownerId: user?.id });
-      }
-      closeFormModal();
-      fetchContacts();
-    } catch (err: any) {
-      setFormError(err.message || 'Failed to save contact');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  // ---------------------------------------------------------------------------
-  // Detail handlers
-  // ---------------------------------------------------------------------------
-
-  const openDetailModal = (contact: Contact) => {
-    setDetailContact(contact);
-    setShowDetailModal(true);
-  };
-
-  const closeDetailModal = () => {
-    setShowDetailModal(false);
-    setDetailContact(null);
-  };
+  const openDetailModal = (contact: Contact) => routerNavigate('/contacts/view/' + contact.id);
 
   // ---------------------------------------------------------------------------
   // Delete handler
@@ -450,7 +295,7 @@ export const ContactsPage: React.FC = () => {
       error={tableError}
       emptyIcon={<Users className="w-8 h-8" />}
       emptyMessage={hasActiveFilters ? 'No contacts match filters' : 'No contacts yet'}
-      onRowClick={(contact) => openDetailModal(contact)}
+      onRowClick={(contact) => routerNavigate('/contacts/view/' + contact.id)}
       showIndex
       page={page}
       pageSize={PAGE_SIZE}
@@ -463,289 +308,6 @@ export const ContactsPage: React.FC = () => {
       }}
     />
   );
-
-  // ---------------------------------------------------------------------------
-  // Render: Detail Modal
-  // ---------------------------------------------------------------------------
-
-  const renderDetailModal = () => {
-    if (!detailContact) return null;
-    const contact = detailContact;
-
-    return (
-      <Modal
-        open={showDetailModal}
-        onClose={closeDetailModal}
-        title={`${contact.firstName} ${contact.lastName || ''}`}
-        size="lg"
-      >
-        {/* Action buttons row */}
-        <div className="flex items-center gap-2 mb-6 -mt-2">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => { closeDetailModal(); openEditModal(contact); }}
-            icon={<Edit2 className="w-4 h-4" />}
-            title="Edit"
-          >
-            Edit
-          </Button>
-          {deleteConfirmId === contact.id ? (
-            <div className="flex items-center gap-1">
-              <Button
-                variant="danger"
-                size="xs"
-                onClick={() => { handleDelete(contact.id); closeDetailModal(); }}
-              >
-                Confirm
-              </Button>
-              <Button
-                variant="ghost"
-                size="xs"
-                onClick={() => setDeleteConfirmId(null)}
-              >
-                Cancel
-              </Button>
-            </div>
-          ) : (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setDeleteConfirmId(contact.id)}
-              icon={<Trash2 className="w-4 h-4" />}
-              title="Delete"
-              className="text-gray-400 hover:text-red-600 dark:text-zinc-400 dark:hover:text-red-400"
-            >
-              Delete
-            </Button>
-          )}
-        </div>
-
-        {/* Contact info grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <InfoRow label="First Name" value={contact.firstName} icon={<UserIcon className="w-3.5 h-3.5" />} />
-          <InfoRow label="Last Name" value={contact.lastName} icon={<UserIcon className="w-3.5 h-3.5" />} />
-          <InfoRow label="Email" value={contact.email} icon={<Mail className="w-3.5 h-3.5" />} />
-          <InfoRow label="Phone" value={contact.phone} icon={<Phone className="w-3.5 h-3.5" />} />
-          <InfoRow label="Mobile" value={contact.mobile} icon={<Smartphone className="w-3.5 h-3.5" />} />
-          <InfoRow label="Designation" value={contact.designation || contact.jobTitle} icon={<Briefcase className="w-3.5 h-3.5" />} />
-          <InfoRow label="Department" value={contact.department} icon={<Building2 className="w-3.5 h-3.5" />} />
-          {contact.accountName && contact.accountId ? (
-            <div
-              onClick={() => { setShowDetailModal(false); setDetailContact(null); navigate('accounts', { accountId: contact.accountId! }); }}
-              className="flex items-start gap-2 p-2.5 rounded-lg cursor-pointer transition-colors bg-gray-50 hover:bg-gray-100 dark:bg-dark-100 dark:hover:bg-zinc-800"
-            >
-              <span className="mt-0.5 flex-shrink-0 text-gray-400 dark:text-zinc-500">
-                <Building2 className="w-3.5 h-3.5" />
-              </span>
-              <div className="min-w-0">
-                <p className="text-[11px] font-medium text-gray-400 dark:text-zinc-500">Account</p>
-                <p className="text-sm font-medium hover:underline text-brand-600 dark:text-brand-400">
-                  {contact.accountName}
-                </p>
-              </div>
-            </div>
-          ) : (
-            <InfoRow label="Account" value={contact.accountName} icon={<Building2 className="w-3.5 h-3.5" />} />
-          )}
-        </div>
-
-        {/* Notes */}
-        {contact.notes && (
-          <div className="mt-6">
-            <h4 className="text-xs font-semibold uppercase tracking-wider mb-2 text-gray-400 dark:text-zinc-500">
-              Notes
-            </h4>
-            <p className="text-sm whitespace-pre-wrap text-gray-700 dark:text-zinc-300">
-              {contact.notes}
-            </p>
-          </div>
-        )}
-
-        {/* Timestamps */}
-        <div className="flex items-center gap-4 text-[11px] pt-4 mt-6 border-t border-gray-100 text-gray-400 dark:border-zinc-800 dark:text-zinc-600">
-          {contact.createdAt && <span>Created: {formatDate(contact.createdAt)}</span>}
-          {contact.updatedAt && <span>Updated: {formatDate(contact.updatedAt)}</span>}
-        </div>
-      </Modal>
-    );
-  };
-
-  // ---------------------------------------------------------------------------
-  // Render: Create/Edit Modal
-  // ---------------------------------------------------------------------------
-
-  const renderFormModal = () => {
-    return (
-      <Modal
-        open={showFormModal}
-        onClose={closeFormModal}
-        title={editingContactId ? 'Edit Contact' : 'New Contact'}
-        size="lg"
-        footer={
-          <>
-            <Button
-              variant="ghost"
-              onClick={closeFormModal}
-              disabled={isSubmitting}
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="primary"
-              onClick={handleFormSubmit as any}
-              loading={isSubmitting}
-              icon={!isSubmitting ? <CheckCircle className="w-4 h-4" /> : undefined}
-              shine
-            >
-              {isSubmitting ? 'Saving...' : editingContactId ? 'Update Contact' : 'Create Contact'}
-            </Button>
-          </>
-        }
-      >
-        <form onSubmit={handleFormSubmit} id="contact-form">
-          <div className="space-y-5">
-            {formError && (
-              <Alert variant="error" icon={<AlertCircle className="w-4 h-4" />}>
-                {formError}
-              </Alert>
-            )}
-
-            {/* Row 1: First Name + Last Name */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <Input
-                label="First Name *"
-                id="firstName"
-                name="firstName"
-                type="text"
-                placeholder="First name"
-                value={formData.firstName}
-                onChange={handleFormChange}
-                icon={<UserIcon className="w-4 h-4" />}
-                required
-              />
-              <Input
-                label="Last Name *"
-                id="lastName"
-                name="lastName"
-                type="text"
-                placeholder="Last name"
-                value={formData.lastName}
-                onChange={handleFormChange}
-                icon={<UserIcon className="w-4 h-4" />}
-                required
-              />
-            </div>
-
-            {/* Row 2: Email (full width) */}
-            <Input
-              label="Email *"
-              id="email"
-              name="email"
-              type="email"
-              placeholder="contact@company.com"
-              value={formData.email}
-              onChange={handleFormChange}
-              icon={<Mail className="w-4 h-4" />}
-              required
-            />
-
-            {/* Row 3: Phone + Mobile */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <Input
-                label="Phone"
-                id="phone"
-                name="phone"
-                type="text"
-                placeholder="+91 XXXXX XXXXX"
-                value={formData.phone}
-                onChange={handleFormChange}
-                icon={<Phone className="w-4 h-4" />}
-              />
-              <Input
-                label="Mobile"
-                id="mobile"
-                name="mobile"
-                type="text"
-                placeholder="+91 XXXXX XXXXX"
-                value={formData.mobile}
-                onChange={handleFormChange}
-                icon={<Smartphone className="w-4 h-4" />}
-              />
-            </div>
-
-            {/* Row 4: Designation + Department */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <Input
-                label="Designation"
-                id="jobTitle"
-                name="jobTitle"
-                type="text"
-                placeholder="e.g. Sales Manager"
-                value={formData.jobTitle}
-                onChange={handleFormChange}
-                icon={<Briefcase className="w-4 h-4" />}
-              />
-              <Input
-                label="Department"
-                id="department"
-                name="department"
-                type="text"
-                placeholder="e.g. Engineering"
-                value={formData.department}
-                onChange={handleFormChange}
-                icon={<Building2 className="w-4 h-4" />}
-              />
-            </div>
-
-            {/* Row 5: Account */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <Select
-                label="Account *"
-                id="accountId"
-                name="accountId"
-                value={formData.accountId}
-                onChange={handleFormChange}
-                required
-              >
-                <option value="">Select Account</option>
-                {accountsList.map(a => (
-                  <option key={a.id} value={a.id}>{a.name}</option>
-                ))}
-              </Select>
-            </div>
-
-            {/* Row 6: Preferred Contact */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <Select
-                label="Preferred Contact"
-                id="preferredContact"
-                name="preferredContact"
-                value={formData.preferredContact}
-                onChange={handleFormChange}
-              >
-                <option value="">Select...</option>
-                <option value="Email">Email</option>
-                <option value="Phone">Phone</option>
-                <option value="Mobile">Mobile</option>
-              </Select>
-            </div>
-
-            {/* Row 7: Notes */}
-            <Textarea
-              label="Notes"
-              id="notes"
-              name="notes"
-              rows={3}
-              placeholder="Additional notes..."
-              value={formData.notes}
-              onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
-            />
-          </div>
-        </form>
-      </Modal>
-    );
-  };
 
   // ---------------------------------------------------------------------------
   // Main render
@@ -771,10 +333,6 @@ export const ContactsPage: React.FC = () => {
       {/* Table */}
       {renderTable()}
 
-      {/* Modals */}
-      {renderFormModal()}
-      {renderDetailModal()}
-
       <BulkImportModal
         isOpen={showBulkImport}
         onClose={() => setShowBulkImport(false)}
@@ -785,27 +343,3 @@ export const ContactsPage: React.FC = () => {
     </div>
   );
 };
-
-// ---------------------------------------------------------------------------
-// Sub-components
-// ---------------------------------------------------------------------------
-
-const InfoRow: React.FC<{
-  label: string;
-  value?: string;
-  icon?: React.ReactNode;
-}> = ({ label, value, icon }) => (
-  <div className="flex items-start gap-2 p-2.5 rounded-lg bg-gray-50 dark:bg-dark-100">
-    {icon && (
-      <span className="mt-0.5 flex-shrink-0 text-gray-400 dark:text-zinc-500">
-        {icon}
-      </span>
-    )}
-    <div className="min-w-0">
-      <p className="text-[11px] font-medium text-gray-400 dark:text-zinc-500">{label}</p>
-      <p className="text-sm text-gray-900 dark:text-white">
-        {value || '-'}
-      </p>
-    </div>
-  </div>
-);

@@ -35,6 +35,171 @@ html.dark body {
   color: #e2e8f0;
 }
 
+/* Keep native form controls readable in dark mode, even when custom classes are missing */
+html.dark input:not([type='checkbox']):not([type='radio']):not(.glass-input),
+html.dark select,
+html.dark textarea {
+  background-color: transparent !important;
+  border-color: #455468;
+  color: #e2e8f0;
+}
+
+html.dark input:not([type='checkbox']):not([type='radio']):not(.glass-input)::placeholder,
+html.dark textarea::placeholder {
+  color: #8b9bb0;
+}
+
+/* ===== react-multi-select-component custom theme ===== */
+
+.rmsc-custom .dropdown-container {
+  border-radius: 0.75rem !important;
+  border-color: #e2e8f0 !important;
+  min-height: 42px;
+  font-size: 0.875rem;
+  background: #ffffff !important;
+}
+
+.rmsc-custom .dropdown-container:focus-within {
+  border-color: #6366f1 !important;
+  box-shadow: 0 0 0 1px #6366f1 !important;
+}
+
+.rmsc-custom .dropdown-heading {
+  min-height: 42px;
+  padding: 0 12px !important;
+  cursor: pointer;
+}
+
+.rmsc-custom .dropdown-heading .dropdown-heading-value {
+  font-size: 0.875rem;
+  color: #0f172a;
+}
+
+.rmsc-custom .dropdown-heading .gray {
+  color: #94a3b8;
+}
+
+.rmsc-custom .dropdown-content {
+  z-index: 50;
+  border-radius: 0.75rem !important;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.08);
+  overflow: hidden;
+  margin-top: 4px;
+}
+
+.rmsc-custom .dropdown-content .panel-content {
+  border-radius: 0.75rem;
+}
+
+/* Search input inside dropdown */
+.rmsc-custom .search input,
+.rmsc-custom .search input:focus {
+  font-size: 0.875rem !important;
+  border-radius: 0.5rem !important;
+  background: #f8fafc !important;
+  border-color: #e2e8f0 !important;
+  padding: 8px 12px !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+/* Options */
+.rmsc-custom .select-item {
+  font-size: 0.875rem;
+  padding: 8px 12px;
+  border-radius: 0;
+  margin: 0;
+}
+
+.rmsc-custom .select-item:hover {
+  background: #f1f5f9;
+}
+
+.rmsc-custom .select-item.selected {
+  background: transparent;
+}
+
+/* Checkbox styling */
+.rmsc-custom .select-item input[type="checkbox"] {
+  accent-color: #6366f1;
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+}
+
+/* Error state */
+.rmsc-error .dropdown-container {
+  border-color: #ef4444 !important;
+}
+
+.rmsc-error .dropdown-container:focus-within {
+  border-color: #ef4444 !important;
+  box-shadow: 0 0 0 1px #ef4444 !important;
+}
+
+/* ---- Dark mode ---- */
+
+html.dark .rmsc-custom .dropdown-container {
+  background: transparent !important;
+  border-color: #3f3f46 !important;
+}
+
+html.dark .rmsc-custom .dropdown-container:focus-within {
+  border-color: #6366f1 !important;
+  box-shadow: 0 0 0 1px #6366f1 !important;
+}
+
+html.dark .rmsc-custom .dropdown-heading .dropdown-heading-value {
+  color: #e4e4e7;
+}
+
+html.dark .rmsc-custom .dropdown-heading .gray {
+  color: #71717a;
+}
+
+html.dark .rmsc-custom .dropdown-content {
+  background: #1a1a2e;
+  border-color: #3f3f46;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.4);
+}
+
+html.dark .rmsc-custom .search input,
+html.dark .rmsc-custom .search input:focus {
+  background: rgba(255,255,255,0.05) !important;
+  border-color: #3f3f46 !important;
+  color: #e4e4e7 !important;
+}
+
+html.dark .rmsc-custom .search input::placeholder {
+  color: #71717a !important;
+}
+
+html.dark .rmsc-custom .select-item {
+  color: #e4e4e7;
+}
+
+html.dark .rmsc-custom .select-item:hover {
+  background: #27272a;
+}
+
+html.dark .rmsc-custom .select-item.selected {
+  background: transparent;
+}
+
+/* Fix browser autofill colors in dark mode */
+html.dark input:-webkit-autofill,
+html.dark input:-webkit-autofill:hover,
+html.dark input:-webkit-autofill:focus,
+html.dark textarea:-webkit-autofill,
+html.dark select:-webkit-autofill {
+  -webkit-text-fill-color: #e2e8f0;
+  -webkit-box-shadow: 0 0 0px 1000px transparent inset !important;
+  box-shadow: 0 0 0px 1000px transparent inset !important;
+  transition: background-color 9999s ease-out 0s;
+}
+
 /* ===== SELECTION ===== */
 
 ::selection {

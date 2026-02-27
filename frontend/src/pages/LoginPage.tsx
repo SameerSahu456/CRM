@@ -168,7 +168,7 @@ const LoginPage: React.FC = () => {
           animation: float-particle 6s ease-in-out infinite;
         }
         .glass-input {
-          background: rgba(15,15,25,0.7);
+          background: transparent !important;
           border: 1px solid rgba(255,255,255,0.1);
           transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
           color: #ffffff !important;
@@ -182,7 +182,7 @@ const LoginPage: React.FC = () => {
           opacity: 1;
         }
         .glass-input:focus {
-          background: rgba(20,20,35,0.8);
+          background: transparent !important;
           border-color: rgba(59,130,246,0.5);
           box-shadow: inset 0 2px 4px rgba(0,0,0,0.3), 0 0 0 3px rgba(59,130,246,0.12), 0 0 30px rgba(59,130,246,0.08);
         }
@@ -190,7 +190,7 @@ const LoginPage: React.FC = () => {
         .glass-input:-webkit-autofill:hover,
         .glass-input:-webkit-autofill:focus {
           -webkit-text-fill-color: #ffffff !important;
-          -webkit-box-shadow: 0 0 0px 1000px #0f0f19 inset !important;
+          -webkit-box-shadow: 0 0 0px 1000px transparent inset !important;
           transition: background-color 5000s ease-in-out 0s;
         }
         .btn-glow {
@@ -329,7 +329,7 @@ const LoginPage: React.FC = () => {
                   placeholder="Enter your email address"
                   required
                   icon={<Mail className="w-4 h-4" />}
-                  className="glass-input py-3.5 rounded-xl text-sm focus:outline-none"
+                  className="glass-input !bg-transparent focus:!bg-transparent py-3.5 rounded-xl text-sm focus:outline-none"
                 />
 
                 {/* Password */}
@@ -352,7 +352,7 @@ const LoginPage: React.FC = () => {
                       onChange={e => setPassword(e.target.value)}
                       placeholder="Enter your password"
                       required
-                      className="glass-input w-full pl-10 pr-11 py-3.5 rounded-xl text-white text-sm placeholder-zinc-400 focus:outline-none"
+                      className="glass-input w-full !bg-transparent focus:!bg-transparent pl-10 pr-11 py-3.5 rounded-xl text-white text-sm placeholder-zinc-400 focus:outline-none"
                     />
                     <button
                       type="button"
