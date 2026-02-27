@@ -6,7 +6,6 @@ import {
 } from 'lucide-react';
 import { NavigationItem } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
-import { useTheme } from '@/contexts/ThemeContext';
 import { useView } from '@/contexts/ViewContext';
 import { useNavigation } from '@/contexts/NavigationContext';
 import { ViewSwitcher } from '@/components/common/ViewSwitcher';
@@ -46,7 +45,6 @@ const navItems: NavItem[] = [
 export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
   const { activeTab, setActiveTab } = useNavigation();
   const { signOut, user } = useAuth();
-  const { theme } = useTheme();
   const { currentView } = useView();
 
   const sections = ['Overview', 'Pre-Sales', 'Post-Sales', 'Inventory', 'Tools', 'System'];
@@ -72,48 +70,50 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
 
       <aside className={cx(
         'fixed top-0 left-0 z-50 h-[100dvh] flex flex-col overflow-hidden sidebar-premium border-r transition-all duration-300',
-        'border-gray-200 dark:border-white/[0.06]',
         isOpen
           ? 'w-[72vw] sm:w-64 translate-x-0'
           : '-translate-x-full md:translate-x-0 md:w-16 lg:w-64'
-      )}>
+      )} style={{ borderColor: 'var(--sidebar-border)' }}>
 
         {/* Brand */}
-        <div className={cx(
-          'h-14 sm:h-16 flex-shrink-0 flex items-center justify-between px-4 sm:px-5 border-b',
-          'border-gray-200 dark:border-white/[0.06]'
-        )}>
+        <div
+          className={cx(
+            'h-14 sm:h-16 flex-shrink-0 flex items-center justify-between px-4 sm:px-5 border-b'
+          )}
+          style={{ borderColor: 'var(--sidebar-border)' }}
+        >
           <button
             onClick={() => { setActiveTab('dashboard'); onClose(); }}
             className="flex items-center cursor-pointer overflow-hidden"
           >
             <div className="comprint-logo text-[22px]">
-              <span className={cx(
-                !isOpen ? 'hidden lg:inline' : '',
-                'text-gray-900 dark:text-white'
-              )}>COMPRINT</span>
-              <span className={cx(
-                'comprint-dot',
-                !isOpen ? 'md:ml-0' : '',
-                'bg-gray-900 shadow-sm dark:bg-brand-400 dark:shadow-[0_0_10px_rgba(129,140,248,0.5)]'
-              )} />
+              <span
+                className={cx(!isOpen ? 'hidden lg:inline' : '')}
+                style={{ color: 'var(--sidebar-text)' }}
+              >COMPRINT</span>
+              <span
+                className={cx('comprint-dot', !isOpen ? 'md:ml-0' : '')}
+                style={{ backgroundColor: 'var(--sidebar-accent)' }}
+              />
             </div>
           </button>
-          <button onClick={onClose} className={cx(
-            'md:hidden p-1.5 rounded-lg transition-colors',
-            'text-gray-400 hover:text-gray-600 hover:bg-gray-100',
-            'dark:text-zinc-500 dark:hover:text-white dark:hover:bg-zinc-800'
-          )}>
+          <button
+            onClick={onClose}
+            className="md:hidden p-1.5 rounded-lg transition-colors"
+            style={{ color: 'var(--sidebar-text-muted)' }}
+          >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* View Switcher */}
-        <div className={cx(
-          'px-3 py-3 flex-shrink-0 border-b',
-          !isOpen ? 'hidden lg:block' : '',
-          'border-gray-200 dark:border-white/[0.06]'
-        )}>
+        <div
+          className={cx(
+            'px-3 py-3 flex-shrink-0 border-b',
+            !isOpen ? 'hidden lg:block' : ''
+          )}
+          style={{ borderColor: 'var(--sidebar-border)' }}
+        >
           <ViewSwitcher />
         </div>
 
@@ -125,64 +125,68 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
             return (
               <div key={section} className="mb-4">
                 <p className={cx(
-                  'px-3 mb-1 text-[10px] font-semibold uppercase tracking-wider',
-                  !isOpen ? 'hidden lg:block' : '',
-                  'text-gray-400 dark:text-zinc-500'
+                  'sidebar-section-label px-3 mb-1 text-[10px] font-semibold uppercase tracking-wider',
+                  !isOpen ? 'hidden lg:block' : ''
                 )}>{section}</p>
-                {sectionItems.map(item => (
-                  <button
-                    key={item.id}
-                    onClick={() => { setActiveTab(item.id); onClose(); }}
-                    title={item.label}
-                    className={cx(
-                      'w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium transition-all active:scale-[0.98]',
-                      !isOpen ? 'md:justify-center lg:justify-start' : '',
-                      activeTab === item.id
-                        ? cx(
-                            'bg-brand-50/70 text-brand-700 shadow-sm border border-brand-100/60 backdrop-blur-sm',
-                            'dark:bg-brand-600/15 dark:text-brand-400 dark:shadow-[0_0_20px_rgba(99,102,241,0.15)] dark:border-brand-500/25 dark:backdrop-blur-sm'
-                          )
-                        : cx(
-                            'text-gray-600 hover:text-gray-900 hover:bg-white/40 border border-transparent',
-                            'dark:text-zinc-400 dark:hover:text-zinc-200 dark:hover:bg-white/[0.04]'
-                          )
-                    )}
-                  >
-                    <span className={cx('flex-shrink-0 transition-transform', activeTab === item.id ? 'scale-110' : '')}>
-                      {item.icon}
-                    </span>
-                    <span className={!isOpen ? 'hidden lg:inline' : ''}>{item.label}</span>
-                    {activeTab === item.id && (
-                      <span className={cx(
-                        'ml-auto w-1.5 h-1.5 rounded-full',
-                        !isOpen ? 'hidden lg:block' : '',
-                        'bg-brand-600 dark:bg-brand-400 dark:shadow-[0_0_6px_rgba(129,140,248,0.6)]'
-                      )} />
-                    )}
-                  </button>
-                ))}
+                {sectionItems.map(item => {
+                  const isActive = activeTab === item.id;
+                  return (
+                    <button
+                      key={item.id}
+                      onClick={() => { setActiveTab(item.id); onClose(); }}
+                      title={item.label}
+                      className={cx(
+                        'sidebar-nav-item w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium transition-all active:scale-[0.98]',
+                        !isOpen ? 'md:justify-center lg:justify-start' : '',
+                        isActive ? 'sidebar-nav-active' : ''
+                      )}
+                    >
+                      <span className={cx('flex-shrink-0 transition-transform', isActive ? 'scale-110' : '')}>
+                        {item.icon}
+                      </span>
+                      <span className={!isOpen ? 'hidden lg:inline' : ''}>{item.label}</span>
+                      {isActive && (
+                        <span
+                          className={cx(
+                            'ml-auto w-1.5 h-1.5 rounded-full',
+                            !isOpen ? 'hidden lg:block' : ''
+                          )}
+                          style={{ backgroundColor: 'var(--sidebar-accent)' }}
+                        />
+                      )}
+                    </button>
+                  );
+                })}
               </div>
             );
           })}
         </nav>
 
         {/* User + Logout */}
-        <div className={cx(
-          'flex-shrink-0 p-3 sm:p-4 border-t safe-area-bottom',
-          'border-gray-200 dark:border-white/[0.06]'
-        )}>
+        <div
+          className="flex-shrink-0 p-3 sm:p-4 border-t safe-area-bottom"
+          style={{ borderColor: 'var(--sidebar-border)' }}
+        >
           {user && (
-            <div className={cx(
-              'flex items-center gap-3 mb-3 px-2',
-              !isOpen ? 'md:justify-center lg:justify-start' : '',
-              'text-gray-600 dark:text-zinc-400'
-            )}>
-              <div className="w-8 h-8 flex-shrink-0 rounded-full bg-gradient-to-br from-brand-100 to-brand-200 dark:from-brand-900/30 dark:to-brand-800/20 flex items-center justify-center text-brand-600 dark:text-brand-400 text-sm font-bold ring-2 ring-brand-200/50 dark:ring-brand-500/20">
+            <div
+              className={cx(
+                'flex items-center gap-3 mb-3 px-2',
+                !isOpen ? 'md:justify-center lg:justify-start' : ''
+              )}
+              style={{ color: 'var(--sidebar-text)' }}
+            >
+              <div
+                className="w-8 h-8 flex-shrink-0 rounded-full flex items-center justify-center text-sm font-bold"
+                style={{
+                  backgroundColor: 'var(--sidebar-active-bg)',
+                  color: 'var(--sidebar-active-text)',
+                }}
+              >
                 {user.name?.charAt(0)?.toUpperCase() || 'U'}
               </div>
               <div className={cx('min-w-0 flex-1', !isOpen ? 'hidden lg:block' : '')}>
-                <p className="text-sm font-medium truncate text-gray-900 dark:text-white">{user.name}</p>
-                <p className="text-xs truncate capitalize">{user.role}</p>
+                <p className="text-sm font-medium truncate" style={{ color: 'var(--sidebar-text)' }}>{user.name}</p>
+                <p className="text-xs truncate capitalize" style={{ color: 'var(--sidebar-text-muted)' }}>{user.role}</p>
               </div>
             </div>
           )}

@@ -61,7 +61,7 @@ export const Header: React.FC<HeaderProps> = ({ onMenuClick, title }) => {
             <div className={cx(
               'w-8 h-8 rounded-xl flex items-center justify-center text-sm font-bold transition-transform hover:scale-105',
               'bg-gradient-to-br from-brand-500 to-brand-700 text-white shadow-sm',
-              'dark:from-brand-600/30 dark:to-brand-800/30 dark:text-brand-400 dark:ring-1 dark:ring-brand-500/25 dark:shadow-[0_0_12px_rgba(99,102,241,0.15)]'
+              'dark:from-brand-600/30 dark:to-brand-800/30 dark:text-brand-400 dark:ring-1 dark:ring-brand-500/25 brand-dot-glow'
             )}>
               {user.name?.charAt(0)?.toUpperCase() || 'U'}
             </div>

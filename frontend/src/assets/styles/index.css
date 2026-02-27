@@ -111,12 +111,12 @@ html.dark select {
 
 /* Keyboard focus ring for accessibility */
 button:focus-visible {
-  outline: 2px solid #4f46e5;
+  outline: 2px solid var(--color-brand-600);
   outline-offset: 2px;
 }
 
 html.dark button:focus-visible {
-  outline-color: #6366f1;
+  outline-color: var(--color-brand-500);
 }
 
 /* Premium focus ring for all form inputs */
@@ -124,15 +124,15 @@ input:focus,
 select:focus,
 textarea:focus {
   outline: none !important;
-  border-color: #4f46e5 !important;
-  box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.15), 0 1px 2px rgba(0, 0, 0, 0.05) !important;
+  border-color: var(--color-brand-600) !important;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-brand-600) 15%, transparent), 0 1px 2px rgba(0, 0, 0, 0.05) !important;
 }
 
 html.dark input:focus,
 html.dark select:focus,
 html.dark textarea:focus {
-  border-color: #6366f1 !important;
-  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2), 0 1px 2px rgba(0, 10, 30, 0.3) !important;
+  border-color: var(--color-brand-500) !important;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-brand-500) 20%, transparent), 0 1px 2px rgba(0, 10, 30, 0.3) !important;
 }
 
 /* ========== DISABLED STATES ========== */
@@ -174,7 +174,7 @@ table tbody tr {
 }
 
 table tbody tr:hover {
-  background-color: rgba(37, 99, 235, 0.04);
+  background-color: color-mix(in srgb, var(--color-brand-600) 4%, transparent);
 }
 
 /* Table header subtle border effect */
@@ -189,11 +189,11 @@ table:not(.premium-table) thead tr::after {
   left: 0;
   right: 0;
   height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(79, 70, 229, 0.15), rgba(99, 102, 241, 0.08), transparent);
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--color-brand-600) 15%, transparent), color-mix(in srgb, var(--color-brand-500) 8%, transparent), transparent);
 }
 
 html.dark table:not(.premium-table) thead tr::after {
-  background: linear-gradient(90deg, transparent, rgba(99, 102, 241, 0.12), rgba(16, 185, 129, 0.08), transparent);
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--color-brand-500) 12%, transparent), rgba(16, 185, 129, 0.08), transparent);
 }
 
 /* ========== TABLE HEADER NORMALIZATION ========== */
@@ -217,7 +217,7 @@ table thead th {
 
 :is(.dark) .premium-table thead th {
   background-color: rgba(5, 10, 22, 0.95);
-  border-bottom-color: rgba(99, 102, 241, 0.08);
+  border-bottom-color: color-mix(in srgb, var(--color-brand-500) 8%, transparent);
 }
 
 /* ========== CARD HOVER ELEVATION ========== */
@@ -243,21 +243,21 @@ html.dark .premium-card {
 @media (hover: hover) and (pointer: fine) {
   .premium-card:hover {
     background: rgba(255, 255, 255, 0.7);
-    border-color: rgba(37, 99, 235, 0.2);
+    border-color: color-mix(in srgb, var(--color-brand-600) 20%, transparent);
     box-shadow:
-      0 10px 40px -8px rgba(37, 99, 235, 0.15),
-      0 0 24px rgba(37, 99, 235, 0.08),
+      0 10px 40px -8px color-mix(in srgb, var(--color-brand-600) 15%, transparent),
+      0 0 24px color-mix(in srgb, var(--color-brand-600) 8%, transparent),
       0 4px 16px -4px rgba(0, 0, 0, 0.04),
       inset 0 1px 0 rgba(255, 255, 255, 0.9);
     transform: translateY(-2px);
   }
   html.dark .premium-card:hover {
-    border-color: rgba(37, 99, 235, 0.25) !important;
+    border-color: color-mix(in srgb, var(--color-brand-600) 25%, transparent) !important;
     box-shadow:
       0 8px 40px -4px rgba(0, 10, 30, 0.5),
-      0 0 24px rgba(37, 99, 235, 0.12),
-      0 0 48px rgba(37, 99, 235, 0.06),
-      inset 0 1px 0 rgba(37, 99, 235, 0.08);
+      0 0 24px color-mix(in srgb, var(--color-brand-600) 12%, transparent),
+      0 0 48px color-mix(in srgb, var(--color-brand-600) 6%, transparent),
+      inset 0 1px 0 color-mix(in srgb, var(--color-brand-600) 8%, transparent);
     transform: translateY(-2px);
   }
 }
@@ -311,14 +311,14 @@ html.dark .premium-card {
   background: linear-gradient(180deg, rgba(248, 250, 252, 0.9) 0%, rgba(241, 245, 249, 0.82) 100%) !important;
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  border-bottom-color: rgba(79, 70, 229, 0.08);
+  border-bottom-color: color-mix(in srgb, var(--color-brand-600) 8%, transparent);
   transition: color 0.15s ease;
 }
 
 :is(.dark) .premium-table thead th {
   color: #8b9bb0 !important;
   background: linear-gradient(180deg, rgba(8, 14, 30, 0.96) 0%, rgba(5, 10, 22, 0.98) 100%) !important;
-  border-bottom-color: rgba(99, 102, 241, 0.12);
+  border-bottom-color: color-mix(in srgb, var(--color-brand-500) 12%, transparent);
 }
 
 /* Header gradient separator line */
@@ -425,33 +425,33 @@ html.dark .premium-card {
 
 /* --- Row hover — accent bar + glow --- */
 .premium-table tbody tr:hover {
-  background-color: rgba(79, 70, 229, 0.04) !important;
-  box-shadow: inset 0 0 0 0.5px rgba(79, 70, 229, 0.06);
+  background-color: color-mix(in srgb, var(--color-brand-600) 4%, transparent) !important;
+  box-shadow: inset 0 0 0 0.5px color-mix(in srgb, var(--color-brand-600) 6%, transparent);
 }
 
 .premium-table tbody tr:hover::before {
-  background: linear-gradient(180deg, #6366f1, #4f46e5);
-  box-shadow: 2px 0 8px rgba(99, 102, 241, 0.15);
+  background: linear-gradient(180deg, var(--color-brand-500), var(--color-brand-600));
+  box-shadow: 2px 0 8px color-mix(in srgb, var(--color-brand-500) 15%, transparent);
 }
 
 :is(.dark) .premium-table tbody tr:hover {
-  background-color: rgba(99, 102, 241, 0.06) !important;
-  box-shadow: inset 0 0 0 0.5px rgba(99, 102, 241, 0.08);
+  background-color: color-mix(in srgb, var(--color-brand-500) 6%, transparent) !important;
+  box-shadow: inset 0 0 0 0.5px color-mix(in srgb, var(--color-brand-500) 8%, transparent);
 }
 
 :is(.dark) .premium-table tbody tr:hover::before {
-  background: linear-gradient(180deg, #818cf8, #6366f1);
-  box-shadow: 2px 0 12px rgba(99, 102, 241, 0.2);
+  background: linear-gradient(180deg, var(--color-brand-400), var(--color-brand-500));
+  box-shadow: 2px 0 12px color-mix(in srgb, var(--color-brand-500) 20%, transparent);
 }
 
 /* --- Active/clicked row --- */
 .premium-table tbody tr:active {
-  background-color: rgba(79, 70, 229, 0.08) !important;
+  background-color: color-mix(in srgb, var(--color-brand-600) 8%, transparent) !important;
   transition-duration: 0.05s;
 }
 
 :is(.dark) .premium-table tbody tr:active {
-  background-color: rgba(99, 102, 241, 0.1) !important;
+  background-color: color-mix(in srgb, var(--color-brand-500) 10%, transparent) !important;
 }
 
 /* --- Last row cleanup --- */
@@ -497,7 +497,7 @@ th.resizable-th {
 
 .col-resize-handle:hover,
 .col-resize-handle:active {
-  background: rgba(99, 102, 241, 0.6);
+  background: color-mix(in srgb, var(--color-brand-500) 60%, transparent);
 }
 
 /* ========== WIDGET TABLE OVERFLOW FIX ========== */
@@ -549,30 +549,27 @@ header.sticky {
   -webkit-backdrop-filter: blur(24px) saturate(1.4);
   border-bottom: 1px solid rgba(255, 255, 255, 0.5);
   box-shadow:
-    0 1px 0 rgba(79, 70, 229, 0.04),
+    0 1px 0 color-mix(in srgb, var(--color-brand-600) 4%, transparent),
     0 4px 16px rgba(0, 0, 0, 0.03),
     inset 0 -1px 0 rgba(255, 255, 255, 0.5);
 }
 
 html.dark header.sticky {
-  box-shadow: 0 1px 0 rgba(99, 102, 241, 0.06), 0 4px 20px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 1px 0 color-mix(in srgb, var(--color-brand-500) 6%, transparent), 0 4px 20px rgba(0, 0, 0, 0.3);
 }
 
 /* ========== LIGHT MODE GLASS SIDEBAR ========== */
 
 aside.sidebar-premium {
-  background: rgba(255, 255, 255, 0.65) !important;
-  backdrop-filter: blur(24px) saturate(1.4);
-  -webkit-backdrop-filter: blur(24px) saturate(1.4);
-  border-right: 1px solid rgba(255, 255, 255, 0.5);
+  background: var(--sidebar-bg, #eef2ff) !important;
+  border-right: 1px solid var(--sidebar-border, #c7d2fe) !important;
   box-shadow:
-    1px 0 0 rgba(79, 70, 229, 0.04),
-    4px 0 20px rgba(0, 0, 0, 0.03),
-    inset -1px 0 0 rgba(255, 255, 255, 0.6);
+    1px 0 0 color-mix(in srgb, var(--sidebar-border) 40%, transparent),
+    4px 0 20px rgba(0, 0, 0, 0.05);
 }
 
 html.dark aside.sidebar-premium {
-  box-shadow: 1px 0 0 rgba(99, 102, 241, 0.06), 4px 0 24px rgba(0, 0, 0, 0.4);
+  box-shadow: 1px 0 0 color-mix(in srgb, var(--color-brand-500) 6%, transparent), 4px 0 24px rgba(0, 0, 0, 0.4);
 }
 
 /* ========== LIGHT MODE GLASS FORM INPUTS ========== */
@@ -626,8 +623,8 @@ main {
 /* ========== NOTIFICATION PULSE ========== */
 
 @keyframes notifPulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.4); }
-  50% { box-shadow: 0 0 0 4px rgba(99, 102, 241, 0); }
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-brand-500) 40%, transparent); }
+  50% { box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-brand-500) 0%, transparent); }
 }
 
 .animate-notif-pulse {
@@ -744,11 +741,11 @@ html.dark .skeleton-base {
 /* Firefox scrollbar */
 * {
   scrollbar-width: thin;
-  scrollbar-color: rgba(79, 70, 229, 0.2) transparent;
+  scrollbar-color: color-mix(in srgb, var(--color-brand-600) 20%, transparent) transparent;
 }
 
 html.dark * {
-  scrollbar-color: rgba(99, 102, 241, 0.2) transparent;
+  scrollbar-color: color-mix(in srgb, var(--color-brand-500) 20%, transparent) transparent;
 }
 
 /* ========== STAT CARD ANIMATIONS ========== */
@@ -910,10 +907,10 @@ html.dark body {
   background-color: #030712;
   background-image:
     radial-gradient(rgba(255, 255, 255, 0.025) 1px, transparent 1px),
-    radial-gradient(ellipse at 10% 40%, rgba(99, 102, 241, 0.08) 0%, transparent 45%),
+    radial-gradient(ellipse at 10% 40%, color-mix(in srgb, var(--color-brand-500) 8%, transparent) 0%, transparent 45%),
     radial-gradient(ellipse at 90% 15%, rgba(16, 185, 129, 0.06) 0%, transparent 45%),
-    radial-gradient(ellipse at 50% 95%, rgba(139, 92, 246, 0.05) 0%, transparent 45%),
-    radial-gradient(ellipse at 60% 50%, rgba(59, 130, 246, 0.03) 0%, transparent 50%);
+    radial-gradient(ellipse at 50% 95%, color-mix(in srgb, var(--color-brand-400) 5%, transparent) 0%, transparent 45%),
+    radial-gradient(ellipse at 60% 50%, color-mix(in srgb, var(--color-brand-500) 3%, transparent) 0%, transparent 50%);
   background-size: 24px 24px, 100% 100%, 100% 100%, 100% 100%, 100% 100%;
   background-attachment: fixed;
 }
@@ -939,30 +936,28 @@ html.dark .premium-card {
 /* Top edge glow on glass cards */
 html.dark .premium-card::before {
   height: 1px;
-  background: linear-gradient(90deg, transparent 5%, rgba(99, 102, 241, 0.3) 25%, rgba(16, 185, 129, 0.25) 50%, rgba(139, 92, 246, 0.2) 75%, transparent 95%) !important;
+  background: linear-gradient(90deg, transparent 5%, color-mix(in srgb, var(--color-brand-500) 30%, transparent) 25%, rgba(16, 185, 129, 0.25) 50%, color-mix(in srgb, var(--color-brand-400) 20%, transparent) 75%, transparent 95%) !important;
 }
 
 /* Glass card hover — blue interstellar glow */
 @media (hover: hover) and (pointer: fine) {
   html.dark .premium-card:hover {
     background: rgba(10, 18, 38, 0.7) !important;
-    border-color: rgba(37, 99, 235, 0.25) !important;
+    border-color: color-mix(in srgb, var(--color-brand-600) 25%, transparent) !important;
     box-shadow:
       0 8px 40px rgba(0, 10, 30, 0.5),
-      0 0 24px rgba(37, 99, 235, 0.12),
-      0 0 48px rgba(37, 99, 235, 0.06),
-      0 0 1px rgba(37, 99, 235, 0.2),
-      inset 0 1px 0 rgba(37, 99, 235, 0.08);
+      0 0 24px color-mix(in srgb, var(--color-brand-600) 12%, transparent),
+      0 0 48px color-mix(in srgb, var(--color-brand-600) 6%, transparent),
+      0 0 1px color-mix(in srgb, var(--color-brand-600) 20%, transparent),
+      inset 0 1px 0 color-mix(in srgb, var(--color-brand-600) 8%, transparent);
   }
 }
 
 /* ---- Glass Sidebar ---- */
 html.dark .sidebar-premium {
-  background: rgba(3, 7, 18, 0.92) !important;
-  backdrop-filter: blur(32px) saturate(1.5);
-  -webkit-backdrop-filter: blur(32px) saturate(1.5);
-  border-color: rgba(255, 255, 255, 0.06) !important;
-  box-shadow: 1px 0 0 rgba(99, 102, 241, 0.06), 4px 0 24px rgba(0, 0, 0, 0.4) !important;
+  background: var(--sidebar-bg, #1e1b4b) !important;
+  border-color: var(--sidebar-border, #312e81) !important;
+  box-shadow: 1px 0 0 color-mix(in srgb, var(--sidebar-border) 40%, transparent), 4px 0 24px rgba(0, 0, 0, 0.4) !important;
 }
 
 /* ---- Glass Header ---- */
@@ -971,7 +966,7 @@ html.dark header.sticky {
   backdrop-filter: blur(32px) saturate(1.6);
   -webkit-backdrop-filter: blur(32px) saturate(1.6);
   border-color: rgba(255, 255, 255, 0.05) !important;
-  box-shadow: 0 1px 0 rgba(99, 102, 241, 0.05), 0 4px 16px rgba(0, 0, 0, 0.25) !important;
+  box-shadow: 0 1px 0 color-mix(in srgb, var(--color-brand-500) 5%, transparent), 0 4px 16px rgba(0, 0, 0, 0.25) !important;
 }
 
 /* ---- Glass Form Inputs ---- */
@@ -987,8 +982,8 @@ html.dark textarea {
 html.dark input:focus,
 html.dark select:focus,
 html.dark textarea:focus {
-  border-color: rgba(99, 102, 241, 0.5) !important;
-  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.2), 0 0 0 2px rgba(99, 102, 241, 0.15), 0 0 12px rgba(99, 102, 241, 0.08) !important;
+  border-color: color-mix(in srgb, var(--color-brand-500) 50%, transparent) !important;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.2), 0 0 0 2px color-mix(in srgb, var(--color-brand-500) 15%, transparent), 0 0 12px color-mix(in srgb, var(--color-brand-500) 8%, transparent) !important;
 }
 
 html.dark input::placeholder,
@@ -998,11 +993,11 @@ html.dark textarea::placeholder {
 
 /* ---- Glass Table Rows — blue ---- */
 html.dark table tbody tr:hover {
-  background: rgba(37, 99, 235, 0.06);
+  background: color-mix(in srgb, var(--color-brand-600) 6%, transparent);
 }
 
 html.dark table thead tr::after {
-  background: linear-gradient(90deg, transparent, rgba(99, 102, 241, 0.15), rgba(16, 185, 129, 0.1), transparent);
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--color-brand-500) 15%, transparent), rgba(16, 185, 129, 0.1), transparent);
 }
 
 /* ---- Glass Modal ---- */
@@ -1022,24 +1017,24 @@ html.dark .animate-backdrop {
 
 /* ---- Glass Buttons ---- */
 html.dark .btn-premium {
-  background: rgba(99, 102, 241, 0.15);
-  border: 1px solid rgba(99, 102, 241, 0.3);
-  box-shadow: 0 0 20px rgba(99, 102, 241, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  background: color-mix(in srgb, var(--color-brand-500) 15%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-brand-500) 30%, transparent);
+  box-shadow: 0 0 20px color-mix(in srgb, var(--color-brand-500) 10%, transparent), inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 
 html.dark .btn-premium:hover {
-  background: rgba(99, 102, 241, 0.25);
-  border-color: rgba(99, 102, 241, 0.45);
-  box-shadow: 0 0 30px rgba(99, 102, 241, 0.15), 0 0 60px rgba(99, 102, 241, 0.05), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  background: color-mix(in srgb, var(--color-brand-500) 25%, transparent);
+  border-color: color-mix(in srgb, var(--color-brand-500) 45%, transparent);
+  box-shadow: 0 0 30px color-mix(in srgb, var(--color-brand-500) 15%, transparent), 0 0 60px color-mix(in srgb, var(--color-brand-500) 5%, transparent), inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
 
 /* ---- Dark Scrollbar Glass ---- */
 html.dark ::-webkit-scrollbar-thumb {
-  background: linear-gradient(180deg, rgba(99, 102, 241, 0.25), rgba(16, 185, 129, 0.18)) !important;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--color-brand-500) 25%, transparent), rgba(16, 185, 129, 0.18)) !important;
   border-radius: 10px;
 }
 html.dark ::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(180deg, rgba(99, 102, 241, 0.4), rgba(16, 185, 129, 0.3)) !important;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--color-brand-500) 40%, transparent), rgba(16, 185, 129, 0.3)) !important;
 }
 
 /* ---- Glass Containers (modals, forms, dropdowns) ---- */
@@ -1062,7 +1057,7 @@ html.dark [class*="border-zinc-700"] {
 html.dark [class*="hover\:bg-zinc-800"]:hover,
 html.dark [class*="hover\:bg-dark-100"]:hover,
 html.dark [class*="hover\:bg-dark-200"]:hover {
-  background-color: rgba(37, 99, 235, 0.06) !important;
+  background-color: color-mix(in srgb, var(--color-brand-600) 6%, transparent) !important;
 }
 
 /* ---- Glass Status Badges ---- */
@@ -1076,13 +1071,13 @@ html.dark .rounded-full[class*="bg-blue"] {
 
 /* ---- Selection Color ---- */
 html.dark ::selection {
-  background: rgba(99, 102, 241, 0.3);
+  background: color-mix(in srgb, var(--color-brand-500) 30%, transparent);
   color: inherit;
 }
 
 /* ---- Ambient glow on active nav items ---- */
 html.dark aside button[class*="bg-brand"] {
-  box-shadow: 0 0 16px rgba(99, 102, 241, 0.2), 0 0 4px rgba(99, 102, 241, 0.1);
+  box-shadow: 0 0 16px color-mix(in srgb, var(--color-brand-500) 20%, transparent), 0 0 4px color-mix(in srgb, var(--color-brand-500) 10%, transparent);
 }
 
 /* ---- Dark mode icon container glow ---- */
@@ -1099,8 +1094,8 @@ html.dark [class*="rounded-xl"][class*="bg-red-900"] {
 /* ---- Dark mode resize handle glow ---- */
 :is(.dark) .col-resize-handle:hover,
 :is(.dark) .col-resize-handle:active {
-  background: rgba(99, 102, 241, 0.7);
-  box-shadow: 0 0 6px rgba(99, 102, 241, 0.3);
+  background: color-mix(in srgb, var(--color-brand-500) 70%, transparent);
+  box-shadow: 0 0 6px color-mix(in srgb, var(--color-brand-500) 30%, transparent);
 }
 
 /* ========== SCREENSHOT & SCREEN RECORDING PROTECTION ========== */

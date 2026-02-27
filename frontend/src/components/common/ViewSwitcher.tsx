@@ -22,7 +22,13 @@ export const ViewSwitcher: React.FC = () => {
     <div className="relative">
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full flex items-center gap-2 px-3 py-2 rounded-lg transition-all bg-white/50 hover:bg-white/70 text-slate-900 border border-white/50 shadow-sm backdrop-blur-md dark:bg-[rgba(8,14,30,0.6)] dark:hover:bg-[rgba(10,18,38,0.7)] dark:text-white dark:border-white/[0.07] dark:shadow-none"
+        className="w-full flex items-center gap-2 px-3 py-2 rounded-lg transition-all"
+        style={{
+          backgroundColor: 'var(--sidebar-bg-hover)',
+          color: 'var(--sidebar-text)',
+          borderColor: 'var(--sidebar-border)',
+          border: '1px solid var(--sidebar-border)',
+        }}
       >
         <Icon className="w-4 h-4" />
         <span className="text-sm font-medium">{currentViewData.label}</span>
