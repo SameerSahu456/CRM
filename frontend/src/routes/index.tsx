@@ -64,7 +64,6 @@ export const router = createBrowserRouter([
         { path: 'view/:id', element: <Suspense fallback={null}><LeadFormPage /></Suspense> },
       ]},
       { path: 'crm', element: <Navigate to="/leads" replace /> },
-      { path: 'collections', element: null },
       { path: 'accounts', element: null },
       { path: 'contacts', element: null },
       { path: 'deals', children: [

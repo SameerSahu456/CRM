@@ -3,7 +3,6 @@ export type NavigationItem =
   | 'dashboard'
   | 'sales-entry'
   | 'leads'
-  | 'collections'
   | 'accounts'
   | 'contacts'
   | 'deals'

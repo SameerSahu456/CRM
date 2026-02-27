@@ -20,7 +20,6 @@ const ContactsPage = lazyWithRetry(() => import('@/pages/ContactsPage').then(m =
 const DealsPage = lazyWithRetry(() => import('@/pages/DealsPage').then(m => ({ default: m.DealsPage })));
 const ReportsPage = lazyWithRetry(() => import('@/pages/ReportsPage').then(m => ({ default: m.ReportsPage })));
 const InventoryPage = lazyWithRetry(() => import('@/pages/InventoryPage').then(m => ({ default: m.InventoryPage })));
-const CollectionsPage = lazyWithRetry(() => import('@/pages/CollectionsPage').then(m => ({ default: m.CollectionsPage })));
 const ActivityLogPage = lazyWithRetry(() => import('@/pages/ActivityLogPage').then(m => ({ default: m.ActivityLogPage })));
 const LoginPage = lazyWithRetry(() => import('@/pages/LoginPage'));
 
@@ -28,7 +27,6 @@ const pageTitles: Record<NavigationItem, string> = {
   'dashboard': 'Dashboard',
   'sales-entry': 'Sales Entry',
   'leads': 'Leads',
-  'collections': 'Collections',
   'accounts': 'Accounts',
   'contacts': 'Contacts',
   'deals': 'Deals',
@@ -104,9 +102,6 @@ const AppContent: React.FC = () => {
         break;
       case 'leads':
         PageComponent = CRMPage;
-        break;
-      case 'collections':
-        PageComponent = CollectionsPage;
         break;
       case 'accounts':
         PageComponent = AccountsPage;
