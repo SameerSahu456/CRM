@@ -474,7 +474,7 @@ export const ProductManagersTab: React.FC = () => {
               const isChanged = hasUnsavedChange(cat.id);
 
               return (
-                <Card key={cat.id} padding="none" className="p-4">
+                <Card key={cat.id} padding="none" glass={false} className="p-4">
                   <div className="flex items-center gap-2 mb-3">
                     <span className="text-sm font-semibold text-gray-900 dark:text-white">
                       {cat.name}
