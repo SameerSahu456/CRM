@@ -21,6 +21,7 @@ const DealsPage = lazyWithRetry(() => import('@/pages/DealsPage').then(m => ({ d
 const ReportsPage = lazyWithRetry(() => import('@/pages/ReportsPage').then(m => ({ default: m.ReportsPage })));
 const InventoryPage = lazyWithRetry(() => import('@/pages/InventoryPage').then(m => ({ default: m.InventoryPage })));
 const CollectionsPage = lazyWithRetry(() => import('@/pages/CollectionsPage').then(m => ({ default: m.CollectionsPage })));
+const ActivityLogPage = lazyWithRetry(() => import('@/pages/ActivityLogPage').then(m => ({ default: m.ActivityLogPage })));
 const LoginPage = lazyWithRetry(() => import('@/pages/LoginPage'));
 
 const pageTitles: Record<NavigationItem, string> = {
@@ -37,6 +38,7 @@ const pageTitles: Record<NavigationItem, string> = {
   'meetings': 'Meetings',
   'reports': 'Reports',
   'admin': 'Admin Panel',
+  'activity-log': 'Activity Log',
   'settings': 'Settings',
 };
 
@@ -123,6 +125,9 @@ const AppContent: React.FC = () => {
         break;
       case 'admin':
         PageComponent = AdminPage;
+        break;
+      case 'activity-log':
+        PageComponent = ActivityLogPage;
         break;
       case 'settings':
         PageComponent = SettingsPage;

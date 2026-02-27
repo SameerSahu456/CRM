@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { ChevronDown, ChevronRight, Filter, Loader2, AlertCircle } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
 import { activityLogApi, adminApi } from '@/services/api';
 import { ActivityLog, ActivityChange } from '@/types';
 import { Card, Button, Select, Badge, Alert } from '@/components/ui';
@@ -26,6 +27,9 @@ function formatDateTime(dateStr?: string): string {
 }
 
 export const ActivityLogTab: React.FC = () => {
+  const { user: currentUser } = useAuth();
+  const isAdmin = currentUser?.role === 'admin' || currentUser?.role === 'superadmin';
+
   const [logs, setLogs] = useState<ActivityLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -64,11 +68,12 @@ export const ActivityLogTab: React.FC = () => {
   }, [fetchLogs]);
 
   useEffect(() => {
+    if (!isAdmin) return;
     adminApi.listUsers().then((data: any) => {
       const list = Array.isArray(data) ? data : data?.data ?? [];
       setUsers(list.map((u: any) => ({ id: u.id, name: u.name || u.email })));
     }).catch(() => {});
-  }, []);
+  }, [isAdmin]);
 
   const ENTITY_TYPES = [
     'lead', 'account', 'contact', 'deal', 'partner',
@@ -88,7 +93,7 @@ export const ActivityLogTab: React.FC = () => {
           {showFilters ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
         </button>
         {showFilters && (
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-3">
+          <div className={cx('grid grid-cols-1 gap-3 mt-3', isAdmin ? 'sm:grid-cols-3' : 'sm:grid-cols-2')}>
             <Select value={entityType} onChange={e => { setEntityType(e.target.value); setPage(1); }}>
               <option value="">All Entities</option>
               {ENTITY_TYPES.map(et => (
@@ -103,12 +108,14 @@ export const ActivityLogTab: React.FC = () => {
               <option value="approve">Approve</option>
               <option value="reject">Reject</option>
             </Select>
-            <Select value={selectedUser} onChange={e => { setSelectedUser(e.target.value); setPage(1); }}>
-              <option value="">All Users</option>
-              {users.map(u => (
-                <option key={u.id} value={u.id}>{u.name}</option>
-              ))}
-            </Select>
+            {isAdmin && (
+              <Select value={selectedUser} onChange={e => { setSelectedUser(e.target.value); setPage(1); }}>
+                <option value="">All Users</option>
+                {users.map(u => (
+                  <option key={u.id} value={u.id}>{u.name}</option>
+                ))}
+              </Select>
+            )}
           </div>
         )}
       </Card>

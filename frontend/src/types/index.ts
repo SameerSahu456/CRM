@@ -13,6 +13,7 @@ export type NavigationItem =
   | 'meetings'
   | 'reports'
   | 'admin'
+  | 'activity-log'
   | 'settings';
 
 // User / Auth

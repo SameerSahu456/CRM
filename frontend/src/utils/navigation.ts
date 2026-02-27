@@ -14,6 +14,7 @@ const NAV_TO_PATH: Record<NavigationItem, string> = {
   'meetings': '/meetings',
   'reports': '/reports',
   'admin': '/admin',
+  'activity-log': '/activity-log',
   'settings': '/settings',
 };
 
@@ -46,5 +47,6 @@ export const pageTitles: Record<NavigationItem, string> = {
   'meetings': 'Meetings',
   'reports': 'Reports',
   'admin': 'Admin Panel',
+  'activity-log': 'Activity Log',
   'settings': 'Settings',
 };

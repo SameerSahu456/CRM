@@ -26,7 +26,7 @@ const TABS: { key: AdminTab; label: string; icon: React.ElementType; superadminO
   { key: 'categories', label: 'Categories', icon: Tags },
   { key: 'product-managers', label: 'Product Managers', icon: Layers },
   { key: 'roles', label: 'Roles & Permissions', icon: Shield },
-  { key: 'activity-log', label: 'Activity Log', icon: History, superadminOnly: true },
+  { key: 'activity-log', label: 'Activity Log', icon: History },
 ];
 
 const USER_ROLES: { value: UserRole; label: string }[] = [
