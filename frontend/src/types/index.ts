@@ -41,6 +41,9 @@ export type UserRole =
   | 'admin'
   | 'superadmin'
   | 'sales'
+  | 'manager'
+  | 'presales'
+  | 'support'
   | 'businesshead'
   | 'productmanager';
 

@@ -33,6 +33,9 @@ const USER_ROLES: { value: UserRole; label: string }[] = [
   { value: 'admin', label: 'Admin' },
   { value: 'superadmin', label: 'Super Admin' },
   { value: 'sales', label: 'Sales' },
+  { value: 'manager', label: 'Manager' },
+  { value: 'presales', label: 'Pre-Sales' },
+  { value: 'support', label: 'Support' },
   { value: 'businesshead', label: 'Business Unit' },
   { value: 'productmanager', label: 'Product Manager' },
 ];
@@ -87,6 +90,12 @@ function roleBadgeVariant(role: UserRole): 'red' | 'blue' | 'amber' | 'purple' |
       return 'red';
     case 'sales':
       return 'blue';
+    case 'manager':
+      return 'amber';
+    case 'presales':
+      return 'blue';
+    case 'support':
+      return 'gray';
     case 'businesshead':
       return 'amber';
     case 'productmanager':
