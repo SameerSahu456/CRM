@@ -8,6 +8,10 @@ import { lazyWithRetry } from '@/utils/lazyWithRetry';
 // Only LoginPage is rendered by the router — all other pages are in RootLayout
 const LoginPage = lazyWithRetry(() => import('@/pages/LoginPage'));
 
+// Sub-route pages (lazy-loaded)
+const LeadFormPage = lazyWithRetry(() => import('@/pages/LeadFormPage').then(m => ({ default: m.LeadFormPage })));
+const DealFormPage = lazyWithRetry(() => import('@/pages/DealFormPage').then(m => ({ default: m.DealFormPage })));
+
 const LoginGuard = () => {
   const { isAuthenticated, isLoading } = useAuth();
 
@@ -53,12 +57,22 @@ export const router = createBrowserRouter([
       // Page rendering is handled by RootLayout keep-alive — routes just validate URLs
       { path: 'dashboard', element: null },
       { path: 'sales-entry', element: null },
-      { path: 'leads', element: null },
+      { path: 'leads', children: [
+        { index: true, element: null },
+        { path: 'create', element: <Suspense fallback={null}><LeadFormPage /></Suspense> },
+        { path: 'edit/:id', element: <Suspense fallback={null}><LeadFormPage /></Suspense> },
+        { path: 'view/:id', element: <Suspense fallback={null}><LeadFormPage /></Suspense> },
+      ]},
       { path: 'crm', element: <Navigate to="/leads" replace /> },
       { path: 'collections', element: null },
       { path: 'accounts', element: null },
       { path: 'contacts', element: null },
-      { path: 'deals', element: null },
+      { path: 'deals', children: [
+        { index: true, element: null },
+        { path: 'create', element: <Suspense fallback={null}><DealFormPage /></Suspense> },
+        { path: 'edit/:id', element: <Suspense fallback={null}><DealFormPage /></Suspense> },
+        { path: 'view/:id', element: <Suspense fallback={null}><DealFormPage /></Suspense> },
+      ]},
       { path: 'inventory', element: null },
       { path: 'quote-builder', element: null },
       { path: 'tasks', element: null },

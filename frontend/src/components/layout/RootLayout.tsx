@@ -1,11 +1,11 @@
 import React, { useState, Suspense, useEffect } from 'react';
-import { Navigate, Outlet } from 'react-router-dom';
+import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { NavigationProvider, useNavigation } from '@/contexts/NavigationContext';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
-import { pageTitles } from '@/utils/navigation';
+import { pageTitles, navigationItemToPath } from '@/utils/navigation';
 import { NavigationItem } from '@/types';
 import { lazyWithRetry } from '@/utils/lazyWithRetry';
 
@@ -54,6 +54,7 @@ const PageLoader = () => (
 const LayoutShell: React.FC = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { activeTab } = useNavigation();
+  const location = useLocation();
   const [visitedPages, setVisitedPages] = useState<Set<NavigationItem>>(() => new Set([activeTab]));
 
   useEffect(() => {
@@ -81,7 +82,10 @@ const LayoutShell: React.FC = () => {
           {Array.from(visitedPages).map(page => {
             const PageComponent = PAGE_COMPONENTS[page];
             if (!PageComponent) return null;
-            const isActive = activeTab === page;
+            const basePath = navigationItemToPath(page);
+            const isOnSubRoute = location.pathname !== basePath
+              && location.pathname.startsWith(basePath + '/');
+            const isActive = activeTab === page && !isOnSubRoute;
             return (
               <div
                 key={page}
