@@ -26,13 +26,16 @@ const TABS: { key: AdminTab; label: string; icon: React.ElementType; superadminO
   { key: 'categories', label: 'Categories', icon: Tags },
   { key: 'product-managers', label: 'Product Managers', icon: Layers },
   { key: 'roles', label: 'Roles & Permissions', icon: Shield },
-  { key: 'activity-log', label: 'Activity Log', icon: History, superadminOnly: true },
+  { key: 'activity-log', label: 'Activity Log', icon: History },
 ];
 
 const USER_ROLES: { value: UserRole; label: string }[] = [
   { value: 'admin', label: 'Admin' },
   { value: 'superadmin', label: 'Super Admin' },
   { value: 'sales', label: 'Sales' },
+  { value: 'manager', label: 'Manager' },
+  { value: 'presales', label: 'Pre-Sales' },
+  { value: 'support', label: 'Support' },
   { value: 'businesshead', label: 'Business Unit' },
   { value: 'productmanager', label: 'Product Manager' },
 ];
@@ -87,6 +90,12 @@ function roleBadgeVariant(role: UserRole): 'red' | 'blue' | 'amber' | 'purple' |
       return 'red';
     case 'sales':
       return 'blue';
+    case 'manager':
+      return 'amber';
+    case 'presales':
+      return 'blue';
+    case 'support':
+      return 'gray';
     case 'businesshead':
       return 'amber';
     case 'productmanager':

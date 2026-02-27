@@ -324,11 +324,13 @@ export const ProductManagersTab: React.FC = () => {
     return current !== original;
   };
 
-  // Users with "productmanager" role -- shown in the PM roster section
-  const productManagerUsers = users.filter(u => u.role === 'productmanager' && u.isActive !== false);
+  // Users with "productmanager" or "manager" role -- shown in the PM roster section
+  const productManagerUsers = users.filter(
+    u => (u.role === 'productmanager' || u.role === 'manager') && u.isActive !== false
+  );
 
-  // Only product manager role users can be assigned to categories
-  const eligibleUsers = productManagerUsers;
+  // All active users can be assigned as product managers to categories
+  const eligibleUsers = users.filter(u => u.isActive !== false);
 
   // Count how many categories each PM is assigned to
   const getCategoryCount = (userId: string): number => {
@@ -382,10 +384,10 @@ export const ProductManagersTab: React.FC = () => {
           <Card className="text-center">
             <UserCog className="w-8 h-8 mx-auto mb-2 text-gray-300 dark:text-zinc-600" />
             <p className="text-sm text-gray-400 dark:text-zinc-500">
-              No users with "Product Manager" role found.
+              No users with "Product Manager" or "Manager" role found.
             </p>
             <p className="text-xs mt-1 text-gray-400 dark:text-zinc-600">
-              Assign the "productmanager" role to users in the Users tab.
+              Assign the "Product Manager" or "Manager" role to users in the Users tab.
             </p>
           </Card>
         ) : (
@@ -457,76 +459,65 @@ export const ProductManagersTab: React.FC = () => {
           />
         </Card>
 
-        {/* Table */}
-        <Card padding="none">
-          {filteredCategories.length === 0 ? (
-            <div className="text-center py-12 text-sm text-gray-400 dark:text-zinc-500">
+        {/* Category Cards */}
+        {filteredCategories.length === 0 ? (
+          <Card className="text-center py-12">
+            <p className="text-sm text-gray-400 dark:text-zinc-500">
               {searchTerm ? 'No categories match your search.' : 'No categories found.'}
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="premium-table">
-                <thead className="bg-gray-50 dark:bg-dark-200">
-                  <tr>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400" style={{ width: '25%' }}>Category</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400" style={{ width: '50%' }}>Product Managers</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-right text-gray-500 dark:text-zinc-400" style={{ width: '25%' }}>Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100 dark:divide-zinc-800">
-                  {filteredCategories.map(cat => {
-                    const isSaving = savingRows[cat.id] || false;
-                    const isSaved = savedRows[cat.id] || false;
-                    const isChanged = hasUnsavedChange(cat.id);
+            </p>
+          </Card>
+        ) : (
+          <div className="space-y-3">
+            {filteredCategories.map(cat => {
+              const isSaving = savingRows[cat.id] || false;
+              const isSaved = savedRows[cat.id] || false;
+              const isChanged = hasUnsavedChange(cat.id);
 
-                    return (
-                      <tr
-                        key={cat.id}
-                        className="transition-colors hover:bg-gray-50 dark:hover:bg-zinc-800/50"
-                      >
-                        <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">
-                          <div className="flex items-center gap-2">
-                            <span className="font-medium">{cat.name}</span>
-                            {!cat.isActive && (
-                              <Badge variant="gray" size="sm">Inactive</Badge>
-                            )}
-                          </div>
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">
-                          <MultiSelectDropdown
-                            selectedIds={assignments[cat.id] || []}
-                            users={eligibleUsers}
-                            onChange={(ids) => handleAssignmentChange(cat.id, ids)}
-                          />
-                        </td>
-                        <td className="px-4 py-3 text-sm text-right text-gray-700 dark:text-gray-300">
-                          <div className="flex items-center justify-end gap-2">
-                            {isSaved && (
-                              <span className="flex items-center gap-1 text-xs text-emerald-500">
-                                <CheckCircle className="w-3.5 h-3.5" />
-                                Saved
-                              </span>
-                            )}
-                            <Button
-                              size="sm"
-                              onClick={() => handleSave(cat.id)}
-                              disabled={isSaving || !isChanged}
-                              loading={isSaving}
-                              icon={!isSaving ? <Save className="w-3.5 h-3.5" /> : undefined}
-                              variant={isChanged ? 'primary' : 'secondary'}
-                            >
-                              Save
-                            </Button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </Card>
+              return (
+                <Card key={cat.id} padding="none" glass={false} className="p-4">
+                  <div className="flex items-center gap-2 mb-3">
+                    <span className="text-sm font-semibold text-gray-900 dark:text-white">
+                      {cat.name}
+                    </span>
+                    {!cat.isActive && (
+                      <Badge variant="gray" size="sm">Inactive</Badge>
+                    )}
+                  </div>
+
+                  <div className="mb-3">
+                    <label className="block text-xs font-medium text-gray-500 dark:text-zinc-400 mb-1.5">
+                      Assigned Product Managers
+                    </label>
+                    <MultiSelectDropdown
+                      selectedIds={assignments[cat.id] || []}
+                      users={eligibleUsers}
+                      onChange={(ids) => handleAssignmentChange(cat.id, ids)}
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-end gap-2">
+                    {isSaved && (
+                      <span className="flex items-center gap-1 text-xs text-emerald-500">
+                        <CheckCircle className="w-3.5 h-3.5" />
+                        Saved
+                      </span>
+                    )}
+                    <Button
+                      size="sm"
+                      onClick={() => handleSave(cat.id)}
+                      disabled={isSaving || !isChanged}
+                      loading={isSaving}
+                      icon={!isSaving ? <Save className="w-3.5 h-3.5" /> : undefined}
+                      variant={isChanged ? 'primary' : 'secondary'}
+                    >
+                      Save
+                    </Button>
+                  </div>
+                </Card>
+              );
+            })}
+          </div>
+        )}
       </div>
     </div>
   );

@@ -13,6 +13,7 @@ export type NavigationItem =
   | 'meetings'
   | 'reports'
   | 'admin'
+  | 'activity-log'
   | 'settings';
 
 // User / Auth
@@ -41,6 +42,9 @@ export type UserRole =
   | 'admin'
   | 'superadmin'
   | 'sales'
+  | 'manager'
+  | 'presales'
+  | 'support'
   | 'businesshead'
   | 'productmanager';
 

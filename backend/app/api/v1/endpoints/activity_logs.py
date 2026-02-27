@@ -7,7 +7,6 @@ from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.middleware.rbac import require_role
 from app.middleware.security import get_current_user
 from app.models.user import User
 from app.services.activity_log_service import ActivityLogService
@@ -50,18 +49,23 @@ async def list_activity_logs(
     action: Optional[str] = None,
     date_from: Optional[str] = None,
     date_to: Optional[str] = None,
-    user: User = Depends(require_role("superadmin")),
+    user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """
-    Return a paginated list of activity logs (superadmin only).
+    Return a paginated list of activity logs.
+
+    - admin / superadmin: see all logs
+    - manager / businesshead / productmanager: see own + their team's logs
+    - others: see only their own logs
 
     Returns:
         Paginated list of activity logs
     """
     service = ActivityLogService(db)
     result = await service.list_activity_logs(
-        page, limit, user_id, entity_type, action, date_from, date_to
+        page, limit, user_id, entity_type, action, date_from, date_to,
+        current_user=user,
     )
     return success_response(
         result["data"],
