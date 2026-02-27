@@ -60,6 +60,7 @@ export interface WidgetMetadata {
   defaultOrder: number;
   component: React.ComponentType<WidgetProps>;
   navigateTo?: NavigationItem;
+  gridSpan?: 'full';
 }
 
 export interface WidgetPlacement {

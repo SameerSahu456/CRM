@@ -7,13 +7,15 @@ Follows SOLID principles and service layer architecture.
 
 from __future__ import annotations
 
-from datetime import date, timedelta
+from datetime import date, datetime, time, timedelta
 from typing import Any, Dict, List
 
-from sqlalchemy import case, extract, func, select
+from sqlalchemy import and_, case, extract, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.models.calendar_event import CalendarEvent
 from app.models.deal import Deal
+from app.models.deal_activity import DealActivity
 from app.models.lead import Lead
 from app.models.partner import Partner
 from app.models.product import Product
@@ -884,4 +886,254 @@ class DashboardService:
             "dealsByStage": deals_by_stage,
             "monthlySales": monthly_data,
             "recentSales": recent_sales,
+        }
+
+    async def get_my_summary(self, user: User) -> Dict[str, Any]:
+        """
+        Personal dashboard summary for the authenticated user.
+        Returns KPIs, open tasks, meetings, today's leads, deals closing
+        this month, pipeline funnel, and sales user targets.
+        """
+        today = date.today()
+        today_start = datetime.combine(today, time.min)
+        today_end = datetime.combine(today, time.max)
+        month_start = today.replace(day=1)
+        next_month = (month_start + timedelta(days=32)).replace(day=1)
+        uid = str(user.id)
+
+        # ── KPI 1: My Open Deals ─────────────────────────────────
+        my_open_deals = (
+            await self.db.execute(
+                select(func.count())
+                .select_from(Deal)
+                .where(Deal.owner_id == uid)
+                .where(Deal.stage.notin_(["Closed Won", "Closed Lost"]))
+            )
+        ).scalar_one()
+
+        # ── KPI 2: My Untouched Deals (no activity records) ──────
+        my_untouched_deals = (
+            await self.db.execute(
+                select(func.count())
+                .select_from(Deal)
+                .outerjoin(DealActivity, Deal.id == DealActivity.deal_id)
+                .where(Deal.owner_id == uid)
+                .where(Deal.stage.notin_(["Closed Won", "Closed Lost"]))
+                .where(DealActivity.id.is_(None))
+            )
+        ).scalar_one()
+
+        # ── KPI 3: My Calls Today ────────────────────────────────
+        my_calls_today = (
+            await self.db.execute(
+                select(func.count())
+                .select_from(CalendarEvent)
+                .where(CalendarEvent.owner_id == uid)
+                .where(CalendarEvent.start_time >= today_start)
+                .where(CalendarEvent.start_time <= today_end)
+            )
+        ).scalar_one()
+
+        # ── KPI 4: My Leads (all) ────────────────────────────────
+        my_leads = (
+            await self.db.execute(
+                select(func.count())
+                .select_from(Lead)
+                .where(Lead.assigned_to == uid)
+            )
+        ).scalar_one()
+
+        # ── My Open Tasks (list) ─────────────────────────────────
+        task_rows = (
+            await self.db.execute(
+                select(Task)
+                .where(Task.assigned_to == uid)
+                .where(Task.status != "completed")
+                .order_by(Task.due_date.asc().nulls_last())
+                .limit(50)
+            )
+        ).scalars().all()
+
+        my_open_tasks = [
+            {
+                "id": str(t.id),
+                "subject": t.title,
+                "dueDate": str(t.due_date) if t.due_date else None,
+                "status": t.status,
+                "priority": t.priority,
+                "relatedToType": t.related_to_type,
+                "relatedToId": str(t.related_to_id) if t.related_to_id else None,
+            }
+            for t in task_rows
+        ]
+
+        # ── My Meetings (list) ───────────────────────────────────
+        from app.models.contact import Contact
+
+        meeting_rows = (
+            await self.db.execute(
+                select(
+                    CalendarEvent,
+                    Contact.first_name.label("cf"),
+                    Contact.last_name.label("cl"),
+                )
+                .outerjoin(
+                    Contact,
+                    and_(
+                        CalendarEvent.related_to_type == "Contact",
+                        CalendarEvent.related_to_id == Contact.id,
+                    ),
+                )
+                .where(CalendarEvent.owner_id == uid)
+                .order_by(CalendarEvent.start_time.desc())
+                .limit(50)
+            )
+        ).all()
+
+        my_meetings = [
+            {
+                "id": str(row[0].id),
+                "title": row[0].title,
+                "from": row[0].start_time.isoformat() if row[0].start_time else None,
+                "to": row[0].end_time.isoformat() if row[0].end_time else None,
+                "relatedToType": row[0].related_to_type,
+                "relatedToId": str(row[0].related_to_id) if row[0].related_to_id else None,
+                "contactName": f"{row[1] or ''} {row[2] or ''}".strip() or None,
+            }
+            for row in meeting_rows
+        ]
+
+        # ── Today's Leads (list) ─────────────────────────────────
+        todays_lead_rows = (
+            await self.db.execute(
+                select(Lead)
+                .where(Lead.assigned_to == uid)
+                .where(Lead.created_at >= today_start)
+                .where(Lead.created_at <= today_end)
+                .order_by(Lead.created_at.desc())
+                .limit(50)
+            )
+        ).scalars().all()
+
+        todays_leads = [
+            {
+                "id": str(l.id),
+                "leadName": (
+                    l.contact_person
+                    or f"{l.first_name or ''} {l.last_name or ''}".strip()
+                    or "—"
+                ),
+                "company": l.company_name or "",
+                "email": l.email,
+                "phone": l.phone,
+            }
+            for l in todays_lead_rows
+        ]
+
+        # ── Deals Closing This Month ─────────────────────────────
+        closing_rows = (
+            await self.db.execute(
+                select(Deal, User.name.label("owner_name"))
+                .outerjoin(User, Deal.owner_id == User.id)
+                .where(Deal.owner_id == uid)
+                .where(Deal.closing_date >= month_start)
+                .where(Deal.closing_date < next_month)
+                .where(Deal.stage.notin_(["Closed Won", "Closed Lost"]))
+                .order_by(Deal.closing_date.asc())
+                .limit(50)
+            )
+        ).all()
+
+        deals_closing = [
+            {
+                "id": str(row[0].id),
+                "title": row[0].title,
+                "company": row[0].company,
+                "value": float(row[0].value) if row[0].value else 0,
+                "stage": row[0].stage,
+                "closingDate": str(row[0].closing_date) if row[0].closing_date else None,
+                "ownerName": row[1],
+            }
+            for row in closing_rows
+        ]
+
+        # ── Pipeline Deals By Stage (funnel) ─────────────────────
+        pipeline_rows = (
+            await self.db.execute(
+                select(
+                    Deal.stage,
+                    func.count().label("count"),
+                    func.coalesce(func.sum(Deal.value), 0).label("value"),
+                )
+                .where(Deal.owner_id == uid)
+                .where(Deal.stage.notin_(["Closed Won", "Closed Lost"]))
+                .group_by(Deal.stage)
+            )
+        ).all()
+
+        pipeline_by_stage = [
+            {"stage": r.stage, "count": r.count, "value": float(r.value)}
+            for r in pipeline_rows
+        ]
+
+        # ── Sales Users Targets (scoped) ─────────────────────────
+        scoped_ids = await get_scoped_user_ids(user, self.db)
+
+        target_stmt = (
+            select(User.id, User.name, User.monthly_target)
+            .where(User.is_active.is_(True))
+            .where(User.monthly_target.isnot(None))
+            .where(User.monthly_target > 0)
+        )
+        if scoped_ids is not None:
+            target_stmt = target_stmt.where(User.id.in_(scoped_ids))
+        target_users = (await self.db.execute(target_stmt)).all()
+
+        # Current month sales per user
+        sales_stmt = (
+            select(
+                SalesEntry.salesperson_id,
+                func.coalesce(func.sum(SalesEntry.amount), 0).label("total"),
+            )
+            .where(SalesEntry.sale_date >= month_start)
+            .where(SalesEntry.sale_date < next_month)
+            .group_by(SalesEntry.salesperson_id)
+        )
+        if scoped_ids is not None:
+            sales_stmt = sales_stmt.where(
+                SalesEntry.salesperson_id.in_(scoped_ids)
+            )
+        monthly_sales_map = {
+            str(r[0]): float(r[1])
+            for r in (await self.db.execute(sales_stmt)).all()
+            if r[0] is not None
+        }
+
+        sales_targets = sorted(
+            [
+                {
+                    "userId": str(u.id),
+                    "userName": u.name,
+                    "monthlyTarget": float(u.monthly_target),
+                    "achievedAmount": monthly_sales_map.get(str(u.id), 0),
+                }
+                for u in target_users
+            ],
+            key=lambda x: x["monthlyTarget"],
+            reverse=True,
+        )
+
+        return {
+            "kpiCards": {
+                "myOpenDeals": my_open_deals,
+                "myUntouchedDeals": my_untouched_deals,
+                "myCallsToday": my_calls_today,
+                "myLeads": my_leads,
+            },
+            "myOpenTasks": my_open_tasks,
+            "myMeetings": my_meetings,
+            "todaysLeads": todays_leads,
+            "dealsClosingThisMonth": deals_closing,
+            "pipelineDealsByStage": pipeline_by_stage,
+            "salesUsersTargets": sales_targets,
         }

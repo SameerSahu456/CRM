@@ -6,9 +6,10 @@ import { GripVertical } from 'lucide-react';
 interface WidgetWrapperProps {
   id: string;
   children: React.ReactNode;
+  className?: string;
 }
 
-export const WidgetWrapper: React.FC<WidgetWrapperProps> = ({ id, children }) => {
+export const WidgetWrapper: React.FC<WidgetWrapperProps> = ({ id, children, className }) => {
   const {
     attributes,
     listeners,
@@ -25,7 +26,7 @@ export const WidgetWrapper: React.FC<WidgetWrapperProps> = ({ id, children }) =>
   };
 
   return (
-    <div ref={setNodeRef} style={style} className="relative group rounded-2xl">
+    <div ref={setNodeRef} style={style} className={`relative group rounded-2xl ${className || ''}`}>
       {/* Drag Handle — left side, inside card padding */}
       <div
         {...attributes}

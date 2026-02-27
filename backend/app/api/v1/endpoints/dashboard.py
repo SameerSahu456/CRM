@@ -77,6 +77,21 @@ async def dashboard_all(
     return success_response(data, "Dashboard data retrieved successfully")
 
 
+@router.get("/my-summary")
+async def my_summary(
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Personal dashboard summary: KPIs, open tasks, meetings,
+    today's leads, deals closing this month, pipeline funnel,
+    and sales user targets.
+    """
+    service = DashboardService(db)
+    data = await service.get_my_summary(user)
+    return success_response(data, "My summary retrieved successfully")
+
+
 @router.get("/assignee/{user_id}")
 async def assignee_detail(
     user_id: str,

@@ -91,8 +91,10 @@ export const DashboardContainer: React.FC = () => {
               const WidgetComponent = meta.component;
               const navigateTo = meta.navigateTo;
 
+              const spanClass = meta.gridSpan === 'full' ? 'col-span-1 md:col-span-2 xl:col-span-3' : '';
+
               return (
-                <WidgetWrapper key={widget.id} id={widget.id}>
+                <WidgetWrapper key={widget.id} id={widget.id} className={spanClass}>
                   <Suspense
                     fallback={
                       <div className={cx(

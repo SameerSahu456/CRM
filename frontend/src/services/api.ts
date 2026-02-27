@@ -182,6 +182,7 @@ export const dashboardApi = {
   growthStats: async () => { const res = await fetchApi<any>('/data/dashboard/growth-stats'); return res?.data ?? res; },
   getAll: async () => { const res = await fetchApi<any>('/data/dashboard/all'); return res?.data ?? res; },
   getAssigneeDetail: async (userId: string) => { const res = await fetchApi<any>(`/data/dashboard/assignee/${userId}`); return res?.data ?? res; },
+  getMySummary: async () => { const res = await fetchApi<any>('/data/dashboard/my-summary'); return res?.data ?? res; },
   getPreferences: () => fetchApi<any>('/auth/me/dashboard-preferences'),
   updatePreferences: (prefs: any) =>
     fetchApi<any>('/auth/me/dashboard-preferences', {
