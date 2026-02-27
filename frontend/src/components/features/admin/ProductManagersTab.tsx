@@ -460,13 +460,13 @@ export const ProductManagersTab: React.FC = () => {
         </Card>
 
         {/* Table */}
-        <Card padding="none">
+        <Card padding="none" className="overflow-visible">
           {filteredCategories.length === 0 ? (
             <div className="text-center py-12 text-sm text-gray-400 dark:text-zinc-500">
               {searchTerm ? 'No categories match your search.' : 'No categories found.'}
             </div>
           ) : (
-            <div className="overflow-x-auto">
+            <div className="overflow-visible">
               <table className="premium-table">
                 <thead className="bg-gray-50 dark:bg-dark-200">
                   <tr>
