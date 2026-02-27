@@ -10,12 +10,24 @@ interface ViewContextType {
 
 const ViewContext = createContext<ViewContextType | undefined>(undefined);
 
+// Normalize view_access values from backend to valid frontend ViewAccess values
+// Backend may have legacy values like 'all', 'team', 'own' that need mapping
+function normalizeViewAccess(value?: string): ViewAccess {
+  if (value === 'presales') return 'presales';
+  if (value === 'postsales') return 'postsales';
+  if (value === 'both' || value === 'all') return 'both';
+  // Unknown values (e.g. 'team', 'own') default to 'both' so user sees everything
+  return 'both';
+}
+
 export function ViewProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const [currentView, setCurrentViewState] = useState<ViewAccess>('presales');
 
+  const userView = normalizeViewAccess(user?.viewAccess);
+
   // Determine if user can switch views (admin/superadmin or users with 'both' access)
-  const canSwitchView = user?.role === 'admin' || user?.role === 'superadmin' || user?.viewAccess === 'both';
+  const canSwitchView = user?.role === 'admin' || user?.role === 'superadmin' || userView === 'both';
 
   // Initialize view from user's viewAccess or localStorage
   useEffect(() => {
@@ -23,14 +35,14 @@ export function ViewProvider({ children }: { children: ReactNode }) {
 
     const savedView = localStorage.getItem('selectedView') as ViewAccess;
 
-    if (user.role === 'admin' || user.role === 'superadmin' || user.viewAccess === 'both') {
+    if (user.role === 'admin' || user.role === 'superadmin' || userView === 'both') {
       // Admin or users with 'both' access can choose, default to saved or 'both' (all views)
       setCurrentViewState(savedView || 'both');
     } else {
       // Regular users use their assigned view
-      setCurrentViewState(user.viewAccess || 'presales');
+      setCurrentViewState(userView);
     }
-  }, [user]);
+  }, [user, userView]);
 
   const setCurrentView = (view: ViewAccess) => {
     if (!canSwitchView) return; // Only allow switching if user has permission

@@ -365,7 +365,7 @@ async def create_users(session: AsyncSession, count=20):
         phone=DataGenerator.random_phone(),
         employee_id="EMP001",
         is_active=True,
-        view_access="all",
+        view_access="both",
     )
     session.add(admin)
     users.append(admin)
@@ -382,7 +382,7 @@ async def create_users(session: AsyncSession, count=20):
             employee_id=f"EMP{100+i:03d}",
             monthly_target=Decimal(500000 + random.randint(0, 500000)),
             is_active=True,
-            view_access="team",
+            view_access="both",
         )
         session.add(manager)
         users.append(manager)
@@ -402,7 +402,7 @@ async def create_users(session: AsyncSession, count=20):
             manager_id=users[1 + (i % 3)].id,  # Assign to one of the managers
             monthly_target=Decimal(200000 + random.randint(0, 300000)),
             is_active=True,
-            view_access="own",
+            view_access="both",
         )
         session.add(sales_rep)
         users.append(sales_rep)
@@ -418,7 +418,7 @@ async def create_users(session: AsyncSession, count=20):
             phone=DataGenerator.random_phone(),
             employee_id=f"EMP{300+i:03d}",
             is_active=True,
-            view_access="all",
+            view_access="both",
         )
         session.add(support)
         users.append(support)
