@@ -33,7 +33,7 @@ export default defineConfig(({ mode }) => {
       }
     },
     build: {
-      outDir: '../dist', // Build output relative to frontend/
+      outDir: 'dist', // Build output inside frontend/
       emptyOutDir: true,
       // Optimize chunk splitting for better caching and parallel loading
       rollupOptions: {
