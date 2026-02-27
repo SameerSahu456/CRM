@@ -324,11 +324,13 @@ export const ProductManagersTab: React.FC = () => {
     return current !== original;
   };
 
-  // Users with "productmanager" role -- shown in the PM roster section
-  const productManagerUsers = users.filter(u => u.role === 'productmanager' && u.isActive !== false);
+  // Users with "productmanager" or "manager" role -- shown in the PM roster section
+  const productManagerUsers = users.filter(
+    u => (u.role === 'productmanager' || u.role === 'manager') && u.isActive !== false
+  );
 
-  // Only product manager role users can be assigned to categories
-  const eligibleUsers = productManagerUsers;
+  // All active users can be assigned as product managers to categories
+  const eligibleUsers = users.filter(u => u.isActive !== false);
 
   // Count how many categories each PM is assigned to
   const getCategoryCount = (userId: string): number => {
@@ -382,10 +384,10 @@ export const ProductManagersTab: React.FC = () => {
           <Card className="text-center">
             <UserCog className="w-8 h-8 mx-auto mb-2 text-gray-300 dark:text-zinc-600" />
             <p className="text-sm text-gray-400 dark:text-zinc-500">
-              No users with "Product Manager" role found.
+              No users with "Product Manager" or "Manager" role found.
             </p>
             <p className="text-xs mt-1 text-gray-400 dark:text-zinc-600">
-              Assign the "productmanager" role to users in the Users tab.
+              Assign the "Product Manager" or "Manager" role to users in the Users tab.
             </p>
           </Card>
         ) : (
