@@ -459,76 +459,65 @@ export const ProductManagersTab: React.FC = () => {
           />
         </Card>
 
-        {/* Table */}
-        <Card padding="none" className="overflow-visible">
-          {filteredCategories.length === 0 ? (
-            <div className="text-center py-12 text-sm text-gray-400 dark:text-zinc-500">
+        {/* Category Cards */}
+        {filteredCategories.length === 0 ? (
+          <Card className="text-center py-12">
+            <p className="text-sm text-gray-400 dark:text-zinc-500">
               {searchTerm ? 'No categories match your search.' : 'No categories found.'}
-            </div>
-          ) : (
-            <div className="overflow-visible">
-              <table className="premium-table">
-                <thead className="bg-gray-50 dark:bg-dark-200">
-                  <tr>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400" style={{ width: '25%' }}>Category</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400" style={{ width: '50%' }}>Product Managers</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-right text-gray-500 dark:text-zinc-400" style={{ width: '25%' }}>Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100 dark:divide-zinc-800">
-                  {filteredCategories.map(cat => {
-                    const isSaving = savingRows[cat.id] || false;
-                    const isSaved = savedRows[cat.id] || false;
-                    const isChanged = hasUnsavedChange(cat.id);
+            </p>
+          </Card>
+        ) : (
+          <div className="space-y-3">
+            {filteredCategories.map(cat => {
+              const isSaving = savingRows[cat.id] || false;
+              const isSaved = savedRows[cat.id] || false;
+              const isChanged = hasUnsavedChange(cat.id);
 
-                    return (
-                      <tr
-                        key={cat.id}
-                        className="transition-colors hover:bg-gray-50 dark:hover:bg-zinc-800/50"
-                      >
-                        <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">
-                          <div className="flex items-center gap-2">
-                            <span className="font-medium">{cat.name}</span>
-                            {!cat.isActive && (
-                              <Badge variant="gray" size="sm">Inactive</Badge>
-                            )}
-                          </div>
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">
-                          <MultiSelectDropdown
-                            selectedIds={assignments[cat.id] || []}
-                            users={eligibleUsers}
-                            onChange={(ids) => handleAssignmentChange(cat.id, ids)}
-                          />
-                        </td>
-                        <td className="px-4 py-3 text-sm text-right text-gray-700 dark:text-gray-300">
-                          <div className="flex items-center justify-end gap-2">
-                            {isSaved && (
-                              <span className="flex items-center gap-1 text-xs text-emerald-500">
-                                <CheckCircle className="w-3.5 h-3.5" />
-                                Saved
-                              </span>
-                            )}
-                            <Button
-                              size="sm"
-                              onClick={() => handleSave(cat.id)}
-                              disabled={isSaving || !isChanged}
-                              loading={isSaving}
-                              icon={!isSaving ? <Save className="w-3.5 h-3.5" /> : undefined}
-                              variant={isChanged ? 'primary' : 'secondary'}
-                            >
-                              Save
-                            </Button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </Card>
+              return (
+                <Card key={cat.id} padding="none" className="p-4">
+                  <div className="flex items-center gap-2 mb-3">
+                    <span className="text-sm font-semibold text-gray-900 dark:text-white">
+                      {cat.name}
+                    </span>
+                    {!cat.isActive && (
+                      <Badge variant="gray" size="sm">Inactive</Badge>
+                    )}
+                  </div>
+
+                  <div className="mb-3">
+                    <label className="block text-xs font-medium text-gray-500 dark:text-zinc-400 mb-1.5">
+                      Assigned Product Managers
+                    </label>
+                    <MultiSelectDropdown
+                      selectedIds={assignments[cat.id] || []}
+                      users={eligibleUsers}
+                      onChange={(ids) => handleAssignmentChange(cat.id, ids)}
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-end gap-2">
+                    {isSaved && (
+                      <span className="flex items-center gap-1 text-xs text-emerald-500">
+                        <CheckCircle className="w-3.5 h-3.5" />
+                        Saved
+                      </span>
+                    )}
+                    <Button
+                      size="sm"
+                      onClick={() => handleSave(cat.id)}
+                      disabled={isSaving || !isChanged}
+                      loading={isSaving}
+                      icon={!isSaving ? <Save className="w-3.5 h-3.5" /> : undefined}
+                      variant={isChanged ? 'primary' : 'secondary'}
+                    >
+                      Save
+                    </Button>
+                  </div>
+                </Card>
+              );
+            })}
+          </div>
+        )}
       </div>
     </div>
   );
