@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { cx } from '@/utils/cx';
 
 export interface DropdownItem {
@@ -21,6 +21,8 @@ export interface DropdownMenuProps {
 export const DropdownMenu: React.FC<DropdownMenuProps> = ({ trigger, items, align = 'right', className }) => {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const [resolvedAlign, setResolvedAlign] = useState(align);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -30,16 +32,40 @@ export const DropdownMenu: React.FC<DropdownMenuProps> = ({ trigger, items, alig
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [open]);
 
+  // After opening, check if dropdown overflows viewport and flip if needed
+  const adjustPosition = useCallback(() => {
+    if (!dropdownRef.current) return;
+    const rect = dropdownRef.current.getBoundingClientRect();
+    if (rect.right > window.innerWidth - 8) {
+      setResolvedAlign('right');
+    } else if (rect.left < 8) {
+      setResolvedAlign('left');
+    } else {
+      setResolvedAlign(align);
+    }
+  }, [align]);
+
+  useEffect(() => {
+    if (open) {
+      setResolvedAlign(align);
+      // Wait one frame for the dropdown to render, then check
+      requestAnimationFrame(adjustPosition);
+    }
+  }, [open, align, adjustPosition]);
+
   return (
-    <div ref={ref} className={cx('relative inline-flex', className)}>
-      <div onClick={() => setOpen(!open)}>{trigger}</div>
+    <div ref={ref} className={cx('relative', className)}>
+      <div className="w-full" onClick={() => setOpen(!open)}>{trigger}</div>
       {open && (
-        <div className={cx(
-          'absolute z-50 mt-1 top-full min-w-[180px] rounded-xl border p-1 shadow-lg animate-scale-in',
-          'bg-white border-gray-200',
-          'dark:bg-dark-50 dark:border-zinc-800',
-          align === 'right' ? 'right-0' : 'left-0'
-        )}>
+        <div
+          ref={dropdownRef}
+          className={cx(
+            'absolute z-[100] mt-1 top-full min-w-[180px] rounded-xl border p-1 shadow-lg animate-scale-in',
+            'bg-white border-gray-200',
+            'dark:bg-dark-50 dark:border-zinc-800',
+            resolvedAlign === 'right' ? 'right-0' : 'left-0'
+          )}
+        >
           {items.map((item) => {
             if (item.divider) {
               return <div key={item.id} className="my-1 h-px bg-gray-100 dark:bg-zinc-800" />;

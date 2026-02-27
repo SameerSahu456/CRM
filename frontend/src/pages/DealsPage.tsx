@@ -8,7 +8,8 @@ import {
   Handshake, FileText, Briefcase,
   Snowflake,
   Download, Upload,
-  Flag, Tag
+  Flag, Tag,
+  Filter, MoreHorizontal,
 } from 'lucide-react';
 import { dealsApi, salesApi, formatINR, DEAL_LIST_FIELDS, DEAL_KANBAN_FIELDS } from '@/services/api';
 import { exportToCsv } from '@/utils/exportCsv';
@@ -16,7 +17,7 @@ import { BulkImportModal } from '@/components/common/BulkImportModal';
 import { KanbanBoard, type KanbanColumnConfig, wasRecentlyDragging } from '@/components/common/KanbanBoard';
 import { useKanban } from '@/hooks/useKanban';
 import { Deal, DealStage, PaginatedResponse } from '@/types';
-import { Card, Button, Input, Select, Modal, Badge, DataTable, DataTableColumn } from '@/components/ui';
+import { Card, Button, Input, Select, Modal, Badge, DataTable, DataTableColumn, DropdownMenu } from '@/components/ui';
 import { cx } from '@/utils/cx';
 
 // ---------------------------------------------------------------------------
@@ -102,6 +103,19 @@ export const DealsPage: React.FC = () => {
   // Filters
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStage, setFilterStage] = useState('');
+
+  // Filter sidebar
+  const [showFilters, setShowFilters] = useState(false);
+
+  // Track mobile vs desktop for filter display mode
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const mql = window.matchMedia('(max-width: 1023px)');
+    setIsMobile(mql.matches);
+    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    mql.addEventListener('change', handler);
+    return () => mql.removeEventListener('change', handler);
+  }, []);
 
   // UI state
   const [isLoading, setIsLoading] = useState(true);
@@ -271,10 +285,48 @@ export const DealsPage: React.FC = () => {
   // Render: Toolbar
   // ---------------------------------------------------------------------------
 
+  const filterCount = filterStage ? 1 : 0;
+
+  const actionsItems = [
+    {
+      id: 'import',
+      label: 'Import',
+      icon: <Upload className="w-4 h-4" />,
+      onClick: () => setShowBulkImport(true),
+    },
+    {
+      id: 'export',
+      label: 'Export CSV',
+      icon: <Download className="w-4 h-4" />,
+      disabled: deals.length === 0,
+      onClick: () => exportToCsv('deals', [
+        { header: 'Company', accessor: (r: Deal) => r.company || r.accountName },
+        { header: 'Contact Name', accessor: (r: Deal) => r.contactName },
+        { header: 'Contact No', accessor: (r: Deal) => r.contactNo },
+        { header: 'Designation', accessor: (r: Deal) => r.designation },
+        { header: 'Email', accessor: (r: Deal) => r.email },
+        { header: 'Location', accessor: (r: Deal) => r.location },
+        { header: 'Requirement', accessor: (r: Deal) => r.requirement },
+        { header: 'Quoted Requirement', accessor: (r: Deal) => r.quotedRequirement },
+        { header: 'Value', accessor: (r: Deal) => r.value },
+        { header: 'Stage', accessor: (r: Deal) => r.stage },
+        { header: 'Type', accessor: (r: Deal) => r.tag },
+        { header: 'Follow-up Date', accessor: (r: Deal) => r.nextFollowUp },
+        { header: 'Closing Date', accessor: (r: Deal) => r.closingDate },
+        { header: 'Type', accessor: (r: Deal) => r.type },
+        { header: 'Forecast', accessor: (r: Deal) => r.forecast },
+        { header: 'Lead Source', accessor: (r: Deal) => r.leadSource },
+        ...(canSeeAssignee ? [{ header: 'Owner', accessor: (r: Deal) => r.ownerName }] : []),
+        { header: 'Next Step', accessor: (r: Deal) => r.nextStep },
+        { header: 'Description', accessor: (r: Deal) => r.description },
+      ], deals),
+    },
+  ];
+
   const renderToolbar = () => (
-    <Card padding="none" className="p-4">
-      <div className="flex flex-col lg:flex-row lg:items-center gap-3">
-        {/* View Toggle */}
+    <Card padding="none" className="p-3 sm:p-4 !overflow-visible relative z-10">
+      {/* ── Desktop toolbar (single row) ── */}
+      <div className="hidden sm:flex items-center gap-3">
         <div className="flex items-center rounded-xl border p-0.5 border-gray-200 bg-gray-50 dark:border-zinc-700 dark:bg-dark-100">
           <button
             onClick={() => setViewMode('table')}
@@ -302,82 +354,137 @@ export const DealsPage: React.FC = () => {
           </button>
         </div>
 
-        {/* Search */}
-        <div className="relative flex-1 min-w-0">
-          <Input
-            type="text"
-            placeholder="Search deals..."
-            value={searchTerm}
-            onChange={e => setSearchTerm(e.target.value)}
-            icon={<Search className="w-4 h-4" />}
+        <Button variant={showFilters ? 'primary' : 'secondary'} size="sm" onClick={() => setShowFilters(prev => !prev)} icon={<Filter className="w-4 h-4" />}>
+          Filter{filterCount > 0 ? ` (${filterCount})` : ''}
+        </Button>
+
+        <div className="relative flex-1 min-w-[120px]">
+          <Input type="text" placeholder="Search deals..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} icon={<Search className="w-4 h-4" />} />
+        </div>
+
+        {hasActiveFilters && (
+          <Button variant="ghost" size="sm" onClick={clearFilters} icon={<X className="w-3.5 h-3.5" />}>Clear</Button>
+        )}
+
+        <DropdownMenu trigger={<Button variant="secondary" size="sm" iconRight={<MoreHorizontal className="w-4 h-4" />}>Actions</Button>} items={actionsItems} />
+
+        <Button onClick={() => navigate('/deals/create')} icon={<Plus className="w-4 h-4" />} shine>
+          New Deal
+        </Button>
+      </div>
+
+      {/* ── Mobile toolbar (stacked rows) ── */}
+      <div className="sm:hidden space-y-2">
+        {/* Row 1: View toggle */}
+        <div className="flex items-center rounded-xl border p-0.5 border-gray-200 bg-gray-50 dark:border-zinc-700 dark:bg-dark-100">
+          <button
+            onClick={() => setViewMode('table')}
+            className={cx(
+              'flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-all',
+              viewMode === 'table'
+                ? 'bg-brand-600 text-white shadow-sm'
+                : 'text-gray-500 hover:text-gray-700 dark:text-zinc-400 dark:hover:text-white'
+            )}
+          >
+            <List className="w-3.5 h-3.5" />
+            List View
+          </button>
+          <button
+            onClick={() => setViewMode('pipeline')}
+            className={cx(
+              'flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-all',
+              viewMode === 'pipeline'
+                ? 'bg-brand-600 text-white shadow-sm'
+                : 'text-gray-500 hover:text-gray-700 dark:text-zinc-400 dark:hover:text-white'
+            )}
+          >
+            <LayoutGrid className="w-3.5 h-3.5" />
+            Kanban Board
+          </button>
+        </div>
+
+        {/* Row 2: Search */}
+        <div className="relative w-full">
+          <Input type="text" placeholder="Search deals..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} icon={<Search className="w-4 h-4" />} />
+        </div>
+
+        {/* Row 3: Filter + Actions (half-half) */}
+        <div className="flex items-center gap-2">
+          <Button
+            variant={showFilters ? 'primary' : 'secondary'}
+            size="sm"
+            onClick={() => setShowFilters(prev => !prev)}
+            icon={<Filter className="w-4 h-4" />}
+            className="flex-1"
+          >
+            Filter{filterCount > 0 ? ` (${filterCount})` : ''}
+          </Button>
+          <DropdownMenu
+            trigger={
+              <Button variant="secondary" size="sm" iconRight={<MoreHorizontal className="w-4 h-4" />} className="w-full">
+                Actions
+              </Button>
+            }
+            items={actionsItems}
+            align="right"
+            className="flex-1"
           />
         </div>
 
-        {/* Filter: Stage (only in table/list view) */}
-        {viewMode === 'table' && (
-          <div className="w-full lg:w-44">
-            <Select
-              value={filterStage}
-              onChange={e => setFilterStage(e.target.value)}
-            >
-              <option value="">All Stages</option>
-              {DEAL_STAGES.map(s => (
-                <option key={s} value={s}>{s}</option>
-              ))}
-            </Select>
-          </div>
-        )}
-
-        {/* Clear Filters */}
-        {hasActiveFilters && (
-          <Button variant="ghost" size="sm" onClick={clearFilters} icon={<X className="w-3.5 h-3.5" />}>
-            Clear
-          </Button>
-        )}
-
-        {/* Bulk Import */}
-        <Button variant="secondary" size="sm" onClick={() => setShowBulkImport(true)} icon={<Upload className="w-4 h-4" />}>
-          Import
-        </Button>
-
-        {/* Export CSV */}
-        <Button
-          variant="secondary"
-          size="sm"
-          onClick={() => exportToCsv('deals', [
-            { header: 'Company', accessor: (r: Deal) => r.company || r.accountName },
-            { header: 'Contact Name', accessor: (r: Deal) => r.contactName },
-            { header: 'Contact No', accessor: (r: Deal) => r.contactNo },
-            { header: 'Designation', accessor: (r: Deal) => r.designation },
-            { header: 'Email', accessor: (r: Deal) => r.email },
-            { header: 'Location', accessor: (r: Deal) => r.location },
-            { header: 'Requirement', accessor: (r: Deal) => r.requirement },
-            { header: 'Quoted Requirement', accessor: (r: Deal) => r.quotedRequirement },
-            { header: 'Value', accessor: (r: Deal) => r.value },
-            { header: 'Stage', accessor: (r: Deal) => r.stage },
-            { header: 'Type', accessor: (r: Deal) => r.tag },
-            { header: 'Follow-up Date', accessor: (r: Deal) => r.nextFollowUp },
-            { header: 'Closing Date', accessor: (r: Deal) => r.closingDate },
-            { header: 'Type', accessor: (r: Deal) => r.type },
-            { header: 'Forecast', accessor: (r: Deal) => r.forecast },
-            { header: 'Lead Source', accessor: (r: Deal) => r.leadSource },
-            ...(canSeeAssignee ? [{ header: 'Owner', accessor: (r: Deal) => r.ownerName }] : []),
-            { header: 'Next Step', accessor: (r: Deal) => r.nextStep },
-            { header: 'Description', accessor: (r: Deal) => r.description },
-          ], deals)}
-          disabled={deals.length === 0}
-          icon={<Download className="w-4 h-4" />}
-        >
-          Export
-        </Button>
-
-        {/* New Deal */}
-        <Button onClick={() => navigate('/deals/create')} icon={<Plus className="w-4 h-4" />} shine>
+        {/* Row 4: New Deal */}
+        <Button onClick={() => navigate('/deals/create')} icon={<Plus className="w-4 h-4" />} shine className="w-full">
           New Deal
         </Button>
       </div>
     </Card>
   );
+
+  // ---------------------------------------------------------------------------
+  // Render: Filter Sidebar
+  // ---------------------------------------------------------------------------
+
+  const filterContent = (
+    <div className="space-y-4">
+      <div>
+        <Select label="Stage" value={filterStage} onChange={e => setFilterStage(e.target.value)}>
+          <option value="">All Stages</option>
+          {DEAL_STAGES.map(s => (
+            <option key={s} value={s}>{s}</option>
+          ))}
+        </Select>
+      </div>
+      {hasActiveFilters && (
+        <Button variant="ghost" size="sm" onClick={clearFilters} icon={<X className="w-3.5 h-3.5" />} className="w-full">
+          Clear All Filters
+        </Button>
+      )}
+    </div>
+  );
+
+  // Desktop sidebar
+  const renderFilterSidebar = () => {
+    if (isMobile) return null;
+    return (
+      <div
+        className={cx(
+          'flex-shrink-0 transition-all duration-300 ease-in-out overflow-hidden self-stretch',
+          showFilters ? 'w-72 opacity-100' : 'w-0 opacity-0'
+        )}
+      >
+        <div className="w-72">
+          <Card padding="none" className="p-4 h-full">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Filter Deals by</h3>
+              <button onClick={() => setShowFilters(false)} className="p-1 rounded-lg text-gray-400 hover:text-gray-600 dark:text-zinc-500 dark:hover:text-zinc-300">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            {filterContent}
+          </Card>
+        </div>
+      </div>
+    );
+  };
 
   // ---------------------------------------------------------------------------
   // Render: Table View
@@ -654,8 +761,13 @@ export const DealsPage: React.FC = () => {
       {/* Toolbar */}
       {renderToolbar()}
 
-      {/* Content */}
-      {viewMode === 'table' ? renderTableView() : renderPipelineView()}
+      {/* Content with optional filter sidebar */}
+      <div className="flex gap-4 transition-all duration-300">
+        {renderFilterSidebar()}
+        <div className="flex-1 min-w-0 transition-all duration-300">
+          {viewMode === 'table' ? renderTableView() : renderPipelineView()}
+        </div>
+      </div>
 
       <BulkImportModal
         isOpen={showBulkImport}
@@ -664,6 +776,18 @@ export const DealsPage: React.FC = () => {
         entityLabel="Deals"
         onSuccess={() => fetchDeals()}
       />
+
+      {/* Mobile Filter Modal */}
+      {isMobile && (
+        <Modal
+          open={showFilters}
+          onClose={() => setShowFilters(false)}
+          title="Filter Deals"
+          size="sm"
+        >
+          {filterContent}
+        </Modal>
+      )}
 
       {/* Summarise Modal */}
       <Modal
