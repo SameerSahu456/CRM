@@ -134,7 +134,7 @@ export const salesApi = {
     const qs = params ? '?' + new URLSearchParams(params).toString() : '';
     return fetchApi<any>(`/data/sales-entries/summary${qs}`);
   },
-  breakdown: () => fetchApi<any>('/data/sales-entries/breakdown'),
+  breakdown: async () => { const res = await fetchApi<any>('/data/sales-entries/breakdown'); return res?.data ?? res; },
   collections: () => fetchApi<any>('/data/sales-entries/collections'),
 };
 
@@ -144,7 +144,7 @@ export const leadsApi = {
     const qs = params ? '?' + new URLSearchParams(params).toString() : '';
     return fetchApi<any>(`/leads/${qs}`);
   },
-  stats: () => fetchApi<any>('/leads/stats'),
+  stats: async () => { const res = await fetchApi<any>('/leads/stats'); return res?.data ?? res; },
   kanban: (params: Record<string, string>) => {
     const qs = '?' + new URLSearchParams(params).toString();
     return fetchApi<any>(`/leads/kanban${qs}`);
@@ -275,7 +275,7 @@ export const dealsApi = {
     const qs = params ? '?' + new URLSearchParams(params).toString() : '';
     return fetchApi<any>(`/deals/${qs}`);
   },
-  stats: () => fetchApi<any>('/deals/stats'),
+  stats: async () => { const res = await fetchApi<any>('/deals/stats'); return res?.data ?? res; },
   kanban: (params: Record<string, string>) => {
     const qs = '?' + new URLSearchParams(params).toString();
     return fetchApi<any>(`/deals/kanban${qs}`);
