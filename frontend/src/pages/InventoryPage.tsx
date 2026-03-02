@@ -3,9 +3,10 @@ import {
   Search, Package, AlertCircle, X, ArrowUpDown, ChevronUp, ChevronDown,
   Wrench, Settings2, Image as ImageIcon
 } from 'lucide-react';
-import { productsApi, formatINR } from '@/services/api';
+import { useNavigate } from 'react-router-dom';
+import { productsApi } from '@/services/api';
 import { Product } from '@/types';
-import { Card, Button, Input, Select, Badge, Alert, Modal } from '@/components/ui';
+import { Card, Button, Input, Select, Badge, Alert } from '@/components/ui';
 
 type SortField = 'name' | 'ipn' | 'stock' | 'batch' | 'location' | 'expiryDate' | 'updatedAt';
 type SortDir = 'asc' | 'desc';
@@ -20,7 +21,7 @@ export const InventoryPage: React.FC = () => {
   const [sortField, setSortField] = useState<SortField>('name');
   const [sortDir, setSortDir] = useState<SortDir>('asc');
   const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
-  const [detailProduct, setDetailProduct] = useState<Product | null>(null);
+  const navigate = useNavigate();
 
   const fetchProducts = useCallback(async () => {
     try {
@@ -145,12 +146,6 @@ export const InventoryPage: React.FC = () => {
     </th>
   );
 
-  const InfoRow: React.FC<{ label: string; value: React.ReactNode }> = ({ label, value }) => (
-    <div className="flex items-start gap-3 py-2.5">
-      <p className="text-xs font-medium w-36 flex-shrink-0 pt-0.5 text-slate-400 dark:text-zinc-500">{label}</p>
-      <p className="text-sm text-slate-900 dark:text-white">{value || '-'}</p>
-    </div>
-  );
 
   return (
     <div className="p-4 sm:p-6 max-w-full mx-auto">
@@ -243,7 +238,7 @@ export const InventoryPage: React.FC = () => {
                 filtered.map((product) => (
                   <tr
                     key={product.id}
-                    onClick={() => setDetailProduct(product)}
+                    onClick={() => navigate('/inventory/view/' + product.id)}
                     className="border-b border-slate-100 dark:border-white/[0.04] hover:bg-slate-50/70 dark:hover:bg-white/[0.02] transition-colors cursor-pointer"
                   >
                     {/* Checkbox */}
@@ -361,71 +356,6 @@ export const InventoryPage: React.FC = () => {
         )}
       </Card>
 
-      {/* Detail Modal */}
-      <Modal
-        open={!!detailProduct}
-        onClose={() => setDetailProduct(null)}
-        title={detailProduct?.name || ''}
-        subtitle="Inventory Item Details"
-        icon={<Package className="w-5 h-5" />}
-        size="md"
-        footer={
-          <Button variant="secondary" onClick={() => setDetailProduct(null)} className="w-full">
-            Close
-          </Button>
-        }
-      >
-        {detailProduct && (
-          <div className="space-y-4">
-            {/* Stock Status Banner */}
-            <div className={`rounded-xl p-4 flex items-center gap-4 ${
-              detailProduct.stock === 0
-                ? 'bg-red-50 border border-red-200 dark:bg-red-900/20 dark:border-red-800/30'
-                : detailProduct.stock <= 10
-                  ? 'bg-amber-50 border border-amber-200 dark:bg-amber-900/20 dark:border-amber-800/30'
-                  : 'bg-emerald-50 border border-emerald-200 dark:bg-emerald-900/20 dark:border-emerald-800/30'
-            }`}>
-              <div className="flex-1">
-                <p className={`text-sm font-medium ${
-                  detailProduct.stock === 0
-                    ? 'text-red-700 dark:text-red-400'
-                    : detailProduct.stock <= 10
-                      ? 'text-amber-700 dark:text-amber-400'
-                      : 'text-emerald-700 dark:text-emerald-400'
-                }`}>
-                  {detailProduct.stock === 0 ? 'Out of Stock' : detailProduct.stock <= 10 ? 'Low Stock' : 'In Stock'}
-                </p>
-                <p className="text-2xl font-bold mt-0.5 text-slate-900 dark:text-white">
-                  {detailProduct.stock} <span className="text-sm font-normal opacity-60">units</span>
-                </p>
-              </div>
-              {detailProduct.stock === 0 ? (
-                <Badge variant="error" size="sm">OUT</Badge>
-              ) : detailProduct.stock <= 10 ? (
-                <Badge variant="warning" size="sm">LOW</Badge>
-              ) : (
-                <Badge variant="success" size="sm">OK</Badge>
-              )}
-            </div>
-
-            {/* Info */}
-            <div className="divide-y divide-slate-100 dark:divide-zinc-800">
-              <InfoRow label="Part Name" value={detailProduct.name} />
-              <InfoRow label="IPN" value={detailProduct.ipn} />
-              <InfoRow label="Category" value={detailProduct.category} />
-              <InfoRow label="Description" value={detailProduct.description} />
-              <InfoRow label="Unit Price" value={detailProduct.basePrice ? formatINR(detailProduct.basePrice) : '-'} />
-              <InfoRow label="Stock" value={String(detailProduct.stock)} />
-              <InfoRow label="Batch" value={detailProduct.batch} />
-              <InfoRow label="Location" value={detailProduct.location} />
-              <InfoRow label="Stocktake" value={detailProduct.stocktake} />
-              <InfoRow label="Expiry Date" value={formatDate(detailProduct.expiryDate)} />
-              <InfoRow label="Last Updated" value={formatDate(detailProduct.updatedAt)} />
-              <InfoRow label="Purchase Order" value={detailProduct.purchaseOrder} />
-            </div>
-          </div>
-        )}
-      </Modal>
     </div>
   );
 };

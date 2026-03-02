@@ -14,6 +14,7 @@ const DealFormPage = lazyWithRetry(() => import('@/pages/DealFormPage').then(m =
 const AccountFormPage = lazyWithRetry(() => import('@/pages/AccountFormPage').then(m => ({ default: m.AccountFormPage })));
 const ContactFormPage = lazyWithRetry(() => import('@/pages/ContactFormPage').then(m => ({ default: m.ContactFormPage })));
 const SalesEntryFormPage = lazyWithRetry(() => import('@/pages/SalesEntryFormPage').then(m => ({ default: m.SalesEntryFormPage })));
+const InventoryDetailPage = lazyWithRetry(() => import('@/pages/InventoryDetailPage').then(m => ({ default: m.InventoryDetailPage })));
 
 const LoginGuard = () => {
   const { isAuthenticated, isLoading } = useAuth();
@@ -90,7 +91,12 @@ export const router = createBrowserRouter([
         { path: 'edit/:id', element: <Suspense fallback={null}><DealFormPage /></Suspense> },
         { path: 'view/:id', element: <Suspense fallback={null}><DealFormPage /></Suspense> },
       ]},
-      { path: 'inventory', element: null },
+      { path: 'inventory', children: [
+        { index: true, element: null },
+        { path: 'create', element: <Suspense fallback={null}><InventoryDetailPage /></Suspense> },
+        { path: 'edit/:id', element: <Suspense fallback={null}><InventoryDetailPage /></Suspense> },
+        { path: 'view/:id', element: <Suspense fallback={null}><InventoryDetailPage /></Suspense> },
+      ]},
       { path: 'quote-builder', element: null },
       { path: 'tasks', element: null },
       { path: 'calendar', element: null },
