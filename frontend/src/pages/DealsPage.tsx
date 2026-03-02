@@ -705,9 +705,13 @@ export const DealsPage: React.FC = () => {
     </div>
   );
 
+  const filteredKanbanColumns = filterStage
+    ? KANBAN_COLUMNS.filter(col => col.id === filterStage)
+    : KANBAN_COLUMNS;
+
   const renderPipelineView = () => (
     <KanbanBoard<Deal>
-      columns={KANBAN_COLUMNS}
+      columns={filteredKanbanColumns}
       columnStates={kanban.columnStates}
       counts={kanban.counts}
       renderCard={renderKanbanCard}
