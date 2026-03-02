@@ -92,6 +92,16 @@ export interface Product {
   stock: number;
   isActive: boolean;
   createdAt?: string;
+  updatedAt?: string;
+  ipn?: string;
+  description?: string;
+  partImage?: string;
+  batch?: string;
+  location?: string;
+  stocktake?: string;
+  expiryDate?: string;
+  purchaseOrder?: string;
+  status?: string;
 }
 
 // Partners

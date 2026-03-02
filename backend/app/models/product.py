@@ -1,8 +1,9 @@
 import uuid
 from typing import Optional
 from decimal import Decimal
+from datetime import date
 
-from sqlalchemy import Boolean, Integer, Numeric, String, text
+from sqlalchemy import Boolean, Date, Integer, Numeric, String, Text, text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -23,3 +24,14 @@ class Product(TimestampMixin, Base):
     )
     stock: Mapped[int] = mapped_column(Integer, server_default="0")
     is_active: Mapped[bool] = mapped_column(Boolean, server_default="true")
+
+    # Inventory fields
+    ipn: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    part_image: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    batch: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    location: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    stocktake: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    expiry_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
+    purchase_order: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    status: Mapped[Optional[str]] = mapped_column(String(50), server_default="'OK'")

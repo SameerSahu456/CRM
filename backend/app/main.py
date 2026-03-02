@@ -125,6 +125,17 @@ ALTER TABLE contacts ADD COLUMN IF NOT EXISTS other_city VARCHAR(100);
 ALTER TABLE contacts ADD COLUMN IF NOT EXISTS other_state VARCHAR(100);
 ALTER TABLE contacts ADD COLUMN IF NOT EXISTS other_zip VARCHAR(20);
 ALTER TABLE contacts ADD COLUMN IF NOT EXISTS other_country VARCHAR(100);
+
+-- products inventory fields
+ALTER TABLE products ADD COLUMN IF NOT EXISTS ipn VARCHAR(100);
+ALTER TABLE products ADD COLUMN IF NOT EXISTS description TEXT;
+ALTER TABLE products ADD COLUMN IF NOT EXISTS part_image VARCHAR(500);
+ALTER TABLE products ADD COLUMN IF NOT EXISTS batch VARCHAR(100);
+ALTER TABLE products ADD COLUMN IF NOT EXISTS location VARCHAR(100);
+ALTER TABLE products ADD COLUMN IF NOT EXISTS stocktake VARCHAR(100);
+ALTER TABLE products ADD COLUMN IF NOT EXISTS expiry_date DATE;
+ALTER TABLE products ADD COLUMN IF NOT EXISTS purchase_order VARCHAR(100);
+ALTER TABLE products ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'OK';
 """
 
 
@@ -146,11 +157,19 @@ async def _ensure_schema() -> None:
                     "SELECT 1 FROM information_schema.tables "
                     "WHERE table_name='file_uploads' LIMIT 1"
                 ))
-                if result2.fetchone():
+                # Check if latest product inventory columns exist
+                result3 = await conn.execute(text(
+                    "SELECT 1 FROM information_schema.columns "
+                    "WHERE table_name='products' AND column_name='ipn' LIMIT 1"
+                ))
+                if result2.fetchone() and result3.fetchone():
                     _schema_ensured = True
                     return
-            # Columns missing — run full migration
-            await conn.execute(text(_MIGRATION_SQL))
+            # Columns missing — run statements one by one (asyncpg doesn't support multi-statement)
+            for stmt in _MIGRATION_SQL.split(";"):
+                stmt = stmt.strip()
+                if stmt and not stmt.startswith("--"):
+                    await conn.execute(text(stmt))
         _schema_ensured = True
     except Exception as e:
         print(f"[SCHEMA MIGRATION] Error: {e}")
