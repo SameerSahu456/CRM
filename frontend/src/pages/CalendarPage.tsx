@@ -672,7 +672,7 @@ export const CalendarPage: React.FC = () => {
       <Card padding="none" className="p-4">
         <div className="flex flex-wrap items-center gap-4">
           {EVENT_TYPES.map(t => {
-            const c = EVENT_TYPE_COLORS[t.value];
+            const c = EVENT_TYPE_COLORS[t.value] || EVENT_TYPE_COLORS.Meeting;
             return (
               <div key={t.value} className="flex items-center gap-2">
                 <div className={cx('w-3 h-3 rounded-full', c.dot)} />

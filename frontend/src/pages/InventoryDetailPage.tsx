@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import {
-  ArrowLeft, Edit2, Package, Loader2, AlertCircle,
-  MapPin, Hash, FileText, Calendar, Layers, Truck, Image as ImageIcon
+  ArrowLeft, Package, Loader2, AlertCircle,
+  MapPin, Hash, FileText, Calendar, Layers, Image as ImageIcon
 } from 'lucide-react';
 import { productsApi, formatINR } from '@/services/api';
 import { Product } from '@/types';
@@ -161,11 +161,6 @@ export const InventoryDetailPage: React.FC = () => {
             </p>
           </div>
         </div>
-        {mode === 'view' && (
-          <Button variant="primary" size="sm" onClick={handleEdit} icon={<Edit2 className="w-4 h-4" />}>
-            Edit
-          </Button>
-        )}
       </div>
 
       {error && (
@@ -318,7 +313,6 @@ export const InventoryDetailPage: React.FC = () => {
               <DetailRow icon={<MapPin className="w-3.5 h-3.5" />} label="Location" value={displayProduct.location} highlight />
               <DetailRow icon={<Hash className="w-3.5 h-3.5" />} label="Stocktake" value={displayProduct.stocktake} />
               <DetailRow icon={<Calendar className="w-3.5 h-3.5" />} label="Expiry Date" value={formatDate(displayProduct.expiryDate)} />
-              <DetailRow icon={<Truck className="w-3.5 h-3.5" />} label="Purchase Order" value={displayProduct.purchaseOrder} />
               <DetailRow icon={<Calendar className="w-3.5 h-3.5" />} label="Last Updated" value={formatDate(displayProduct.updatedAt)} />
             </div>
           </Card>

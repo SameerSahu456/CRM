@@ -4,7 +4,8 @@ import {
   DndContext,
   DragOverlay,
   closestCorners,
-  PointerSensor,
+  MouseSensor,
+  TouchSensor,
   useSensor,
   useSensors,
   useDroppable,
@@ -90,6 +91,7 @@ function SortableCard<T extends { id: string }>({
     transform: CSS.Translate.toString(transform),
     transition,
     opacity: isDragging ? 0.2 : 1,
+    touchAction: 'none',
   };
 
   return (
@@ -246,7 +248,8 @@ export function KanbanBoard<T extends { id: string }>({
   const dragStartColumnRef = useRef<string | null>(null);
 
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
+    useSensor(MouseSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 8 } })
   );
 
   const cloneColumnStates = useCallback((source: Record<string, KanbanColumnState<T>>) => {
@@ -283,15 +286,16 @@ export function KanbanBoard<T extends { id: string }>({
     overId: string,
     toCol: string,
     toItems: T[],
-    overRect: { top: number; height: number } | null,
-    pointerY: number | null
+    _overRect: { top: number; height: number } | null,
+    _pointerY: number | null
   ): number => {
+    // When hovering over the column itself (not a card), place at end
     if (overId === toCol) return toItems.length;
+    // When hovering over a specific card, place at that card's index.
+    // Avoids midpoint calculation which causes off-by-one when dragging
+    // to the top of a column.
     const hoveredIndex = toItems.findIndex(i => i.id === overId);
-    if (hoveredIndex === -1) return toItems.length;
-    if (!overRect || pointerY === null) return hoveredIndex;
-    const midY = overRect.top + overRect.height / 2;
-    return pointerY > midY ? hoveredIndex + 1 : hoveredIndex;
+    return hoveredIndex === -1 ? toItems.length : hoveredIndex;
   }, []);
 
   const displayedColumnStates = previewColumnStates ?? columnStates;
@@ -343,13 +347,11 @@ export function KanbanBoard<T extends { id: string }>({
           const items = [...base[fromCol].items];
           const oldIndex = items.findIndex(i => i.id === draggedId);
           if (oldIndex === -1) return base;
-          const targetIndex = Math.max(
-            0,
-            Math.min(
-              getDropIndex(overId, toCol, items, over.rect ?? null, pointerY),
-              items.length - 1
-            )
-          );
+          // For same-column reorder, use the hovered item's index directly.
+          // The midpoint calculation causes misplacement because rects go stale
+          // as the preview state shifts items around.
+          const hoveredIndex = items.findIndex(i => i.id === overId);
+          const targetIndex = hoveredIndex === -1 ? oldIndex : hoveredIndex;
           if (targetIndex === oldIndex) return base;
           base[fromCol] = {
             ...base[fromCol],
