@@ -163,25 +163,31 @@ class AccountService:
         Create an account with an associated contact in a single transaction.
 
         Args:
-            account_data: Account creation data
-            contact_data: Contact creation data
+            account_data: Account creation data (may contain camelCase keys from frontend)
+            contact_data: Contact creation data (may contain camelCase keys from frontend)
             user: Current authenticated user
 
         Returns:
             Created account data
         """
+        from app.schemas.contact_schema import ContactCreate
+
+        # Validate through Pydantic schemas to convert camelCase → snake_case
+        account_dict = AccountCreate(**account_data).model_dump(exclude_unset=True)
+        contact_dict = ContactCreate(**contact_data).model_dump(exclude_unset=True)
+
         # Set owner to current user if not specified
-        if "owner_id" not in account_data or not account_data.get("owner_id"):
-            account_data["owner_id"] = str(user.id)
+        if "owner_id" not in account_dict or not account_dict.get("owner_id"):
+            account_dict["owner_id"] = user.id
 
         # Create account
-        account = await self.account_repo.create(account_data)
+        account = await self.account_repo.create(account_dict)
 
         # Create contact linked to account
-        contact_data["account_id"] = str(account.id)
-        if "owner_id" not in contact_data or not contact_data.get("owner_id"):
-            contact_data["owner_id"] = str(user.id)
-        await self.contact_repo.create(contact_data)
+        contact_dict["account_id"] = account.id
+        if "owner_id" not in contact_dict or not contact_dict.get("owner_id"):
+            contact_dict["owner_id"] = user.id
+        await self.contact_repo.create(contact_dict)
 
         # Log activity
         await log_activity(
